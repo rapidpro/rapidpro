@@ -6319,10 +6319,6 @@ class FlowsTest(FlowFileTest):
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
-        from temba.flows.models import FlowSession
-        for session in FlowSession.objects.all():
-            print (json.dumps(json.loads(session.output), indent=1))
-
     def test_interrupted_state(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
@@ -7205,13 +7201,13 @@ class FlowBatchTest(FlowFileTest):
         flow.start([], contacts)
 
         # ensure 11 flow runs were created
-        self.assertEqual(11, FlowRun.objects.all().count())
+        self.assertEquals(11, FlowRun.objects.all().count())
 
         # ensure 20 outgoing messages were created (2 for each successful run)
-        self.assertEqual(20, Msg.objects.all().exclude(contact=stopped).count())
+        self.assertEquals(20, Msg.objects.all().exclude(contact=stopped).count())
 
         # but only one broadcast
-        self.assertEqual(1, Broadcast.objects.all().count())
+        self.assertEquals(1, Broadcast.objects.all().count())
         broadcast = Broadcast.objects.get()
 
         # make sure it has the right number of messages attached to it

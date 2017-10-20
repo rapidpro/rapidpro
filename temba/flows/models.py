@@ -57,11 +57,6 @@ FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
 
 
-class Event:
-    TYPE_MSG_RECEIVED = 'msg_received'
-    TYPE_SEND_MSG = 'send_msg'
-
-
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
         super(FlowException, self).__init__(*args, **kwargs)
@@ -147,10 +142,10 @@ class FlowSession(models.Model):
 
     contact = models.ForeignKey('contacts.Contact', help_text="The contact that this session is with")
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True, help_text="The status of this session")
-
     connection = models.OneToOneField('channels.ChannelSession', null=True, related_name='session',
                                       help_text=_("The channel connection used for flow sessions over IVR or USSD"))
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True, help_text="The status of this session")
 
     responded = models.BooleanField(default=False, help_text='Whether the contact has responded in this session')
 
@@ -1817,6 +1812,7 @@ class Flow(TembaModel):
             for send_action in send_actions:
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
+
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                                  media=send_action.media,
                                                  base_language=self.base_language,
@@ -2850,7 +2846,7 @@ class FlowRun(models.Model):
         msgs_by_step = defaultdict(list)
 
         for entry in run_log:
-            if entry.event['type'] == Event.TYPE_SEND_MSG:
+            if entry.event['type'] == 'send_msg':
                 msg = self.apply_send_msg(entry.event, msg_in)
                 if msg:
                     # filter our broadcasts by action uuid that generated us
