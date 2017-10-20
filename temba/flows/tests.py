@@ -3330,7 +3330,7 @@ class ActionTest(TembaTest):
 
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name'] + list(URN.VALID_SCHEMES):
+            if word not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(Exception):
                     test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
                     test.value = "Jen"
@@ -5432,7 +5432,7 @@ class FlowsTest(FlowFileTest):
 
         group_names = ['Dog Facts', 'Cat Facts', 'Fish Facts', 'Monkey Facts']
         for name in group_names:
-            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first(), 'Missing group %s' % name)
 
         # trim off our first action which is remove from Dog Facts
         update_json = flow.as_json()
@@ -5454,9 +5454,11 @@ class FlowsTest(FlowFileTest):
         # we should depend on our child flow
         self.assertIsNotNone(flow.flow_dependencies.filter(name='Child Flow').first())
 
-        # remove our subflow call
+        # remove our start flow action
         update_json = flow.as_json()
-        update_json['rule_sets'] = update_json['rule_sets'][:1]
+        actionsets = update_json['action_sets']
+        actionsets[-1]['actions'] = actionsets[-1]['actions'][0:-1]
+        update_json['action_sets'] = actionsets
         flow.update(update_json)
 
         # now we no longer depend on it
@@ -5484,8 +5486,9 @@ class FlowsTest(FlowFileTest):
             for action in actions:
                 if action['type'] in ('add_group', 'del_group'):
                     for group in action['groups']:
-                        group_count += 1
-                        self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
+                        if isinstance(group, dict):
+                            group_count += 1
+                            self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
 
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
@@ -5539,7 +5542,6 @@ class FlowsTest(FlowFileTest):
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
-
         self.contact.name = "Ben Haggerty"
         self.contact.save()
 
@@ -5594,7 +5596,6 @@ class FlowsTest(FlowFileTest):
     def test_mother_registration(self):
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
         self.assertEqual(mother_flow.runs.count(), 0)
 
         self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
@@ -5669,8 +5670,77 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_delete_with_dependencies(self):
         self.login(self.admin)
+
         self.get_flow('dependencies')
+        self.get_flow('dependencies_voice')
+        parent = Flow.objects.filter(name='Dependencies').first()
         child = Flow.objects.filter(name='Child Flow').first()
+        voice = Flow.objects.filter(name='Voice Dependencies').first()
+
+        contact_fields = (
+            {'key': 'contact_age', 'label': 'Contact Age'},
+
+            # fields based on parent and child references
+            {'key': 'top'},
+            {'key': 'bottom'},
+
+            # replies
+            {'key': 'chw'},
+
+            # url attachemnts
+            {'key': 'attachment'},
+
+            # dynamic groups
+            {'key': 'cat_breed', 'label': 'Cat Breed'},
+            {'key': 'organization'},
+
+            # sending messages
+            {'key': 'recipient'},
+            {'key': 'message'},
+
+            # sending emails
+            {'key': 'email_message', 'label': 'Email Message'},
+            {'key': 'subject'},
+
+            # trigger someone else
+            {'key': 'other_phone', 'label': 'Other Phone'},
+
+            # rules and localizations
+            {'key': 'rule'},
+            {'key': 'french_rule', 'label': 'French Rule'},
+            {'key': 'french_age', 'label': 'French Age'},
+            {'key': 'french_fries', 'label': 'French Fries'},
+
+            # updating contacts
+            {'key': 'favorite_cat', 'label': 'Favorite Cat'},
+            {'key': 'next_cat_fact', 'label': 'Next Cat Fact'},
+            {'key': 'last_cat_fact', 'label': 'Last Cat Fact'},
+
+            # webhook urls
+            {'key': 'webhook'},
+
+            # expression splits
+            {'key': 'expression_split', 'label': 'Expression Split'},
+
+            # voice says
+            {'key': 'play_message', 'label': 'Play Message', 'flow': voice},
+            {'key': 'voice_rule', 'label': 'Voice Rule', 'flow': voice},
+
+            # voice plays (recordings)
+            {'key': 'voice_recording', 'label': 'Voice Recording', 'flow': voice}
+        )
+
+        for field_spec in contact_fields:
+            key = field_spec.get('key')
+            label = field_spec.get('label', key.capitalize())
+            flow = field_spec.get('flow', parent)
+
+            # make sure our field exists after import
+            field = ContactField.objects.filter(key=key, label=label).first()
+            self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, label))
+
+            # and our flow is dependent on us
+            self.assertIsNotNone(flow.field_dependencies.filter(key__in=[key]).first(), "Flow is missing dependency on %s (%s)" % (key, label))
 
         # deleting should fail since the 'Dependencies' flow depends on us
         self.client.post(reverse('flows.flow_delete', args=[child.id]))

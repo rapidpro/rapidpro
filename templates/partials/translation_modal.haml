@@ -17,12 +17,13 @@
               -trans "[[language.name]] [[translation.name]]"
             .translate-text.translate-from{ng-show:"translation.from"}
               [[translation.from]]
+            -include 'partials/invalid_fields.haml'                
             %label
               .large{ng-if:'!translation.input'}
                 %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
               .small{ng-if:'translation.input'}
                 %input{ng-model:"translation.to", type:"text", auto-complete:"",class:"translation"}
-
+          
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"

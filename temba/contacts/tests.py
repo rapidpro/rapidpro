@@ -4058,6 +4058,56 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, 'first')
         self.assertNotContains(response, 'Second')
 
+    def test_delete_with_flow_dependency(self):
+        self.login(self.admin)
+        self.get_flow('dependencies')
+
+        # flow = Flow.objects.filter(name='Dependencies').first()
+        manage_fields_url = reverse('contacts.contactfield_managefields')
+        response = self.client.get(manage_fields_url)
+
+        # prep our post_data from the form in our response
+        post_data = dict()
+        for id, field in response.context['form'].fields.items():
+            if field.initial is None:
+                post_data[id] = ''
+            elif isinstance(field.initial, ContactField):
+                post_data[id] = field.initial.pk
+            else:
+                post_data[id] = field.initial
+
+        # find our favorite_cat contact field
+        favorite_cat = None
+        for key, value in six.iteritems(post_data):
+            if value == 'Favorite Cat':
+                favorite_cat = key
+        self.assertIsNotNone(favorite_cat)
+
+        # try deleting favorite_cat, should not work since our flow depends on it
+        before = ContactField.objects.filter(org=self.org, is_active=True).count()
+
+        # make sure we can't delete it directly
+        with self.assertRaises(Exception):
+            ContactField.hide_field(self.org, self.admin, 'favorite_cat')
+
+        # or through the ui
+        post_data[favorite_cat] = ''
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(before, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertFormError(response, 'form', None, 'The field "Favorite Cat" cannot be removed while it is still used in the flow "Dependencies"')
+
+        # remove it from our list of dependencies
+        from temba.flows.models import Flow
+        flow = Flow.objects.filter(name='Dependencies').first()
+        flow.field_dependencies.clear()
+
+        # now we should be successful
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertEquals(response.status_code, 200)
+        self.assertTrue('form' not in response.context)
+        self.assertEquals(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
+
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 

@@ -1,0 +1,10 @@
+:css
+    .alert {
+      margin-bottom: 10px;
+      margin-top: 10px;
+    }
+.alert.alert-error.invalid-fields{ng-if:'invalidFields.length > 1'}
+    The contact fields [[oxford(invalidFields, true)]] are not valid.
+
+.alert.alert-error.invalid-fields{ng-if:'invalidFields.length == 1'}
+    The contact field [[oxford(invalidFields, true)]] is not valid.
