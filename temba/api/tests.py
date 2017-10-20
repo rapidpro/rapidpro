@@ -257,6 +257,7 @@ class WebHookTest(TembaTest):
         result = WebHookResult.objects.get()
         self.assertIn("successfully", result.message)
         self.assertEquals(200, result.status_code)
+        self.assertEqual(self.joe, result.contact)
 
         self.assertTrue(mock_send.called)
 

@@ -2248,40 +2248,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_shaqodoon(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_shaqodoon'))
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['url'] = 'http://test.com/send.php'
-        post_data['number'] = '301'
-
-        response = self.client.post(reverse('channels.channel_claim_shaqodoon'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('SO', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_SHAQODOON, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
-
     def test_zenvia(self):
         Channel.objects.all().delete()
 
@@ -7738,6 +7704,8 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, flow.runs.all().count())
+        self.assertTrue(ChannelEvent.objects.filter(channel=channel, contact=contact,
+                                                    event_type=ChannelEvent.TYPE_FOLLOW))
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
@@ -7772,6 +7740,14 @@ class MageHandlerTest(TembaTest):
         # check contact count updated
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
+
+        # simulate the follow of a released channel
+        channel_events_count = ChannelEvent.objects.filter(channel=channel).count()
+        channel.release()
+
+        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
+        self.assertEqual(200, response.status_code)
+        self.assertEquals(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])
