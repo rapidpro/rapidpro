@@ -1871,12 +1871,6 @@ class Label(TembaModel):
         if label:
             return label
 
-        labels_count = Label.label_objects.filter(org=org, is_active=True).count()
-        if labels_count >= Label.MAX_ORG_LABELS:
-            raise ValueError("This org has %s labels and the limit is %s. "
-                             "You must delete existing ones before you can "
-                             "create new ones." % (labels_count, Label.MAX_ORG_LABELS))
-
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
@@ -1889,12 +1883,6 @@ class Label(TembaModel):
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:  # pragma: needs cover
             return folder
-
-        folders_count = Label.folder_objects.filter(org=org, is_active=True).count()
-        if folders_count >= Label.MAX_ORG_FOLDERS:
-            raise ValueError("This org has %s contact fields and the limit is %s. "
-                             "You must delete existing ones before you can "
-                             "create new ones." % (folders_count, Label.MAX_ORG_FOLDERS))
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)
