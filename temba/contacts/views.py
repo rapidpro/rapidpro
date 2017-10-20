@@ -589,9 +589,10 @@ class ContactCRUDL(SmartCRUDL):
             def clean(self):
                 groups_count = ContactGroup.user_groups.filter(org=self.org).count()
                 if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-                    raise forms.ValidationError("This org has %s groups and the limit is %s. "
-                                                "You must delete existing ones before you can "
-                                                "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
+                    raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                                  "You must delete existing ones before you can "
+                                                  "create new ones." % (groups_count,
+                                                                        ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
                 return self.cleaned_data
 
