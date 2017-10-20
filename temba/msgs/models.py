@@ -1466,8 +1466,11 @@ class Msg(models.Model):
             for counter, reply in enumerate(quick_replies):
                 (text, errors) = Msg.substitute_variables(reply, message_context, contact=contact, org=org)
                 if text:
-                    channel_type = Channel.get_type_from_code(channel.channel_type)
-                    quick_replies[counter] = text[:channel_type.quick_reply_text_size]
+                    if contact.is_test:
+                        quick_replies[counter] = text
+                    else:
+                        channel_type = Channel.get_type_from_code(channel.channel_type)
+                        quick_replies[counter] = text[:channel_type.quick_reply_text_size]
 
         return json.dumps(metadata)
 
