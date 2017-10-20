@@ -240,7 +240,7 @@ class Flow(TembaModel):
     group_dependencies = models.ManyToManyField(ContactGroup, related_name='dependent_flows', verbose_name=_("Group Dependencies"), blank=True,
                                                 help_text=_("Any groups this flow uses"))
 
-    field_dependencies = models.ManyToManyField(ContactField, related_name='dependent_fields', verbose_name=_(''), blank=True,
+    field_dependencies = models.ManyToManyField(ContactField, related_name='dependent_flows', verbose_name=_(''), blank=True,
                                                 help_text=('Any fields this flow depends on'))
 
     @classmethod
