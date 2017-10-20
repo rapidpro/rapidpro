@@ -398,6 +398,16 @@ class MsgTest(TembaTest):
         self.assertEquals(2, broadcast.recipients.all().count())
         self.assertEquals(3, broadcast.msgs.all().count())
 
+        contact3 = self.create_contact('Leandro', '+12078778877', is_test=True)
+        ContactURN.get_or_create(self.org, contact3, 'tel:+12078778877')
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact3], send_all=True,
+                                     metadata=[dict(eng='Yes'), dict(eng='No')])
+        partial_recipients = list(), Contact.objects.filter(pk=contact3.pk)
+        broadcast.send(True, partial_recipients=partial_recipients,
+                       metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
+        self.assertTrue(broadcast.metadata)
+        self.assertEquals(1, broadcast.msgs.all().count())
+
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
 

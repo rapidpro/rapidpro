@@ -2711,6 +2711,13 @@ class FlowTest(TembaTest):
         runs = flow.start_msg_flow([self.contact3.id, self.contact4.id])
         self.assertEquals(2, len(runs))
 
+        contact_test = self.create_contact('Teeh', '+250788123457', language='por', is_test=True)
+        flow.start([], [contact_test])
+        self.assertTrue(FlowRun.objects.filter(contact=contact_test))
+
+        runs = flow.start_msg_flow([contact_test.id])
+        self.assertEquals(1, len(runs))
+
     def test_multiple(self):
         self.flow.start([], [self.contact])
 
