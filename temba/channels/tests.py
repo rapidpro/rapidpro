@@ -10866,13 +10866,6 @@ class CourierTest(TembaTest):
             self.assertTrue(msg4.high_priority)  # explicitly high
             self.assertTrue(msg5.high_priority)
 
-            # TODO remove numeric priority
-            self.assertEqual(msg1.priority, 100)
-            self.assertEqual(msg2.priority, 100)
-            self.assertEqual(msg3.priority, 100)
-            self.assertEqual(msg4.priority, 500)
-            self.assertEqual(msg5.priority, 500)
-
             # check against redis
             r = get_redis_connection()
 

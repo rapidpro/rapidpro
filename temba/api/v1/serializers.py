@@ -446,10 +446,12 @@ class ContactFieldWriteSerializer(WriteSerializer):
             if not ContactField.is_valid_key(key):
                 raise serializers.ValidationError(_("Generated key for '%s' is invalid or a reserved name") % label)
 
-        if not self.instance and ContactField.objects.filter(org=self.org).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
-            raise serializers.ValidationError('You have reached %s contact fields, '
-                                              'please remove some contact fields to be able '
-                                              'to create new contact fields' % ContactField.MAX_ORG_CONTACTFIELDS)
+        fields_count = ContactField.objects.filter(org=self.org).count()
+        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError('This org has %s contact fields and the limit is %s. '
+                                              'You must delete existing ones before '
+                                              'you can create new ones.' % (fields_count,
+                                                                            ContactField.MAX_ORG_CONTACTFIELDS))
 
         data['key'] = key
         return data
