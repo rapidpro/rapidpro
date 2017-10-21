@@ -4,7 +4,7 @@ v3.0.221
 
 v3.0.220
 ----------
- * Remove no longer used Msg.priority
+ * Remove no longer used Msg.priority (requires latest Mage)
 
 v3.0.219
 ----------
