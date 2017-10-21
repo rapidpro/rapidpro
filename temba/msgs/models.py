@@ -671,9 +671,6 @@ class Msg(models.Model):
     text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=500, null=True,
-                                   help_text=_("The priority for this message to be sent, higher is higher priority"))
-
     high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
 
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
@@ -766,10 +763,6 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    # TODO remove numeric priority from msg JSON
-                    if not hasattr(msg, 'high_priority') and hasattr(msg, 'priority'):  # pragma: no cover
-                        msg.high_priority = msg.priority >= 500
-
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
                         if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
                             courier_msgs.append(msg)
@@ -805,7 +798,6 @@ class Msg(models.Model):
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                    is_bulk=not task_msgs[0].high_priority,  # TODO remove
                                                     high_priority=task_msgs[0].high_priority))
                         task_msgs = []
 
@@ -816,7 +808,6 @@ class Msg(models.Model):
                 # push any remaining courier msgs
                 if task_msgs:
                     courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                is_bulk=not task_msgs[0].high_priority,  # TODO remove
                                                 high_priority=task_msgs[0].high_priority))
 
         # send our batches
@@ -831,12 +822,7 @@ class Msg(models.Model):
     @classmethod
     def _send_courier_msg_batches(cls, batches):
         for batch in batches:
-            high_priority = batch.get('high_priority')
-            if high_priority is None:  # pragma: no cover
-                # TODO remove
-                high_priority = not batch['is_bulk']
-
-            push_courier_msgs(batch['channel'], batch['msgs'], high_priority)
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['high_priority'])
 
     @classmethod
     def process_message(cls, msg):
@@ -1263,9 +1249,6 @@ class Msg(models.Model):
         """
         Used internally to serialize to JSON when queueing messages in Redis
         """
-        # TODO remove numeric priority from msg JSON
-        priority = 500 if self.high_priority else 100
-
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
@@ -1274,7 +1257,7 @@ class Msg(models.Model):
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on,
-                    high_priority=self.high_priority, priority=priority,
+                    high_priority=self.high_priority,
                     connection_id=self.connection_id)
 
         if self.contact_urn.auth:
@@ -1544,7 +1527,6 @@ class Msg(models.Model):
                         broadcast=broadcast,
                         response_to=response_to,
                         msg_type=msg_type,
-                        priority=500 if high_priority else 100,
                         high_priority=high_priority,
                         attachments=evaluated_attachments,
                         connection=connection,
