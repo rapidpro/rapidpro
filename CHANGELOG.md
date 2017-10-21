@@ -1,3 +1,16 @@
+v3.0.220
+----------
+ * Remove no longer used Msg.priority
+
+v3.0.219
+----------
+ * Create channel event only for active channels
+ * Limit SMS Central channel type to the Kathmandu timezone
+ * Create fields from expressions on import
+ * Flow dependencies for fields, groups, and flows
+ * Dynamic channels: Start
+ * Dynamic channels: SMS Central
+
 v3.0.218
 ----------
  * Delete simulation messages in batch of 25 to use the response_to index

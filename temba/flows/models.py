@@ -41,6 +41,7 @@ from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, a
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
+from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
@@ -233,6 +234,15 @@ class Flow(TembaModel):
 
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
                                          help_text=_("The flow version this definition is in"))
+
+    flow_dependencies = models.ManyToManyField('Flow', related_name='dependent_flows', verbose_name=("Flow Dependencies"), blank=True,
+                                               help_text=_("Any flows this flow uses"))
+
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name='dependent_flows', verbose_name=_("Group Dependencies"), blank=True,
+                                                help_text=_("Any groups this flow uses"))
+
+    field_dependencies = models.ManyToManyField(ContactField, related_name='dependent_flows', verbose_name=_(''), blank=True,
+                                                help_text=('Any fields this flow depends on'))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
@@ -917,6 +927,9 @@ class Flow(TembaModel):
         from temba.triggers.models import Trigger
         for trigger in Trigger.objects.filter(flow=self, is_active=True):
             trigger.release()
+
+        self.group_dependencies.clear()
+        self.flow_dependencies.clear()
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
@@ -2414,6 +2427,8 @@ class Flow(TembaModel):
                                   spec_version=CURRENT_EXPORT_VERSION,
                                   revision=revision)
 
+            self.update_dependencies()
+
             return dict(status="success", description="Flow Saved",
                         saved_on=datetime_to_str(self.saved_on), revision=revision)
 
@@ -2425,6 +2440,107 @@ class Flow(TembaModel):
             import traceback
             traceback.print_exc(e)
             raise e
+
+    def update_dependencies(self):
+
+        # need to make sure we have the latest version
+        self.ensure_current_version()
+
+        groups = set()
+        flows = set()
+
+        collector = ContactFieldCollector()
+
+        # find any references in our actions
+        fields = set()
+        for actionset in self.action_sets.all():
+            for action in actionset.get_actions():
+                if action.TYPE in (AddToGroupAction.TYPE, DeleteFromGroupAction.TYPE):
+                    # iterate over them so we can type crack to ignore expression strings :(
+                    for group in action.groups:
+                        if isinstance(group, ContactGroup):
+                            groups.add(group)
+                        else:
+                            # group names can be an expression
+                            fields.update(collector.get_contact_fields(group))
+
+                if action.TYPE == TriggerFlowAction.TYPE:
+                    flows.add(action.flow)
+                    for recipient in action.variables:
+                        fields.update(collector.get_contact_fields(recipient))
+
+                if action.TYPE in ('reply', 'send', 'say'):
+                    for lang, msg in six.iteritems(action.msg):
+                        fields.update(collector.get_contact_fields(msg))
+
+                    if hasattr(action, 'media'):
+                        for lang, text in six.iteritems(action.media):
+                            fields.update(collector.get_contact_fields(text))
+
+                    if hasattr(action, 'variables'):
+                        for recipient in action.variables:
+                            fields.update(collector.get_contact_fields(recipient))
+
+                if action.TYPE == 'email':
+                    fields.update(collector.get_contact_fields(action.subject))
+                    fields.update(collector.get_contact_fields(action.message))
+
+                if action.TYPE == 'save':
+                    fields.add(action.field)
+                    fields.update(collector.get_contact_fields(action.value))
+
+                # voice recordings
+                if action.TYPE == 'play':
+                    fields.update(collector.get_contact_fields(action.url))
+
+        # find references in our rulesets
+        for ruleset in self.rule_sets.all():
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                flow = Flow.objects.filter(org=self.org, uuid=flow_uuid).first()
+                if flow:
+                    flows.add(flow)
+            elif ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
+                webhook_url = json.loads(ruleset.config).get('webhook')
+                fields.update(collector.get_contact_fields(webhook_url))
+            else:
+                # check our operand for expressions
+                fields.update(collector.get_contact_fields(ruleset.operand))
+
+                # check all the rules and their localizations
+                rules = ruleset.get_rules()
+
+                for rule in rules:
+                    if hasattr(rule.test, 'test'):
+                        if type(rule.test.test) == dict:
+                            for lang, text in six.iteritems(rule.test.test):
+                                fields.update(collector.get_contact_fields(text))
+                        # voice rules are not localized
+                        elif isinstance(rule.test.test, six.string_types):
+                            fields.update(collector.get_contact_fields(rule.test.test))
+                    if isinstance(rule.test, InGroupTest):
+                        groups.add(rule.test.group)
+
+        if len(fields):
+            existing = ContactField.objects.filter(org=self.org, key__in=fields).values_list('key')
+
+            # create any field that doesn't already exist
+            for field in fields:
+                if ContactField.is_valid_key(field) and field not in existing:
+                    # reverse slug to get a reasonable label
+                    label = ' '.join([word.capitalize() for word in field.split('_')])
+                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+
+        fields = ContactField.objects.filter(org=self.org, key__in=fields)
+
+        self.group_dependencies.clear()
+        self.group_dependencies.add(*groups)
+
+        self.flow_dependencies.clear()
+        self.flow_dependencies.add(*flows)
+
+        self.field_dependencies.clear()
+        self.field_dependencies.add(*fields)
 
     def __str__(self):
         return self.name
