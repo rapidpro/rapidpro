@@ -1,3 +1,8 @@
+v3.0.222
+----------
+ * Only show errors in UI when org level limits of groups etc are exceeded 
+ * Improve error messages when org reaches limit of groups etc
+
 v3.0.221
 ----------
  * Add indexes for retying webhook events
