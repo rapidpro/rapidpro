@@ -1,3 +1,7 @@
+v3.0.220
+----------
+ * Remove no longer used Msg.priority
+
 v3.0.219
 ----------
  * Create channel event only for active channels
