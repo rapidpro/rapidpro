@@ -4410,6 +4410,9 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))
         self.assertFalse(URN.validate("mailto:@@@"))
 
+        # viber urn
+        self.assertTrue(URN.validate("viber:dKPvqVrLerGrZw15qTuVBQ=="))
+
         # facebook and telegram URN paths must be integers
         self.assertTrue(URN.validate("telegram:12345678901234567"))
         self.assertFalse(URN.validate("telegram:abcdef"))
