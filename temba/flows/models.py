@@ -9,7 +9,6 @@ import regex
 import six
 import time
 import urllib2
-import uuid
 
 from collections import OrderedDict, defaultdict
 from datetime import timedelta
@@ -2561,7 +2560,7 @@ class FlowRun(models.Model):
 
     INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
 
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
@@ -4769,6 +4768,9 @@ class Action(object):
 
     __action_mapping = None
 
+    def __init__(self, uuid):
+        self.uuid = uuid if uuid else str(uuid4())
+
     @classmethod
     def from_json(cls, org, json_obj):
         if not cls.__action_mapping:
@@ -4808,13 +4810,6 @@ class Action(object):
                 actions.append(action)
         return actions
 
-    @classmethod
-    def get_uuid(cls, json_obj):
-        uuid = json_obj.get(Action.UUID, None)
-        if uuid:
-            return uuid
-        return six.text_type(uuid4())
-
 
 class EmailAction(Action):
     """
@@ -4826,10 +4821,11 @@ class EmailAction(Action):
     MESSAGE = 'msg'
 
     def __init__(self, uuid, emails, subject, message):
+        super(EmailAction, self).__init__(uuid)
+
         if not emails:
             raise FlowException("Email actions require at least one recipient")
 
-        self.uuid = uuid
         self.emails = emails
         self.subject = subject
         self.message = message
@@ -4839,10 +4835,10 @@ class EmailAction(Action):
         emails = json_obj.get(EmailAction.EMAILS)
         message = json_obj.get(EmailAction.MESSAGE)
         subject = json_obj.get(EmailAction.SUBJECT)
-        return EmailAction(cls.get_uuid(json_obj), emails, subject, message)
+        return EmailAction(json_obj.get(cls.UUID), emails, subject, message)
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=EmailAction.TYPE, emails=self.emails, subject=self.subject, msg=self.message)
+        return dict(type=EmailAction.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from .tasks import send_email_action_task
@@ -4891,18 +4887,21 @@ class WebhookAction(Action):
     ACTION = 'action'
 
     def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
-        self.uuid = uuid
+        super(WebhookAction, self).__init__(uuid)
+
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return WebhookAction(cls.get_uuid(json_obj), json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'),
+        return WebhookAction(json_obj.get(cls.UUID),
+                             json_obj.get('webhook', org.get_webhook_url()),
+                             json_obj.get('action', 'POST'),
                              json_obj.get('webhook_headers', []))
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=WebhookAction.TYPE, webhook=self.webhook, action=self.action,
+        return dict(type=WebhookAction.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
                     webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
@@ -4929,16 +4928,15 @@ class AddToGroupAction(Action):
     TYPE = 'add_group'
     GROUP = 'group'
     GROUPS = 'groups'
-    UUID = 'uuid'
-    NAME = 'name'
 
     def __init__(self, uuid, groups):
-        self.uuid = uuid
+        super(AddToGroupAction, self).__init__(uuid)
+
         self.groups = groups
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return AddToGroupAction(cls.get_uuid(json_obj), AddToGroupAction.get_groups(org, json_obj))
+        return AddToGroupAction(json_obj.get(cls.UUID), AddToGroupAction.get_groups(org, json_obj))
 
     @classmethod
     def get_groups(cls, org, json_obj):
@@ -4954,8 +4952,8 @@ class AddToGroupAction(Action):
 
         for g in group_data:
             if isinstance(g, dict):
-                group_uuid = g.get(AddToGroupAction.UUID, None)
-                group_name = g.get(AddToGroupAction.NAME)
+                group_uuid = g.get('uuid', None)
+                group_name = g.get('name')
 
                 group = ContactGroup.get_or_create(org, org.created_by, group_name, group_uuid)
                 groups.append(group)
@@ -4978,7 +4976,7 @@ class AddToGroupAction(Action):
             else:
                 groups.append(g)
 
-        return dict(uuid=self.uuid, type=self.get_type(), groups=groups)
+        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
 
     def get_type(self):
         return AddToGroupAction.TYPE
@@ -5042,11 +5040,11 @@ class DeleteFromGroupAction(AddToGroupAction):
             else:
                 groups.append(g)
 
-        return dict(uuid=self.uuid, type=self.get_type(), groups=groups)
+        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return DeleteFromGroupAction(cls.get_uuid(json_obj), DeleteFromGroupAction.get_groups(org, json_obj))
+        return DeleteFromGroupAction(json_obj.get(cls.UUID), DeleteFromGroupAction.get_groups(org, json_obj))
 
     def execute(self, run, context, actionset, msg, offline_on=None):
         if len(self.groups) == 0:
@@ -5070,11 +5068,10 @@ class AddLabelAction(Action):
     """
     TYPE = 'add_label'
     LABELS = 'labels'
-    UUID = 'uuid'
-    NAME = 'name'
 
     def __init__(self, uuid, labels):
-        self.uuid = uuid
+        super(AddLabelAction, self).__init__(uuid)
+
         self.labels = labels
 
     @classmethod
@@ -5084,8 +5081,8 @@ class AddLabelAction(Action):
         labels = []
         for label_data in labels_data:
             if isinstance(label_data, dict):
-                label_uuid = label_data.get(AddLabelAction.UUID, None)
-                label_name = label_data.get(AddLabelAction.NAME)
+                label_uuid = label_data.get('uuid', None)
+                label_name = label_data.get('name')
 
                 if label_uuid and Label.label_objects.filter(org=org, uuid=label_uuid).first():
                     label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
@@ -5103,7 +5100,7 @@ class AddLabelAction(Action):
             else:  # pragma: needs cover
                 raise ValueError("Label data must be a dict or string")
 
-        return AddLabelAction(cls.get_uuid(json_obj), labels)
+        return AddLabelAction(json_obj.get(cls.UUID), labels)
 
     def as_json(self):
         labels = []
@@ -5113,7 +5110,7 @@ class AddLabelAction(Action):
             else:
                 labels.append(action_label)
 
-        return dict(uuid=self.uuid, type=self.get_type(), labels=labels)
+        return dict(type=self.get_type(), uuid=self.uuid, labels=labels)
 
     def get_type(self):
         return AddLabelAction.TYPE
@@ -5151,19 +5148,19 @@ class SayAction(Action):
     RECORDING = 'recording'
 
     def __init__(self, uuid, msg, recording):
-        self.uuid = uuid
+        super(SayAction, self).__init__(uuid)
+
         self.msg = msg
         self.recording = recording
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return SayAction(cls.get_uuid(json_obj),
-                         json_obj.get(SayAction.MESSAGE),
-                         json_obj.get(SayAction.RECORDING))
+        return SayAction(json_obj.get(cls.UUID),
+                         json_obj.get(cls.MESSAGE),
+                         json_obj.get(cls.RECORDING))
 
     def as_json(self):
-        return dict(type=SayAction.TYPE, msg=self.msg,
-                    uuid=self.uuid, recording=self.recording)
+        return dict(type=SayAction.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
 
@@ -5204,15 +5201,16 @@ class PlayAction(Action):
     URL = 'url'
 
     def __init__(self, uuid, url):
-        self.uuid = uuid
+        super(PlayAction, self).__init__(uuid)
+
         self.url = url
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return PlayAction(cls.get_uuid(json_obj), json_obj.get(PlayAction.URL))
+        return PlayAction(json_obj.get(cls.UUID), json_obj.get(cls.URL))
 
     def as_json(self):
-        return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
+        return dict(type=PlayAction.TYPE, uuid=self.uuid, url=self.url)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
         (media, errors) = Msg.substitute_variables(self.url, context)
@@ -5240,7 +5238,8 @@ class ReplyAction(Action):
     SEND_ALL = 'send_all'
 
     def __init__(self, uuid, msg=None, media=None, send_all=False):
-        self.uuid = uuid
+        super(ReplyAction, self).__init__(uuid)
+
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
@@ -5258,11 +5257,11 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return cls(uuid=cls.get_uuid(json_obj), msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+        return cls(json_obj.get(cls.UUID), msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
@@ -5325,8 +5324,9 @@ class UssdAction(ReplyAction):
     TYPE_WAIT_USSD = 'wait_ussd'
     MSG_TYPE = MSG_TYPE_USSD
 
-    def __init__(self, uuid=None, msg=None, base_language=None, languages=None, primary_language=None):
+    def __init__(self, uuid, msg=None, base_language=None, languages=None, primary_language=None):
         super(UssdAction, self).__init__(uuid, msg)
+
         self.languages = languages
         if msg and base_language and primary_language:
             self.base_language = base_language if base_language in msg else primary_language
@@ -5396,11 +5396,11 @@ class VariableContactAction(Action):
     VARIABLES = 'variables'
     PHONE = 'phone'
     NAME = 'name'
-    UUID = 'uuid'
     ID = 'id'
 
     def __init__(self, uuid, groups, contacts, variables):
-        self.uuid = uuid
+        super(VariableContactAction, self).__init__(uuid)
+
         self.groups = groups
         self.contacts = contacts
         self.variables = variables
@@ -5498,8 +5498,9 @@ class TriggerFlowAction(VariableContactAction):
     TYPE = 'trigger-flow'
 
     def __init__(self, uuid, flow, groups, contacts, variables):
-        self.flow = flow
         super(TriggerFlowAction, self).__init__(uuid, groups, contacts, variables)
+
+        self.flow = flow
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5515,14 +5516,14 @@ class TriggerFlowAction(VariableContactAction):
         groups = VariableContactAction.parse_groups(org, json_obj)
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
-
-        return TriggerFlowAction(cls.get_uuid(json_obj), flow, groups, contacts, variables)
+        return TriggerFlowAction(json_obj.get(cls.UUID), flow, groups, contacts, variables)
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(uuid=self.uuid, type=TriggerFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
+
+        return dict(type=TriggerFlowAction.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
@@ -5571,16 +5572,17 @@ class SetLanguageAction(Action):
     NAME = 'name'
 
     def __init__(self, uuid, lang, name):
-        self.uuid = uuid
+        super(SetLanguageAction, self).__init__(uuid)
+
         self.lang = lang
         self.name = name
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return SetLanguageAction(cls.get_uuid(json_obj), json_obj.get(cls.LANG), json_obj.get(cls.NAME))
+        return SetLanguageAction(json_obj.get(cls.UUID), json_obj.get(cls.LANG), json_obj.get(cls.NAME))
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
+        return dict(type=SetLanguageAction.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
 
@@ -5610,16 +5612,16 @@ class StartFlowAction(Action):
     TYPE = 'flow'
     FLOW = 'flow'
     NAME = 'name'
-    UUID = 'uuid'
 
     def __init__(self, uuid, flow):
-        self.uuid = uuid
+        super(StartFlowAction, self).__init__(uuid)
+
         self.flow = flow
 
     @classmethod
     def from_json(cls, org, json_obj):
         flow_obj = json_obj.get(cls.FLOW)
-        flow_uuid = flow_obj.get(cls.UUID)
+        flow_uuid = flow_obj.get('uuid')
 
         flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
 
@@ -5627,10 +5629,10 @@ class StartFlowAction(Action):
         if not flow:
             return None
         else:
-            return StartFlowAction(cls.get_uuid(json_obj), flow)
+            return StartFlowAction(json_obj.get(cls.UUID), flow)
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
+        return dict(type=StartFlowAction.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, context, actionset_uuid, msg, started_flows, offline_on=None):
         msgs = []
@@ -5675,7 +5677,8 @@ class SaveToContactAction(Action):
     VALUE = 'value'
 
     def __init__(self, uuid, label, field, value):
-        self.uuid = uuid
+        super(SaveToContactAction, self).__init__(uuid)
+
         self.label = label
         self.field = field
         self.value = value
@@ -5718,10 +5721,10 @@ class SaveToContactAction(Action):
         # look up our label
         label = cls.get_label(org, field, label)
 
-        return SaveToContactAction(cls.get_uuid(json_obj), label, field, value)
+        return SaveToContactAction(json_obj.get(cls.UUID), label, field, value)
 
     def as_json(self):
-        return dict(uuid=self.uuid, type=SaveToContactAction.TYPE, label=self.label, field=self.field, value=self.value)
+        return dict(type=SaveToContactAction.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         # evaluate our value
@@ -5812,9 +5815,9 @@ class SetChannelAction(Action):
     NAME = 'name'
 
     def __init__(self, uuid, channel):
-        self.uuid = uuid
+        super(SetChannelAction, self).__init__(uuid)
+
         self.channel = channel
-        super(Action, self).__init__()
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5824,12 +5827,12 @@ class SetChannelAction(Action):
             channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
         else:  # pragma: needs cover
             channel = None
-        return SetChannelAction(cls.get_uuid(json_obj), channel)
+        return SetChannelAction(json_obj.get(cls.UUID), channel)
 
     def as_json(self):
         channel_uuid = self.channel.uuid if self.channel else None
         channel_name = "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display()) if self.channel else None
-        return dict(uuid=self.uuid, type=SetChannelAction.TYPE, channel=channel_uuid, name=channel_name)
+        return dict(type=SetChannelAction.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
@@ -5859,9 +5862,10 @@ class SendAction(VariableContactAction):
     MEDIA = 'media'
 
     def __init__(self, uuid, msg, groups, contacts, variables, media=None):
+        super(SendAction, self).__init__(uuid, groups, contacts, variables)
+
         self.msg = msg
         self.media = media if media else {}
-        super(SendAction, self).__init__(uuid, groups, contacts, variables)
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5869,14 +5873,15 @@ class SendAction(VariableContactAction):
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(cls.get_uuid(json_obj), json_obj.get(SendAction.MESSAGE), groups, contacts, variables,
-                          json_obj.get(SendAction.MEDIA, None))
+        return SendAction(json_obj.get(cls.UUID), json_obj.get(cls.MESSAGE), groups, contacts, variables,
+                          json_obj.get(cls.MEDIA, None))
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(uuid=self.uuid, type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables,
+        return dict(type=SendAction.TYPE, uuid=self.uuid, msg=self.msg,
+                    contacts=contact_ids, groups=group_ids, variables=variables,
                     media=self.media)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
