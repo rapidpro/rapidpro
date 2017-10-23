@@ -11,7 +11,7 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
-def migrate_to_version_11(json_flow, flow):
+def migrate_to_version_10_1(json_flow, flow):
     """
     Ensures all actions have uuids
     """

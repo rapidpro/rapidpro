@@ -6564,19 +6564,34 @@ class FlowsTest(FlowFileTest):
 
 class FlowMigrationTest(FlowFileTest):
 
+    def test_is_before_version(self):
+
+        # works with numbers
+        self.assertTrue(Flow.is_before_version(5, 6))
+
+        self.assertTrue(Flow.is_before_version("10", "10.1"))
+        self.assertFalse(Flow.is_before_version("10", "9"))
+
+        # unknown versions return false
+        self.assertFalse(Flow.is_before_version("3.1", "5"))
+        self.assertFalse(Flow.is_before_version("200", "5"))
+        self.assertFalse(Flow.is_before_version("3.1", "3.5"))
+
+        self.assertFalse(Flow.is_before_version(CURRENT_EXPORT_VERSION, 10))
+
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
         flow_json = flow.as_json()
-        if flow.version_number <= 6:
+        if Flow.is_before_version(flow.version_number, "6"):
             revision = flow.revisions.all().order_by('-revision').first()
             flow_json = dict(definition=flow_json, flow_type=flow.flow_type,
                              expires=flow.expires_after_minutes, id=flow.pk,
                              revision=revision.revision if revision else 1)
 
-        flow_json = FlowRevision.migrate_definition(flow_json, flow, flow.version_number, to_version=to_version)
+        flow_json = FlowRevision.migrate_definition(flow_json, flow, to_version=to_version)
         if 'definition' in flow_json:
             flow_json = flow_json['definition']
 
@@ -6684,7 +6699,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
 
-    def test_migrate_to_11(self):
+    def test_migrate_to_10_1(self):
         favorites = self.get_flow('favorites')
 
         # make sure all of our actions have uuids set
@@ -6696,13 +6711,12 @@ class FlowMigrationTest(FlowFileTest):
         exported = favorites.as_json()
         flow = Flow.objects.filter(name='Favorites').first()
         self.assertEqual(exported, flow.as_json())
-        self.assertTrue(flow.version_number >= 11)
+        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow('dual_webhook')
-
         self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
         # get our definition out
@@ -6939,42 +6953,14 @@ class FlowMigrationTest(FlowFileTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_5(self):
-        flow = self.get_flow('favorites')
+        flow = self.get_flow('favorites_v4')
 
-        # start the flow for our contact
-        flow.start(groups=[], contacts=[self.contact])
-
-        # we should be sitting at the ruleset waiting for a message
-        step = FlowStep.objects.get(run__flow=flow, step_type='R')
-        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
-        self.assertEqual('wait_message', ruleset.ruleset_type)
-
-        # fake a version 4 flow
-        RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
-        flow.version_number = 4
-        flow.save()
-
-        # pretend our current ruleset was stopped at a webhook with a passive rule
-        ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
-        ruleset.webhook_url = 'http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D'
-        ruleset.webhook_action = 'POST'
-        ruleset.operand = '@extra.value'
-        ruleset.save()
-
-        # make beer use @step.value with a filter to test node creation
-        beer_ruleset = RuleSet.objects.get(flow=flow, label='Beer')
-        beer_ruleset.operand = '@step.value|lower_case'
-        beer_ruleset.save()
-
-        # now migrate our flow
-        flow = self.migrate_flow(flow)
-
-        # we should be sitting at a wait node
-        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        # first node should be a wait node
+        ruleset = RuleSet.objects.filter(label='Color Response').first()
         self.assertEqual('wait_message', ruleset.ruleset_type)
         self.assertEqual('@step.value', ruleset.operand)
 
-        # we should be pointing to a newly created webhook rule
+        # we should now be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEqual('webhook', webhook.ruleset_type)
         self.assertEqual('http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
@@ -7007,16 +6993,18 @@ class FlowMigrationTest(FlowFileTest):
         expression.operand = '@step.value'
         expression.save()
 
-        # now move our straggler forward with a message, should get a reply
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status": "valid" }')
 
-        first_response = ActionSet.objects.get(flow=flow, x=131)
-        actions = first_response.get_actions_dict()
-        actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
-        first_response.set_actions_dict(actions)
-        first_response.save()
+            # now try executing our migrated flow
+            first_response = ActionSet.objects.get(flow=flow, x=131)
+            actions = first_response.get_actions_dict()
+            actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
+            first_response.set_actions_dict(actions)
+            first_response.save()
 
-        reply = self.send_message(flow, 'red')
-        self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
+            reply = self.send_message(flow, 'red')
+            self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
 
         reply = self.send_message(flow, 'Turbo King')
         self.assertEqual('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
@@ -7319,6 +7307,8 @@ class SendActionTest(FlowFileTest):
         flow = Flow.objects.create(org=self.org, name="Import Flow", created_by=self.admin, modified_by=self.admin, saved_by=self.admin)
         revision = FlowRevision.objects.create(flow=flow, definition=json.dumps(exported_json), spec_version=8, revision=1,
                                                created_by=self.admin, modified_by=self.admin)
+        flow.version_number = 8
+        flow.save()
 
         migrated = revision.get_definition_json()
 
