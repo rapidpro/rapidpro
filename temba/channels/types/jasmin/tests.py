@@ -32,18 +32,18 @@ class JasminTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('UG', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals('JS', channel.channel_type)
+        self.assertEqual('UG', channel.country)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['url'], channel.config_json()['send_url'])
+        self.assertEqual('+250788123123', channel.address)
+        self.assertEqual('JS', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.js', args=[channel.uuid, 'receive']))
 
@@ -62,9 +62,9 @@ class JasminTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('UG', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals('20050', channel.address)
-        self.assertEquals('JS', channel.channel_type)
+        self.assertEqual('UG', channel.country)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['url'], channel.config_json()['send_url'])
+        self.assertEqual('20050', channel.address)
+        self.assertEqual('JS', channel.channel_type)
