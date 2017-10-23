@@ -510,8 +510,7 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=["tel:+250788123123"],
-                                            channel=self.channel)
+            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=["tel:+250788123123"], channel=self.channel)
             self.assertTrue(broadcast.text, {'base': "I am success"})
             self.assertTrue(contact, broadcast.contacts.all())
 
@@ -575,8 +574,7 @@ class WebHookTest(TembaTest):
             response = self.client.get(reverse('api.log'))
             self.assertRedirect(response, reverse('users.user_login'))
 
-            response = self.client.get(
-                reverse('api.log_read', args=[event.pk]))
+            response = self.client.get(reverse('api.log_read', args=[event.pk]))
             self.assertRedirect(response, reverse('users.user_login'))
 
             WebHookEvent.objects.all().delete()

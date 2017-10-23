@@ -2836,9 +2836,6 @@ class ActionTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
-        # arbitrary uuid to use for our actions
-        self.uuid = '3a5af012-9cb8-4b68-9324-6383d0d10457'
-
     def execute_action(self, action, run, msg, **kwargs):
         context = run.flow.build_expressions_context(run.contact, msg)
         return action.execute(run, context, None, msg, **kwargs)
