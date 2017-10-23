@@ -28,7 +28,7 @@ class Hub9TypeTest(TembaTest):
 
         # try to claim a channel
         response = self.client.get(url)
-        self.assertEquals(response.context['view'].get_country({}), 'Indonesia')
+        self.assertEqual(response.context['view'].get_country({}), 'Indonesia')
 
         post_data = response.context['form'].initial
 
@@ -41,18 +41,18 @@ class Hub9TypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('ID', channel.country)
+        self.assertEqual('ID', channel.country)
         self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('H9', channel.channel_type)
+        self.assertEqual(post_data['number'], channel.address)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('H9', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.h9', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.h9', args=[channel.uuid, 'delivered']))
