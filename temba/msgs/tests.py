@@ -384,7 +384,7 @@ class MsgTest(TembaTest):
         broadcast.send(True, partial_recipients=partial_recipients, metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
 
         self.assertTrue(broadcast.metadata)
-        self.assertEquals(3, broadcast.msgs.all().count())
+        self.assertEqual(3, broadcast.msgs.all().count())
 
         # should not create a broadcast recipient if a similar one exists
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
@@ -395,8 +395,8 @@ class MsgTest(TembaTest):
         partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
         broadcast.send(True, partial_recipients=partial_recipients, metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
 
-        self.assertEquals(2, broadcast.recipients.all().count())
-        self.assertEquals(3, broadcast.msgs.all().count())
+        self.assertEqual(2, broadcast.recipients.all().count())
+        self.assertEqual(3, broadcast.msgs.all().count())
 
         contact3 = self.create_contact('Leandro', '+12078778877', is_test=True)
         ContactURN.get_or_create(self.org, contact3, 'tel:+12078778877')
@@ -406,7 +406,7 @@ class MsgTest(TembaTest):
         broadcast.send(True, partial_recipients=partial_recipients,
                        metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
         self.assertTrue(broadcast.metadata)
-        self.assertEquals(1, broadcast.msgs.all().count())
+        self.assertEqual(1, broadcast.msgs.all().count())
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
