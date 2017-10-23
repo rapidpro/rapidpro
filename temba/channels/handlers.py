@@ -455,7 +455,7 @@ class ZenviaHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_ZENVIA).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ZV').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -602,14 +602,14 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
-    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>received)$'
+    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
     courier_name = 'courier.yo'
 
     handler_url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.yo_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_YO
+        return 'YO'
 
 
 class TelegramHandler(BaseChannelHandler):
