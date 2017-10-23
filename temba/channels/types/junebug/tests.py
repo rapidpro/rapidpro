@@ -17,7 +17,7 @@ class JunebugTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         post_data = {
             "country": "ZA",
@@ -31,19 +31,19 @@ class JunebugTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, 'JN')
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+        self.assertEqual(channel.country, post_data['country'])
+        self.assertEqual(channel.address, post_data['number'])
+        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
+        self.assertEqual(channel.config_json()['username'], post_data['username'])
+        self.assertEqual(channel.config_json()['password'], post_data['password'])
+        self.assertEqual(channel.channel_type, 'JN')
+        self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
 
@@ -51,7 +51,7 @@ class JunebugTypeTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         post_data = {
             "country": "ZA",
@@ -66,19 +66,19 @@ class JunebugTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.secret, post_data['secret'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, 'JN')
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+        self.assertEqual(channel.country, post_data['country'])
+        self.assertEqual(channel.address, post_data['number'])
+        self.assertEqual(channel.secret, post_data['secret'])
+        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
+        self.assertEqual(channel.config_json()['username'], post_data['username'])
+        self.assertEqual(channel.config_json()['password'], post_data['password'])
+        self.assertEqual(channel.channel_type, 'JN')
+        self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))

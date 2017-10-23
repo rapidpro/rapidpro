@@ -37,17 +37,17 @@ class HighConnectionTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('FR', channel.country)
+        self.assertEqual('FR', channel.country)
         self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('HX', channel.channel_type)
+        self.assertEqual(post_data['number'], channel.address)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('HX', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.hx', args=[channel.uuid, 'receive']))
