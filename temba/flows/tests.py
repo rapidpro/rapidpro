@@ -7304,10 +7304,11 @@ class SendActionTest(FlowFileTest):
         exported_json = json.loads(self.get_import_json('bad_send_action', substitutions))
 
         # create a flow object, we just need this to test our flow revision
-        flow = Flow.objects.create(org=self.org, name="Import Flow", created_by=self.admin, modified_by=self.admin, saved_by=self.admin)
-        revision = FlowRevision.objects.create(flow=flow, definition=json.dumps(exported_json), spec_version=8, revision=1,
-                                               created_by=self.admin, modified_by=self.admin)
-        flow.version_number = 8
+        flow = Flow.objects.create(org=self.org, name="Import Flow", created_by=self.admin, modified_by=self.admin,
+                                   saved_by=self.admin)
+        revision = FlowRevision.objects.create(flow=flow, definition=json.dumps(exported_json), spec_version='8',
+                                               revision=1, created_by=self.admin, modified_by=self.admin)
+        flow.version_number = '8'
         flow.save()
 
         migrated = revision.get_definition_json()

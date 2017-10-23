@@ -3642,10 +3642,9 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        ruleset_def = dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
-                           finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                           operand=self.operand, config=self.config_json())
-        return ruleset_def
+        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
+                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
+                    operand=self.operand, config=self.config_json())
 
     def __str__(self):
         if self.label:
@@ -3786,31 +3785,21 @@ class FlowRevision(SmartModel):
 
     @classmethod
     def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
+        from temba.flows import flow_migrations
+
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
-        from temba.flows import flow_migrations
-        versions = Flow.get_versions_after(version)
-        for version in versions:
-            parts = version.split(".")
-            migrate_fn = None
-            if len(parts) > 1:
-                (major, minor) = parts
-                migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%s_%s' % (major, minor), None)
-            else:
-                migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%s' % (version), None)
+        for version in Flow.get_versions_after(version):
+            version_slug = version.replace(".", "_")
+            migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%s' % version_slug, None)
 
             if migrate_fn:
                 exported_json = migrate_fn(exported_json, org, same_site)
             else:
                 flows = []
                 for json_flow in exported_json.get('flows', []):
-                    migrate_fn = None
-                    if len(parts) > 1:
-                        (major, minor) = parts
-                        migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s_%s' % (major, minor), None)
-                    else:
-                        migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % (version), None)
+                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
@@ -3824,20 +3813,14 @@ class FlowRevision(SmartModel):
 
     @classmethod
     def migrate_definition(cls, json_flow, flow, to_version=None):
+        from temba.flows import flow_migrations
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
-        versions = flow.get_newer_versions()
-        from temba.flows import flow_migrations
-        for version in versions:
-            parts = version.split(".")
-            migrate_fn = None
-            if len(parts) > 1:
-                (major, minor) = parts
-                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s_%s' % (major, minor), None)
-            else:
-                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % (version), None)
+        for version in flow.get_newer_versions():
+            version_slug = version.replace(".", "_")
+            migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
