@@ -7747,7 +7747,7 @@ class MageHandlerTest(TembaTest):
 
         response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
         self.assertEqual(200, response.status_code)
-        self.assertEquals(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
+        self.assertEqual(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])

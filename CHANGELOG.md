@@ -1,3 +1,7 @@
+v3.0.224
+----------
+ * Remove duplicate excellent includes (only keep compressed version)
+
 v3.0.222
 ----------
  * Only show errors in UI when org level limits of groups etc are exceeded 
