@@ -2,6 +2,12 @@
 -load smartmin sms contacts
 -load i18n humanize
 
+-block page-title
+  -if current_group
+    {{current_group.name}}
+  -else
+    {{title}}
+  
 -block page-top
   {% render as page_top %}
     {{block.super}}

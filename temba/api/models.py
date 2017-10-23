@@ -347,7 +347,12 @@ class WebHookEvent(SmartModel):
 
             request_time = (time.time() - start) * 1000
 
+            contact = None
+            if webhook_event.run:
+                contact = webhook_event.run.contact
+
             result = WebHookResult.objects.create(event=webhook_event,
+                                                  contact=contact,
                                                   url=webhook_url,
                                                   status_code=status_code,
                                                   body=body,
@@ -584,8 +589,9 @@ class WebHookResult(SmartModel):
                                help_text="A message describing the result, error messages go here")
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
-
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
+    contact = models.ForeignKey('contacts.Contact', null=True, related_name='webhook_results',
+                                help_text="The contact that generated this result")
 
     @classmethod
     def record_result(cls, event, result):

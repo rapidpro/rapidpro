@@ -5,6 +5,9 @@
 
 -block buttons
 
+-block page-title
+  {{contact|name_or_urn:user_org}}
+
 -block title
   -if contact.is_blocked
     <div class="medium-help icon-user-block" style="float:left" title="{% trans "blocked" %}"></div>

@@ -78,7 +78,7 @@ def send_custom_smtp_email(recipients, subject, body, from_email, smtp_host, smt
     :param smtp_password: SMTP password
     :param use_tls: Whether to use TLS
     """
-    recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
+    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     if smtp_port is not None:
         smtp_port = int(smtp_port)

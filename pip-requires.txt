@@ -68,6 +68,7 @@ unidecode
 ########################## testing ##########################
 coverage
 flake8
+flake8-deprecated
 flake8-print
 mock
 responses
