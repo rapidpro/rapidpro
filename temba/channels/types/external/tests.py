@@ -49,10 +49,10 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
-        self.assertContains(response, reverse('handlers.external_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['delivered', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('courier.ex', args=[channel.uuid, 'sent']))
+        self.assertContains(response, reverse('courier.ex', args=[channel.uuid, 'delivered']))
+        self.assertContains(response, reverse('courier.ex', args=[channel.uuid, 'failed']))
+        self.assertContains(response, reverse('courier.ex', args=[channel.uuid, 'receive']))
 
         # test substitution in our url
         self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',

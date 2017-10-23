@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from temba.channels.models import ChannelSession, Channel, ChannelLog
+from temba.channels.models import ChannelSession, Channel, ChannelLog, ChannelType
 from temba.utils import on_transaction_commit
 
 
@@ -117,8 +117,9 @@ class IVRCall(ChannelSession):
         from temba.flows.models import FlowRun, ActionLog
 
         previous_status = self.status
+        ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
 
-        if channel_type in Channel.TWIML_CHANNELS:
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
             if status == 'queued':
                 self.status = self.QUEUED
             elif status == 'ringing':
@@ -142,7 +143,7 @@ class IVRCall(ChannelSession):
             elif status == 'canceled':
                 self.status = self.CANCELED
 
-        elif channel_type in Channel.NCCO_CHANNELS:
+        elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
             if status in ('ringing', 'started'):
                 self.status = self.RINGING
             elif status == 'answered':

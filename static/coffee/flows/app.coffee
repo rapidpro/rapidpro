@@ -30,6 +30,38 @@ app.config [ '$compileProvider', '$interpolateProvider' , ($compileProvider, $in
   # $compileProvider.debugInfoEnabled false
 ]
 
+app.run ($rootScope, Flow, utils) ->
+
+  $rootScope.oxford = (parts, quotes=false) ->
+    result = ""
+    if parts
+      parts = utils.clone(parts)
+
+      if quotes
+        for part of parts
+          parts[part] = '"' + parts[part] + '"'
+      
+      last = parts.pop()
+      result = parts.join(', ') 
+      
+      if parts.length > 1
+        result += ','
+
+      if parts.length > 0
+        result += ' and '
+      
+      result += last
+    return result
+  
+  $rootScope.hasInvalidFields = (inputs) ->
+    # find invalid field reference in any of our inputs
+    completion = new AutoComplete(Flow.completions)
+    for input in inputs
+      completion.findInvalidFields(input)
+
+    # set our invalid fields on our local scope
+    this.invalidFields = completion.getInvalidFields()
+    return this.invalidFields.length > 0
 
 angular.module('template/modal/backdrop.html', []).run [
   '$templateCache'

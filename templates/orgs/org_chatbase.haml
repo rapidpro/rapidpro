@@ -14,13 +14,14 @@
     -trans "Connected to Chatbase Account"
     <b>{{chatbase_agent_name}}</b>.
   -else
-    -trans "No Chatbase account connected."
+    -trans "Connect your Chatbase account"
 
 -block pre-form
   -if not object.get_chatbase_credentials.0
     -blocktrans
-      Adding a Chatbase account will allow you to analyse and receive suggestions for how to “improve” bot experiences
-      to make them better for users. To signup for an account, visit
+      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences
+      and better understand your users. 
+      To signup for an account, visit
     <a target='_new' href='https://chatbase.com'>Chatbase</a>.
     %hr
 
@@ -33,14 +34,14 @@
 -block post-form
   -if object.get_chatbase_credentials.0 and request.META.HTTP_X_FORMAX
     %p
-      -trans "Your account is connected to the Chatbase account"
+      -trans "Your Chatbase account is connected to the Agent"
       {{chatbase_agent_name}}.
 
     %p
       -trans "If you no longer want it connected, you can"
       %a{href:'javascript:confirmChatbaseDisconnect();'}
         -trans "disconnect"
-      -trans "your Chatbase account. Doing so will interrupt the data sent to Chatbase service."
+      -trans "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
 
     .disconnect-chatbase.hide
       .title

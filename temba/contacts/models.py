@@ -25,10 +25,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
+from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
+from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
 
 
@@ -329,6 +330,7 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
+    MAX_ORG_CONTACTFIELDS = 200
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -363,6 +365,10 @@ class ContactField(SmartModel):
     def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
+            from temba.flows.models import Flow
+            if Flow.objects.filter(field_dependencies__in=[existing]).exists():
+                raise ValueError("Cannot delete field '%s' while used in flows." % key)
+
             existing.is_active = False
             existing.show_in_table = False
             existing.modified_by = user
@@ -457,6 +463,7 @@ class ContactField(SmartModel):
 
 
 NEW_CONTACT_VARIABLE = "@new_contact"
+MAX_HISTORY = 50
 
 
 @six.python_2_unicode_compatible
@@ -486,12 +493,13 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    CONTACT_UUID = 'contact uuid'
     GROUPS = 'groups'
     ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
@@ -562,12 +570,12 @@ class Contact(TembaModel):
         from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).order_by('-created_on').select_related('channel').prefetch_related('channel_logs')[:MAX_HISTORY]
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
-        recipients = recipients.select_related('broadcast')
+        recipients = recipients.order_by('-broadcast__created_on').select_related('broadcast')[:MAX_HISTORY]
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
@@ -579,37 +587,40 @@ class Contact(TembaModel):
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        runs = runs.select_related('flow')
+        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        started_runs = started_runs.order_by('-created_on').select_related('flow')[:MAX_HISTORY]
+
+        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        exited_runs = exited_runs.exclude(exit_type=None).order_by('-created_on').select_related('flow')[:MAX_HISTORY]
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
-        channel_events = channel_events.select_related('channel')
+        channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.select_related('event__campaign')
+        event_fires = event_fires.order_by('-event__created_on').select_related('event__campaign')[:MAX_HISTORY]
 
-        webhook_result = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, event__run__contact=self)
-        webhook_result = webhook_result.select_related('event')
+        webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
+        webhook_results = webhook_results.order_by('-created_on').select_related('event')[:MAX_HISTORY]
 
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
             IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
-        calls = calls.select_related('channel')
+        calls = calls.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         # wrap items, chain and sort by time
         activity = chain(
             [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
             [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
-            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in runs],
-            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
+            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in started_runs],
+            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in exited_runs],
             [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
             [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
-            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_result],
+            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_results],
             [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
         )
 
-        return sorted(activity, key=lambda i: i['time'], reverse=True)
+        return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
     def get_field(self, key):
         """
@@ -689,8 +700,12 @@ class Contact(TembaModel):
         field = ContactField.get_or_create(self.org, user, key, label)
 
         existing = None
+        has_changed = False
+
         if value is None or value == '':
+            # setting a blank value is equivalent to removing the value
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
+            has_changed = True
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -718,46 +733,52 @@ class Contact(TembaModel):
             else:
                 loc_value = None
 
+            category = loc_value.name if loc_value else None
+
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
 
-            # update it if it exists
             if existing:
-                existing.string_value = str_value
-                existing.decimal_value = dec_value
-                existing.datetime_value = dt_value
-                existing.location_value = loc_value
+                # only update the existing value if it will be different
+                if existing.string_value != str_value \
+                        or existing.decimal_value != dec_value \
+                        or existing.datetime_value != dt_value \
+                        or existing.location_value != loc_value \
+                        or existing.category != category:
 
-                if loc_value:
-                    existing.category = loc_value.name
-                else:
-                    existing.category = None
+                    existing.string_value = str_value
+                    existing.decimal_value = dec_value
+                    existing.datetime_value = dt_value
+                    existing.location_value = loc_value
+                    existing.category = category
 
-                existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category', 'modified_on'])
+                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
+                                                 'location_value', 'category', 'modified_on'])
+                    has_changed = True
 
                 # remove any others on the same field that may exist
                 Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
 
             # otherwise, create a new value for it
             else:
-                category = loc_value.name if loc_value else None
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
                                                 string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
+                has_changed = True
 
-        # cache
+        # cache this field value
         self.set_cached_field_value(key, existing)
 
-        self.modified_by = user
-        self.save(update_fields=('modified_by', 'modified_on'))
+        if has_changed:
+            self.modified_by = user
+            self.save(update_fields=('modified_by', 'modified_on'))
 
-        # update any groups or campaigns for this contact if not importing
-        if not importing:
-            self.handle_update(field=field)
+            # update any groups or campaigns for this contact if not importing
+            if not importing:
+                self.handle_update(field=field)
 
-        # invalidate our value cache for this contact field
-        Value.invalidate_cache(contact_field=field)
+            # invalidate our value cache for this contact field
+            Value.invalidate_cache(contact_field=field)
 
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
@@ -1040,7 +1061,11 @@ class Contact(TembaModel):
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
         is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop('uuid', None)
+        uuid = field_dict.pop('contact uuid', None)
+
+        # for backward compatibility
+        if uuid is None:
+            uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
         urns = []
@@ -1101,7 +1126,7 @@ class Contact(TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided" % ", ".join(possible_urn_headers)
+            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
 
             raise SmartImportRowError(error_str)
 
@@ -1217,12 +1242,12 @@ class Contact(TembaModel):
 
         capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
 
-        if 'uuid' in headers:
+        if 'uuid' in headers or 'contact uuid' in headers:
             return
 
         if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'should be included.' % capitalized_possible_headers))
+                                     'or "Contact UUID" should be included.' % capitalized_possible_headers))
 
         if 'name' not in headers:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
@@ -1608,9 +1633,8 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
-                                                         .exclude(contact_field__is_active=False)\
-                                                         .select_related('contact_field')
+        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
+        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
 
         # get all the values for this contact
         contact_values = {v.contact_field.key: v for v in field_values}
@@ -1853,7 +1877,7 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, connection=None,
-             attachments=None, msg_type=None, created_on=None, all_urns=False):
+             attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
@@ -1866,10 +1890,10 @@ class Contact(TembaModel):
         msgs = []
         for recipient in recipients:
             try:
-                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
-                                          created_on=created_on)
+                                          created_on=created_on, high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
             except UnreachableException:
@@ -1897,7 +1921,7 @@ class ContactURN(models.Model):
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {
@@ -2102,6 +2126,7 @@ class UserContactGroupManager(models.Manager):
 @six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
+    MAX_ORG_CONTACTGROUPS = 250
 
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
@@ -2452,7 +2477,7 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         # anon orgs also get an ID column that is just the PK

@@ -6,7 +6,7 @@ import time
 
 from django.conf import settings
 from django.db import connection, reset_queries
-from temba.utils import truncate
+from temba.utils.text import truncate
 from timeit import default_timer
 
 MAX_QUERIES_PRINT = 16

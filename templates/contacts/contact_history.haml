@@ -42,9 +42,16 @@
       -elif item.type == 'channel-event'
         -with item.obj as event
           -if event.event_type == 'mt_miss'
-            Missed call
+            -trans "Missed call"
+          -elif event.event_type == 'new_conversation'
+            -trans "Started Conversation"
+          -elif event.event_type == 'referral'
+            -trans "Referred"
+          -elif event.event_type == 'follow'
+            -trans "Followed"
           -else
-            Phone call ({{event.duration|format_seconds}})
+            -trans "Phone call"
+            ({{event.extra_json.duration|format_seconds}})
 
       -elif item.type == 'call'
         -with item.obj as call
@@ -100,8 +107,7 @@
               %a{href:"{%url 'api.log_read' event.id %}"}
                 .icon-docs-2
 
-
--if has_older and not recent
+-if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 

@@ -164,14 +164,21 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
         # break out our media if we have some
         action._media = null
+        action._attachURL = null
+
         if action.media and action.media[iso_code]
           parts = action.media[iso_code].split(/:(.+)/)
 
           if parts.length >= 2
-            action._media =
-              mime: parts[0]
-              url:  window.mediaURL + parts[1]
-              type: parts[0].split('/')[0]
+            mime_parts = parts[0].split('/')
+            if mime_parts.length > 1
+              action._media =
+                mime: parts[0]
+                url:  window.mediaURL + parts[1]
+                type: mime_parts[0]
+            else
+              action._attachURL = parts[1]
+              action._attachType = mime_parts[0]
 
         if action._translation is undefined
           action._translation = action.msg[baseLanguage]

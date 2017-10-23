@@ -83,6 +83,10 @@ def handle_new_message(org, msg):
     # set the preferred channel for this contact
     msg.contact.set_preferred_channel(msg.channel)
 
+    # if this contact is stopped, unstop them
+    if msg.contact.is_stopped:
+        msg.contact.unstop(msg.channel.created_by)
+
     analytics.gauge('temba.msg_incoming_%s' % msg.channel.channel_type.lower())
 
 
