@@ -478,7 +478,7 @@ class FlowFileTest(TembaTest):
         response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
-        self.assertEquals(message, response.text)
+        self.assertEqual(message, response.text)
 
     def send(self, message, contact=None):
         if not contact:
@@ -526,7 +526,7 @@ class FlowFileTest(TembaTest):
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
-                    self.assertEquals(contact, replies.first().contact)
+                    self.assertEqual(contact, replies.first().contact)
                     return replies.first().text
 
                 # if it's more than one, send back a list of replies

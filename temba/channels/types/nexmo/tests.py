@@ -158,7 +158,7 @@ class NexmoTypeTest(TembaTest):
                 response = self.client.post(update_url, updated)
                 channel = Channel.objects.get(pk=channel.id)
 
-                self.assertEquals('MTN', channel.address)
+                self.assertEqual('MTN', channel.address)
 
                 # add a canada number
                 nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
@@ -181,7 +181,7 @@ class NexmoTypeTest(TembaTest):
 
                 config_url = reverse('channels.channel_configuration', args=[channel.pk])
                 response = self.client.get(config_url)
-                self.assertEquals(200, response.status_code)
+                self.assertEqual(200, response.status_code)
 
                 self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'receive']))
                 self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'status']))
