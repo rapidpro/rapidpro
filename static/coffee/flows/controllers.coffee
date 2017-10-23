@@ -1995,6 +1995,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
+  $scope.saveStopContact = () ->
+    $scope.action.type = 'stop_contact'
+    $scope.action.value = true
+
+    Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
   # Save the updating of a contact
   $scope.saveUpdateContact = (field, value) ->
 
