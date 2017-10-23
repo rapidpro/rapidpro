@@ -165,8 +165,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
 
     def remap_group(ele):
         from temba.contacts.models import ContactGroup
-        return replace_with_uuid(
-            ele, ContactGroup.user_groups, group_id_map, create_dict=True)
+        return replace_with_uuid(ele, ContactGroup.user_groups, group_id_map, create_dict=True)
 
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign
@@ -341,8 +340,7 @@ def migrate_to_version_6(json_flow, flow=None):
                 # betweens haven't always required a category name, create one
                 rule_test = rule['test']
                 if rule_test['type'] == 'between' and 'category' not in rule:
-                    rule['category'] = '%s-%s' % (rule_test['min'],
-                                                  rule_test['max'])
+                    rule['category'] = '%s-%s' % (rule_test['min'], rule_test['max'])
 
                 # convert the category name
                 convert_to_dict(rule, 'category')

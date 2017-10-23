@@ -4838,7 +4838,7 @@ class EmailAction(Action):
         return cls(json_obj.get(cls.UUID), emails, subject, message)
 
     def as_json(self):
-        return dict(type=EmailAction.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
+        return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from .tasks import send_email_action_task
@@ -4901,7 +4901,7 @@ class WebhookAction(Action):
                    json_obj.get('webhook_headers', []))
 
     def as_json(self):
-        return dict(type=WebhookAction.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
                     webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
@@ -5158,7 +5158,7 @@ class SayAction(Action):
         return cls(json_obj.get(cls.UUID), json_obj.get(cls.MESSAGE), json_obj.get(cls.RECORDING))
 
     def as_json(self):
-        return dict(type=SayAction.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
 
@@ -5208,7 +5208,7 @@ class PlayAction(Action):
         return cls(json_obj.get(cls.UUID), json_obj.get(cls.URL))
 
     def as_json(self):
-        return dict(type=PlayAction.TYPE, uuid=self.uuid, url=self.url)
+        return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
         (media, errors) = Msg.substitute_variables(self.url, context)
@@ -5513,6 +5513,7 @@ class TriggerFlowAction(VariableContactAction):
         groups = VariableContactAction.parse_groups(org, json_obj)
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
+
         return cls(json_obj.get(cls.UUID), flow, groups, contacts, variables)
 
     def as_json(self):
@@ -5520,7 +5521,7 @@ class TriggerFlowAction(VariableContactAction):
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
 
-        return dict(type=TriggerFlowAction.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
+        return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
@@ -5579,7 +5580,7 @@ class SetLanguageAction(Action):
         return cls(json_obj.get(cls.UUID), json_obj.get(cls.LANG), json_obj.get(cls.NAME))
 
     def as_json(self):
-        return dict(type=SetLanguageAction.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
+        return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
 
@@ -5629,7 +5630,7 @@ class StartFlowAction(Action):
             return cls(json_obj.get(cls.UUID), flow)
 
     def as_json(self):
-        return dict(type=StartFlowAction.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
+        return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, context, actionset_uuid, msg, started_flows, offline_on=None):
         msgs = []
@@ -5721,7 +5722,7 @@ class SaveToContactAction(Action):
         return cls(json_obj.get(cls.UUID), label, field, value)
 
     def as_json(self):
-        return dict(type=SaveToContactAction.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
+        return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         # evaluate our value
@@ -5829,7 +5830,7 @@ class SetChannelAction(Action):
     def as_json(self):
         channel_uuid = self.channel.uuid if self.channel else None
         channel_name = "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display()) if self.channel else None
-        return dict(type=SetChannelAction.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
+        return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
@@ -5877,7 +5878,7 @@ class SendAction(VariableContactAction):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=SendAction.TYPE, uuid=self.uuid, msg=self.msg,
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg,
                     contacts=contact_ids, groups=group_ids, variables=variables,
                     media=self.media)
 
