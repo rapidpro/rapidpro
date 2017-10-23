@@ -412,12 +412,12 @@ class ContactGroupTest(TembaTest):
 
         # can't delete if it is a dependency
         response = self.client.post(delete_url, dict())
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
         self.assertTrue(ContactGroup.user_groups.get(id=cats.id).is_active)
 
         # get the dependency details
         response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Dependencies")
 
         # remove it from our list of dependencies
@@ -4126,8 +4126,8 @@ class ContactFieldTest(TembaTest):
         # or through the ui
         post_data[favorite_cat] = ''
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(before, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(before, ContactField.objects.filter(org=self.org, is_active=True).count())
         self.assertFormError(response, 'form', None, 'The field "Favorite Cat" cannot be removed while it is still used in the flow "Dependencies"')
 
         # remove it from our list of dependencies
@@ -4137,9 +4137,9 @@ class ContactFieldTest(TembaTest):
 
         # now we should be successful
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTrue('form' not in response.context)
-        self.assertEquals(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
