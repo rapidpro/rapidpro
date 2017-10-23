@@ -13,22 +13,22 @@ class ReportTest(TembaTest):
         create_url = reverse('reports.report_create')
 
         response = self.client.get(create_url)
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.get(create_url, follow=True)
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.ruleset_analytics'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.request['PATH_INFO'], reverse('flows.ruleset_analytics'))
 
         response = self.client.post(create_url, {"title": "first report", "description": "some description", "config": "{}"})
-        self.assertEquals(response.json()['status'], "error")
+        self.assertEqual(response.json()['status'], "error")
         self.assertFalse('report' in response.json())
 
         response = self.client.post(create_url, data='{"title":"first report", "description":"some description", "config":""}', content_type='application/json')
-        self.assertEquals(response.json()['status'], "success")
+        self.assertEqual(response.json()['status'], "success")
         self.assertTrue('report' in response.json())
         self.assertTrue('id' in response.json()['report'])
         report = Report.objects.get()
-        self.assertEquals(report.pk, response.json()['report']['id'])
+        self.assertEqual(report.pk, response.json()['report']['id'])
 
     def test_report_model(self):
         Report.create_report(self.org, self.admin, dict(title="first", description="blah blah text",

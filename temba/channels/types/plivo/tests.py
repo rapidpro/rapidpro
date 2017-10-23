@@ -66,10 +66,10 @@ class PlivoTypeTest(TembaTest):
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-                self.assertEquals(channel.config_json(), {Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
-                                                          Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                                                          Channel.CONFIG_PLIVO_APP_ID: 'app-id'})
-                self.assertEquals(channel.address, "+16062681435")
+                self.assertEqual(channel.config_json(), {Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
+                                                         Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
+                                                         Channel.CONFIG_PLIVO_APP_ID: 'app-id'})
+                self.assertEqual(channel.address, "+16062681435")
                 # no more credential in the session
                 self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                 self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
@@ -110,12 +110,12 @@ class PlivoTypeTest(TembaTest):
 
                         # make sure it is actually connected
                         channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEquals(channel.config_json(), {
+                        self.assertEqual(channel.config_json(), {
                             Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                             Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
                             Channel.CONFIG_PLIVO_APP_ID: 'app-id'
                         })
-                        self.assertEquals(channel.address, "+16062681440")
+                        self.assertEqual(channel.address, "+16062681440")
                         # no more credential in the session
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
