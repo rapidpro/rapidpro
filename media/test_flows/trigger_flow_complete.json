@@ -1,0 +1,90 @@
+{
+  "campaigns": [],
+  "version": 10,
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": null,
+          "uuid": "70542e7e-7cd8-46ce-8f88-757002938e83",
+          "actions": [
+            {
+              "msg": {
+                "eng": "Have you been contacted by the team?"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "70542e7e-7cd8-46ce-8f88-757002938e83",
+      "rule_sets": [],
+      "metadata": {
+        "expires": 10080,
+        "saved_on": "2017-07-13T14:03:34.616660Z",
+        "uuid": "b79d7f76-6c41-43bf-9830-4b442c6c1832",
+        "name": "Flow B",
+        "revision": 8
+      }
+    },
+    {
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": null,
+          "uuid": "3f5d39b6-76c3-43cd-831e-6ef6366cf96f",
+          "actions": [
+            {
+              "type": "trigger-flow",
+              "variables": [],
+              "flow": {
+                "name": "Flow B",
+                "uuid": "b79d7f76-6c41-43bf-9830-4b442c6c1832"
+              },
+              "groups": [],
+              "contacts": [
+                {
+                  "name": "Jason Tatum",
+                  "uuid": "contact2_uuid"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "3f5d39b6-76c3-43cd-831e-6ef6366cf96f",
+      "rule_sets": [],
+      "metadata": {
+        "expires": 10080,
+        "saved_on": "2017-07-13T13:07:24.358335Z",
+        "uuid": "4c09fb5d-9844-4f1b-89c0-fd0f68085d73",
+        "name": "Flow A",
+        "revision": 3
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "trigger_type": "K",
+      "flow": {
+        "name": "Flow A",
+        "uuid": "4c09fb5d-9844-4f1b-89c0-fd0f68085d73"
+      },
+      "groups": [],
+      "keyword": "ask",
+      "channel": null
+    }
+  ]
+}

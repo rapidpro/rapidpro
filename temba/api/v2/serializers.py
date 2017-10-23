@@ -5,7 +5,7 @@ import six
 
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
@@ -101,7 +101,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context['org'].is_anon:
             return None
         else:
-            return [urn.urn for urn in obj.urns.all()]
+            return [six.text_type(urn) for urn in obj.urns.all()]
 
     class Meta:
         model = Broadcast
@@ -152,13 +152,20 @@ class ChannelEventReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
     channel = fields.ChannelField()
+    extra = serializers.SerializerMethodField()
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
 
+    def get_extra(self, obj):
+        if obj.extra:
+            return obj.extra_json()
+        else:
+            return None
+
     class Meta:
         model = ChannelEvent
-        fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
+        fields = ('id', 'type', 'contact', 'channel', 'extra', 'occurred_on', 'created_on')
 
 
 class CampaignReadSerializer(ReadSerializer):
@@ -297,6 +304,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
                                                                    delivery_hour, base_language)
             self.instance.update_flow_name()
 
+        # create our event fires for this event in the background
+        EventFire.update_eventfires_for_event(self.instance)
+
         return self.instance
 
 
@@ -343,7 +353,7 @@ class ContactReadSerializer(ReadSerializer):
         if self.context['org'].is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -404,7 +414,7 @@ class ContactWriteSerializer(WriteSerializer):
         org = self.context['org']
 
         # this field isn't allowed if we are looking up by URN in the URL
-        if 'urns__urn' in self.context['lookup_values']:
+        if 'urns__identity' in self.context['lookup_values']:
             raise serializers.ValidationError("Field not allowed when using URN in URL")
 
         # or for updates by anonymous organizations (we do allow creation of contacts with URNs)
@@ -421,8 +431,8 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         # we allow creation of contacts by URN used for lookup
-        if not data.get('urns') and 'urns__urn' in self.context['lookup_values']:
-            url_urn = self.context['lookup_values']['urns__urn']
+        if not data.get('urns') and 'urns__identity' in self.context['lookup_values']:
+            url_urn = self.context['lookup_values']['urns__identity']
 
             data['urns'] = [fields.validate_urn(url_urn)]
 
@@ -504,6 +514,16 @@ class ContactFieldWriteSerializer(WriteSerializer):
     def validate_value_type(self, value):
         return self.VALUE_TYPES.get(value)
 
+    def validate(self, data):
+
+        fields_count = ContactField.objects.filter(org=self.context['org']).count()
+        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError("This org has %s contact fields and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS))
+
+        return data
+
     def save(self):
         label = self.validated_data.get('label')
         value_type = self.validated_data.get('value_type')
@@ -537,6 +557,14 @@ class ContactGroupWriteSerializer(WriteSerializer):
         if not ContactGroup.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters.")
         return value
+
+    def validate(self, data):
+        group_count = ContactGroup.user_groups.filter(org=self.context['org']).count()
+        if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise serializers.ValidationError("This org has %s groups and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (group_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
+        return data
 
     def save(self):
         name = self.validated_data.get('name')
@@ -760,6 +788,14 @@ class LabelWriteSerializer(WriteSerializer):
         if not Label.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters.")
         return value
+
+    def validate(self, data):
+        labels_count = Label.label_objects.filter(org=self.context['org'], is_active=True).count()
+        if labels_count >= Label.MAX_ORG_LABELS:
+            raise serializers.ValidationError("This org has %s labels and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (labels_count, Label.MAX_ORG_LABELS))
+        return data
 
     def save(self):
         name = self.validated_data.get('name')

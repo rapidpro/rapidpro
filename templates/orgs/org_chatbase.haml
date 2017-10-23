@@ -1,0 +1,61 @@
+-extends 'smartmin/form.html'
+
+-load compress temba smartmin i18n
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Chatbase Account"
+
+-block summary
+  -if object.get_chatbase_credentials.0
+    -trans "Connected to Chatbase Account"
+    <b>{{chatbase_agent_name}}</b>.
+  -else
+    -trans "Connect your Chatbase account"
+
+-block pre-form
+  -if not object.get_chatbase_credentials.0
+    -blocktrans
+      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences
+      and better understand your users. 
+      To signup for an account, visit
+    <a target='_new' href='https://chatbase.com'>Chatbase</a>.
+    %hr
+
+-block fields
+  -if not object.get_chatbase_credentials.0
+    {{ block.super }}
+
+-block form-buttons
+
+-block post-form
+  -if object.get_chatbase_credentials.0 and request.META.HTTP_X_FORMAX
+    %p
+      -trans "Your Chatbase account is connected to the Agent"
+      {{chatbase_agent_name}}.
+
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmChatbaseDisconnect();'}
+        -trans "disconnect"
+      -trans "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+
+    .disconnect-chatbase.hide
+      .title
+        -trans "Disconnect Chatbase"
+      .body
+        -blocktrans
+          This will disconnect your Chatbase account. Are you sure you want to proceed?
+    %a#disconnect-chatbase-form.posterize{href:'{% url "orgs.org_chatbase" %}?disconnect=true'}
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+      select2div('#id_type');
+    });
+    function confirmChatbaseDisconnect() {
+      removalConfirmation("disconnect-chatbase", "Disconnect");
+    }

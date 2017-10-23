@@ -24,7 +24,7 @@ class ExternalType(ChannelType):
     claim_blurb = _("""Use our pluggable API to connect an external service you already have.""")
     claim_view = ClaimView
 
-    scheme = None  # can be any scheme
+    schemes = None  # can be any scheme
     max_length = 160
     attachment_support = False
 

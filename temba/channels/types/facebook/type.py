@@ -30,7 +30,7 @@ class FacebookType(ChannelType):
     <a href="http://developers.facebook.com">developers</a> site first.""")
     claim_view = ClaimView
 
-    scheme = FACEBOOK_SCHEME
+    schemes = [FACEBOOK_SCHEME]
     max_length = 320
     attachment_support = True
     free_sending = True

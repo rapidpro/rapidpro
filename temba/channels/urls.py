@@ -11,11 +11,17 @@ from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
 claim_page_urls = [ch_type.get_claim_url() for ch_type in Channel.get_types() if ch_type.claim_view]
 
+courier_urls = []
 handler_urls = []
-for handler in get_channel_handlers():
-    rel_url, url_name = handler.get_url()
-    handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
+for handler in get_channel_handlers():
+    rel_url, url_name = handler.get_courier_url()
+    if rel_url:
+        courier_urls.append(url(rel_url, handler.as_view(), name=url_name))
+
+    rel_url, url_name = handler.get_handler_url()
+    if rel_url:
+        handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
@@ -24,6 +30,7 @@ urlpatterns = [
 
     url(r'^channels/', include(claim_page_urls)),
 
+    url(r'^c/', include(courier_urls)),
     url(r'^handlers/', include(handler_urls)),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well

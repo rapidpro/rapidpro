@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
+from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user
 
@@ -24,10 +25,10 @@ class USSDQuerySet(models.QuerySet):
         kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
         return super(USSDQuerySet, self).create(**kwargs)
 
-    def get_initiated_push_session(self, contact):
+    def get_initiated_push(self, contact):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
-    def get_session_with_status_only(self, session_id):
+    def get_with_status_only(self, session_id):
         return self.only('status').filter(id=session_id).first()
 
 
@@ -58,22 +59,22 @@ class USSDSession(ChannelSession):
         self.ended_on = timezone.now()
         self.save(update_fields=['status', 'ended_on'])
 
-    def start_session_async(self, flow, date, message_id):
+    def start_async(self, flow, date, message_id):
         from temba.msgs.models import Msg, USSD
         message = Msg.objects.create(
             channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
-            sent_on=date, session=self, msg_type=USSD, external_id=message_id,
+            sent_on=date, connection=self, msg_type=USSD, external_id=message_id,
             created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org,
             direction=self.INCOMING)
-        flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
+        flow.start([], [self.contact], start_msg=message, restart_participants=True, connection=self)
 
-    def handle_session_async(self, urn, content, date, message_id):
+    def handle_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
+            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, connection=self,
             msg_type=USSD, external_id=message_id)
 
-    def handle_ussd_session_sync(self):  # pragma: needs cover
+    def handle_sync(self):  # pragma: needs cover
         # TODO: implement for InfoBip and other sync APIs
         pass
 
@@ -114,24 +115,36 @@ class USSDSession(ChannelSession):
         else:
             defaults.update(dict(status=cls.IN_PROGRESS))
 
-        # check if there's an initiated PUSH session
-        session = cls.objects.get_initiated_push_session(contact)
+        # check if there's an initiated PUSH connection
+        connection = cls.objects.get_initiated_push(contact)
 
-        if not session:
-            session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
+        created = False
+        if not connection:
+            try:
+                connection = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
+                                                            .get(external_id=external_id)
+                created = False
+                for k, v in six.iteritems(defaults):
+                    setattr(connection, k, v() if callable(v) else v)
+                connection.save()
+            except cls.DoesNotExist:
+                defaults['external_id'] = external_id
+                connection = cls.objects.create(**defaults)
+                FlowSession.create(contact, connection=connection)
+                created = True
         else:
             defaults.update(dict(external_id=external_id))
             for key, value in six.iteritems(defaults):
-                setattr(session, key, value)
-            session.save()
+                setattr(connection, key, value)
+            connection.save()
             created = None
 
         # start session
         if created and async and trigger:
-            session.start_session_async(trigger.flow, date, message_id)
+            connection.start_async(trigger.flow, date, message_id)
 
         # resume session, deal with incoming content and all the other states
         else:
-            session.handle_session_async(urn, content, date, message_id)
+            connection.handle_async(urn, content, date, message_id)
 
-        return session
+        return connection

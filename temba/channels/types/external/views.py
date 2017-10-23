@@ -102,6 +102,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
         self.object = Channel.add_config_external_channel(org, self.request.user, country, address,
                                                           self.channel_type,
-                                                          config, role, scheme, parent=channel)
+                                                          config, role, [scheme], parent=channel)
 
         return super(ClaimView, self).form_valid(form)

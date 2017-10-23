@@ -71,6 +71,7 @@ class SendMessageForm(Form):
     omnibox = OmniboxField()
     text = forms.CharField(widget=forms.Textarea, max_length=640)
     schedule = forms.BooleanField(widget=forms.HiddenInput, required=False)
+    step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
     def __init__(self, user, *args, **kwargs):
         super(SendMessageForm, self).__init__(*args, **kwargs)
@@ -80,7 +81,7 @@ class SendMessageForm(Form):
     def is_valid(self):
         valid = super(SendMessageForm, self).is_valid()
         if valid:
-            if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
+            if ('step_node' not in self.data or not self.data['step_node']) and ('omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0):
                 self.errors['__all__'] = self.error_class([six.text_type(_("At least one recipient is required"))])
                 return False
         return valid
@@ -269,7 +270,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Send(OrgPermsMixin, SmartFormView):
         title = _("Send Message")
         form_class = SendMessageForm
-        fields = ('omnibox', 'text', 'schedule')
+        fields = ('omnibox', 'text', 'schedule', 'step_node')
         success_url = '@msgs.msg_inbox'
         submit_button_name = _('Send')
 
@@ -313,15 +314,28 @@ class BroadcastCRUDL(SmartCRUDL):
         def form_valid(self, form):
             self.form = form
             user = self.request.user
+            org = user.get_org()
             simulation = self.request.GET.get('simulation', 'false') == 'true'
 
             omnibox = self.form.cleaned_data['omnibox']
             has_schedule = self.form.cleaned_data['schedule']
+            step_uuid = self.form.cleaned_data.get('step_node', None)
+            text = self.form.cleaned_data['text']
 
             groups = list(omnibox['groups'])
             contacts = list(omnibox['contacts'])
             urns = list(omnibox['urns'])
             recipients = list()
+
+            if step_uuid:
+                from .tasks import send_to_flow_node
+                get_params = {k: v for k, v in self.request.GET.items()}
+                get_params.update({'s': step_uuid})
+                send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
+                if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
+                    return HttpResponse(json.dumps(dict(status="success")), content_type='application/json')
+                else:
+                    return HttpResponseRedirect(self.get_success_url())
 
             if simulation:
                 # when simulating make sure we only use test contacts
@@ -337,7 +351,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     recipients.append(urn)
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(user.get_org(), user, self.form.cleaned_data['text'], recipients,
+            broadcast = Broadcast.create(org, user, text, recipients,
                                          schedule=schedule)
 
             if not has_schedule:
@@ -682,11 +696,17 @@ class BaseLabelForm(forms.ModelForm):
         name = self.cleaned_data['name']
 
         if not Label.is_valid_name(name):
-            raise forms.ValidationError("Name must not be blank or begin with punctuation")
+            raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
 
         existing_id = self.existing.pk if self.existing else None
         if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
-            raise forms.ValidationError("Name must be unique")
+            raise forms.ValidationError(_("Name must be unique"))
+
+        labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
+        if labels_count >= Label.MAX_ORG_LABELS:
+            raise forms.ValidationError(_("This org has %s labels and the limit is %s. "
+                                          "You must delete existing ones before you can "
+                                          "create new ones." % (labels_count, Label.MAX_ORG_LABELS)))
 
         return name
 

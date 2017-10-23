@@ -12,7 +12,8 @@ from django.views.generic import RedirectView, View
 from random import randint
 from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreateView, SmartListView, SmartTemplateView
 from temba.public.models import Lead, Video
-from temba.utils import analytics, random_string, get_anonymous_user
+from temba.utils import analytics, get_anonymous_user
+from temba.utils.text import random_string
 from urllib import urlencode
 
 

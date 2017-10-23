@@ -165,6 +165,10 @@ class Trigger(SmartModel):
             else:
                 matches = matches.filter(groups=None)
 
+            # if this trigger has a referrer_id, only archive others with the same referrer_id
+            if self.referrer_id is not None:
+                matches = matches.filter(referrer_id__iexact=self.referrer_id)
+
             # if this trigger has a channel, only archive others with the same channel
             if self.channel:
                 matches = matches.filter(channel=self.channel)
@@ -271,7 +275,11 @@ class Trigger(SmartModel):
             triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
 
         if referrer_id is not None:
-            triggers = triggers.filter(referrer_id=referrer_id)
+            triggers = triggers.filter(models.Q(referrer_id__iexact=referrer_id) | models.Q(referrer_id=''))
+
+            # if we catch more than one trigger with a referrer_id, ignore the catchall
+            if len(triggers) > 1:
+                triggers = triggers.exclude(referrer_id='')
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list('pk', flat=True)

@@ -51,6 +51,18 @@ DATABASES = {
         'CONN_MAX_AGE': 60,
         'OPTIONS': {
         }
+    },
+    'default2': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'temba',
+        'USER': 'temba',
+        'PASSWORD': 'temba',
+        'HOST': 'localhost',
+        'PORT': '',
+        'ATOMIC_REQUESTS': True,
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+        }
     }
 }
 

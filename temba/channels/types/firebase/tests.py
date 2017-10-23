@@ -13,7 +13,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         super(FirebaseCloudMessagingTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'FCM', name="Firebase", address="87654",
-                                      role="SR", scheme='fcm',
+                                      role="SR", schemes=['fcm'],
                                       config={'FCM_TITLE': 'Title', 'FCM_KEY': '87654'})
 
     @patch('requests.get')

@@ -311,19 +311,20 @@ class WebHookEvent(SmartModel):
                 body = 'Skipped actual send'
                 status_code = 200
 
+            # process the webhook response
+            try:
+                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+
+                # only update if we got a valid JSON dictionary or list
+                if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
+
+                run.update_fields(response_json)
+                message = "Webhook called successfully."
+            except ValueError:
+                message = "Response must be a JSON dictionary, ignoring response."
+
             if 200 <= status_code < 300:
-                try:
-                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
-
-                    # only update if we got a valid JSON dictionary or list
-                    if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                        raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
-
-                    run.update_fields(response_json)
-                    message = "Webhook called successfully."
-                except ValueError:
-                    message = "Response must be a JSON dictionary, ignoring response."
-
                 webhook_event.status = cls.STATUS_COMPLETE
             else:
                 webhook_event.status = cls.STATUS_FAILED
@@ -346,7 +347,12 @@ class WebHookEvent(SmartModel):
 
             request_time = (time.time() - start) * 1000
 
+            contact = None
+            if webhook_event.run:
+                contact = webhook_event.run.contact
+
             result = WebHookResult.objects.create(event=webhook_event,
+                                                  contact=contact,
                                                   url=webhook_url,
                                                   status_code=status_code,
                                                   body=body,
@@ -419,14 +425,14 @@ class WebHookEvent(SmartModel):
 
         api_user = get_api_user()
 
-        json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        json_time = call.occurred_on.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    duration=call.duration,
-                    time=json_time)
+                    extra=call.extra_json(),
+                    occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
@@ -583,8 +589,9 @@ class WebHookResult(SmartModel):
                                help_text="A message describing the result, error messages go here")
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
-
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
+    contact = models.ForeignKey('contacts.Contact', null=True, related_name='webhook_results',
+                                help_text="The contact that generated this result")
 
     @classmethod
     def record_result(cls, event, result):

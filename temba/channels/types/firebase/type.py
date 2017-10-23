@@ -27,7 +27,7 @@ class FirebaseCloudMessagingType(ChannelType):
     Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages.""")
     claim_view = ClaimView
 
-    scheme = FCM_SCHEME
+    schemes = [FCM_SCHEME]
     max_length = 10000
     attachment_support = False
     free_sending = True

@@ -25,10 +25,10 @@
             {{ object.contact|short_name:user_org }}
           %td.value-text.field_event_type
             - if object.event_type == 'mt_call'
-              -blocktrans with duration=object.duration
+              -blocktrans with duration=object.extra_json.duration
                 Outgoing Call ({{duration}} seconds)
             - elif object.event_type == 'mo_call'
-              -blocktrans with duration=object.duration            
+              -blocktrans with duration=object.extra_json.duration
                 Incoming Call ({{duration}} seconds)
             - elif object.event_type == 'mo_miss'
               -trans "Missed Incoming Call"
@@ -45,7 +45,7 @@
               %span.glyph.icon-phone
           %td.value-received.field_time
             %nobr
-              {{ object.time|gmail_time }}
+              {{ object.occurred_on|gmail_time }}
 
         -empty
           %tr

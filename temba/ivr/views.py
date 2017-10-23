@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelLog, ChannelType
 from temba.ivr.models import IVRCall
 from temba.utils.http import HttpEvent
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -35,13 +35,14 @@ class CallHandler(View):
             return HttpResponse("No channel found", status=400)
 
         channel_type = channel.channel_type
+        ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
         client = channel.get_ivr_client()
 
         request_body = request.body
         request_method = request.method
         request_path = request.get_full_path()
 
-        if channel_type in Channel.TWIML_CHANNELS and request.POST.get('hangup', 0):
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML and request.POST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
@@ -54,10 +55,10 @@ class CallHandler(View):
         if client.validate(request):
             status = None
             duration = None
-            if channel_type in Channel.TWIML_CHANNELS:
+            if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
-            elif channel_type in Channel.NCCO_CHANNELS:
+            elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
                 if request_body:
                     body_json = json.loads(request_body)
                     status = body_json.get('status', None)
@@ -79,7 +80,7 @@ class CallHandler(View):
             media_url = None
             has_event = False
 
-            if channel_type in Channel.TWIML_CHANNELS:
+            if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
 
                 # figure out if this is a callback due to an empty gather
                 is_empty = '1' == request.GET.get('empty', '0')
@@ -98,7 +99,7 @@ class CallHandler(View):
                 # parse the user response
                 text = user_response.get('Digits', None)
 
-            elif channel_type in Channel.NCCO_CHANNELS:
+            elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
                 if request_body:
                     body_json = json.loads(request_body)
                     media_url = body_json.get('recording_url', None)
@@ -129,7 +130,7 @@ class CallHandler(View):
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
-                    if channel_type in Channel.NCCO_CHANNELS:
+                    if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
                         ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
 
                         # TODO: what's special here that this needs to be different?
@@ -141,7 +142,7 @@ class CallHandler(View):
 
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    runs = FlowRun.objects.filter(session=call)
+                    runs = FlowRun.objects.filter(connection=call)
                     for run in runs:
                         if not run.is_completed():
                             final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()

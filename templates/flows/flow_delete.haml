@@ -1,0 +1,41 @@
+{% extends "smartmin/delete_confirm.html" %}
+-load i18n temba
+
+-block modal
+    {{block.super}}
+    
+    -with flows=object.dependent_flows.all
+        -if flows
+            -blocktrans count counter=flows|length
+                There is an active flow using this flow. It cannot be deleted until it is removed from the
+            
+            -plural
+                There are {{counter}} flows using this flow. It cannot be deleted until it is removed from the
+
+            -for flow in flows
+                <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
+            
+            -blocktrans count counter=flows|length
+                flow.
+            -plural
+                flows.
+
+            :javascript
+                $(".modal-footer .btn.primary").hide();
+                $(".modal-footer .btn.secondary").text("Ok");
+
+        -else
+            :javascript
+                $(".modal-footer .btn.primary").show();
+                $(".modal-footer .btn.secondary").text("Cancel");
+        
+            -blocktrans
+                You are about to delete
+                %span.name
+                  {{object}}.
+                There is no way to undo this. Are you sure?
+    
+            :css
+                .name {
+                    font-weight: 400;
+                }

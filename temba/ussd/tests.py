@@ -16,10 +16,11 @@ from django_redis import get_redis_connection
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
+from temba.flows.models import FlowRun, FlowSession
+from temba.msgs.models import (WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED,
+                               HANDLED)
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
-from temba.flows.models import FlowRun
 from temba.utils import dict_to_struct
 
 from .models import USSDSession
@@ -31,7 +32,7 @@ class USSDSessionTest(TembaTest):
         super(USSDSessionTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -131,7 +132,7 @@ class USSDSessionTest(TembaTest):
         run.expire()
 
         # we should be marked as interrupted now
-        self.assertEqual(USSDSession.INTERRUPTED, run.session.status)
+        self.assertEqual(USSDSession.INTERRUPTED, run.connection.status)
 
     def test_async_interrupt_handling(self):
         # start a flow
@@ -438,10 +439,10 @@ class VumiUssdTest(TembaTest):
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
+                self.assertEqual("1515", msg.external_id)
+                self.assertEqual(1, mock.call_count)
 
                 # should have a failsafe that it was sent
                 self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
@@ -450,7 +451,7 @@ class VumiUssdTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # we shouldn't have been called again
-                self.assertEquals(1, mock.call_count)
+                self.assertEqual(1, mock.call_count)
 
                 self.clear_cache()
         finally:
@@ -506,10 +507,10 @@ class VumiUssdTest(TembaTest):
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
+                self.assertEqual("1515", msg.external_id)
+                self.assertEqual(1, mock.call_count)
 
                 # simulate Vumi calling back to us sending an ACK event
                 data = {
@@ -530,7 +531,7 @@ class VumiUssdTest(TembaTest):
 
                 # it should be SENT now
                 msg.refresh_from_db()
-                self.assertEquals(SENT, msg.status)
+                self.assertEqual(SENT, msg.status)
 
                 self.clear_cache()
         finally:
@@ -559,10 +560,10 @@ class VumiUssdTest(TembaTest):
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
+                self.assertEqual("1515", msg.external_id)
+                self.assertEqual(1, mock.call_count)
 
                 # should have a failsafe that it was sent
                 self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
@@ -590,8 +591,8 @@ class VumiUssdTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     @patch('temba.msgs.models.Msg.create_incoming')
-    @patch('temba.ussd.models.USSDSession.start_session_async')
-    def test_triggered_ussd_pull(self, start_session_async, create_incoming):
+    @patch('temba.ussd.models.USSDSession.start_async')
+    def test_triggered_ussd_pull(self, start_async, create_incoming):
         callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
 
         ussd_code = "*111#"
@@ -617,14 +618,14 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # no real messages stored
-        self.assertEquals(Msg.objects.count(), 0)
+        self.assertEqual(Msg.objects.count(), 0)
 
         # ensure no messages has been created
         self.assertFalse(create_incoming.called)
 
         # check if session was started
-        self.assertTrue(start_session_async.called)
-        self.assertEqual(start_session_async.call_count, 1)
+        self.assertTrue(start_async.called)
+        self.assertEqual(start_async.call_count, 1)
 
     def test_receive(self):
         # start a session
@@ -648,11 +649,11 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         msg = Msg.objects.get()
-        self.assertEquals(INCOMING, msg.direction)
-        self.assertEquals(self.org, msg.org)
-        self.assertEquals(self.channel, msg.channel)
-        self.assertEquals("Hello from Vumi", msg.text)
-        self.assertEquals('123456', msg.external_id)
+        self.assertEqual(INCOMING, msg.direction)
+        self.assertEqual(self.org, msg.org)
+        self.assertEqual(self.channel, msg.channel)
+        self.assertEqual("Hello from Vumi", msg.text)
+        self.assertEqual('123456', msg.external_id)
         Msg.objects.all().delete()
 
         # test with vumi session data
@@ -676,12 +677,12 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(session.external_id, str(int(from_addr) + int(session_start)))
 
         msg = Msg.objects.get()
-        self.assertEquals(INCOMING, msg.direction)
-        self.assertEquals(self.org, msg.org)
-        self.assertEquals(self.channel, msg.channel)
-        self.assertEquals("Hello from Vumi 2", msg.text)
-        self.assertEquals('123457', msg.external_id)
-        self.assertEquals(session, msg.session)
+        self.assertEqual(INCOMING, msg.direction)
+        self.assertEqual(self.org, msg.org)
+        self.assertEqual(self.channel, msg.channel)
+        self.assertEqual("Hello from Vumi 2", msg.text)
+        self.assertEqual('123457', msg.external_id)
+        self.assertEqual(session, msg.connection)
 
     @patch('temba.msgs.models.Msg.create_incoming')
     def test_interrupt(self, create_incoming):
@@ -704,7 +705,7 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # no real messages stored
-        self.assertEquals(Msg.objects.count(), 0)
+        self.assertEqual(Msg.objects.count(), 0)
 
         self.assertTrue(create_incoming.called)
         self.assertEqual(create_incoming.call_count, 1)
@@ -729,8 +730,8 @@ class VumiUssdTest(TembaTest):
 
                 self.assertEqual(msg.direction, 'O')
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(msg.session.status, USSDSession.INITIATED)
+                self.assertEqual("1515", msg.external_id)
+                self.assertEqual(msg.connection.status, USSDSession.INITIATED)
 
                 # reply and choose an option that doesn't have any destination thus needs to close the session
                 USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
@@ -740,11 +741,11 @@ class VumiUssdTest(TembaTest):
                 msg = Msg.objects.filter(direction='O').order_by('id').last()
                 self.assertEqual(msg.direction, 'O')
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
+                self.assertEqual("1515", msg.external_id)
 
-                self.assertEquals(msg.session.status, USSDSession.COMPLETED)
+                self.assertEqual(msg.connection.status, USSDSession.COMPLETED)
 
-                self.assertEquals(2, mock.call_count)
+                self.assertEqual(2, mock.call_count)
 
                 self.clear_cache()
         finally:
@@ -758,7 +759,7 @@ class VumiUssdTest(TembaTest):
                     content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         flow = self.get_flow('ussd_trigger_flow')
-        self.assertEquals(0, flow.runs.all().count())
+        self.assertEqual(0, flow.runs.all().count())
 
         trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
                                                    created_by=self.user, modified_by=self.user, org=self.org,
@@ -766,6 +767,15 @@ class VumiUssdTest(TembaTest):
 
         # now we added the trigger, let's reinitiate the session
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        session = FlowSession.objects.get()
+        connection = USSDSession.objects.get()
+
+        self.assertEqual(session.connection, connection)
+
+        run = FlowRun.objects.get()
+        self.assertEqual(run.session, session)
+        self.assertEqual(run.connection, connection)
 
         msg = Msg.objects.all().first()
         self.assertEqual("Please enter a phone number", msg.text)
@@ -798,7 +808,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 
@@ -826,9 +836,9 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                         args=['event', self.channel.uuid]),
                 data=json.dumps(data),
                 content_type='application/json')
-            self.assertEquals(200, response.status_code)
+            self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
-            self.assertEquals(assert_status, sms.status)
+            self.assertEqual(assert_status, sms.status)
 
         assertStatus(msg, 'submitted', SENT)
         assertStatus(msg, 'delivery_succeeded', DELIVERED)
@@ -850,10 +860,25 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         # load our message
         inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
-        self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(outbound_msg.response_to, inbound_msg)
-        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
-        self.assertEquals(inbound_msg.direction, INCOMING)
+        self.assertEqual(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual(outbound_msg.response_to, inbound_msg)
+        self.assertEqual(outbound_msg.connection.status, USSDSession.TRIGGERED)
+        self.assertEqual(inbound_msg.direction, INCOMING)
+        self.assertEqual(inbound_msg.status, HANDLED)
+
+    def test_receive_with_session_id(self):
+        from temba.ussd.models import USSDSession
+
+        data = self.mk_ussd_msg(content="événement", session_id='session-id', to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        self.client.post(callback_url, json.dumps(data), content_type='application/json')
+
+        # load our message
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEqual(outbound_msg.connection.status, USSDSession.TRIGGERED)
+        self.assertEqual(outbound_msg.connection.external_id, 'session-id')
+        self.assertEqual(inbound_msg.connection.external_id, 'session-id')
 
     def test_receive_ussd_no_session(self):
         from temba.channels.handlers import JunebugHandler
@@ -891,31 +916,32 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
                 self.assertEqual(msg.direction, 'O')
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
-                self.assertEquals(msg.session.status, USSDSession.INITIATED)
+                self.assertEqual("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEqual(msg.connection.status, USSDSession.INITIATED)
 
                 # reply and choose an option that doesn't have any destination thus needs to close the session
                 USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
                                             date=timezone.now(), external_id="21345", message_id='vumi-message-id')
                 # our outgoing message
                 msg = Msg.objects.filter(direction='O').order_by('id').last()
-                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(WIRED, msg.status)
                 self.assertEqual(msg.direction, 'O')
                 self.assertTrue(msg.sent_on)
-                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
-                self.assertEquals("vumi-message-id", msg.response_to.external_id)
+                self.assertEqual("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEqual("vumi-message-id", msg.response_to.external_id)
 
-                self.assertEquals(msg.session.status, USSDSession.COMPLETED)
-                self.assertTrue(isinstance(msg.session.get_duration(), timedelta))
+                self.assertEqual(msg.connection.status, USSDSession.COMPLETED)
+                self.assertTrue(isinstance(msg.connection.get_duration(), timedelta))
 
-                self.assertEquals(2, mock.call_count)
+                self.assertEqual(2, mock.call_count)
 
                 # first outbound (session continued)
                 call = mock.call_args_list[0]
                 (args, kwargs) = call
                 payload = kwargs['json']
-                self.assertIsNone(payload['reply_to'])
-                self.assertEquals(payload['channel_data'], {
+                self.assertIsNone(payload.get('reply_to'))
+                self.assertEqual(payload.get('to'), "+250788383383")
+                self.assertEqual(payload['channel_data'], {
                     'continue_session': True
                 })
 
@@ -923,8 +949,9 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 call = mock.call_args_list[1]
                 (args, kwargs) = call
                 payload = kwargs['json']
-                self.assertEquals(payload['reply_to'], 'vumi-message-id')
-                self.assertEquals(payload['channel_data'], {
+                self.assertEqual(payload['reply_to'], 'vumi-message-id')
+                self.assertEqual(payload.get('to'), None)
+                self.assertEqual(payload['channel_data'], {
                     'continue_session': False
                 })
 

@@ -25,7 +25,7 @@ class JioChatType(ChannelType):
                 and receive messages.""")
     claim_view = ClaimView
 
-    scheme = JIOCHAT_SCHEME
+    schemes = [JIOCHAT_SCHEME]
     max_length = 1600
     attachment_support = False
     free_sending = True
