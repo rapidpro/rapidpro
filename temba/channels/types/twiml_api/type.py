@@ -27,6 +27,8 @@ class TwimlAPIType(ChannelType):
 
     attachment_support = True
 
+    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
+
     def send(self, channel, msg, text):
         # use regular Twilio channel sending
         return Channel.get_type_from_code('T').send(channel, msg, text)
