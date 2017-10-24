@@ -1,3 +1,16 @@
+v3.0.226
+----------
+ * Fix issue with dates in the contact field extractor
+ * Allow org admin to remove invites
+
+v3.0.225
+----------
+ * Optimize how we check for unsent messages on channels
+ * Ensure all actions have a UUID in new flow spec version 10.1
+ * Fixes viber URN validation: can be up to 24 chars
+ * Dynamic channels: Zenvia, YO
+ * Add support for minor flow migrations
+
 v3.0.224
 ----------
  * Remove duplicate excellent includes (only keep compressed version)

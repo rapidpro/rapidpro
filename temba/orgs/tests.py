@@ -27,7 +27,7 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
-from temba.flows.models import Flow, ActionSet
+from temba.flows.models import Flow, ActionSet, AddToGroupAction
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
@@ -36,6 +36,7 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
+from uuid import uuid4
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
@@ -631,9 +632,11 @@ class OrgTest(TembaTest):
             'editors_%d' % self.user.pk: 'on',
             'surveyors_%d' % self.editor.pk: 'on',
             'invite_emails': "",
-            'invite_group': 'V'
+            'invite_group': 'V',
+            'remove_invite_%s' % response.context['invites'][2].pk: True
         })
 
+        self.assertEqual(Invitation.objects.all().count(), 2)
         # we should be redirected to chooser page
         self.assertRedirect(response, reverse('orgs.org_choose'))
 
@@ -2535,8 +2538,7 @@ class BulkExportTest(TembaTest):
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
 
         # replace the actions
-        from temba.flows.models import AddToGroupAction
-        actionset.set_actions_dict([AddToGroupAction([dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
+        actionset.set_actions_dict([AddToGroupAction(str(uuid4()), [dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
         actionset.save()
 
         # now let's export!
