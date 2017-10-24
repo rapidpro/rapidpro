@@ -33,6 +33,8 @@ class TwilioType(ChannelType):
 
     attachment_support = True
 
+    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
+
     def deactivate(self, channel):
         config = channel.config_json()
         client = channel.org.get_twilio_client()
