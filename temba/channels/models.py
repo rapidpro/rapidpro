@@ -891,7 +891,7 @@ class Channel(TembaModel):
         latest_sent_message = self.get_latest_sent_message()
 
         # if the last sent message was in the last hour, assume this channel is ok
-        if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:
+        if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:  # pragma: no cover
             return Msg.objects.none()
 
         messages = self.get_unsent_messages()
