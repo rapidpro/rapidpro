@@ -25,7 +25,7 @@ from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
-from django.utils.http import urlencode, urlquote_plus
+from django.utils.http import urlquote_plus
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django_countries.fields import CountryField
@@ -187,8 +187,6 @@ class Channel(TembaModel):
     TYPE_VIBER = 'VI'
     TYPE_VUMI = 'VM'
     TYPE_VUMI_USSD = 'VMU'
-    TYPE_YO = 'YO'
-    TYPE_ZENVIA = 'ZV'
 
     # keys for various config options stored in the channel config dict
     CONFIG_SEND_URL = 'send_url'
@@ -281,8 +279,6 @@ class Channel(TembaModel):
         TYPE_VIBER: dict(schemes=['tel'], max_length=1000),
         TYPE_VUMI: dict(schemes=['tel'], max_length=1600),
         TYPE_VUMI_USSD: dict(schemes=['tel'], max_length=182),
-        TYPE_YO: dict(schemes=['tel'], max_length=1600),
-        TYPE_ZENVIA: dict(schemes=['tel'], max_length=150),
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
@@ -294,9 +290,7 @@ class Channel(TembaModel):
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
                     (TYPE_VUMI, "Vumi"),
-                    (TYPE_VUMI_USSD, "Vumi USSD"),
-                    (TYPE_YO, "Yo!"),
-                    (TYPE_ZENVIA, "Zenvia"))
+                    (TYPE_VUMI_USSD, "Vumi USSD"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
@@ -550,12 +544,6 @@ class Channel(TembaModel):
             return existing
 
         return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
-
-    @classmethod
-    def add_zenvia_channel(cls, org, user, phone, account, code):
-        config = dict(account=account, code=code)
-
-        return Channel.create(org, user, 'BR', Channel.TYPE_ZENVIA, name="Zenvia: %s" % phone, address=phone, config=config)
 
     @classmethod
     def add_send_channel(cls, user, channel):
@@ -897,15 +885,24 @@ class Channel(TembaModel):
         return latest_message
 
     def get_delayed_outgoing_messages(self):
-        messages = self.get_unsent_messages()
+        from temba.msgs.models import Msg
+
+        one_hour_ago = timezone.now() - timedelta(hours=1)
         latest_sent_message = self.get_latest_sent_message()
 
-        # ignore really recent unsent messages
-        messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
+        # if the last sent message was in the last hour, assume this channel is ok
+        if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:  # pragma: no cover
+            return Msg.objects.none()
 
-        # if there is one message successfully sent ignore also all message created before it was sent
+        messages = self.get_unsent_messages()
+
+        # channels have an hour to send messages before we call them delays, so ignore all messages created in last hour
+        messages = messages.filter(created_on__lt=one_hour_ago)
+
+        # if we have a successfully sent message, we're only interested a new failures since then. Note that we use id
+        # here instead of created_on because we won't hit the outbox index if we use a range condition on created_on.
         if latest_sent_message:
-            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
+            messages = messages.filter(id__gt=latest_sent_message.id)
 
         return messages
 
@@ -1365,110 +1362,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_yo_message(cls, channel, msg, text):
-        from temba.msgs.models import SENT
-        from temba.contacts.models import Contact
-
-        # build our message dict
-        params = dict(origin=channel.address.lstrip('+'),
-                      sms_content=text,
-                      destinations=msg.urn_path.lstrip('+'),
-                      ybsacctno=channel.config['username'],
-                      password=channel.config['password'])
-        log_params = params.copy()
-        log_params['password'] = 'x' * len(log_params['password'])
-
-        start = time.time()
-        failed = False
-        fatal = False
-        events = []
-
-        for send_url in [Channel.YO_API_URL_1, Channel.YO_API_URL_2, Channel.YO_API_URL_3]:
-            url = send_url + '?' + urlencode(params)
-            log_url = send_url + '?' + urlencode(log_params)
-
-            event = HttpEvent('GET', log_url)
-            events.append(event)
-            response_qs = dict()
-
-            failed = False
-            try:
-                response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
-                event.status_code = response.status_code
-                event.response_body = response.text
-
-                response_qs = urlparse.parse_qs(response.text)
-            except Exception:
-                failed = True
-
-            if not failed and response.status_code != 200 and response.status_code != 201:
-                failed = True
-
-            # if it wasn't successfully delivered, throw
-            if not failed and response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
-                failed = True
-
-            # check if we failed permanently (they blocked us)
-            if failed and response_qs.get('ybs_autocreate_message', [''])[0].find('BLACKLISTED') >= 0:
-                contact = Contact.objects.get(id=msg.contact)
-                contact.stop(contact.modified_by)
-                fatal = True
-                break
-
-            # if we sent the message, then move on
-            if not failed:
-                break
-
-        if failed:
-            raise SendException("Received error from Yo! API",
-                                events=events, fatal=fatal, start=start)
-
-        Channel.success(channel, msg, SENT, start, events=events)
-
-    @classmethod
-    def send_zenvia_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        # Zenvia accepts messages via a GET
-        # http://www.zenvia360.com.br/GatewayIntegration/msgSms.do?dispatch=send&account=temba&
-        # code=abc123&to=5511996458779&msg=my message content&id=123&callbackOption=1
-        payload = dict(dispatch='send',
-                       account=channel.config['account'],
-                       code=channel.config['code'],
-                       msg=text,
-                       to=msg.urn_path,
-                       id=msg.id,
-                       callbackOption=1)
-
-        zenvia_url = "http://www.zenvia360.com.br/GatewayIntegration/msgSms.do"
-        headers = {'Content-Type': "text/html", 'Accept-Charset': 'ISO-8859-1'}
-        headers.update(TEMBA_HEADERS)
-
-        event = HttpEvent('POST', zenvia_url, urlencode(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.get(zenvia_url, params=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(u"Unable to send message: %s" % six.text_type(e),
-                                event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Got non-200 response from API: %d" % response.status_code,
-                                event=event, start=start)
-
-        response_code = int(response.text[:3])
-
-        if response_code != 0:
-            raise Exception("Got non-zero response from Zenvia: %s" % response.text)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_twilio_message(cls, channel, msg, text):
         from temba.msgs.models import Attachment, WIRED
         from temba.utils.twilio import TembaTwilioRestClient
@@ -1782,9 +1675,7 @@ SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
-                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
-                  Channel.TYPE_YO: Channel.send_yo_message,
-                  Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
+                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message}
 
 
 @six.python_2_unicode_compatible

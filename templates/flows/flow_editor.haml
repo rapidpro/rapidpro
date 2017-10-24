@@ -49,8 +49,6 @@
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-ui-sortable/sortable.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}js/temba-ui-bootstrap-tpls.js"}
 
-  %script{src:"{{ STATIC_URL }}js/excellent.js"}
-
   :javascript
     window.flowId = {{ object.pk }};
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';

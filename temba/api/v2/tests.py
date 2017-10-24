@@ -26,6 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from uuid import uuid4
 from urllib import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
@@ -328,19 +329,19 @@ class APITest(TembaTest):
         url = reverse('api.v2.explorer')
 
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as non-org user
         self.login(self.non_org_user)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as administrator
         self.login(self.admin)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):
@@ -2533,7 +2534,8 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
+                                                       dict(base="Hi @extra.first_name @extra.last_name, "
                                                                  "what's your favorite color?")).as_json()])
         first_action.save()
 
