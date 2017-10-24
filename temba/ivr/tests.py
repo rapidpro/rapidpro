@@ -61,7 +61,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(IVRCall.PENDING, call.status)
 
         # call should be on a Twilio channel since that's all we have
-        self.assertEquals('T', call.channel.channel_type)
+        self.assertEqual('T', call.channel.channel_type)
 
         # connect Nexmo instead
         self.org.connect_nexmo('123', '456', self.admin)
@@ -78,8 +78,8 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact], restart_participants=True)
 
         call = IVRCall.objects.all().last()
-        self.assertEquals(IVRCall.PENDING, call.status)
-        self.assertEquals('T', call.channel.channel_type)
+        self.assertEqual(IVRCall.PENDING, call.status)
+        self.assertEqual('T', call.channel.channel_type)
 
         # switch back to Nexmo being the preferred channel
         contact.set_preferred_channel(nexmo)
