@@ -36,6 +36,7 @@ from enum import Enum
 from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
+from temba.channels.models import ChannelType, Channel
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -555,7 +556,8 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_ussd_channels(self):
-        return self.channels.filter(is_active=True, org=self, channel_type__in=['JNU', 'VMU'])
+        ussd_types = Channel.get_type_code_by_category(category=ChannelType.Category.USSD)
+        return self.channels.filter(is_active=True, org=self, channel_type__in=ussd_types)
 
     def get_channel_delegate(self, channel, role):
         """

@@ -413,6 +413,10 @@ class Channel(TembaModel):
         from .types import TYPES
         return six.itervalues(TYPES)
 
+    @classmethod
+    def get_type_code_by_category(cls, category):
+        return [c_type.code for c_type in Channel.get_types() if c_type.category == category]
+
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
 
