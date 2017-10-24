@@ -869,33 +869,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(401, response.status_code)
         self.assertEqual(3, response.json()['error_id'])
 
-    def test_is_ussd_channel(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        # add a non USSD channel
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
-                              dict(cmd='status', cc='RW', dev='Nexus')])
-
-        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-        self.assertEqual(200, response.status_code)
-
-        # add a USSD channel
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1"
-        }
-
-        response = self.client.post(reverse('channels.claim_vumi_ussd'), post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.assertEqual(Channel.objects.first().channel_type, 'VMU')
-        self.assertEqual(Channel.objects.first().role, Channel.ROLE_USSD)
-        self.assertTrue(Channel.objects.first().is_ussd())
-        self.assertFalse(Channel.objects.last().is_ussd())
-
     def test_claim(self):
         # no access for regular users
         self.login(self.user)

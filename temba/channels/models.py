@@ -295,9 +295,6 @@ class Channel(TembaModel):
 
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
-    # list of all USSD channels
-    USSD_CHANNELS = []
-
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
     MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
@@ -926,9 +923,6 @@ class Channel(TembaModel):
     def is_new(self):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
-
-    def is_ussd(self):
-        return self.channel_type in ['JNU', 'VMU']
 
     def calculate_tps_cost(self, msg):
         """
