@@ -6,7 +6,7 @@ from django.db import migrations
 from temba.utils import chunk_list
 
 
-def migrate_flows_forward(apps, schema_editor):
+def migrate_flows_forward():
     from temba.flows.models import Flow
     flow_ids = list(Flow.objects.filter(is_active=True).values_list('id', flat=True))
     total = len(flow_ids)
@@ -21,6 +21,14 @@ def migrate_flows_forward(apps, schema_editor):
             if flow.field_dependencies.all().exists():
                 return
             flow.update(flow.as_json())
+
+
+def apply_manual():
+    migrate_flows_forward()
+
+
+def apply_as_migration(apps, schema_editor):
+    migrate_flows_forward()
 
 
 class Migration(migrations.Migration):
