@@ -26,7 +26,7 @@ class VumiTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         post_data = {
             "country": "NG",
@@ -41,19 +41,19 @@ class VumiTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
-        self.assertEquals(channel.channel_type, 'VM')
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+        self.assertEqual(channel.country, post_data['country'])
+        self.assertEqual(channel.address, post_data['number'])
+        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
+        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
+        self.assertEqual(channel.config_json()['api_url'], "http://custom.api.url")
+        self.assertEqual(channel.channel_type, 'VM')
+        self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'event']))
@@ -72,10 +72,10 @@ class VumiTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEquals(channel.config_json()['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
-        self.assertEquals(channel.channel_type, 'VM')
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+        self.assertEqual(channel.country, post_data['country'])
+        self.assertEqual(channel.address, post_data['number'])
+        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
+        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
+        self.assertEqual(channel.config_json()['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
+        self.assertEqual(channel.channel_type, 'VM')
+        self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
