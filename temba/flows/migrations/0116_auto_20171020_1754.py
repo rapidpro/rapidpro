@@ -34,7 +34,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0116_auto_20171023_1951'),
+        ('flows', '0115_auto_20171023_1951'),
     ]
 
     operations = [
