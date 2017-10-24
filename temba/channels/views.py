@@ -512,7 +512,7 @@ def channel_status_processor(request):
 
             if not channel.is_new():
                 # delayed out going messages
-                if channel.get_delayed_outgoing_messages():
+                if channel.get_delayed_outgoing_messages().exists():
                     status['unsent_msgs'] = True
 
                 # see if it hasn't synced in a while
