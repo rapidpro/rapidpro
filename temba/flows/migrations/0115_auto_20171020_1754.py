@@ -38,5 +38,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_flows_forward)
+        migrations.RunPython(apply_as_migration)
     ]
