@@ -25,8 +25,8 @@ class ShaqodoonTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['view'].get_country({}), 'Somalia')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.context['view'].get_country({}), 'Somalia')
 
         # try to claim a channel
         response = self.client.get(url)
@@ -42,18 +42,18 @@ class ShaqodoonTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('SO', channel.country)
+        self.assertEqual('SO', channel.country)
         self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('SQ', channel.channel_type)
+        self.assertEqual(post_data['number'], channel.address)
+        self.assertEqual(post_data['url'], channel.config_json()['send_url'])
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('SQ', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))

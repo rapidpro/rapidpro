@@ -33,7 +33,7 @@ class LocationTest(TembaTest):
 
         # our country is set to rwanda, we should get it as the main object
         response = self.client.get(reverse('locations.adminboundary_alias'))
-        self.assertEquals(self.country, response.context['object'])
+        self.assertEqual(self.country, response.context['object'])
 
         # ok, now get the geometry for rwanda
         response = self.client.get(
@@ -46,7 +46,7 @@ class LocationTest(TembaTest):
         self.assertTrue('features' in response_json)
 
         # should have our two top level states
-        self.assertEquals(2, len(response_json['features']))
+        self.assertEqual(2, len(response_json['features']))
 
         # now get it for one of the sub areas
         response = self.client.get(
@@ -57,7 +57,7 @@ class LocationTest(TembaTest):
         self.assertTrue('features' in response_json)
 
         # should have our single district in it
-        self.assertEquals(1, len(response_json['features']))
+        self.assertEqual(1, len(response_json['features']))
 
         # now grab our aliases
         response = self.client.get(
@@ -65,10 +65,10 @@ class LocationTest(TembaTest):
         response_json = response.json()
 
         # should just be kigali, without any aliases
-        self.assertEquals(2, len(response_json))
-        self.assertEquals("Eastern Province", response_json[0]['name'])
-        self.assertEquals("Kigali City", response_json[1]['name'])
-        self.assertEquals('', response_json[1]['aliases'])
+        self.assertEqual(2, len(response_json))
+        self.assertEqual("Eastern Province", response_json[0]['name'])
+        self.assertEqual("Kigali City", response_json[1]['name'])
+        self.assertEqual('', response_json[1]['aliases'])
 
         # update our alias for kigali
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
@@ -76,7 +76,7 @@ class LocationTest(TembaTest):
                                         [dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")]),
                                     content_type='application/json')
 
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # fetch our aliases again
         response = self.client.get(
@@ -84,8 +84,8 @@ class LocationTest(TembaTest):
         response_json = response.json()
 
         # now have kigs as an alias
-        self.assertEquals("Kigali City", response_json[1]['name'])
-        self.assertEquals('kig\nkigs', response_json[1]['aliases'])
+        self.assertEqual("Kigali City", response_json[1]['name'])
+        self.assertEqual('kig\nkigs', response_json[1]['aliases'])
 
         # test nested admin level aliases update
         geo_data = [
@@ -109,7 +109,7 @@ class LocationTest(TembaTest):
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
                                     json.dumps(geo_data), content_type='application/json')
 
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # exact match
         boundary = self.org.find_boundary_by_name('kigali city', AdminBoundary.LEVEL_STATE, self.country)
@@ -134,8 +134,8 @@ class LocationTest(TembaTest):
         response = self.client.get(
             reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
         response_json = response.json()
-        self.assertEquals(response_json[0].get('name'), self.state2.name)
-        self.assertEquals(response_json[0].get('aliases'), 'Eastern P')
+        self.assertEqual(response_json[0].get('name'), self.state2.name)
+        self.assertEqual(response_json[0].get('aliases'), 'Eastern P')
         self.assertTrue('Kageyo Gat' in response_json[0].get('match'))
 
         # trigger wrong request data using bad json
@@ -144,15 +144,15 @@ class LocationTest(TembaTest):
                                     content_type='application/json')
 
         response_json = response.json()
-        self.assertEquals(400, response.status_code)
-        self.assertEquals(response_json.get('status'), 'error')
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(response_json.get('status'), 'error')
 
         # Get geometry of admin boundary without sub-levels, should return one feature
         response = self.client.get(
             reverse('locations.adminboundary_geometry', args=[self.ward3.osm_id]))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         response_json = response.json()
-        self.assertEquals(len(response_json.get('features')), 1)
+        self.assertEqual(len(response_json.get('features')), 1)
 
 
 class DownloadGeoJsonTest(TembaTest):
@@ -187,4 +187,4 @@ class DownloadGeoJsonTest(TembaTest):
         self.assertFalse(os.path.exists(bad_path))
         self.assertTrue(os.path.exists(good_path))
         with open(good_path, 'r') as fp:
-            self.assertEquals(fp.read(), 'the-relation-json')
+            self.assertEqual(fp.read(), 'the-relation-json')

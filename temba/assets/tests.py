@@ -74,10 +74,10 @@ class AssetTest(TembaTest):
         # as this asset belongs to org #1, request will have that context
         response = self.client.get(reverse('assets.download',
                                            kwargs=dict(type='message_export', pk=message_export_task.pk)))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         user = response.context_data['view'].request.user
-        self.assertEquals(user, self.admin)
-        self.assertEquals(user.get_org(), self.org)
+        self.assertEqual(user, self.admin)
+        self.assertEqual(user.get_org(), self.org)
 
     def test_stream(self):
         # create a message export

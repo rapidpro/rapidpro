@@ -61,7 +61,7 @@ class Campaign(TembaModel):
         Import campaigns from our export file
         """
         from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(exported_json.get('version', "0"), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         if 'campaigns' in exported_json:
