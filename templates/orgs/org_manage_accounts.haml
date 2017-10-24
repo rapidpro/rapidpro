@@ -20,6 +20,10 @@
           }
         }
 
+        tr.invites-title th {
+          border: none
+        }
+
         tr.invite td {
           color: #ddd;
 
@@ -127,6 +131,17 @@
             .glyph.level-checkbox
 
       // pending invites
+      %tr
+      %tr.invites-title
+        %th
+          -trans "Invites"
+        %th.permission
+        %th.permission
+        %th.permission
+        %th.permission
+        %th.permission
+          -trans "Cancel"
+
       -for invite in invites
         %tr.invite
           %td
