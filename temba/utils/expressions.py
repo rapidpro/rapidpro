@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import pytz
 import regex
 import six
 
@@ -279,7 +280,7 @@ class ContactFieldCollector(EvaluationContext):
         return None
 
     def __init__(self):
-        super(ContactFieldCollector, self).__init__(dict(), None, None)
+        super(ContactFieldCollector, self).__init__(dict(), pytz.UTC, None)
 
     def get_contact_fields(self, msg):
         self.contact_fields = set()
