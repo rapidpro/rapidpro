@@ -1,3 +1,8 @@
+v3.0.226
+----------
+ * Fix issue with dates in the contact field extractor
+ * Allow org admin to remove invites
+
 v3.0.225
 ----------
  * Optimize how we check for unsent messages on channels
