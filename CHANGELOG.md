@@ -1,3 +1,29 @@
+v3.0.224
+----------
+ * Remove duplicate excellent includes (only keep compressed version)
+
+v3.0.222
+----------
+ * Only show errors in UI when org level limits of groups etc are exceeded 
+ * Improve error messages when org reaches limit of groups etc
+
+v3.0.221
+----------
+ * Add indexes for retying webhook events
+
+v3.0.220
+----------
+ * Remove no longer used Msg.priority (requires latest Mage)
+
+v3.0.219
+----------
+ * Create channel event only for active channels
+ * Limit SMS Central channel type to the Kathmandu timezone
+ * Create fields from expressions on import
+ * Flow dependencies for fields, groups, and flows
+ * Dynamic channels: Start
+ * Dynamic channels: SMS Central
+
 v3.0.218
 ----------
  * Delete simulation messages in batch of 25 to use the response_to index

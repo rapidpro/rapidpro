@@ -76,8 +76,8 @@ class TwilioTypeTest(TembaTest):
 
             mock_search.return_value = []
             response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
-            self.assertEquals(json.loads(response.content)['error'],
-                              "Sorry, no numbers found, please enter another area code and try again.")
+            self.assertEqual(json.loads(response.content)['error'],
+                             "Sorry, no numbers found, please enter another area code and try again.")
 
             # try searching for non-US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber('+442812345678')]
@@ -86,8 +86,8 @@ class TwilioTypeTest(TembaTest):
 
             mock_search.return_value = []
             response = self.client.post(search_url, {'country': 'GB', 'area_code': ''})
-            self.assertEquals(json.loads(response.content)['error'],
-                              "Sorry, no numbers found, please enter another pattern and try again.")
+            self.assertEqual(json.loads(response.content)['error'],
+                             "Sorry, no numbers found, please enter another pattern and try again.")
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
@@ -169,7 +169,7 @@ class TwilioTypeTest(TembaTest):
         # make channel support both sms and voice to check we clear both applications
         twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_ANSWER + Channel.ROLE_CALL
         twilio_channel.save()
-        self.assertEquals('T', twilio_channel.channel_type)
+        self.assertEqual('T', twilio_channel.channel_type)
 
         with self.settings(IS_PROD=True):
             with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:

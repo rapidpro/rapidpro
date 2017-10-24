@@ -38,17 +38,17 @@ class ZenviaTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('BR', channel.country)
-        self.assertEquals(post_data['account'], channel.config_json()['account'])
-        self.assertEquals(post_data['code'], channel.config_json()['code'])
-        self.assertEquals(post_data['shortcode'], channel.address)
-        self.assertEquals('ZV', channel.channel_type)
+        self.assertEqual('BR', channel.country)
+        self.assertEqual(post_data['account'], channel.config_json()['account'])
+        self.assertEqual(post_data['code'], channel.config_json()['code'])
+        self.assertEqual(post_data['shortcode'], channel.address)
+        self.assertEqual('ZV', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'status']))
         self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'receive']))

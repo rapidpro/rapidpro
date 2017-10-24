@@ -38,17 +38,17 @@ class StartTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('UA', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals('ST', channel.channel_type)
+        self.assertEqual('UA', channel.country)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('+250788123123', channel.address)
+        self.assertEqual('ST', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.st', args=[channel.uuid, 'receive']))
 
@@ -66,8 +66,8 @@ class StartTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('UA', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('20050', channel.address)
-        self.assertEquals('ST', channel.channel_type)
+        self.assertEqual('UA', channel.country)
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('20050', channel.address)
+        self.assertEqual('ST', channel.channel_type)
