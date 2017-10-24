@@ -1621,8 +1621,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact fields, please remove some contact fields "
-                                 "to be able to create new contact fields")
+                                 "This org has 10 contact fields and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
 
     def test_flows(self):
         url = reverse('api.v2.flows')
@@ -1790,8 +1790,12 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact groups, please remove some contact groups "
-                                 "to be able to create new contact groups")
+                                 "This org has 10 groups and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
+
+        group1 = ContactGroup.user_groups.filter(org=self.org, name='group1').first()
+        response = self.deleteJSON(url, 'uuid=%s' % group1.uuid)
+        self.assertEqual(response.status_code, 204)
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
@@ -1889,7 +1893,9 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 labels, please remove some to be able to add a new label")
+                                 "This org has 10 labels and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones."
+                                 )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
