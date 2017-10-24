@@ -25,8 +25,8 @@ class ChikkaTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['view'].get_country({}), 'Philippines')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.context['view'].get_country({}), 'Philippines')
 
         post_data = response.context['form'].initial
 
@@ -39,16 +39,16 @@ class ChikkaTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('chikka', channel.config_json()[Channel.CONFIG_USERNAME])
-        self.assertEquals('password', channel.config_json()[Channel.CONFIG_PASSWORD])
-        self.assertEquals('5259', channel.address)
-        self.assertEquals('PH', channel.country)
-        self.assertEquals('CK', channel.channel_type)
+        self.assertEqual('chikka', channel.config_json()[Channel.CONFIG_USERNAME])
+        self.assertEqual('password', channel.config_json()[Channel.CONFIG_PASSWORD])
+        self.assertEqual('5259', channel.address)
+        self.assertEqual('PH', channel.country)
+        self.assertEqual('CK', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
