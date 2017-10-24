@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import logging
 import phonenumbers
-import plivo
 import requests
 import six
 import time
@@ -989,13 +988,8 @@ class Channel(TembaModel):
             for call in IVRCall.objects.filter(channel=self):
                 call.close()
 
-            # delete Plivo application
-            if self.channel_type == 'PL':
-                client = plivo.RestAPI(self.config_json()[Channel.CONFIG_PLIVO_AUTH_ID], self.config_json()[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-                client.delete_application(params=dict(app_id=self.config_json()[Channel.CONFIG_PLIVO_APP_ID]))
-
             # delete Twilio SMS application
-            elif self.channel_type == Channel.TYPE_TWILIO:
+            if self.channel_type == Channel.TYPE_TWILIO:
                 client = self.org.get_twilio_client()
                 number_update_args = dict()
 
