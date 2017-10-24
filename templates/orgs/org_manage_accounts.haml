@@ -22,6 +22,10 @@
 
         tr.invite td {
           color: #ddd;
+
+          &.invite-remove {
+            color: #999999;
+          }
         }
 
         .glyph.level-checkbox:before {
@@ -135,6 +139,11 @@
             .glyph.level-checkbox{class:'{% if invite.user_group == "V"%}checked{%endif%}'}
           %td.permission
             .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
+          - with invites_fields|get:invite as check_name
+            %td.check.permission.invite-remove
+              .hidden-input.hide
+                {{form|field:check_name}}
+              .glyph.level-checkbox
 
       %tr
         %td{height:'3px', colspan:6}
@@ -237,6 +246,9 @@
           cell.addClass('checked');
           ipt.prop('checked', true);
 
+        } else if (cell.hasClass("invite-remove")) {
+          cell.removeClass('checked');
+          ipt.prop('checked', false);
         }
 
         hasAdmin = false;
