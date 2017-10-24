@@ -10,17 +10,19 @@ def migrate_flows_forward():
     from temba.flows.models import Flow
     flow_ids = list(Flow.objects.filter(is_active=True).values_list('id', flat=True))
     total = len(flow_ids)
+    updated = 0
     for id_batch in chunk_list(flow_ids, 1000):
-        print("Updating flows: %d of %d" % (len(id_batch), total))
         for flow in Flow.objects.filter(id__in=id_batch):
             # bug out if we have any dependencies already
             if flow.group_dependencies.all().exists():
-                return
+                continue
             if flow.flow_dependencies.all().exists():
-                return
+                continue
             if flow.field_dependencies.all().exists():
-                return
+                continue
             flow.update(flow.as_json())
+        updated += len(id_batch)
+        print("Updated flows: %d of %d" % (updated, total))
 
 
 def apply_manual():
