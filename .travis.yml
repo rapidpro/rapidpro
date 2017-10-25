@@ -32,7 +32,8 @@ install:
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
-- pip3 install flake8
+- export PATH=$HOME/.local/bin:$PATH
+- pip3 install flake8 --user `whoami`
 - which flake8
 - nvm install 6
 - nvm use 6
