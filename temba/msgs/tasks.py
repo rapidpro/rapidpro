@@ -138,7 +138,7 @@ def send_broadcast_task(broadcast_id, **kwargs):
     broadcast = Broadcast.objects.get(pk=broadcast_id)
 
     high_priority = (broadcast.recipient_count == 1)
-    message_context = {} if kwargs.get('do_substitution', True) else {}
+    message_context = {} if kwargs.get('with_expressions', True) else {}
 
     broadcast.send(high_priority=high_priority, message_context=message_context)
 
