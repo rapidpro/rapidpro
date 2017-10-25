@@ -8,11 +8,13 @@ from temba.utils import chunk_list
 
 def migrate_flows_forward():
     from temba.flows.models import Flow
+
     flow_ids = list(Flow.objects.filter(is_active=True).values_list('id', flat=True))
     total = len(flow_ids)
     updated = 0
     for id_batch in chunk_list(flow_ids, 1000):
         for flow in Flow.objects.filter(id__in=id_batch):
+
             # bug out if we have any dependencies already
             if flow.group_dependencies.all().exists():
                 continue
@@ -20,7 +22,9 @@ def migrate_flows_forward():
                 continue
             if flow.field_dependencies.all().exists():
                 continue
-            flow.ensure_current_version()
+
+            flow.update_dependencies()
+
         updated += len(id_batch)
         print("Updated flows: %d of %d" % (updated, total))
 
