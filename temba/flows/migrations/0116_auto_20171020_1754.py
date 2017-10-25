@@ -20,7 +20,7 @@ def migrate_flows_forward():
                 continue
             if flow.field_dependencies.all().exists():
                 continue
-            flow.update(flow.as_json())
+            flow.ensure_current_version()
         updated += len(id_batch)
         print("Updated flows: %d of %d" % (updated, total))
 
