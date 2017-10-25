@@ -1198,7 +1198,7 @@ class BroadcastTest(TembaTest):
 
         def substitute(s, context):
             context['contact'] = self.joe.build_expressions_context()
-            return Msg.substitute_variables(s, context)
+            return Msg.evaluate_template(s, context)
 
         self.assertEqual(("Hello World", []), substitute("Hello World", dict()))
         self.assertEqual(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))

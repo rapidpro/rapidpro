@@ -1448,14 +1448,14 @@ class Msg(models.Model):
             if channel and 'channel' not in expressions_context:
                 expressions_context['channel'] = channel.build_expressions_context()
 
-            (text, errors) = Msg.substitute_variables(text, expressions_context, org=org)
+            (text, errors) = Msg.evaluate_template(text, expressions_context, org=org)
             if text:
                 text = text[:Msg.MAX_TEXT_LEN]
 
             evaluated_attachments = []
             if attachments:
                 for attachment in attachments:
-                    (attachment, errors) = Msg.substitute_variables(attachment, expressions_context, org=org)
+                    (attachment, errors) = Msg.evaluate_template(attachment, expressions_context, org=org)
                     evaluated_attachments.append(attachment)
         else:
             text = text[:Msg.MAX_TEXT_LEN]
