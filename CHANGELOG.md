@@ -1,3 +1,8 @@
+v3.0.227
+----------
+ * Update Infobip channel type to use the latest JSON API
+ * Migrate flows forward to have dependencies
+
 v3.0.226
 ----------
  * Fix issue with dates in the contact field extractor
