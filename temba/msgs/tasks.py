@@ -132,12 +132,15 @@ def process_message_task(msg_event):
 
 
 @task(track_started=True, name='send_broadcast')
-def send_broadcast_task(broadcast_id):
+def send_broadcast_task(broadcast_id, **kwargs):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
+
     high_priority = (broadcast.recipient_count == 1)
-    broadcast.send(high_priority=high_priority)
+    message_context = {} if kwargs.get('do_substitution', True) else {}
+
+    broadcast.send(high_priority=high_priority, message_context=message_context)
 
 
 @task(track_started=True, name='send_to_flow_node')
@@ -161,7 +164,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    broadcast.send()
+    broadcast.send(message_context={})
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))

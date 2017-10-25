@@ -1332,11 +1332,11 @@ class BroadcastTest(TembaTest):
         self.assertEqual(self.kevin.msgs.get(broadcast=broadcast1).text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
 
         # if we don't provide a context then substitution isn't performed
-        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name", [self.joe_and_frank, self.kevin])
+        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin])
         broadcast2.send(trigger_send=False)
 
-        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name")
-        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name")
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
     def test_purge(self):
         today = timezone.now().date()

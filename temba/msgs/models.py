@@ -320,7 +320,7 @@ class Broadcast(models.Model):
                                      media=self.media, base_language=self.base_language,
                                      parent=self)
 
-        broadcast.send(trigger_send=True)
+        broadcast.send(trigger_send=True, message_context={})
 
         return broadcast
 

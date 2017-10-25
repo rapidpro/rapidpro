@@ -842,5 +842,5 @@ class MsgCreateSerializer(WriteSerializer):
                                      recipients=contacts, channel=channel)
 
         # send it
-        broadcast.send()
+        broadcast.send(message_context={})
         return broadcast
