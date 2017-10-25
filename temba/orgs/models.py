@@ -555,7 +555,8 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_ussd_channels(self):
-        return self.channels.filter(is_active=True, org=self, channel_type__in=['JNU', 'VMU'])
+        from temba.channels.models import ChannelType, Channel
+        return Channel.get_by_category(self, ChannelType.Category.USSD)
 
     def get_channel_delegate(self, channel, role):
         """

@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import logging
 import phonenumbers
-import plivo
 import requests
 import six
 import time
@@ -42,7 +41,7 @@ from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
-from twilio import twiml, TwilioRestException
+from twilio import twiml
 from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
@@ -282,12 +281,7 @@ class Channel(TembaModel):
 
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
-    # list of all USSD channels
-    USSD_CHANNELS = []
-
-    TWIML_CHANNELS = ['T', TYPE_VERBOICE, 'TW']
-
-    MEDIA_CHANNELS = []
+    TWIML_CHANNELS = [TYPE_VERBOICE]
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
@@ -402,6 +396,11 @@ class Channel(TembaModel):
     def get_types(cls):
         from .types import TYPES
         return six.itervalues(TYPES)
+
+    @classmethod
+    def get_by_category(cls, org, category):
+        category_channel_types = [c_type.code for c_type in Channel.get_types() if c_type.category == category]
+        return org.channels.filter(is_active=True, channel_type__in=category_channel_types)
 
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
@@ -770,15 +769,24 @@ class Channel(TembaModel):
         return latest_message
 
     def get_delayed_outgoing_messages(self):
-        messages = self.get_unsent_messages()
+        from temba.msgs.models import Msg
+
+        one_hour_ago = timezone.now() - timedelta(hours=1)
         latest_sent_message = self.get_latest_sent_message()
 
-        # ignore really recent unsent messages
-        messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
+        # if the last sent message was in the last hour, assume this channel is ok
+        if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:  # pragma: no cover
+            return Msg.objects.none()
 
-        # if there is one message successfully sent ignore also all message created before it was sent
+        messages = self.get_unsent_messages()
+
+        # channels have an hour to send messages before we call them delays, so ignore all messages created in last hour
+        messages = messages.filter(created_on__lt=one_hour_ago)
+
+        # if we have a successfully sent message, we're only interested a new failures since then. Note that we use id
+        # here instead of created_on because we won't hit the outbox index if we use a range condition on created_on.
         if latest_sent_message:
-            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
+            messages = messages.filter(id__gt=latest_sent_message.id)
 
         return messages
 
@@ -818,9 +826,6 @@ class Channel(TembaModel):
     def is_new(self):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
-
-    def is_ussd(self):
-        return self.channel_type in ['JNU', 'VMU']
 
     def calculate_tps_cost(self, msg):
         """
@@ -882,37 +887,6 @@ class Channel(TembaModel):
             from temba.ivr.models import IVRCall
             for call in IVRCall.objects.filter(channel=self):
                 call.close()
-
-            # delete Plivo application
-            if self.channel_type == 'PL':
-                client = plivo.RestAPI(self.config_json()[Channel.CONFIG_PLIVO_AUTH_ID], self.config_json()[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-                client.delete_application(params=dict(app_id=self.config_json()[Channel.CONFIG_PLIVO_APP_ID]))
-
-            # delete Twilio SMS application
-            elif self.channel_type == 'T':
-                client = self.org.get_twilio_client()
-                number_update_args = dict()
-
-                if not self.is_delegate_sender():
-                    number_update_args['sms_application_sid'] = ""
-
-                if self.supports_ivr():
-                    number_update_args['voice_application_sid'] = ""
-
-                try:
-                    number_sid = self.bod or self.config_json()['number_sid']
-                    client.phone_numbers.update(number_sid, **number_update_args)
-                except Exception:
-                    if client:
-                        matching = client.phone_numbers.list(phone_number=self.address)
-                        if matching:
-                            client.phone_numbers.update(matching[0].sid, **number_update_args)
-
-                if 'application_sid' in config:
-                    try:
-                        client.applications.delete(sid=config['application_sid'])
-                    except TwilioRestException:  # pragma: no cover
-                        pass
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -1711,13 +1685,13 @@ class ChannelLog(models.Model):
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
-        except:
+        except Exception:
             return self.request
 
     def get_response_formatted(self):
         try:
             return json.dumps(json.loads(self.response), indent=2)
-        except:
+        except Exception:
             if not self.response:
                 self.response = self.description
             return self.response
