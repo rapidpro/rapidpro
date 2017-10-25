@@ -7,6 +7,8 @@ import copy
 import hashlib
 import hmac
 import json
+
+import iso8601
 import pytz
 import six
 import time
@@ -4577,6 +4579,10 @@ class InfobipTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
+
+        now = timezone.now()
+        two_hour_ago = now - timedelta(hours=2)
+
         post_data = {
             "results": [
                 {
@@ -4586,7 +4592,7 @@ class InfobipTest(TembaTest):
                     "text": "Hello World",
                     "cleanText": "World",
                     "keyword": "Hello",
-                    "receivedAt": "2016-10-06T09:28:39.220+0000",
+                    "receivedAt": two_hour_ago.isoformat(),
                     "smsCount": 1,
                     "price": {
                         "pricePerMessage": 0,
@@ -4610,6 +4616,26 @@ class InfobipTest(TembaTest):
         self.assertEqual(self.org, msg.org)
         self.assertEqual(self.channel, msg.channel)
         self.assertEqual("Hello World", msg.text)
+        self.assertEqual(two_hour_ago, msg.sent_on)
+        self.assertTrue(now > msg.sent_on)
+
+        Msg.objects.all().delete()
+
+        with patch('iso8601.parse_date') as mock:
+            mock.side_effect = [iso8601.ParseError()]
+
+            response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+
+            self.assertEqual(200, response.status_code)
+
+            # load our message
+            msg = Msg.objects.get()
+            self.assertEqual('+2347030767143', msg.contact.get_urn(TEL_SCHEME).path)
+            self.assertEqual(INCOMING, msg.direction)
+            self.assertEqual(self.org, msg.org)
+            self.assertEqual(self.channel, msg.channel)
+            self.assertEqual("Hello World", msg.text)
+            self.assertTrue(now < msg.sent_on)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
         post_data['results'][0]['to'] = '2347030767145'
@@ -4617,6 +4643,9 @@ class InfobipTest(TembaTest):
 
         # should get 404 as the channel wasn't found
         self.assertEqual(404, response.status_code)
+
+        response = self.client.get(receive_url)
+        self.assertEqual(405, response.status_code)
 
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
