@@ -39,7 +39,7 @@
             {
               "msg": {
                 "fre": "French @(10 / contact.french_age & contact.french_fries).",
-                "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw)). Your score is @(MAX(parent.contact.top, child.contact.bottom))"
+                "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw)). Your score is @(MAX(parent.contact.top, child.contact.bottom)). On @((DATEVALUE(\"24-10-2017\") + TIMEVALUE(\"12:30\")))."
               },
               "media": {
                 "eng": "image:@contact.attachment"

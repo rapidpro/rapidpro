@@ -113,7 +113,7 @@ class URN(object):
         """
         try:
             scheme, path = urn.split(':', 1)
-        except:
+        except Exception:
             raise ValueError("URN strings must contain scheme and path components")
 
         if not scheme or scheme not in cls.VALID_SCHEMES:
@@ -190,7 +190,7 @@ class URN(object):
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
-            return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
+            return regex.match(r'^[a-zA-Z0-9_=]{1,24}$', path, regex.V0)
 
         # anything goes for external schemes
         return True
