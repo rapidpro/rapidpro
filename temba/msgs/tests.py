@@ -1319,24 +1319,24 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, "team", "Amavubi")
         self.kevin.set_field(self.user, "team", "Junior")
 
-        self.broadcast = Broadcast.create(self.org, self.user,
-                                          "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
-                                          [self.joe_and_frank, self.kevin])
-        self.broadcast.send(trigger_send=False)
+        broadcast1 = Broadcast.create(self.org, self.user,
+                                      "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
+                                      [self.joe_and_frank, self.kevin])
+        broadcast1.send(trigger_send=False, message_context={})
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEqual(Msg.objects.all().count(), 3)
 
-        sms_to_joe = Msg.objects.get(contact=self.joe)
-        sms_to_frank = Msg.objects.get(contact=self.frank)
-        sms_to_kevin = Msg.objects.get(contact=self.kevin)
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast1).text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast1).text, 'Hi Frank Blow, You live in Remera and your team is .')
+        self.assertEqual(self.kevin.msgs.get(broadcast=broadcast1).text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
 
-        self.assertEqual(sms_to_joe.text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
-        self.assertFalse(sms_to_joe.has_template_error)
-        self.assertEqual(sms_to_frank.text, 'Hi Frank Blow, You live in Remera and your team is .')
-        self.assertFalse(sms_to_frank.has_template_error)
-        self.assertEqual(sms_to_kevin.text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
-        self.assertFalse(sms_to_kevin.has_template_error)
+        # if we don't provide a context then substitution isn't performed
+        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name", [self.joe_and_frank, self.kevin])
+        broadcast2.send(trigger_send=False)
+
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name")
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name")
 
     def test_purge(self):
         today = timezone.now().date()

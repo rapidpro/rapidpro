@@ -332,12 +332,6 @@ class Broadcast(models.Model):
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
 
-    def get_messages_substitution_complete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=False)
-
-    def get_messages_substitution_incomplete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=True)
-
     def get_message_count(self):
         return self.get_messages().count()
 
@@ -441,9 +435,6 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
-        if not message_context:
-            message_context = {}
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
@@ -458,9 +449,12 @@ class Broadcast(models.Model):
                 if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
-            context = message_context.copy()
-            if 'contact' not in context:
-                context['contact'] = contact.build_expressions_context()
+            if message_context is not None:
+                context = message_context.copy()
+                if 'contact' not in context:
+                    context['contact'] = contact.build_expressions_context()
+            else:
+                context = None
 
             # add in our parent context if the message references @parent
             if run_map:
@@ -702,8 +696,8 @@ class Msg(models.Model):
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
-    has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
-                                             help_text=_("Whether data for variable substitution are missing"))
+    has_template_error = models.NullBooleanField(default=False, verbose_name=_("Has Template Error"),
+                                                 help_text=_("Whether data for variable substitution are missing"))
 
     msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
@@ -1443,30 +1437,31 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date?  set it to now
+        # no creation date? set it to now
         if not created_on:
             created_on = timezone.now()
 
-        # substitute variables in the text messages
-        if not message_context:
-            message_context = dict()
+        # substitute variables in the text and attachments if a context was provided
+        if message_context is not None:
+            # make sure 'channel' is populated if we have a channel
+            if channel and 'channel' not in message_context:
+                message_context['channel'] = channel.build_expressions_context()
 
-        # make sure 'channel' is populated if we have a channel
-        if channel and 'channel' not in message_context:
-            message_context['channel'] = channel.build_expressions_context()
+            (text, errors) = Msg.substitute_variables(text, message_context, org=org)
+            if text:
+                text = text[:Msg.MAX_TEXT_LEN]
 
-        (text, errors) = Msg.substitute_variables(text, message_context, org=org)
-        if text:
+            evaluated_attachments = []
+            if attachments:
+                for attachment in attachments:
+                    (attachment, errors) = Msg.substitute_variables(attachment, message_context, org=org)
+                    evaluated_attachments.append(attachment)
+        else:
             text = text[:Msg.MAX_TEXT_LEN]
-
-        evaluated_attachments = []
-        if attachments:
-            for attachment in attachments:
-                (attachment, errors) = Msg.substitute_variables(attachment, message_context, org=org)
-                evaluated_attachments.append(attachment)
+            evaluated_attachments = attachments
 
         # prefer none to empty lists in the database
-        if len(evaluated_attachments) == 0:
+        if evaluated_attachments is not None and len(evaluated_attachments) == 0:
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
@@ -1529,8 +1524,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         high_priority=high_priority,
                         attachments=evaluated_attachments,
-                        connection=connection,
-                        has_template_error=len(errors) > 0)
+                        connection=connection)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
