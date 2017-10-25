@@ -1322,7 +1322,7 @@ class BroadcastTest(TembaTest):
         broadcast1 = Broadcast.create(self.org, self.user,
                                       "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
                                       [self.joe_and_frank, self.kevin])
-        broadcast1.send(trigger_send=False, message_context={})
+        broadcast1.send(trigger_send=False, expressions_context={})
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEqual(Msg.objects.all().count(), 3)

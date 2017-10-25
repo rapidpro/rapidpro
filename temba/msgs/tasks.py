@@ -138,9 +138,9 @@ def send_broadcast_task(broadcast_id, **kwargs):
     broadcast = Broadcast.objects.get(pk=broadcast_id)
 
     high_priority = (broadcast.recipient_count == 1)
-    message_context = {} if kwargs.get('with_expressions', True) else {}
+    expressions_context = {} if kwargs.get('with_expressions', True) else None
 
-    broadcast.send(high_priority=high_priority, message_context=message_context)
+    broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
 
 
 @task(track_started=True, name='send_to_flow_node')
@@ -164,7 +164,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    broadcast.send(message_context={})
+    broadcast.send(expressions_context={})
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))

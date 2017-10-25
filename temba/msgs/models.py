@@ -320,7 +320,7 @@ class Broadcast(models.Model):
                                      media=self.media, base_language=self.base_language,
                                      parent=self)
 
-        broadcast.send(trigger_send=True, message_context={})
+        broadcast.send(trigger_send=True, expressions_context={})
 
         return broadcast
 
@@ -385,7 +385,7 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
+    def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -449,12 +449,13 @@ class Broadcast(models.Model):
                 if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
-            if message_context is not None:
-                context = message_context.copy()
-                if 'contact' not in context:
-                    context['contact'] = contact.build_expressions_context()
+            # build our message specific context
+            if expressions_context is not None:
+                message_context = expressions_context.copy()
+                if 'contact' not in message_context:
+                    message_context['contact'] = contact.build_expressions_context()
             else:
-                context = None
+                message_context = None
 
             # add in our parent context if the message references @parent
             if run_map:
@@ -466,7 +467,7 @@ class Broadcast(models.Model):
                     if 'parent' in text:
                         if run.parent:
                             from temba.flows.models import Flow
-                            context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -476,7 +477,7 @@ class Broadcast(models.Model):
                                           broadcast=self,
                                           channel=self.channel,
                                           response_to=response_to,
-                                          message_context=context,
+                                          expressions_context=message_context,
                                           status=status,
                                           msg_type=msg_type,
                                           high_priority=high_priority,
@@ -1117,10 +1118,10 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(self, text, user, trigger_send=False, message_context=None, connection=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+        return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
 
@@ -1402,7 +1403,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
         if not org or not user:  # pragma: no cover
@@ -1441,20 +1442,20 @@ class Msg(models.Model):
         if not created_on:
             created_on = timezone.now()
 
-        # substitute variables in the text and attachments if a context was provided
-        if message_context is not None:
+        # evaluate expressions in the text and attachments if a context was provided
+        if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
-            if channel and 'channel' not in message_context:
-                message_context['channel'] = channel.build_expressions_context()
+            if channel and 'channel' not in expressions_context:
+                expressions_context['channel'] = channel.build_expressions_context()
 
-            (text, errors) = Msg.substitute_variables(text, message_context, org=org)
+            (text, errors) = Msg.substitute_variables(text, expressions_context, org=org)
             if text:
                 text = text[:Msg.MAX_TEXT_LEN]
 
             evaluated_attachments = []
             if attachments:
                 for attachment in attachments:
-                    (attachment, errors) = Msg.substitute_variables(attachment, message_context, org=org)
+                    (attachment, errors) = Msg.substitute_variables(attachment, expressions_context, org=org)
                     evaluated_attachments.append(attachment)
         else:
             text = text[:Msg.MAX_TEXT_LEN]

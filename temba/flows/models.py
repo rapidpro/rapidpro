@@ -1746,10 +1746,10 @@ class Flow(TembaModel):
         # if we have some broadcasts to optimize for
         message_map = dict()
         if broadcasts:
-            # create our message context
-            message_context_base = self.build_expressions_context(None, start_msg)
+            # create our expressions context
+            expressions_context_base = self.build_expressions_context(None, start_msg)
             if extra:
-                message_context_base['extra'] = extra
+                expressions_context_base['extra'] = extra
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
@@ -1758,7 +1758,7 @@ class Flow(TembaModel):
 
                 # create the sms messages
                 created_on = timezone.now()
-                broadcast.send(message_context=message_context_base, trigger_send=False,
+                broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
@@ -5325,14 +5325,14 @@ class ReplyAction(Action):
                 created_on = None
 
             if msg and msg.id:
-                replies = msg.reply(text, user, trigger_send=False, message_context=context,
+                replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
                                     connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
                 high_priority = run.get_session_responded()
-                replies = run.contact.send(text, user, trigger_send=False, message_context=context,
+                replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
         return replies
@@ -5486,7 +5486,7 @@ class VariableContactAction(Action):
         return variables
 
     def build_groups_and_contacts(self, run, msg):
-        message_context = run.flow.build_expressions_context(run.contact, msg)
+        expressions_context = run.flow.build_expressions_context(run.contact, msg)
         contacts = list(self.contacts)
         groups = list(self.groups)
 
@@ -5504,7 +5504,7 @@ class VariableContactAction(Action):
 
             # other type of variable, perform our substitution
             else:
-                (variable, errors) = Msg.substitute_variables(variable, message_context, org=run.flow.org)
+                (variable, errors) = Msg.substitute_variables(variable, expressions_context, org=run.flow.org)
 
                 # Check for possible contact uuid and use its contact
                 contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
@@ -5933,7 +5933,7 @@ class SendAction(VariableContactAction):
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
                                              media=self.media, base_language=flow.base_language)
-                broadcast.send(trigger_send=False, message_context=context)
+                broadcast.send(trigger_send=False, expressions_context=context)
                 return list(broadcast.get_messages())
 
             else:
