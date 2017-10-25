@@ -22,5 +22,6 @@ def fire_follow_triggers(channel_id, contact_urn_id, new_mage_contact=False):
     if new_mage_contact:
         handle_new_contact(contact.org, contact)
 
-    event = ChannelEvent.create(channel, urn.identity, ChannelEvent.TYPE_FOLLOW, timezone.now())
-    event.handle()
+    if channel.is_active and channel.org:
+        event = ChannelEvent.create(channel, urn.identity, ChannelEvent.TYPE_FOLLOW, timezone.now())
+        event.handle()
