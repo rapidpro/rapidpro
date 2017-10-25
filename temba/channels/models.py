@@ -413,8 +413,9 @@ class Channel(TembaModel):
         return six.itervalues(TYPES)
 
     @classmethod
-    def get_type_code_by_category(cls, category):
-        return [c_type.code for c_type in Channel.get_types() if c_type.category == category]
+    def get_by_category(cls, org, category):
+        category_channel_types = [c_type.code for c_type in Channel.get_types() if c_type.category == category]
+        return org.channels.filter(is_active=True, channel_type__in=category_channel_types)
 
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
@@ -1878,13 +1879,13 @@ class ChannelLog(models.Model):
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
-        except:
+        except Exception:
             return self.request
 
     def get_response_formatted(self):
         try:
             return json.dumps(json.loads(self.response), indent=2)
-        except:
+        except Exception:
             if not self.response:
                 self.response = self.description
             return self.response

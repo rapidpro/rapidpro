@@ -556,8 +556,7 @@ class Org(SmartModel):
 
     def get_ussd_channels(self):
         from temba.channels.models import ChannelType, Channel
-        ussd_types = Channel.get_type_code_by_category(category=ChannelType.Category.USSD)
-        return self.channels.filter(is_active=True, org=self, channel_type__in=ussd_types)
+        return Channel.get_by_category(self, ChannelType.Category.USSD)
 
     def get_channel_delegate(self, channel, role):
         """
