@@ -4577,11 +4577,29 @@ class InfobipTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'receiver': '2347030767144', 'sender': '2347030767143', 'text': 'Hello World'}
-        encoded_message = urlencode(data)
+        post_data = {
+            "results": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": "Hello World",
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": "2016-10-06T09:28:39.220+0000",
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
 
-        callback_url = reverse('handlers.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
+        receive_url = reverse('courier.ib', args=[self.channel.uuid, 'receive'])
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
         self.assertEqual(200, response.status_code)
 
@@ -4594,11 +4612,8 @@ class InfobipTest(TembaTest):
         self.assertEqual("Hello World", msg.text)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
-        data['receiver'] = '2347030767145'
-        encoded_message = urlencode(data)
-
-        callback_url = reverse('handlers.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
+        post_data['results'][0]['to'] = '2347030767145'
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
         # should get 404 as the channel wasn't found
         self.assertEqual(404, response.status_code)
@@ -4609,25 +4624,38 @@ class InfobipTest(TembaTest):
         msg.external_id = '254021015120766124'
         msg.save(update_fields=('external_id',))
 
-        # mark it as delivered
-        base_body = '<DeliveryReport><message id="254021015120766124" sentdate="2014/02/10 16:12:07" ' \
-                    ' donedate="2014/02/10 16:13:00" status="STATUS" gsmerror="0" price="0.65" /></DeliveryReport>'
-        delivery_url = reverse('handlers.infobip_handler', args=['delivered', self.channel.uuid])
+        post_data = {
+            "results": [
+                {
+                    "messageId": msg.id,
+                    "status": {
+                        "groupName": "DELIVERED"
+                    }
+                }
+            ]
+        }
 
-        # assert our SENT status
-        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'SENT'), content_type='application/xml')
-        self.assertEqual(200, response.status_code)
-        msg = Msg.objects.get()
-        self.assertEqual(SENT, msg.status)
+        delivery_url = reverse('courier.ib', args=[self.channel.uuid, 'delivered'])
 
         # assert our DELIVERED status
-        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'DELIVERED'), content_type='application/xml')
+        response = self.client.post(delivery_url, json.dumps(post_data), content_type='application/json')
         self.assertEqual(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEqual(DELIVERED, msg.status)
+        msg.status = SENT
+        msg.save()
 
         # assert our FAILED status
-        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'NOT_SENT'), content_type='application/xml')
+        post_data['results'][0]['status']['groupName'] = 'REJECTED'
+        response = self.client.post(delivery_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+        msg = Msg.objects.get()
+        self.assertEqual(FAILED, msg.status)
+        msg.status = SENT
+        msg.save()
+
+        post_data['results'][0]['status']['groupName'] = 'UNDELIVERABLE'
+        response = self.client.post(delivery_url, json.dumps(post_data), content_type='application/json')
         self.assertEqual(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEqual(FAILED, msg.status)
@@ -4640,7 +4668,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 0}, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 1}, 'messageid': 12}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -4650,6 +4678,18 @@ class InfobipTest(TembaTest):
                 self.assertEqual(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEqual('12', msg.external_id)
+
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['text'],
+                                 "Test message")
+
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyContentType'],
+                                 "application/json")
+
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
+                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                             args=[self.channel.uuid, 'delivered'])))
+
+                self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
                 self.clear_cache()
 
@@ -4688,7 +4728,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 0}, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 1}, 'messageid': 12}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -4699,8 +4739,17 @@ class InfobipTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEqual('12', msg.external_id)
 
-                self.assertEqual(mock.call_args[1]['json']['text'],
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['text'],
                                  "Test message\nhttps://example.com/attachments/pic.jpg")
+
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyContentType'],
+                                 "application/json")
+
+                self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
+                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                             args=[self.channel.uuid, 'delivered'])))
+
+                self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
                 self.clear_cache()
         finally:

@@ -6,6 +6,8 @@ import requests
 import six
 import time
 
+from django.conf import settings
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
@@ -33,7 +35,7 @@ class InfobipType(ChannelType):
     attachment_support = False
 
     def send(self, channel, msg, text):
-        url = "https://api.infobip.com/sms/1/text/single"
+        url = "https://api.infobip.com/sms/1/text/advanced"
 
         username = channel.config['username']
         password = channel.config['password']
@@ -43,8 +45,24 @@ class InfobipType(ChannelType):
                    'Authorization': 'Basic %s' % encoded_auth}
         headers.update(TEMBA_HEADERS)
 
-        payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
-                   'text': text}
+        # if the channel config has specified and override hostname use that, otherwise use settings
+        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+
+        # the event url Junebug will relay events to
+        status_url = 'http://%s%s' % (event_hostname, reverse('courier.ib', args=[channel.uuid, 'delivered']))
+
+        payload = {"messages": [
+            {
+                "from": channel.address.lstrip('+'),
+                "destinations": [
+                    {"to": msg.urn_path.lstrip('+'), "messageId": msg.id}
+                ],
+                "text": text,
+                "notifyContentType": "application/json",
+                "intermediateReport": True,
+                "notifyUrl": status_url
+            }
+        ]}
 
         event = HttpEvent('POST', url, json.dumps(payload))
         events = [event]
@@ -66,7 +84,7 @@ class InfobipType(ChannelType):
         messages = response_json['messages']
 
         # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']['id']) != 0:  # pragma: no cover
+        if int(messages[0]['status']['id']) not in [1, 3]:  # pragma: no cover
             raise SendException("Received non-zero status code [%s]" % messages[0]['status']['id'],
                                 events=events, start=start)
 
