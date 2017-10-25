@@ -878,15 +878,24 @@ class Channel(TembaModel):
         return latest_message
 
     def get_delayed_outgoing_messages(self):
-        messages = self.get_unsent_messages()
+        from temba.msgs.models import Msg
+
+        one_hour_ago = timezone.now() - timedelta(hours=1)
         latest_sent_message = self.get_latest_sent_message()
 
-        # ignore really recent unsent messages
-        messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
+        # if the last sent message was in the last hour, assume this channel is ok
+        if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:  # pragma: no cover
+            return Msg.objects.none()
 
-        # if there is one message successfully sent ignore also all message created before it was sent
+        messages = self.get_unsent_messages()
+
+        # channels have an hour to send messages before we call them delays, so ignore all messages created in last hour
+        messages = messages.filter(created_on__lt=one_hour_ago)
+
+        # if we have a successfully sent message, we're only interested a new failures since then. Note that we use id
+        # here instead of created_on because we won't hit the outbox index if we use a range condition on created_on.
         if latest_sent_message:
-            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
+            messages = messages.filter(id__gt=latest_sent_message.id)
 
         return messages
 

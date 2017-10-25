@@ -632,9 +632,11 @@ class OrgTest(TembaTest):
             'editors_%d' % self.user.pk: 'on',
             'surveyors_%d' % self.editor.pk: 'on',
             'invite_emails': "",
-            'invite_group': 'V'
+            'invite_group': 'V',
+            'remove_invite_%s' % response.context['invites'][2].pk: True
         })
 
+        self.assertEqual(Invitation.objects.all().count(), 2)
         # we should be redirected to chooser page
         self.assertRedirect(response, reverse('orgs.org_choose'))
 

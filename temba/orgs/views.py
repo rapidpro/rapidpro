@@ -1132,6 +1132,16 @@ class OrgCRUDL(SmartCRUDL):
                     fields_by_user[user] = fields
                 return fields_by_user
 
+            def add_invite_remove_fields(self, invites):
+                fields_by_invite = {}
+
+                for invite in invites:
+                    field_name = "%s_%d" % ('remove_invite', invite.pk)
+                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    fields_by_invite[invite] = field_name
+
+                return fields_by_invite
+
             def clean_invite_emails(self):
                 emails = self.cleaned_data['invite_emails'].lower().strip()
                 if emails:
@@ -1173,8 +1183,12 @@ class OrgCRUDL(SmartCRUDL):
         def get_form(self):
             form = super(OrgCRUDL.ManageAccounts, self).get_form()
 
-            self.org_users = self.get_object().get_org_users()
+            org = self.get_object()
+            self.org_users = org.get_org_users()
             self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
+
+            self.invites = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            self.fields_by_invite = form.add_invite_remove_fields(self.invites)
 
             return form
 
@@ -1183,6 +1197,10 @@ class OrgCRUDL(SmartCRUDL):
 
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
+
+            for invite in self.fields_by_invite.keys():
+                if cleaned_data.get(self.fields_by_invite.get(invite)):
+                    Invitation.objects.filter(org=org, pk=invite.pk).delete()
 
             invite_emails = cleaned_data['invite_emails'].lower().strip()
             invite_group = cleaned_data['invite_group']
@@ -1241,7 +1259,8 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = org
             context['org_users'] = self.org_users
             context['group_fields'] = self.fields_by_users
-            context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            context['invites'] = self.invites
+            context['invites_fields'] = self.fields_by_invite
             return context
 
         def get_success_url(self):
