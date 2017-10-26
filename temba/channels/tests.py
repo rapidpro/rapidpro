@@ -4607,7 +4607,7 @@ class InfobipTest(TembaTest):
         receive_url = reverse('courier.ib', args=[self.channel.uuid, 'receive'])
         response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # load our message
         msg = Msg.objects.get()
@@ -4618,6 +4618,7 @@ class InfobipTest(TembaTest):
         self.assertEqual("Hello World", msg.text)
         self.assertEqual(two_hour_ago, msg.sent_on)
         self.assertTrue(now > msg.sent_on)
+        self.assertTrue(msg.channel_logs.filter(description='Incoming message'))
 
         Msg.objects.all().delete()
 
@@ -4626,7 +4627,7 @@ class InfobipTest(TembaTest):
 
             response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
-            self.assertEqual(200, response.status_code)
+            self.assertEqual(201, response.status_code)
 
             # load our message
             msg = Msg.objects.get()
@@ -4646,6 +4647,10 @@ class InfobipTest(TembaTest):
 
         response = self.client.get(receive_url)
         self.assertEqual(405, response.status_code)
+
+        # Invalid JSON should return 400
+        response = self.client.post(receive_url, "Invalid", content_type='application/json')
+        self.assertEqual(400, response.status_code)
 
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
@@ -4688,6 +4693,10 @@ class InfobipTest(TembaTest):
         self.assertEqual(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEqual(FAILED, msg.status)
+
+        # Invalid JSON should return 400
+        response = self.client.post(delivery_url, "Invalid", content_type='application/json')
+        self.assertEqual(400, response.status_code)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
