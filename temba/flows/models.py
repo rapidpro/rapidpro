@@ -12,7 +12,7 @@ import urllib2
 import uuid
 
 from collections import OrderedDict, defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
@@ -2988,7 +2988,22 @@ class FlowRun(models.Model):
     def results_dict(self):
         return json.loads(self.results) if self.results else dict()
 
-    def save_run_result(self, name, node_uuid, category, value):
+    @classmethod
+    def serialize_value(cls, value):
+        """
+        Utility method to give the serialized value for the passed in value
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            return value.isoformat()
+        elif isinstance(value, AdminBoundary):
+            return value.as_path()
+        else:
+            return six.text_type(value)
+
+    def save_run_result(self, name, node_uuid, category, raw_value):
         # slug our name
         key = Flow.label_to_slug(name)
 
@@ -2998,8 +3013,8 @@ class FlowRun(models.Model):
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
-            FlowRun.RESULT_VALUE: value,
-            FlowRun.RESULT_MODIFIED_ON: datetime_to_str(timezone.now())
+            FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
+            FlowRun.RESULT_MODIFIED_ON: timezone.now().isoformat(),
         }
 
         self.results = json.dumps(results)
@@ -3589,15 +3604,21 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
+    def save_run_value(self, run, rule, raw_value):
+        value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
         media_value = None
 
-        if isinstance(value, AdminBoundary):  # pragma: needs cover
+        if isinstance(raw_value, AdminBoundary):  # pragma: needs cover
             location_value = value
+
+        elif isinstance(raw_value, datetime):
+            dt_value = raw_value
+            (date_format, time_format) = get_datetime_format(run.org.get_dayfirst())
+            value = datetime_to_str(dt_value, tz=run.org.timezone, format=time_format, ms=False)
+
         else:
             dt_value = run.flow.org.parse_date(value)
             dec_value = run.flow.org.parse_decimal(value)
@@ -3619,7 +3640,7 @@ class RuleSet(models.Model):
         run.save_run_result(name=self.label,
                             node_uuid=self.uuid,
                             category=rule.category,
-                            value=value)
+                            raw_value=raw_value)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
@@ -6721,13 +6742,11 @@ class DateTest(Test):
 
         test, errors = Msg.substitute_variables(self.test, context, org=org)
         if not errors:
-            (date_format, time_format) = get_datetime_format(day_first)
-
             date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
             date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
             if self.evaluate_date_test(date_message, date_test):
-                return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
+                return 1, date_message.astimezone(tz)
 
         return 0, None
 
