@@ -88,6 +88,4 @@ class InfobipType(ChannelType):
             raise SendException("Received error status: %s" % messages[0]['status']['description'],
                                 events=events, start=start)
 
-        external_id = messages[0]['messageid']
-
-        Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
+        Channel.success(channel, msg, SENT, start, events=events)

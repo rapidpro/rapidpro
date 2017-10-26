@@ -4697,7 +4697,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'groupId': 1}, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'groupId': 1}}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -4706,7 +4706,7 @@ class InfobipTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEqual(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
-                self.assertEqual('12', msg.external_id)
+                self.assertIsNone(msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['text'],
                                  "Test message")
@@ -4777,7 +4777,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'groupId': 1}, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'groupId': 1}}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -4786,7 +4786,7 @@ class InfobipTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEqual(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
-                self.assertEqual('12', msg.external_id)
+                self.assertIsNone(msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['text'],
                                  "Test message\nhttps://example.com/attachments/pic.jpg")
