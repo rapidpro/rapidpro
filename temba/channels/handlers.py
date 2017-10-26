@@ -781,10 +781,7 @@ class InfobipHandler(BaseChannelHandler):
         request_method = request.method
         request_path = request.get_full_path()
 
-        def make_response(description, msg=None, status_code=None):
-            if msg:
-                log(msg, 'Incoming message', description)
-
+        def make_response(description, status_code=None):
             if not status_code:
                 status_code = 201
             return HttpResponse(description, status=status_code)
