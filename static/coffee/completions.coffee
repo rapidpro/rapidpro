@@ -136,10 +136,14 @@ class window.AutoComplete
   findInvalidFields: (text) ->
     if not text
       return []
+
+    # these are acceptable keys, that we don't necessarily want to show completion for
     validKeys = {
       "id": true,
-      "telegram": true
+      "telegram": true,
+      "facebook": true
     }
+
     for variable in @variables
       if variable.name.startsWith('contact')
         key = variable.name.slice(8)
