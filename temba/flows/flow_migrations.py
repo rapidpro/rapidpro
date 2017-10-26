@@ -266,8 +266,7 @@ def migrate_to_version_8(json_flow, flow=None):
                 node[key] = migrate_node(val)
         return node
 
-    # json_flow = map_actions(json_flow, cleanse_group_names)
-
+    json_flow = map_actions(json_flow, cleanse_group_names)
     for rule_set in json_flow.get('rule_sets', []):
         for rule in rule_set['rules']:
             migrate_node(rule['test'])
