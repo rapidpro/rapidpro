@@ -7042,6 +7042,21 @@ class FlowMigrationTest(FlowFileTest):
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
 
+    def test_migrate_bad_group_name(self):
+        # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.
+        # However, since it was a missed migration, now we need to apply it for any current version 
+        # at the time of this fix
+        for v in ('4', '5', '6', '7', '8', '9', '10'):
+            error = 'Failure migrating group names "%s" forward from v%s'
+            flow = self.get_flow('favorites_bad_group_name_v%s' % v)
+            self.assertIsNotNone(flow, "Failure importing favorites from v%s" % v)
+            self.assertTrue(ContactGroup.user_groups.filter(name='Contacts < 25').exists(), error % ("< 25", v))
+            self.assertTrue(ContactGroup.user_groups.filter(name='Contacts > 100').exists(), error % ("> 100", v))
+
+            ContactGroup.user_groups.all().delete()
+            self.assertEqual(CURRENT_EXPORT_VERSION, flow.version_number)
+            flow.delete()
+
 
 class DuplicateValueTest(FlowFileTest):
 
