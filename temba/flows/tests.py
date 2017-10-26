@@ -7044,7 +7044,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_bad_group_names(self):
         # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.
-        # However, since it was a missed migration, now we need to apply it for any current version 
+        # However, since it was a missed migration, now we need to apply it for any current version
         # at the time of this fix
         for v in ('4', '5', '6', '7', '8', '9', '10'):
             error = 'Failure migrating group names "%s" forward from v%s'

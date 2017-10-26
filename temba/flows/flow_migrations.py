@@ -71,7 +71,7 @@ def migrate_to_version_10(json_flow, flow):
     # if we have rulesets, we need to fix those up with our new webhook types
     base_lang = json_flow.get('base_language', 'base')
     json_flow = map_actions(json_flow, cleanse_group_names)
-    if 'rule_sets' in json_flow:        
+    if 'rule_sets' in json_flow:
         rulesets = []
         for ruleset in json_flow['rule_sets']:
             ruleset = replace_webhook_ruleset(ruleset, base_lang)
