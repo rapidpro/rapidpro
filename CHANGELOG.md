@@ -1,3 +1,9 @@
+v3.0.229
+----------
+ * Do not set external ID for InfoBip we have send them our ID
+ * Fix channel address comparison to be insensitive to +
+ * Use status groupId to check from the InfoBip response to know if the request was erroneous
+
 v3.0.228
 ----------
  * Add id to reserved field list
