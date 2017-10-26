@@ -80,7 +80,7 @@ class MbloxType(ChannelType):
         try:
             response_json = response.json()
             external_id = response_json['id']
-        except:  # pragma: no cover
+        except Exception:  # pragma: no cover
             raise SendException("Unable to parse response body from MBlox",
                                 event=event, start=start)
 
