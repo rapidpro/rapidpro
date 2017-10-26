@@ -11,6 +11,18 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
+def migrate_to_version_10_1(json_flow, flow):
+    """
+    Ensures all actions have uuids
+    """
+    for actionset in json_flow['action_sets']:
+        for action in actionset['actions']:
+            uuid = action.get('uuid', None)
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
 def migrate_to_version_10(json_flow, flow):
     """
     Looks for webhook ruleset_types, adding success and failure cases and moving

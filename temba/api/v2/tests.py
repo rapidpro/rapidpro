@@ -26,6 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from uuid import uuid4
 from urllib import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
@@ -2533,7 +2534,8 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
+                                                       dict(base="Hi @extra.first_name @extra.last_name, "
                                                                  "what's your favorite color?")).as_json()])
         first_action.save()
 
