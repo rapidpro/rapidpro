@@ -1214,24 +1214,21 @@ class FlowTest(TembaTest):
                           "rule_sets": [],
                           "action_sets": [{"y": 0, "x": 100,
                                            "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                                           "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/",
+                                           "actions": [{"type": "api", "webhook": "http://localhost:49999/echo?content=%7B%20%22coupon%22%3A%20%22NEXUS4%22%20%7D",
                                                         "webhook_header": [{
                                                             "name": "Authorization", "value": "Token 12345"
                                                         }]},
                                                        {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
                           "metadata": {"notes": []}})
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
+        self.flow.start([], [self.contact])
 
-            self.flow.start([], [self.contact])
-
-            self.assertTrue(self.flow.get_steps())
-            self.assertTrue(Msg.objects.all())
-            msg = Msg.objects.all()[0]
-            self.assertFalse("@extra.coupon" in msg.text)
-            self.assertEqual(msg.text, "text to get NEXUS4")
-            self.assertEqual(PENDING, msg.status)
+        self.assertTrue(self.flow.get_steps())
+        self.assertTrue(Msg.objects.all())
+        msg = Msg.objects.all()[0]
+        self.assertFalse("@extra.coupon" in msg.text)
+        self.assertEqual(msg.text, "text to get NEXUS4")
+        self.assertEqual(PENDING, msg.status)
 
     def test_parsing(self):
         # our flow should have the appropriate RuleSet and ActionSet objects
@@ -3743,54 +3740,40 @@ class ActionTest(TembaTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
-    @patch('requests.post')
-    def test_webhook_action(self, mock_requests_post, mock_timezone_now):
+    def test_webhook_action(self, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
-        mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
 
-        action = WebhookAction(str(uuid4()), 'http://example.com/callback.php',
+        action = WebhookAction(str(uuid4()), 'http://localhost:49999/token',
                                webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}])
 
         # check to and from JSON
         action_json = action.as_json()
         action = WebhookAction.from_json(self.org, action_json)
-
-        self.assertEqual(action.webhook, 'http://example.com/callback.php')
-
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        # test with no incoming message
-        self.execute_action(action, run, None)
+        with self.mockRequest('POST', '/token', '{"coupon":"NEXUS4"}', content_type='application_json'):
+            # test with no incoming message
+            self.execute_action(action, run, None)
 
-        # check webhook was called with correct payload
-        mock_requests_post.assert_called_once_with(
-            'http://example.com/callback.php',
-            headers={'Authorization': 'Token 12345', 'User-agent': 'RapidPro'},
-            data={
-                'run': run.pk,
-                'phone': u'+250788382382',
-                'contact': self.contact.uuid,
-                'contact_name': self.contact.name,
-                'urn': u'tel:+250788382382',
-                'text': None,
-                'attachments': [],
-                'flow': self.flow.pk,
-                'flow_uuid': self.flow.uuid,
-                'flow_name': self.flow.name,
-                'flow_base_language': self.flow.base_language,
-                'relayer': -1,
-                'step': 'None',
-                'values': '[]',
-                'time': '2015-10-27T14:07:30.000006Z',
-                'steps': '[]',
-                'channel': -1,
-                'channel_uuid': None,
-                'header': {'Authorization': 'Token 12345'}
-            },
-            timeout=10
-        )
-        mock_requests_post.reset_mock()
+        self.assertMockedRequests([{'method': 'POST', 'url': 'http://localhost:49999/token', 'data': {
+            'relayer': ['-1'],
+            'flow_base_language': ['base'],
+            'run': [str(run.id)],
+            'header': ['Authorization'],
+            'urn': ['tel:+250788382382'],
+            'flow': [str(self.flow.id)],
+            'flow_uuid': [str(self.flow.uuid)],
+            'phone': ['+250788382382'],
+            'step': ['None'],
+            'contact': [str(self.contact.uuid)],
+            'values': ['[]'],
+            'time': ['2015-10-27T14:07:30.000006Z'],
+            'steps': ['[]'],
+            'contact_name': ['Eric'],
+            'flow_name': ['Empty Flow'],
+            'channel': ['-1']
+        }}])
 
         # check that run @extra was updated
         self.assertEqual(json.loads(run.fields), {'coupon': "NEXUS4"})
@@ -3798,42 +3781,40 @@ class ActionTest(TembaTest):
         # test with an incoming message
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite",
                               attachments=['image/jpeg:http://example.com/test.jpg'])
-        self.execute_action(action, run, msg)
+
+        with self.mockRequest('POST', '/token', '{"coupon":"NEXUS4"}', content_type='application_json'):
+            self.execute_action(action, run, msg)
 
         # check webhook was called with correct payload
-        mock_requests_post.assert_called_once_with(
-            'http://example.com/callback.php',
-            headers={'User-agent': 'RapidPro', 'Authorization': 'Token 12345'},
-            data={
-                'run': run.pk,
-                'phone': u'+250788382382',
-                'contact': self.contact.uuid,
-                'contact_name': self.contact.name,
-                'urn': u'tel:+250788382382',
-                'text': "Green is my favorite",
-                'attachments': ["http://example.com/test.jpg"],
-                'flow': self.flow.pk,
-                'flow_uuid': self.flow.uuid,
-                'flow_name': self.flow.name,
-                'flow_base_language': self.flow.base_language,
-                'relayer': msg.channel.pk,
-                'step': 'None',
-                'values': '[]',
-                'time': '2015-10-27T14:07:30.000006Z',
-                'steps': '[]',
-                'channel': msg.channel.pk,
-                'channel_uuid': msg.channel.uuid,
-                'header': {'Authorization': 'Token 12345'}
-            },
-            timeout=10
-        )
+        self.assertMockedRequests([{'method': 'POST', 'url': 'http://localhost:49999/token', 'data': {
+            'channel_uuid': [str(msg.channel.uuid)],
+            'flow_base_language': ['base'],
+            'run': [str(run.id)],
+            'attachments': ['http://example.com/test.jpg'],
+            'header': ['Authorization'],
+            'text': ['Green is my favorite'],
+            'urn': ['tel:+250788382382'],
+            'flow': [str(self.flow.id)],
+            'flow_uuid': [str(self.flow.uuid)],
+            'phone': ['+250788382382'],
+            'step': ['None'],
+            'contact': [str(self.contact.uuid)],
+            'values': ['[]'],
+            'channel': [str(msg.channel.id)],
+            'time': ['2015-10-27T14:07:30.000006Z'],
+            'steps': ['[]'],
+            'contact_name': ['Eric'],
+            'flow_name': ['Empty Flow'],
+            'relayer': [str(msg.channel.id)]
+        }}])
 
         # check simulator warns of webhook URL errors
-        action = WebhookAction(str(uuid4()), 'http://example.com/callback.php?@contact.xyz')
+        action = WebhookAction(str(uuid4()), 'http://localhost:49999/token?xyz=@contact.xyz')
         test_contact = Contact.get_test_contact(self.user)
         test_run = FlowRun.create(self.flow, test_contact.pk)
 
-        self.execute_action(action, test_run, None)
+        with self.mockRequest('POST', '/token.*', '{"coupon":"NEXUS4"}', content_type='application_json'):
+            self.execute_action(action, test_run, None)
 
         event = WebHookEvent.objects.order_by('-pk').first()
 
@@ -6742,24 +6723,34 @@ class FlowMigrationTest(FlowFileTest):
             self.assertFalse('webhook' in ruleset)
             self.assertFalse('webhook_action' in ruleset)
 
-        webhook_flow.start([], [self.contact])
+        with self.mockRequest('POST', '/code', '{"code": "ABABUUDDLRS"}', content_type='application/json'):
+            run, = webhook_flow.start([], [self.contact])
 
-        self.assertMockedRequests([{'method': 'POST', 'url': "http://localhost:49999/echo?content=%7B%20%22code%22%3A%20%22ABABUUDDLRS%22%20%7D"}])
+        mocked_requests = self.getMockedRequests()
+        self.assertEqual(len(mocked_requests), 1)
+        self.assertEqual(mocked_requests[0]['method'], "POST")
+        self.assertEqual(mocked_requests[0]['url'], "http://localhost:49999/code")
 
         # assert the code we received was right
         msg = Msg.objects.filter(direction='O', contact=self.contact).first()
         self.assertEqual(msg.text, "Great, your code is ABABUUDDLRS. Enter your name")
 
-        self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
-        self.assertMockedRequests([{'method': 'GET', 'url': "http://localhost:49999/echo?content=Success"}])
+        with self.mockRequest('GET', '/success', "Success"):
+            self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
+
+        self.assertMockedRequests([{'method': 'GET', 'url': "http://localhost:49999/success"}])
 
         # startover have our first webhook fail, check that routing still works with failure
-        error_url = self.mockedServerURL("Error", 400)
-        flow_def['rule_sets'][0]['config']['webhook'] = error_url
+        flow_def['rule_sets'][0]['config']['webhook'] = 'http://localhost:49999/error'
         webhook_flow.update(flow_def)
 
-        webhook_flow.start([], [self.contact], restart_participants=True)
-        self.assertMockedRequests([{'method': 'POST', 'url': error_url}])
+        with self.mockRequest('POST', '/error', 'BOOM', status=400):
+            webhook_flow.start([], [self.contact], restart_participants=True)
+
+        mocked_requests = self.getMockedRequests()
+        self.assertEqual(len(mocked_requests), 1)
+        self.assertEqual(mocked_requests[0]['method'], "POST")
+        self.assertEqual(mocked_requests[0]['url'], 'http://localhost:49999/error')
 
         # assert the code we received was right
         msg = Msg.objects.filter(direction='O', contact=self.contact).first()
@@ -7008,18 +6999,15 @@ class FlowMigrationTest(FlowFileTest):
         expression.operand = '@step.value'
         expression.save()
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "status": "valid" }')
+        # now try executing our migrated flow
+        first_response = ActionSet.objects.get(flow=flow, x=131)
+        actions = first_response.get_actions_dict()
+        actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
+        first_response.set_actions_dict(actions)
+        first_response.save()
 
-            # now try executing our migrated flow
-            first_response = ActionSet.objects.get(flow=flow, x=131)
-            actions = first_response.get_actions_dict()
-            actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
-            first_response.set_actions_dict(actions)
-            first_response.save()
-
-            reply = self.send_message(flow, 'red')
-            self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
+        reply = self.send_message(flow, 'red')
+        self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
 
         reply = self.send_message(flow, 'Turbo King')
         self.assertEqual('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
@@ -7123,10 +7111,11 @@ class WebhookLoopTest(FlowFileTest):
         self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
 
         flow_def = flow.as_json()
-        flow_def['action_sets'][0]['actions'][0]['webhook'] = self.mockedServerURL('{ "text": "second message" }')
+        flow_def['action_sets'][0]['actions'][0]['webhook'] = 'http://localhost:49999/msg'
         flow.update(flow_def)
 
-        self.assertEqual("second message", self.send_message(flow, "second"))
+        with self.mockRequest('GET', '/msg', '{ "text": "second message" }'):
+            self.assertEqual("second message", self.send_message(flow, "second"))
 
 
 class MissedCallChannelTest(FlowFileTest):

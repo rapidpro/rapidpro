@@ -5,7 +5,7 @@ import inspect
 import json
 import os
 import pytz
-import re
+import regex
 import redis
 import shutil
 import string
@@ -13,6 +13,8 @@ import six
 import time
 import urlparse
 
+from cgi import parse_header, parse_multipart
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -21,7 +23,6 @@ from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from django.utils.http import quote_plus
 from HTMLParser import HTMLParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
@@ -49,39 +50,112 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
     POST http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D&status=400
         ->  content: '{ "status": "valid" }', status_code: 400
     """
-    def _handle_request(self, method):
+    def _handle_request(self, method, data=None):
         # record this request so calling test can verify it was made
-        TembaTestRunner.MOCKED_REQUESTS.append({'method': method, 'url': 'http://localhost:49999%s' % self.path})
+        request = {'method': method, 'url': self.server.base_url + self.path}
+        if data is not None:
+            request['data'] = data
+        self.server.request_log.append(request)
 
         parsed = urlparse.urlparse(self.path)
         params = urlparse.parse_qs(parsed.query)
+
         if parsed.path == '/echo':
             return self._handle_echo(params)
-        else:
-            self.send_response(404)
-            self.end_headers()
+
+        for request_match, response in self.server.mocked_requests:
+            if request_match.matches(method, self.path):
+                self._write_response(response)
+                return
+
+        self.send_response(404)
+        self.end_headers()
 
     def _handle_echo(self, params):
         status = int(params.get('status', [200])[0])
         content = params['content'][0]
         content_type = params.get('type', ['text/plain'])[0]
 
-        self.send_response(status)
-        self.send_header("Content-type", content_type)
-        self.end_headers()
-        self.wfile.write(content.encode('utf-8'))
+        self._write_response(MockServer.Response(content, content_type, status))
 
     def do_GET(self):
         return self._handle_request('GET')
 
     def do_POST(self):
-        return self._handle_request('POST')
+        return self._handle_request('POST', self._parse_post_data())
+
+    def _parse_post_data(self):
+        ctype, pdict = parse_header(self.headers['content-type'])
+        if ctype == 'multipart/form-data':
+            postvars = parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers['content-length'])
+            postvars = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            postvars = {}
+        return postvars
+
+    def _write_response(self, response):
+        self.send_response(response.status)
+        self.send_header("Content-type", response.content_type)
+        self.end_headers()
+        self.wfile.write(response.content.encode('utf-8'))
+
+
+class MockServer(HTTPServer):
+    """
+    Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
+    and provides a mechanism for mocking requests to particular URLs
+    """
+    class RequestMatch:
+        def __init__(self, method, path_pattern):
+            self.method = method
+            self.path_regex = regex.compile(path_pattern, regex.UNICODE | regex.V0)
+
+        def matches(self, method, path):
+            return self.method == method and self.path_regex.fullmatch(path)
+
+    class Response:
+        def __init__(self, content, content_type='text/plain', status=200):
+            self.content = content
+            self.content_type = content_type
+            self.status = status
+
+    def __init__(self):
+        HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
+
+        self.base_url = 'http://localhost:49999'
+        self.mocked_requests = []
+        self.request_log = []
+
+    def start(self):
+        """
+        Starts running mock server in a daemon thread which will automatically shut down when the main process exits
+        """
+        t = Thread(target=self.serve_forever)
+        t.setDaemon(True)
+        t.start()
+
+    @contextmanager
+    def mock_request(self, method, path_pattern, content, content_type, status):
+        self.mocked_requests.append((
+            MockServer.RequestMatch(method, path_pattern),
+            MockServer.Response(content, content_type, status)
+        ))
+        yield
+        self.mocked_requests = self.mocked_requests[:-1]
+
+    def clear_request_log(self):
+        self.request_log = []
+
+
+mock_server = MockServer()
 
 
 class TembaTestRunner(DiscoverRunner):
-    MOCKED_SERVER_URL = 'http://localhost:49999'
-    MOCKED_REQUESTS = []
-
+    """
+    Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
+    """
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
@@ -100,11 +174,7 @@ class TembaTestRunner(DiscoverRunner):
         return suite
 
     def run_suite(self, suite, **kwargs):
-        # start running mock server in a daemon thread which will automatically shut down when the main process exits
-        mock_server = HTTPServer(('localhost', 49999), MockServerRequestHandler)
-        mock_server_thread = Thread(target=mock_server.serve_forever)
-        mock_server_thread.setDaemon(True)
-        mock_server_thread.start()
+        mock_server.start()
 
         return super(TembaTestRunner, self).run_suite(suite, **kwargs)
 
@@ -192,7 +262,7 @@ class TembaTest(SmartminTest):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), re.DOTALL):
+        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))
@@ -415,13 +485,17 @@ class TembaTest(SmartminTest):
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
 
-    def mockedServerURL(self, content, status=200):
-        return '%s/echo?content=%s&status=%d' % (TembaTestRunner.MOCKED_SERVER_URL, quote_plus(content), status)
+    def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
+        return mock_server.mock_request(method, path_pattern, content, content_type, status)
 
-    def assertMockedRequests(self, requests, reset=True):
-        self.assertEqual(TembaTestRunner.MOCKED_REQUESTS, requests)
-        if reset:
-            TembaTestRunner.MOCKED_REQUESTS = []
+    def getMockedRequests(self):
+        requests = mock_server.request_log
+        mock_server.clear_request_log()
+        return requests
+
+    def assertMockedRequests(self, requests):
+        self.assertEqual(mock_server.request_log, requests)
+        mock_server.clear_request_log()
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
