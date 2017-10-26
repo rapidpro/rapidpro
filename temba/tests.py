@@ -14,7 +14,6 @@ import time
 import urlparse
 
 from cgi import parse_header, parse_multipart
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -43,45 +42,43 @@ from uuid import uuid4
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
     """
-    A simple HTTP handler for mocking external services
+    A simple HTTP handler which responds to a request with a matching mocked request
     """
     def _handle_request(self, method, data=None):
-        # record this request so calling test can verify it was made
-        request = {'method': method, 'path': self.path}
-        if data is not None:
-            request['data'] = data
-        self.server.request_log.append(request)
+        if not self.server.mocked_requests:
+            raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
 
-        for request_match, response in self.server.mocked_requests:
-            if request_match.matches(method, self.path):
-                self._write_response(response)
-                return
+        mock = self.server.mocked_requests[0]
+        if mock.method != method or mock.path != self.path:
+            raise ValueError("expected request %s %s but received %s %s" % (mock.method, mock.path, method, self.path))
 
-        self.send_response(404)
+        # add some stuff to the mock from the request that the caller might want to check
+        mock.requested = True
+        mock.data = data
+        mock.headers = self.headers
+
+        # remove this mocked request now that it has been made
+        self.server.mocked_requests = self.server.mocked_requests[1:]
+
+        self.send_response(mock.status)
+        self.send_header("Content-type", mock.content_type)
         self.end_headers()
+        self.wfile.write(mock.content.encode('utf-8'))
 
     def do_GET(self):
         return self._handle_request('GET')
 
     def do_POST(self):
-        return self._handle_request('POST', self._parse_post_data())
-
-    def _parse_post_data(self):
         ctype, pdict = parse_header(self.headers['content-type'])
         if ctype == 'multipart/form-data':
-            postvars = parse_multipart(self.rfile, pdict)
+            data = parse_multipart(self.rfile, pdict)
         elif ctype == 'application/x-www-form-urlencoded':
             length = int(self.headers['content-length'])
-            postvars = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+            data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
         else:
-            postvars = {}
-        return postvars
+            data = {}
 
-    def _write_response(self, response):
-        self.send_response(response.status)
-        self.send_header("Content-type", response.content_type)
-        self.end_headers()
-        self.wfile.write(response.content.encode('utf-8'))
+        return self._handle_request('POST', data)
 
 
 class MockServer(HTTPServer):
@@ -89,26 +86,27 @@ class MockServer(HTTPServer):
     Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
     and provides a mechanism for mocking requests to particular URLs
     """
-    class RequestMatch:
-        def __init__(self, method, path_pattern):
+    @six.python_2_unicode_compatible
+    class Request(object):
+        def __init__(self, method, path, content, content_type, status):
             self.method = method
-            self.path_regex = regex.compile(path_pattern, regex.UNICODE | regex.V0)
-
-        def matches(self, method, path):
-            return self.method == method and self.path_regex.fullmatch(path)
-
-    class Response:
-        def __init__(self, content, content_type='text/plain', status=200):
+            self.path = path
             self.content = content
             self.content_type = content_type
             self.status = status
+
+            self.requested = False
+            self.data = None
+            self.headers = None
+
+        def __str__(self):
+            return '%s %s -> %s' % (self.method, self.path, self.content)
 
     def __init__(self):
         HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
 
         self.base_url = 'http://localhost:49999'
         self.mocked_requests = []
-        self.request_log = []
 
     def start(self):
         """
@@ -118,17 +116,10 @@ class MockServer(HTTPServer):
         t.setDaemon(True)
         t.start()
 
-    @contextmanager
-    def mock_request(self, method, path_pattern, content, content_type, status):
-        self.mocked_requests.append((
-            MockServer.RequestMatch(method, path_pattern),
-            MockServer.Response(content, content_type, status)
-        ))
-        yield
-        self.mocked_requests = self.mocked_requests[:-1]
-
-    def clear_request_log(self):
-        self.request_log = []
+    def mock_request(self, method, path, content, content_type, status):
+        request = MockServer.Request(method, path, content, content_type, status)
+        self.mocked_requests.append(request)
+        return request
 
 
 mock_server = MockServer()
@@ -174,13 +165,13 @@ class TembaTest(SmartminTest):
             cls.COLOR_FLOW_DEFINITION = json.load(f)
 
     def setUp(self):
+        self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
         if self.get_verbosity() > 2:
             settings.DEBUG = True
 
         self.clear_cache()
-        mock_server.clear_request_log()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
 
@@ -275,6 +266,9 @@ class TembaTest(SmartminTest):
 
         from temba.flows.models import clear_flow_users
         clear_flow_users()
+
+        # clear any unused mock requests
+        self.mock_server.mocked_requests = []
 
     def clear_cache(self):
         """
@@ -469,19 +463,21 @@ class TembaTest(SmartminTest):
             self.fail("Couldn't find node with uuid: %s" % node)
 
     def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
-        return mock_server.mock_request(method, path_pattern, content, content_type, status)
+        return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
 
-    def assertMockedRequests(self, requests):
-        actual = mock_server.request_log
+    def assertMockedRequest(self, mock_request, data=None, headers=None):
+        if not mock_request.requested:
+            self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
 
-        # only compare POST data if caller provided that in the expected request
-        for r in range(min(len(actual), len(requests))):
-            if 'data' not in requests[r] and 'data' in actual[r]:
-                del actual[r]['data']
+        if data is not None:
+            self.assertEqual(mock_request.data, data)
 
-        self.assertEqual(actual, requests)
+        if headers is not None:
+            self.assertEqual(mock_request.headers, headers)
 
-        mock_server.clear_request_log()
+    def assertAllRequestsMade(self):
+        if self.mock_server.mocked_requests:
+            self.fail("test has %d unused mock requests: %s" % (len(mock_server.mocked_requests), mock_server.mocked_requests))
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
