@@ -498,6 +498,7 @@ def get_entry(json_flow):
             lowest_x = ruleset['x']
         elif lowest_y == ruleset['y']:
             if ruleset['x'] < lowest_x:
+                lowest_uuid = ruleset['uuid']
                 lowest_y = ruleset['y']
                 lowest_x = ruleset['x']
 
@@ -508,9 +509,9 @@ def get_entry(json_flow):
             lowest_x = actionset['x']
         elif lowest_y == actionset['y']:
             if actionset['x'] < lowest_x:
-                lowest_y = ruleset['y']
-                lowest_x = ruleset['x']
-
+                lowest_uuid = actionset['uuid']
+                lowest_y = actionset['y']
+                lowest_x = actionset['x']
     return lowest_uuid
 
 
@@ -520,7 +521,8 @@ def map_actions(json_flow, fixer_method):
     removed, otherwise the returned action is used.
     """
     action_sets = []
-    for actionset in json_flow.get('action_sets', []):
+    original_action_sets = json_flow.get('action_sets', [])
+    for actionset in original_action_sets:
         actions = []
         for action in actionset.get('actions', []):
             fixed_action = fixer_method(action)
@@ -534,7 +536,10 @@ def map_actions(json_flow, fixer_method):
             action_sets.append(actionset)
 
     json_flow['action_sets'] = action_sets
-    json_flow['entry'] = get_entry(json_flow)
+
+    # if we trimmed off an actionset, reevaluate our start node
+    if len(action_sets) < len(original_action_sets):
+        json_flow['entry'] = get_entry(json_flow)
 
     return json_flow
 
