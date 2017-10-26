@@ -475,8 +475,9 @@ def cleanse_group_names(action):
     from temba.contacts.models import ContactGroup
     if action['type'] == 'add_group' or action['type'] == 'del_group':
         for group in action['groups']:
-            if not ContactGroup.is_valid_name(group['name']):
-                group['name'] = '%s %s' % ('Contacts', group['name'])
+            if isinstance(group, dict):
+                if not ContactGroup.is_valid_name(group['name']):
+                    group['name'] = '%s %s' % ('Contacts', group['name'])
     return action
 
 
