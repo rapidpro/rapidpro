@@ -4607,7 +4607,7 @@ class InfobipTest(TembaTest):
         receive_url = reverse('courier.ib', args=[self.channel.uuid, 'receive'])
         response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # load our message
         msg = Msg.objects.get()
@@ -4626,7 +4626,7 @@ class InfobipTest(TembaTest):
 
             response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
 
-            self.assertEqual(200, response.status_code)
+            self.assertEqual(201, response.status_code)
 
             # load our message
             msg = Msg.objects.get()
