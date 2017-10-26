@@ -487,6 +487,7 @@ def get_entry(json_flow):
     """
     Returns the entry node for the passed in flow, this is the ruleset or actionset with the lowest y
     """
+    lowest_x = None
     lowest_y = None
     lowest_uuid = None
 
@@ -494,11 +495,21 @@ def get_entry(json_flow):
         if lowest_y is None or ruleset['y'] < lowest_y:
             lowest_uuid = ruleset['uuid']
             lowest_y = ruleset['y']
+            lowest_x = ruleset['x']
+        elif lowest_y == ruleset['y']:
+            if ruleset['x'] < lowest_x:
+                lowest_y = ruleset['y']
+                lowest_x = ruleset['x']
 
     for actionset in json_flow.get('action_sets', []):
-        if lowest_y is None or actionset['y'] <= lowest_y:
+        if lowest_y is None or actionset['y'] < lowest_y:
             lowest_uuid = actionset['uuid']
             lowest_y = actionset['y']
+            lowest_x = actionset['x']
+        elif lowest_y == actionset['y']:
+            if actionset['x'] < lowest_x:
+                lowest_y = ruleset['y']
+                lowest_x = ruleset['x']
 
     return lowest_uuid
 
