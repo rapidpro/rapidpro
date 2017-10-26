@@ -137,7 +137,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         if same_site and not obj and obj_id:
             try:
                 obj = manager.filter(pk=obj_id, org=org).first()
-            except:
+            except Exception:
                 pass
 
         # nest it if we were given a nested name
