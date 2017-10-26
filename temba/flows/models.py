@@ -3646,8 +3646,8 @@ class RuleSet(models.Model):
         dt_value = None
         media_value = None
 
-        if isinstance(raw_value, AdminBoundary):  # pragma: needs cover
-            location_value = value
+        if isinstance(raw_value, AdminBoundary):
+            location_value = raw_value
 
         elif isinstance(raw_value, datetime):
             dt_value = raw_value
