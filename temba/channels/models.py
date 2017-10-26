@@ -1980,13 +1980,13 @@ class ChannelLog(models.Model):
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
-        except:
+        except Exception:
             return self.request
 
     def get_response_formatted(self):
         try:
             return json.dumps(json.loads(self.response), indent=2)
-        except:
+        except Exception:
             if not self.response:
                 self.response = self.description
             return self.response
