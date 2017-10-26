@@ -51,18 +51,24 @@ before_script:
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
 script:
-  # check for model changes not reflected in a migration
-  - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
-  # check we can collect and compress all static files
-  - python manage.py collectstatic --noinput --verbosity=0
-  - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
-  # run our Javascript tests
-  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-  # run our Python tests
-  - coverage run manage.py test --noinput --verbosity=2
+  - set -e
+
   # test PEP8 compliance on both Python 2 and 3
   - flake8
   - /home/travis/.local/bin/flake8
+  
+  # check for model changes not reflected in a migration
+  - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
+
+  # run our Javascript tests
+  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
+
+  # check we can collect and compress all static files
+  - python manage.py collectstatic --noinput --verbosity=0
+  - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
+    
+  # run our Python tests
+  - coverage run manage.py test --noinput --verbosity=2
 
 after_success:
   - coveralls --rcfile .coveragerc_failcheck
