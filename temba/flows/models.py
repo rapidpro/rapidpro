@@ -2474,12 +2474,14 @@ class Flow(TembaModel):
 
     def update_dependencies(self):
 
-        # need to make sure we have the latest version
-        self.ensure_current_version()
+        # if we are an older version, induce a system rev which will update our dependencies
+        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
+            self.ensure_current_version()
+            return
 
+        # otherwise, go about updating our dependencies assuming a current flow
         groups = set()
         flows = set()
-
         collector = ContactFieldCollector()
 
         # find any references in our actions
