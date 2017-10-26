@@ -802,7 +802,7 @@ class InfobipHandler(BaseChannelHandler):
                 except iso8601.ParseError:
                     msg_date = None
 
-                if channel.address == '+' + receiver:
+                if channel.address.lstrip('+') == receiver:
                     urn = URN.from_tel(sender)
                     sms = Msg.create_incoming(channel, urn, text, date=msg_date, external_id=external_id)
                     msgs.append(sms)
