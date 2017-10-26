@@ -136,7 +136,10 @@ class window.AutoComplete
   findInvalidFields: (text) ->
     if not text
       return []
-    validKeys = {}
+    validKeys = {
+      "id": true,
+      "telegram": true
+    }
     for variable in @variables
       if variable.name.startsWith('contact')
         key = variable.name.slice(8)
