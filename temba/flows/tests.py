@@ -1214,14 +1214,15 @@ class FlowTest(TembaTest):
                           "rule_sets": [],
                           "action_sets": [{"y": 0, "x": 100,
                                            "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                                           "actions": [{"type": "api", "webhook": "http://localhost:49999/echo?content=%7B%20%22coupon%22%3A%20%22NEXUS4%22%20%7D",
+                                           "actions": [{"type": "api", "webhook": "http://localhost:49999/coupon",
                                                         "webhook_header": [{
                                                             "name": "Authorization", "value": "Token 12345"
                                                         }]},
                                                        {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
                           "metadata": {"notes": []}})
 
-        self.flow.start([], [self.contact])
+        with self.mockRequest('POST', '/coupon', '{"coupon": "NEXUS4"}'):
+            self.flow.start([], [self.contact])
 
         self.assertTrue(self.flow.get_steps())
         self.assertTrue(Msg.objects.all())
@@ -3756,7 +3757,7 @@ class ActionTest(TembaTest):
             # test with no incoming message
             self.execute_action(action, run, None)
 
-        self.assertMockedRequests([{'method': 'POST', 'url': 'http://localhost:49999/token', 'data': {
+        self.assertMockedRequests([{'method': 'POST', 'path': '/token', 'data': {
             'relayer': ['-1'],
             'flow_base_language': ['base'],
             'run': [str(run.id)],
@@ -3786,7 +3787,7 @@ class ActionTest(TembaTest):
             self.execute_action(action, run, msg)
 
         # check webhook was called with correct payload
-        self.assertMockedRequests([{'method': 'POST', 'url': 'http://localhost:49999/token', 'data': {
+        self.assertMockedRequests([{'method': 'POST', 'path': '/token', 'data': {
             'channel_uuid': [str(msg.channel.uuid)],
             'flow_base_language': ['base'],
             'run': [str(run.id)],
@@ -4071,7 +4072,8 @@ class WebhookTest(TembaTest):
         substitutions = dict(contact_id=contact1.id)
         flow = self.get_flow('triggered', substitutions)
 
-        flow.start(groups=[], contacts=[contact1], restart_participants=True)
+        with self.mockRequest('GET', '/where', '{ "text": "(I came from a webhook)" }'):
+            flow.start(groups=[], contacts=[contact1], restart_participants=True)
 
         # first message from our trigger flow action
         msg = Msg.objects.all().order_by('-created_on')[0]
@@ -4092,7 +4094,7 @@ class WebhookTest(TembaTest):
 
         # webhook ruleset comes first
         webhook = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
-        config = {RuleSet.CONFIG_WEBHOOK: "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164",
+        config = {RuleSet.CONFIG_WEBHOOK: "http://localhost:49999/check_order.php?phone=@step.contact.tel_e164",
                   RuleSet.CONFIG_WEBHOOK_ACTION: "GET",
                   RuleSet.CONFIG_WEBHOOK_HEADERS: [{"name": "Authorization", "value": "Token 12345"}]}
         webhook.config = json.dumps(config)
@@ -4116,27 +4118,24 @@ class WebhookTest(TembaTest):
         rules.operand = "@extra.text @extra.blank"
         rules.save()
 
-        with patch('requests.get') as get:
-            with patch('requests.post') as post:
-                get.return_value = MockResponse(200, '{ "text": "Get", "blank": "" }')
-                post.return_value = MockResponse(200, '{ "text": "Post", "blank": "" }')
+        with self.mockRequest('GET', '/check_order.*', '{ "text": "Get", "blank": "" }'):
+            # first do a GET
+            webhook.find_matching_rule(webhook_step, run, incoming)
+            self.assertEqual(dict(text="Get", blank=""), run.field_dict())
 
-                # first do a GET
-                webhook.find_matching_rule(webhook_step, run, incoming)
-                self.assertEqual(dict(text="Get", blank=""), run.field_dict())
+            # assert our phone number got encoded
+            self.assertMockedRequests([{'method': 'GET', 'path': '/check_order.php?phone=%2B250788383383'}])
 
-                # assert our phone number got encoded
-                self.assertEqual("http://ordercheck.com/check_order.php?phone=%2B250788383383", get.call_args[0][0])
+        with self.mockRequest('POST', '/check_order.*', '{ "text": "Post", "blank": "" }'):
+            # now do a POST
+            config = webhook.config_json()
+            config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
+            webhook.config = json.dumps(config)
+            webhook.save()
+            webhook.find_matching_rule(webhook_step, run, incoming)
+            self.assertEqual(dict(text="Post", blank=""), run.field_dict())
 
-                # now do a POST
-                config = webhook.config_json()
-                config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
-                webhook.config = json.dumps(config)
-                webhook.save()
-                webhook.find_matching_rule(webhook_step, run, incoming)
-                self.assertEqual(dict(text="Post", blank=""), run.field_dict())
-
-                self.assertEqual("http://ordercheck.com/check_order.php?phone=%2B250788383383", post.call_args[0][0])
+            self.assertMockedRequests([{'method': 'POST', 'path': '/check_order.php?phone=%2B250788383383'}])
 
         # remove @extra.blank from our text
         rules.operand = "@extra.text"
@@ -4149,9 +4148,7 @@ class WebhookTest(TembaTest):
         rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
                                             step_uuid=rules.uuid, arrived_on=timezone.now())
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "text": "Valid" }')
-
+        with self.mockRequest('POST', '/check_order.*', '{ "text": "Valid" }'):
             (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
 
@@ -4159,11 +4156,10 @@ class WebhookTest(TembaTest):
             self.assertEqual("Valid", value)
             self.assertEqual(dict(text="Valid"), run.field_dict())
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1001" }')
-
+        with self.mockRequest('POST', '/check_order.*', '{ "text": "Valid", "order_number": "PX1001" }'):
             (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+
             self.assertEqual(valid_uuid, match.uuid)
             self.assertEqual("Valid", value)
             self.assertEqual(dict(text="Valid", order_number="PX1001"), run.field_dict())
@@ -4171,11 +4167,10 @@ class WebhookTest(TembaTest):
             message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual(dict(text="Valid", order_number="PX1001"), message_context['extra'])
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1002" }')
-
+        with self.mockRequest('POST', '/check_order.*', '{ "text": "Valid", "order_number": "PX1002" }'):
             webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+
             self.assertEqual(valid_uuid, match.uuid)
             self.assertEqual("Valid", value)
             self.assertEqual(dict(text="Valid", order_number="PX1002"), run.field_dict())
@@ -4183,8 +4178,7 @@ class WebhookTest(TembaTest):
             message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual(dict(text="Valid", order_number="PX1002"), message_context['extra'])
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '["zero", "one", "two"]')
+        with self.mockRequest('POST', '/check_order.*', '["zero", "one", "two"]'):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -4197,8 +4191,7 @@ class WebhookTest(TembaTest):
             message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, json.dumps(range(300)))
+        with self.mockRequest('POST', '/check_order.*', json.dumps(range(300))):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -4215,8 +4208,7 @@ class WebhookTest(TembaTest):
             self.assertEqual(256, len(extra))
             self.assertFalse('256' in extra)
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, "asdfasdfasdf")
+        with self.mockRequest('POST', '/check_order.*', "asdfasdfasdf"):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -4229,8 +4221,7 @@ class WebhookTest(TembaTest):
             message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual({}, message_context['extra'])
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, "12345")
+        with self.mockRequest('POST', '/check_order.*', "12345"):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -4243,8 +4234,7 @@ class WebhookTest(TembaTest):
             message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual({}, message_context['extra'])
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(500, "Server Error")
+        with self.mockRequest('POST', '/check_order.*', "Server Error", status=500):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -4254,8 +4244,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEqual("1001", incoming.text)
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(400, '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
+        with self.mockRequest('POST', '/check_order.*', '{ "text": "Valid", "error": "400", "message": "Missing field in request" }', status=400):
             rule_step.run.fields = None
             rule_step.run.save()
 
@@ -6726,10 +6715,7 @@ class FlowMigrationTest(FlowFileTest):
         with self.mockRequest('POST', '/code', '{"code": "ABABUUDDLRS"}', content_type='application/json'):
             run, = webhook_flow.start([], [self.contact])
 
-        mocked_requests = self.getMockedRequests()
-        self.assertEqual(len(mocked_requests), 1)
-        self.assertEqual(mocked_requests[0]['method'], "POST")
-        self.assertEqual(mocked_requests[0]['url'], "http://localhost:49999/code")
+        self.assertMockedRequests([{'method': 'POST', 'path': "/code"}])
 
         # assert the code we received was right
         msg = Msg.objects.filter(direction='O', contact=self.contact).first()
@@ -6738,7 +6724,7 @@ class FlowMigrationTest(FlowFileTest):
         with self.mockRequest('GET', '/success', "Success"):
             self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
 
-        self.assertMockedRequests([{'method': 'GET', 'url': "http://localhost:49999/success"}])
+        self.assertMockedRequests([{'method': 'GET', 'path': "/success"}])
 
         # startover have our first webhook fail, check that routing still works with failure
         flow_def['rule_sets'][0]['config']['webhook'] = 'http://localhost:49999/error'
@@ -6747,10 +6733,7 @@ class FlowMigrationTest(FlowFileTest):
         with self.mockRequest('POST', '/error', 'BOOM', status=400):
             webhook_flow.start([], [self.contact], restart_participants=True)
 
-        mocked_requests = self.getMockedRequests()
-        self.assertEqual(len(mocked_requests), 1)
-        self.assertEqual(mocked_requests[0]['method'], "POST")
-        self.assertEqual(mocked_requests[0]['url'], 'http://localhost:49999/error')
+        self.assertMockedRequests([{'method': 'POST', 'path': "/error"}])
 
         # assert the code we received was right
         msg = Msg.objects.filter(direction='O', contact=self.contact).first()
@@ -6969,7 +6952,7 @@ class FlowMigrationTest(FlowFileTest):
         # we should now be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEqual('webhook', webhook.ruleset_type)
-        self.assertEqual('http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEqual('http://localhost:49999/status', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
         self.assertEqual('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEqual('@step.value', webhook.operand)
         self.assertEqual('Color Webhook', webhook.label)
@@ -7006,11 +6989,12 @@ class FlowMigrationTest(FlowFileTest):
         first_response.set_actions_dict(actions)
         first_response.save()
 
-        reply = self.send_message(flow, 'red')
-        self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
+        with self.mockRequest('POST', '/status', '{ "status": "valid" }'):
+            reply = self.send_message(flow, 'red')
+            self.assertEqual('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
 
-        reply = self.send_message(flow, 'Turbo King')
-        self.assertEqual('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
+            reply = self.send_message(flow, 'Turbo King')
+            self.assertEqual('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
@@ -7108,7 +7092,8 @@ class WebhookLoopTest(FlowFileTest):
     def test_webhook_loop(self):
         flow = self.get_flow('webhook_loop')
 
-        self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
+        with self.mockRequest('GET', '/msg', '{ "text": "first message" }'):
+            self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
 
         flow_def = flow.as_json()
         flow_def['action_sets'][0]['actions'][0]['webhook'] = 'http://localhost:49999/msg'

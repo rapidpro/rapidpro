@@ -43,25 +43,14 @@ from uuid import uuid4
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
     """
-    A simple HTTP server for mocking external services. For example:
-
-    GET http://localhost:49999/echo?content=OK
-        ->  content: 'OK', status_code: 200
-    POST http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D&status=400
-        ->  content: '{ "status": "valid" }', status_code: 400
+    A simple HTTP handler for mocking external services
     """
     def _handle_request(self, method, data=None):
         # record this request so calling test can verify it was made
-        request = {'method': method, 'url': self.server.base_url + self.path}
+        request = {'method': method, 'path': self.path}
         if data is not None:
             request['data'] = data
         self.server.request_log.append(request)
-
-        parsed = urlparse.urlparse(self.path)
-        params = urlparse.parse_qs(parsed.query)
-
-        if parsed.path == '/echo':
-            return self._handle_echo(params)
 
         for request_match, response in self.server.mocked_requests:
             if request_match.matches(method, self.path):
@@ -70,13 +59,6 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
 
         self.send_response(404)
         self.end_headers()
-
-    def _handle_echo(self, params):
-        status = int(params.get('status', [200])[0])
-        content = params['content'][0]
-        content_type = params.get('type', ['text/plain'])[0]
-
-        self._write_response(MockServer.Response(content, content_type, status))
 
     def do_GET(self):
         return self._handle_request('GET')
@@ -198,6 +180,7 @@ class TembaTest(SmartminTest):
             settings.DEBUG = True
 
         self.clear_cache()
+        mock_server.clear_request_log()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
 
@@ -488,13 +471,16 @@ class TembaTest(SmartminTest):
     def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
         return mock_server.mock_request(method, path_pattern, content, content_type, status)
 
-    def getMockedRequests(self):
-        requests = mock_server.request_log
-        mock_server.clear_request_log()
-        return requests
-
     def assertMockedRequests(self, requests):
-        self.assertEqual(mock_server.request_log, requests)
+        actual = mock_server.request_log
+
+        # only compare POST data if caller provided that in the expected request
+        for r in range(min(len(actual), len(requests))):
+            if 'data' not in requests[r] and 'data' in actual[r]:
+                del actual[r]['data']
+
+        self.assertEqual(actual, requests)
+
         mock_server.clear_request_log()
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
