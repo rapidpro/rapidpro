@@ -30,7 +30,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WI
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str, str_to_datetime
+from temba.utils import datetime_to_str
 from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
@@ -1401,8 +1401,7 @@ class FlowTest(TembaTest):
         if expected_test and expected_value:
             # convert our expected date time the right timezone
             expected_tz = expected_value.astimezone(tz)
-            expected_value = expected_value.replace(hour=expected_tz.hour).replace(day=expected_tz.day).replace(month=expected_tz.month)
-            self.assertTrue(abs((expected_value - str_to_datetime(tuple[1], tz=timezone.utc)).total_seconds()) < 60)
+            self.assertTrue(abs((expected_tz - tuple[1]).total_seconds()) < 60, "%s does not match expected %s" % (tuple[1], expected_tz))
 
     def test_location_tests(self):
         sms = self.create_msg(contact=self.contact, text="")
@@ -1806,13 +1805,17 @@ class FlowTest(TembaTest):
                 test = DateTest()
                 self.assertDateTest(False, None, test)
 
-                sms.text = "123"
-                self.assertDateTest(True, now.replace(year=123), test)
+                sms.text = "1980"
+                self.assertDateTest(True, now.replace(year=1980), test)
 
-                sms.text = "December 14, 1892"
-                self.assertDateTest(True, now.replace(year=1892, month=12, day=14), test)
+                sms.text = "December 14, 1982"
+                self.assertDateTest(True, now.replace(year=1982, month=12, day=14), test)
 
-                sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
+                if dayfirst:
+                    sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
+                else:
+                    sms.text = "sometime on %d/%d/%d" % (now.month, now.day, now.year)
+
                 self.assertDateTest(True, now, test)
 
                 # date before/equal/after tests using date arithmetic
@@ -1835,7 +1838,10 @@ class FlowTest(TembaTest):
                 test = DateAfterTest('@(date.today + 3)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
+                else:
+                    sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.month, five_days_next.day, five_days_next.year)
                 self.assertDateTest(True, five_days_next, test)
 
         # check date tests in both date modes
@@ -5589,7 +5595,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_raw('edd').startswith('31-01-2015'))
+        self.assertTrue(mother.get_field_raw('edd').startswith('2015-01-31'))
         self.assertEqual(mother.get_field_raw('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
         self.assertEqual(mother.get_field_raw('chw_name'), self.contact.name)
 
@@ -5622,7 +5628,7 @@ class FlowsTest(FlowFileTest):
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
+        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('2014-01-31'))
         self.assertEqual("+12065552020", mother.get_field_raw('chw'))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 

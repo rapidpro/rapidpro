@@ -807,7 +807,7 @@ class Flow(TembaModel):
             value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        ruleset.save_run_value(run, rule, value, msg.text)
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -2565,6 +2565,7 @@ class FlowRun(models.Model):
     RESULT_NODE_UUID = 'node_uuid'
     RESULT_CATEGORY = 'category'
     RESULT_VALUE = 'value'
+    RESULT_INPUT = 'input'
     RESULT_MODIFIED_ON = 'modified_on'
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
@@ -3003,7 +3004,7 @@ class FlowRun(models.Model):
         else:
             return six.text_type(value)
 
-    def save_run_result(self, name, node_uuid, category, raw_value):
+    def save_run_result(self, name, node_uuid, category, raw_value, raw_input):
         # slug our name
         key = Flow.label_to_slug(name)
 
@@ -3014,6 +3015,7 @@ class FlowRun(models.Model):
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
             FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
+            FlowRun.RESULT_INPUT: raw_input,
             FlowRun.RESULT_MODIFIED_ON: timezone.now().isoformat(),
         }
 
@@ -3143,7 +3145,7 @@ class FlowStep(models.Model):
                     rule_value = value
 
                 rule.category = rule_category
-                ruleset.save_run_value(run, rule, rule_value)
+                ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
             step.rule_uuid = rule_uuid
@@ -3604,7 +3606,7 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, raw_value):
+    def save_run_value(self, run, rule, raw_value, raw_input):
         value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
@@ -3640,7 +3642,8 @@ class RuleSet(models.Model):
         run.save_run_result(name=self.label,
                             node_uuid=self.uuid,
                             category=rule.category,
-                            raw_value=raw_value)
+                            raw_value=raw_value,
+                            raw_input=raw_input)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
