@@ -4,6 +4,10 @@ dist:
 sudo:
   - false
 
+language: python
+python:
+  - "2.7.11"
+
 addons:
   apt:
     packages:
@@ -12,20 +16,12 @@ addons:
       - python3-pip
   postgresql: "9.4"
 
-cache:
-  directories:
-    - "$HOME/.cache/pip"
-
-language: python
-
-python:
-  - "2.7.11"
-
 services:
   - redis-server
 
-matrix:
-  fast_finish: true
+cache:
+  directories:
+    - "$HOME/.cache/pip"
 
 install:
   # install all Python dependencies
@@ -35,19 +31,23 @@ install:
   - pip install coveralls
   # install flake8 on Python 3
   - export PATH=$HOME/.local/bin:$PATH
+  - python3 --version
+  - pip3 --version
   - pip3 install flake8 --user `whoami`
-  # install our node dependencies
+  # switch to Node 6 and install our node dependencies
   - nvm install 6
   - nvm use 6
   - npm install
 
 before_script:
+  # setup test database
   - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
   - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
   - psql -U temba postgres -c "CREATE DATABASE temba;"
+  # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
 script:
