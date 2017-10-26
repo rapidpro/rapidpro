@@ -1718,7 +1718,7 @@ class Flow(TembaModel):
         run_fields = None
         if extra:
             # we keep more values in @extra for new flow runs because we might be passing the state
-            (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.MAX_FLOWRUN_FIELDS * 4)
+            (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.FLOWRUN_FIELDS_SIZE * 4)
             run_fields = json.dumps(normalized_fields)
 
         # create all our flow runs for this set of contacts at once
@@ -2671,7 +2671,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if max_values is None:
-            max_values = settings.MAX_FLOWRUN_FIELDS
+            max_values = settings.FLOWRUN_FIELDS_SIZE
 
         if isinstance(fields, six.string_types):
             return fields[:Value.MAX_VALUE_LEN], count + 1
