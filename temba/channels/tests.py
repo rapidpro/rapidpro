@@ -4618,6 +4618,7 @@ class InfobipTest(TembaTest):
         self.assertEqual("Hello World", msg.text)
         self.assertEqual(two_hour_ago, msg.sent_on)
         self.assertTrue(now > msg.sent_on)
+        self.assertTrue(msg.channel_logs.filter(description='Incoming message'))
 
         Msg.objects.all().delete()
 

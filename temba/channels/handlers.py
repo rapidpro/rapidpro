@@ -827,6 +827,7 @@ class InfobipHandler(BaseChannelHandler):
                     urn = URN.from_tel(sender)
                     sms = Msg.create_incoming(channel, urn, text, date=msg_date, external_id=external_id)
                     msgs.append(sms)
+                    log(sms, "Incoming message", "SMS Accepted: %s" % sms.id)
 
             if msgs:
                 return make_response("SMS Accepted: %s" % ",".join([str(msg.id) for msg in msgs]))
