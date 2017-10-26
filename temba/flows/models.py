@@ -1717,8 +1717,8 @@ class Flow(TembaModel):
         # these fields are the initial state for our flow run
         run_fields = None
         if extra:
-            # we keep 1024 values in @extra for new flow runs because we might be passing the state
-            (normalized_fields, count) = FlowRun.normalize_fields(extra, 1024)
+            # we keep more values in @extra for new flow runs because we might be passing the state
+            (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.MAX_FLOWRUN_FIELDS * 4)
             run_fields = json.dumps(normalized_fields)
 
         # create all our flow runs for this set of contacts at once
@@ -2666,10 +2666,13 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, max_values=256, count=-1):
+    def normalize_fields(cls, fields, max_values=None, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
+        if max_values is None:
+            max_values = settings.MAX_FLOWRUN_FIELDS
+
         if isinstance(fields, six.string_types):
             return fields[:Value.MAX_VALUE_LEN], count + 1
 
@@ -2965,9 +2968,9 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map, max_values=256):
+    def update_fields(self, field_map):
         # validate our field
-        (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
+        (field_map, count) = FlowRun.normalize_fields(field_map)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
