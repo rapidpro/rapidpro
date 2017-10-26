@@ -29,4 +29,3 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(blank=True, help_text='Any groups this flow uses', related_name='dependent_flows', to='contacts.ContactGroup', verbose_name='Group Dependencies'),
         ),
     ]
-    
