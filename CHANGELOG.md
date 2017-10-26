@@ -1,3 +1,7 @@
+v3.0.228
+----------
+ * Add id to reserved field list
+
 v3.0.227
 ----------
  * Update Infobip channel type to use the latest JSON API
