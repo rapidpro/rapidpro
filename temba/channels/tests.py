@@ -4647,6 +4647,10 @@ class InfobipTest(TembaTest):
         response = self.client.get(receive_url)
         self.assertEqual(405, response.status_code)
 
+        # Invalid JSON should return 400
+        response = self.client.post(receive_url, "Invalid", content_type='application/json')
+        self.assertEqual(400, response.status_code)
+
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
         msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
@@ -4688,6 +4692,10 @@ class InfobipTest(TembaTest):
         self.assertEqual(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEqual(FAILED, msg.status)
+
+        # Invalid JSON should return 400
+        response = self.client.post(delivery_url, "Invalid", content_type='application/json')
+        self.assertEqual(400, response.status_code)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")

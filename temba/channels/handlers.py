@@ -784,8 +784,13 @@ class InfobipHandler(BaseChannelHandler):
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        if action == 'receive':
+        try:
             body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if action == 'receive':
+
             msgs = []
 
             messageCount = body.get('messageCount')
@@ -813,7 +818,6 @@ class InfobipHandler(BaseChannelHandler):
                 return HttpResponse("No message for channel with uuid: %s" % channel_uuid, status=404)
 
         elif action == 'delivered':
-            body = json.loads(request.body)
 
             msg_reports = body.get('results')
 
