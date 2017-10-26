@@ -55,7 +55,7 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         # add some stuff to the mock from the request that the caller might want to check
         mock.requested = True
         mock.data = data
-        mock.headers = self.headers
+        mock.headers = self.headers.dict
 
         # remove this mocked request now that it has been made
         self.server.mocked_requests = self.server.mocked_requests[1:]
@@ -465,15 +465,16 @@ class TembaTest(SmartminTest):
     def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
         return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
 
-    def assertMockedRequest(self, mock_request, data=None, headers=None):
+    def assertMockedRequest(self, mock_request, data=None, **headers):
         if not mock_request.requested:
             self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
 
         if data is not None:
             self.assertEqual(mock_request.data, data)
 
-        if headers is not None:
-            self.assertEqual(mock_request.headers, headers)
+        # check any provided header values
+        for key, val in six.iteritems(headers):
+            self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
 
     def assertAllRequestsMade(self):
         if self.mock_server.mocked_requests:

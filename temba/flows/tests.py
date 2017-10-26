@@ -3765,7 +3765,6 @@ class ActionTest(TembaTest):
             'relayer': ['-1'],
             'flow_base_language': ['base'],
             'run': [str(run.id)],
-            'header': ['Authorization'],
             'urn': ['tel:+250788382382'],
             'flow': [str(self.flow.id)],
             'flow_uuid': [str(self.flow.uuid)],
@@ -3778,7 +3777,7 @@ class ActionTest(TembaTest):
             'contact_name': ['Eric'],
             'flow_name': ['Empty Flow'],
             'channel': ['-1']
-        })
+        }, authorization='Token 12345', user_agent='RapidPro')
 
         # check that run @extra was updated
         self.assertEqual(json.loads(run.fields), {'coupon': "NEXUS4"})
@@ -3796,7 +3795,6 @@ class ActionTest(TembaTest):
             'flow_base_language': ['base'],
             'run': [str(run.id)],
             'attachments': ['http://example.com/test.jpg'],
-            'header': ['Authorization'],
             'text': ['Green is my favorite'],
             'urn': ['tel:+250788382382'],
             'flow': [str(self.flow.id)],
@@ -3811,7 +3809,7 @@ class ActionTest(TembaTest):
             'contact_name': ['Eric'],
             'flow_name': ['Empty Flow'],
             'relayer': [str(msg.channel.id)]
-        })
+        }, authorization='Token 12345', user_agent='RapidPro')
 
         # check simulator warns of webhook URL errors
         action = WebhookAction(str(uuid4()), 'http://localhost:49999/token?xyz=@contact.xyz')
