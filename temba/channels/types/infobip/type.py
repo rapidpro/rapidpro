@@ -84,10 +84,8 @@ class InfobipType(ChannelType):
         messages = response_json['messages']
 
         # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']['id']) not in [1, 3]:  # pragma: no cover
-            raise SendException("Received non-zero status code [%s]" % messages[0]['status']['id'],
+        if int(messages[0]['status']['groupId']) not in [1, 3]:
+            raise SendException("Received error status: %s" % messages[0]['status']['description'],
                                 events=events, start=start)
 
-        external_id = messages[0]['messageid']
-
-        Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
+        Channel.success(channel, msg, SENT, start, events=events)
