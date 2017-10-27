@@ -41,7 +41,7 @@ from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
-from twilio import twiml
+from twilio import twiml, TwilioRestException
 from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
@@ -876,6 +876,9 @@ class Channel(TembaModel):
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
+            except TwilioRestException as e:
+                raise e
+
             except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
                 logger.exception(six.text_type(e))
