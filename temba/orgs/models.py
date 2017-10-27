@@ -1415,7 +1415,7 @@ class Org(SmartModel):
             remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 100:
+            if not remaining or int(remaining) < 5000:
                 active_topup_pk = None
 
         # calculate our active topup if we need to
