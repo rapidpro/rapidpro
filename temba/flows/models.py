@@ -3507,7 +3507,7 @@ class RuleSet(models.Model):
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
                 result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
-                                                         header=header)
+                                                         headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4958,7 +4958,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=headers)
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 

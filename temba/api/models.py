@@ -211,7 +211,7 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, header=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
         flow = run.flow
         org = flow.org
         contact = run.contact
@@ -266,8 +266,7 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
-                    time=json_time,
-                    header=header)
+                    time=json_time)
 
         if not action:  # pragma: needs cover
             action = 'POST'
@@ -291,10 +290,9 @@ class WebHookEvent(SmartModel):
             # only send webhooks when we are configured to, otherwise fail
             if settings.SEND_WEBHOOKS:
 
-                requests_headers = TEMBA_HEADERS
-
-                if header:
-                    requests_headers.update(header)
+                requests_headers = TEMBA_HEADERS.copy()
+                if headers:
+                    requests_headers.update(headers)
 
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == 'GET':
