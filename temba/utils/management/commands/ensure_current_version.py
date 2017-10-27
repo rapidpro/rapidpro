@@ -22,4 +22,4 @@ class Command(BaseCommand):  # pragma: no cover
             print("Flows Migrated: %d of %d" % (updated, total))
 
         if not total:
-            print ("All flows up to date")
+            print("All flows up to date")
