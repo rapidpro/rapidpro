@@ -2178,7 +2178,7 @@ class OrgCRUDL(SmartCRUDL):
                         info_txt = parsed_response.get('info_txt', None)
                         error_txt = parsed_response.get('error_txt', None)
 
-                    except:
+                    except Exception:
                         raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
                                                 "Please check them again and retry."))
 

@@ -765,10 +765,10 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
-    courier_url = r'^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_url = r'^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|receive)$'
     courier_name = 'courier.ib'
 
-    handler_url = r'^infobip/(?P<action>sent|delivered|failed|received|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_url = r'^infobip/(?P<action>delivered|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.infobip_handler'
 
     def get_channel_type(self):
@@ -777,15 +777,33 @@ class InfobipHandler(BaseChannelHandler):
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
+        request_body = request.body
+        request_method = request.method
+        request_path = request.get_full_path()
+
+        def make_response(description, status_code=None):
+            if not status_code:
+                status_code = 201
+            return HttpResponse(description, status=status_code)
+
+        def log(msg, description, response_body):
+            event = HttpEvent(request_method, request_path, request_body, 200, response_body)
+            ChannelLog.log_message(msg, description, event)
+
         channel_uuid = kwargs['uuid']
         action = kwargs['action']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+            return make_response("Channel with uuid: %s not found." % channel_uuid, status_code=404)
+
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return make_response("Invalid JSON in POST body: %s" % str(e), status_code=400)
 
         if action == 'receive':
-            body = json.loads(request.body)
+
             msgs = []
 
             messageCount = body.get('messageCount')
@@ -806,14 +824,14 @@ class InfobipHandler(BaseChannelHandler):
                     urn = URN.from_tel(sender)
                     sms = Msg.create_incoming(channel, urn, text, date=msg_date, external_id=external_id)
                     msgs.append(sms)
+                    log(sms, "Incoming message", "SMS Accepted: %s" % sms.id)
 
             if msgs:
-                return HttpResponse("SMS Accepted: %s" % ",".join([str(msg.id) for msg in msgs]))
+                return make_response("SMS Accepted: %s" % ",".join([str(msg.id) for msg in msgs]))
             else:
-                return HttpResponse("No message for channel with uuid: %s" % channel_uuid, status=404)
+                return make_response("No message for channel with uuid: %s" % channel_uuid, status_code=404)
 
         elif action == 'delivered':
-            body = json.loads(request.body)
 
             msg_reports = body.get('results')
 
@@ -829,9 +847,9 @@ class InfobipHandler(BaseChannelHandler):
                 elif status in ['REJECTED', 'UNDELIVERABLE']:
                     sms.status_fail()
 
-            return HttpResponse("SMS Status Updated")
+            return make_response("SMS Status Updated", status_code=200)
 
-        return HttpResponse("Unreconized action: %s" % action, status=404)  # pragma: needs cover
+        return make_response("Unreconized action: %s" % action, status_status=404)  # pragma: needs cover
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)

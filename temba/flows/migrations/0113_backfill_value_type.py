@@ -23,7 +23,7 @@ def backfill_value_type(apps, schema_editor):
                     ruleset.value_type = value_type
                     ruleset.save(update_fields=['value_type'])
 
-            except:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 # unmigrated rulesets may blow up, that's ok, their value type will be set when brought forwards by a run
                 pass
 

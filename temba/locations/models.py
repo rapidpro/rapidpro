@@ -78,7 +78,7 @@ class AdminBoundary(MPTTModel, models.Model):
 
     def as_path(self):
         """
-        Returns the full path for this admin boundary, from country downwards using ¤ as separator between
+        Returns the full path for this admin boundary, from country downwards using > as separator between
         each level.
         """
         if self.parent:
