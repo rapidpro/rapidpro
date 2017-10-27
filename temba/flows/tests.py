@@ -7042,6 +7042,27 @@ class FlowMigrationTest(FlowFileTest):
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
 
+    def test_migrate_bad_group_names(self):
+        # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.
+        # However, since it was a missed migration, now we need to apply it for any current version
+        # at the time of this fix
+        for v in ('4', '5', '6', '7', '8', '9', '10'):
+            error = 'Failure migrating group names "%s" forward from v%s'
+            flow = self.get_flow('favorites_bad_group_name_v%s' % v)
+            self.assertIsNotNone(flow, "Failure importing favorites from v%s" % v)
+            self.assertTrue(ContactGroup.user_groups.filter(name='Contacts < 25').exists(), error % ("< 25", v))
+            self.assertTrue(ContactGroup.user_groups.filter(name='Contacts > 100').exists(), error % ("> 100", v))
+
+            ContactGroup.user_groups.all().delete()
+            self.assertEqual(CURRENT_EXPORT_VERSION, flow.version_number)
+            flow.delete()
+
+    def test_migrate_malformed_groups(self):
+        flow = self.get_flow('malformed_groups')
+        self.assertIsNotNone(flow)
+        self.assertTrue(ContactGroup.user_groups.filter(name='Contacts < 25').exists())
+        self.assertTrue(ContactGroup.user_groups.filter(name='Unknown').exists())
+
 
 class DuplicateValueTest(FlowFileTest):
 
@@ -7751,7 +7772,7 @@ class MigrationUtilsTest(TembaTest):
 
     def test_map_actions(self):
         # minimalist flow def with just actions and entry
-        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[dict(y=10, uuid='5678')])
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', x=100, y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[dict(y=10, x=100, uuid='5678')])
         removed = map_actions(flow_def, lambda x: None)
 
         # no more action sets and entry is remapped
@@ -7759,7 +7780,7 @@ class MigrationUtilsTest(TembaTest):
         self.assertEqual('5678', removed['entry'])
 
         # add two action sets, we should remap entry to be the first
-        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)]), dict(uuid='2345', y=5, actions=[dict(type='reply', msg="foo")])]
+        flow_def['action_sets'] = [dict(uuid='1234', y=0, x=100, actions=[dict(type='reply', msg=None)]), dict(uuid='2345', y=5, x=100, actions=[dict(type='reply', msg="foo")])]
         removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
 
         self.assertEqual(len(removed['action_sets']), 1)
@@ -7767,19 +7788,36 @@ class MigrationUtilsTest(TembaTest):
         self.assertEqual(removed['entry'], '2345')
 
         # remove a single action
-        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None), dict(type='reply', msg="foo")])]
+        flow_def['action_sets'] = [dict(uuid='1234', y=10, x=100, actions=[dict(type='reply', msg=None), dict(type='reply', msg="foo")])]
         removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
 
         self.assertEqual(len(removed['action_sets']), 1)
         self.assertEqual(len(removed['action_sets'][0]['actions']), 1)
-        self.assertEqual(removed['entry'], '1234')
+        self.assertEqual(removed['entry'], '2345')
 
         # no entry
-        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[])
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, x=100, actions=[dict(type='reply', msg=None)])], rule_sets=[])
         removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
 
         self.assertEqual(len(removed['action_sets']), 0)
         self.assertEqual(removed['entry'], None)
+
+        # check entry horizontal winner
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', x=100, y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[dict(y=10, x=100, uuid='5678'), dict(y=10, x=50, uuid='9012')])
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+        self.assertEqual(removed['entry'], '9012')
+
+        # same horizontal check with action sets
+        flow_def = dict(entry='1234', action_sets=[
+            dict(uuid='1234', x=100, y=0, actions=[dict(type='reply', msg=None)]),
+            dict(uuid='9012', x=50, y=50, actions=[dict(type='reply', msg="foo")]),
+            dict(uuid='3456', x=0, y=50, actions=[dict(type='reply', msg="foo")])
+        ], rule_sets=[
+            dict(y=100, x=100, uuid='5678')
+        ])
+
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+        self.assertEqual(removed['entry'], '3456')
 
 
 class TriggerFlowTest(FlowFileTest):
