@@ -10,6 +10,7 @@ import requests
 import six
 import magic
 import xml.etree.ElementTree as ET
+import logging
 
 from datetime import datetime
 from django.conf import settings
@@ -41,6 +42,8 @@ from temba.utils.text import decode_base64
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
+
+logger = logging.getLogger(__name__)
 
 
 class BaseChannelHandler(View):
@@ -99,6 +102,7 @@ class DMarkHandler(BaseChannelHandler):
         return HttpResponse("Illegal Method", status_code=401)
 
     def post(self):  # pragma: no cover
+        logger.error('DMark handling only implemented in courier')
         return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
 
 
