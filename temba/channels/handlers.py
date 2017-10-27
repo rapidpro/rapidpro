@@ -96,7 +96,7 @@ class DMarkHandler(BaseChannelHandler):
     courier_name = 'courier.dk'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
-        return HttpResponse("Illegal Method", status_code=401)
+        return HttpResponse("Illegal Method", status_code=405)
 
     def post(self):  # pragma: no cover
         return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
