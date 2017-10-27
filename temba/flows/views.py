@@ -1359,7 +1359,6 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
-
             # try to parse our body
             try:
                 json_dict = json.loads(request.body)
@@ -1441,12 +1440,7 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-
-                        channel = test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME))
-                        if not channel:
-                            raise Exception("No USSD channel, simulation cancelled")
-
-                        USSDSession.handle_incoming(channel,
+                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     contact=test_contact,

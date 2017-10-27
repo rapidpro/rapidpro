@@ -5377,7 +5377,7 @@ class Action(object):
         self.uuid = uuid if uuid else str(uuid4())
 
     @classmethod
-    def get_action_mappings(cls):
+    def from_json(cls, org, json_obj):
         if not cls.__action_mapping:
             cls.__action_mapping = {
                 ReplyAction.TYPE: ReplyAction,
@@ -5396,11 +5396,7 @@ class Action(object):
                 TriggerFlowAction.TYPE: TriggerFlowAction,
                 EndUssdAction.TYPE: EndUssdAction,
             }
-        return cls.__action_mapping
 
-    @classmethod
-    def from_json(cls, org, json_obj):
-        cls.get_action_mappings()
         action_type = json_obj.get(cls.TYPE)
         if not action_type:  # pragma: no cover
             raise FlowException("Action definition missing 'type' attribute: %s" % json_obj)
@@ -5872,6 +5868,7 @@ class ReplyAction(Action):
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
+
         if self.msg or self.media:
             user = get_flow_user(run.org)
 
@@ -5946,7 +5943,6 @@ class UssdAction(ReplyAction):
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
             msg = obj.get(cls.MESSAGE, '')
-            uuid = obj.get(cls.UUID, six.text_type(uuid4()))
             org = run.flow.org
 
             # TODO: this will be arbitrary unless UI is changed to maintain consistent uuids

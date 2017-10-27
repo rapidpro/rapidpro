@@ -26,7 +26,6 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest
@@ -7599,7 +7598,7 @@ class TimeoutTest(FlowFileTest):
         run.timeout_on = timeout_on
         run.save(update_fields=('timeout_on',))
 
-        if run.session and run.session.output:
+        if run.session and run.session.is_goflow():
             output = json.loads(run.session.output)
             output['wait']['timeout_on'] = datetime_to_str(timeout_on)
             run.session.output = json.dumps(output)
