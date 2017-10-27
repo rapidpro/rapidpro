@@ -1,0 +1,33 @@
+-extends "channels/channel_claim_form.html"
+-load i18n
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can connect your <a href="http://dmarkmobile.com/">DMark Mobile</a> number to {{ name }} using the fields below. You
+        will first need to create a DMark Mobile account and receive a username and password from them to use below.
+
+    %hr
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    #s2id_id_country {
+      width: 370px;
+    }
