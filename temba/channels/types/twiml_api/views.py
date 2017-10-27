@@ -1,9 +1,9 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
-from uuid import uuid4
-
 import phonenumbers
+
+from uuid import uuid4
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView

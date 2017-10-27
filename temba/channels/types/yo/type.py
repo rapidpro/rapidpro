@@ -2,11 +2,10 @@ from __future__ import unicode_literals, absolute_import
 
 import time
 import urlparse
-
 import requests
 import six
-from django.utils.http import urlencode
 
+from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.yo.views import ClaimView

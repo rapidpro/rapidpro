@@ -2,16 +2,13 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
+import requests
 
 from datetime import timedelta
 from six import text_type
-
-import requests
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
-
-
 from django.utils.translation import ugettext_lazy as _
 
 

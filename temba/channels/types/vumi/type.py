@@ -1,13 +1,11 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
-
 import time
-
 import requests
 import six
-from django.core.validators import URLValidator
 
+from django.core.validators import URLValidator
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType, Channel, TEMBA_HEADERS, SendException

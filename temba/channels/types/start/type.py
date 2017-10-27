@@ -1,12 +1,10 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import requests
 import six
 
 from django.utils.translation import ugettext_lazy as _
-
 from xml.sax.saxutils import quoteattr, escape
 
 from temba.channels.views import AuthenticatedExternalClaimView
