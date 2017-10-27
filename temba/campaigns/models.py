@@ -191,7 +191,7 @@ class Campaign(TembaModel):
             if message:
                 try:
                     message = json.loads(message)
-                except:  # pragma: needs cover
+                except Exception:  # pragma: needs cover
                     message = dict(base=message)
 
             event_definition = dict(uuid=event.uuid, offset=event.offset,
