@@ -891,6 +891,19 @@
     %code
       https://{{ domain }}{% url 'courier.yo' object.uuid 'receive' %}
 
+  -elif object.channel_type == 'DK'
+    %h4
+      -blocktrans
+        To finish configuring your DMark channel you need to configure DMark to send MO messages the URL below.
+
+    %hr
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'courier.dk' object.uuid 'receive' %}
+
   -elif object.channel_type == 'CK'
     %h4
       -blocktrans

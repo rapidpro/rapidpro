@@ -1115,6 +1115,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.blackmyna.BlackmynaType',
     'temba.channels.types.clickatell.ClickatellType',
     'temba.channels.types.dartmedia.DartMediaType',
+    'temba.channels.types.dmark.DMarkType',
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
@@ -1188,7 +1189,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set()
+COURIER_CHANNELS = set('DK')
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

@@ -91,6 +91,17 @@ def get_channel_handlers():
     return all_subclasses(BaseChannelHandler)
 
 
+class DMarkHandler(BaseChannelHandler):
+    courier_url = r'^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_name = 'courier.dk'
+
+    def get(self, request, *args, **kwargs):  # pragma: no cover
+        return HttpResponse("Illegal Method", status_code=401)
+
+    def post(self):  # pragma: no cover
+        return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
