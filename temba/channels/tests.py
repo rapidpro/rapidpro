@@ -871,33 +871,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(401, response.status_code)
         self.assertEqual(3, response.json()['error_id'])
 
-    def test_is_ussd_channel(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        # add a non USSD channel
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
-                              dict(cmd='status', cc='RW', dev='Nexus')])
-
-        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-        self.assertEqual(200, response.status_code)
-
-        # add a USSD channel
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.assertEqual(Channel.objects.first().channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(Channel.objects.first().role, Channel.ROLE_USSD)
-        self.assertTrue(Channel.objects.first().is_ussd())
-        self.assertFalse(Channel.objects.last().is_ussd())
-
     def test_claim(self):
         # no access for regular users
         self.login(self.user)
@@ -2331,93 +2304,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
-    def test_claim_vumi_ussd(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], Channel.VUMI_GO_API_URL)
-        self.assertEqual(channel.channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(channel.role, Channel.ROLE_USSD)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'event']))
-
-    def test_claim_vumi_ussd_custom_api(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-            "api_url": "http://custom.api.url"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], "http://custom.api.url")
-        self.assertEqual(channel.channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(channel.role, Channel.ROLE_USSD)
-
-    def test_claim_vumi_ussd_custom_api_short_code(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "8080",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-            "api_url": "http://custom.api.url"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
