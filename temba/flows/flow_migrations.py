@@ -15,8 +15,9 @@ def migrate_to_version_10_2(json_flow, flow=None):
     """
     Fixes malformed single message flows that have a base language but a message action that isn't localized
     """
+    # this is a case that can only arise from malformed revisions
     base_language = json_flow['base_language']
-    if not base_language:
+    if not base_language:  # pragma: no cover
         base_language = 'base'
     json_flow['base_language'] = base_language
 
