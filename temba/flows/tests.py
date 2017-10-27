@@ -6699,9 +6699,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_10_2(self):
         flow_json = self.get_flow_json('single_message_bad_localization')
-        print (json.dumps(flow_json, indent=1))
         flow_json = migrate_to_version_10_2(flow_json)
-        print (json.dumps(flow_json, indent=1))
         self.assertEqual('Campaign Message 12', flow_json['action_sets'][0]['actions'][0]['msg']['eng'])
 
     def test_migrate_to_10_1(self):
