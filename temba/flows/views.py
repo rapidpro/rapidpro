@@ -32,6 +32,7 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME, ContactURN
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
+from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
@@ -1659,13 +1660,22 @@ class FlowCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r'^%s/%s/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>\w+)/((?P<uuid>[a-z0-9-]{36})/)?$' % (path, action)
 
+        def derive_org(self):
+            if not hasattr(self, 'org'):
+                self.org = Org.objects.get(id=self.kwargs['org'])
+            return self.org
+
+        def has_permission(self, request, *args, **kwargs):
+            # allow requests from the flowserver using token authentication
+            if request.user.is_anonymous() and settings.FLOW_SERVER_AUTH_TOKEN:
+                authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+                if len(authorization) == 2 and authorization[0] == 'Token' and authorization[1] == settings.FLOW_SERVER_AUTH_TOKEN:
+                    return True
+
+            return super(FlowCRUDL.Assets, self).has_permission(request, *args, **kwargs)
+
         def get(self, *args, **kwargs):
-            org = self.request.user.get_org()
-
-            # don't let users request assets from an org other than the one they've authenticated for
-            if kwargs['org'] != str(org.id):
-                return JsonResponse({"error": "org mismatch between URL and authentication"}, status=403)
-
+            org = self.derive_org()
             uuid = kwargs.get('uuid')
 
             resource = self.resources[kwargs['type']]

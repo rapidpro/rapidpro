@@ -167,7 +167,6 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'temba.middleware.FlowUserMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
@@ -1194,6 +1193,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # GoFlow
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
 
