@@ -34,15 +34,14 @@ class Migration(migrations.Migration):
             name='output',
             field=models.TextField(null=True),
         ),
-        migrations.AddField(
-            model_name='flow',
-            name='feature_flag',
-            field=models.BigIntegerField(default=0x7FFFFFFFFFFFFFFF,
-                                         help_text='Which features are used in this flow'),
-        ),
         migrations.AlterField(
             model_name='actionlog',
             name='created_on',
             field=models.DateTimeField(help_text='When this log event occurred'),
+        ),
+        migrations.AddField(
+            model_name='flow',
+            name='flow_server_enabled',
+            field=models.BooleanField(default=False, help_text='Run this flow using the flow server'),
         ),
     ]

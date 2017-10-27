@@ -4442,10 +4442,6 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
-    def test_is_runnable_in_goflow(self):
-        self.assertTrue(self.get_flow('favorites').is_runnable_in_goflow())
-        self.assertFalse(self.get_flow('ussd_example').is_runnable_in_goflow())
-
     def test_simple(self):
         favorites = self.get_flow('favorites')
         run, = favorites.start([], [self.contact])
@@ -7603,10 +7599,11 @@ class TimeoutTest(FlowFileTest):
         run.timeout_on = timeout_on
         run.save(update_fields=('timeout_on',))
 
-        output = json.loads(run.session.output)
-        output['wait']['timeout_on'] = datetime_to_str(timeout_on)
-        run.session.output = json.dumps(output)
-        run.session.save(update_fields=('output',))
+        if run.session and run.session.output:
+            output = json.loads(run.session.output)
+            output['wait']['timeout_on'] = datetime_to_str(timeout_on)
+            run.session.output = json.dumps(output)
+            run.session.save(update_fields=('output',))
 
     def test_disappearing_timeout(self):
         from temba.flows.tasks import check_flow_timeouts_task

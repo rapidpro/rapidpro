@@ -5,7 +5,6 @@ import iso8601
 import json
 import logging
 import numbers
-import operator
 import phonenumbers
 import regex
 import six
@@ -374,9 +373,6 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
-    FEATURE_FLAG_ALL = 0x7FFFFFFFFFFFFFFF
-    FEATURE_FLAG_GOFLOW = None  # set after ruleset types are loaded etc
-
     VERSIONS = [
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1"
     ]
@@ -431,8 +427,7 @@ class Flow(TembaModel):
     field_dependencies = models.ManyToManyField(ContactField, related_name='dependent_flows', verbose_name=_(''), blank=True,
                                                 help_text=('Any fields this flow depends on'))
 
-    feature_flag = models.BigIntegerField(default=FEATURE_FLAG_ALL,
-                                          help_text=_('Which features are used in this flow'))
+    flow_server_enabled = models.BooleanField(default=False, help_text=_('Run this flow using the flow server'))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
@@ -482,6 +477,19 @@ class Flow(TembaModel):
                          rule_sets=[], action_sets=action_sets))
 
         return flow
+
+    def use_flow_server(self):
+        """
+        For now we manually switch flows to using the flow server, though in the settings we can override this for some
+        flow types.
+        """
+        if not settings.FLOW_SERVER_URL:
+            return False
+
+        if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE or self.FLOW):
+            return True
+
+        return self.flow_server_enabled
 
     @classmethod
     def is_before_version(cls, to_check, version):
@@ -793,7 +801,7 @@ class Flow(TembaModel):
         if started_flows is None:
             started_flows = []
 
-        # resume via goflow if this run using the new engine
+        # resume via flow server if we have a waiting session for that
         session = FlowSession.get_waiting(contact=msg.contact)
         if session:
             return session.resume(msg_in=msg)
@@ -1901,21 +1909,15 @@ class Flow(TembaModel):
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
 
-        from temba.tests import TembaTestRunner
-
-        if settings.FLOW_SERVER_URL and self.is_runnable_in_goflow() and not (start_msg and not start_msg.contact_urn):
+        if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
             # try to start the session against our flow server
             contacts = Contact.objects.filter(id__in=batch_contact_ids).order_by('id')
-
-            TembaTestRunner.NEW_ENGINE_RUNS += 1
 
             runs = FlowSession.bulk_start(contacts, self, broadcasts, start_msg, extra)
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
             return runs
-        else:
-            TembaTestRunner.LEGACY_ENGINE_RUNS += 1
 
         simulation = False
         if len(batch_contact_ids) == 1:
@@ -2362,36 +2364,6 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
-    def is_runnable_in_goflow(self):
-        """
-        Returns true if this flow only uses features supported by GoFlow
-        """
-        for flow in self.org.resolve_dependencies([self], [], False):
-            if flow.flow_type not in (Flow.MESSAGE, Flow.FLOW):
-                print("[GOFLOW] won't run flow due to unsupported type: %s" % flow.flow_type)
-                return False
-
-            features = flag_to_features(flow.feature_flag)
-            unsupported = [f for f in features if f not in GOFLOW_FEATURES]
-            if unsupported:
-                print("[GOFLOW] won't run flow due to unsupported features: %s" % ', '.join(unsupported))
-                return False
-
-        return True
-
-    @classmethod
-    def calculate_feature_flag(cls, action_types, ruleset_types, tests):
-        features = []
-
-        for action_type in action_types:
-            features.append('A:' + action_type)
-        for ruleset_type in ruleset_types:
-            features.append('R:' + ruleset_type)
-        for test_type in tests:
-            features.append('T:' + test_type)
-
-        return features_to_flag(features)
-
     def ensure_current_version(self):
         """
         Makes sure the flow is at the current version. If it isn't it will
@@ -2619,18 +2591,11 @@ class Flow(TembaModel):
 
                         existing_actionsets[uuid] = existing
 
-            action_types = set()
-            ruleset_types = set()
-            tests = set()
-
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
                 if existing.uuid not in seen:
                     del existing_actionsets[existing.uuid]
                     existing.delete()
-                else:
-                    for action in existing.get_actions():
-                        action_types.add(action.TYPE)
 
             for existing in existing_rulesets.values():
                 if existing.uuid not in seen:
@@ -2639,13 +2604,6 @@ class Flow(TembaModel):
 
                     del existing_rulesets[existing.uuid]
                     existing.delete()
-
-                else:
-                    ruleset_types.add(existing.ruleset_type)
-                    for rule in existing.get_rules():
-                        tests.add(rule.test.TYPE)
-
-            self.feature_flag = Flow.calculate_feature_flag(action_types, ruleset_types, tests)
 
             # make sure all destinations are present though
             for destination in destinations:
@@ -7664,83 +7622,3 @@ class InterruptTest(Test):
 
     def evaluate(self, run, msg, context, text):
         return (True, self.TYPE) if run.connection and run.connection.status == ChannelSession.INTERRUPTED else (False, None)
-
-
-# Possible flow features as tuples of class, type-code, and whether it is goflow supported. Excludes the most basic
-# test types (and/or/true/false) to keep the number under 64.
-FLOW_FEATURES = [
-    ('A', ReplyAction.TYPE, True),
-    ('A', SendAction.TYPE, False),               # https://github.com/nyaruka/goflow/issues/67
-    ('A', AddToGroupAction.TYPE, True),
-    ('A', DeleteFromGroupAction.TYPE, True),
-    ('A', AddLabelAction.TYPE, True),
-    ('A', EmailAction.TYPE, True),
-    ('A', WebhookAction.TYPE, False),            # https://github.com/nyaruka/goflow/issues/70
-    ('A', SaveToContactAction.TYPE, True),
-    ('A', SetLanguageAction.TYPE, True),
-    ('A', SetChannelAction.TYPE, True),
-    ('A', StartFlowAction.TYPE, True),
-    ('A', SayAction.TYPE, False),
-    ('A', PlayAction.TYPE, False),
-    ('A', TriggerFlowAction.TYPE, False),
-    ('A', EndUssdAction.TYPE, False),
-    ('R', RuleSet.TYPE_WAIT_MESSAGE, True),
-    ('R', RuleSet.TYPE_WAIT_USSD_MENU, False),
-    ('R', RuleSet.TYPE_WAIT_USSD, False),
-    ('R', RuleSet.TYPE_WAIT_RECORDING, False),
-    ('R', RuleSet.TYPE_WAIT_DIGIT, False),
-    ('R', RuleSet.TYPE_WAIT_DIGITS, False),
-    ('R', RuleSet.TYPE_WEBHOOK, True),
-    ('R', RuleSet.TYPE_RESTHOOK, False),
-    ('R', RuleSet.TYPE_AIRTIME, False),
-    ('R', RuleSet.TYPE_FLOW_FIELD, True),
-    ('R', RuleSet.TYPE_FORM_FIELD, True),
-    ('R', RuleSet.TYPE_CONTACT_FIELD, True),
-    ('R', RuleSet.TYPE_EXPRESSION, True),
-    ('R', RuleSet.TYPE_SUBFLOW, True),
-    ('R', RuleSet.TYPE_RANDOM, True),
-    ('T', AirtimeStatusTest.TYPE, False),
-    ('T', BetweenTest.TYPE, True),
-    ('T', ContainsAnyTest.TYPE, True),
-    ('T', ContainsOnlyPhraseTest.TYPE, True),
-    ('T', ContainsPhraseTest.TYPE, True),
-    ('T', ContainsTest.TYPE, True),
-    ('T', DateAfterTest.TYPE, True),
-    ('T', DateBeforeTest.TYPE, True),
-    ('T', DateEqualTest.TYPE, True),
-    ('T', EqTest.TYPE, True),
-    ('T', GtTest.TYPE, True),
-    ('T', GteTest.TYPE, True),
-    ('T', DateTest.TYPE, True),
-    ('T', HasDistrictTest.TYPE, True),
-    ('T', HasEmailTest.TYPE, True),
-    ('T', HasStateTest.TYPE, True),
-    ('T', HasWardTest.TYPE, True),
-    ('T', InGroupTest.TYPE, True),
-    ('T', InterruptTest.TYPE, False),
-    ('T', LtTest.TYPE, True),
-    ('T', LteTest.TYPE, True),
-    ('T', NotEmptyTest.TYPE, True),
-    ('T', NumberTest.TYPE, True),
-    ('T', PhoneTest.TYPE, True),
-    ('T', RegexTest.TYPE, False),                # https://github.com/nyaruka/goflow/issues/69
-    ('T', StartsWithTest.TYPE, True),
-    ('T', SubflowTest.TYPE, True),
-    ('T', TimeoutTest.TYPE, True),
-    ('T', WebhookStatusTest.TYPE, True),
-]
-
-ALL_FEATURES = ['%s:%s' % (f[0], f[1]) for f in FLOW_FEATURES]
-GOFLOW_FEATURES = ['%s:%s' % (f[0], f[1]) for f in FLOW_FEATURES if f[2]]
-
-
-def features_to_flag(features):
-    feature_bits = {feat: (1 << f) for f, feat in enumerate(ALL_FEATURES)}
-    return reduce(operator.or_, [feature_bits.get(feat, 0) for feat in features], 0)
-
-
-def flag_to_features(flag):
-    return [feat for f, feat in enumerate(ALL_FEATURES) if flag & (1 << f)]
-
-
-Flow.FEATURE_FLAG_GOFLOW = features_to_flag(GOFLOW_FEATURES)

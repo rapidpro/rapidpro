@@ -1195,6 +1195,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro

@@ -129,9 +129,6 @@ class TembaTestRunner(DiscoverRunner):
     """
     Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
     """
-    NEW_ENGINE_RUNS = 0
-    LEGACY_ENGINE_RUNS = 0
-
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
@@ -152,13 +149,7 @@ class TembaTestRunner(DiscoverRunner):
     def run_suite(self, suite, **kwargs):
         mock_server.start()
 
-        results = super(TembaTestRunner, self).run_suite(suite, **kwargs)
-
-        total_runs = TembaTestRunner.LEGACY_ENGINE_RUNS + TembaTestRunner.NEW_ENGINE_RUNS
-        if total_runs:
-            pct = "{0:.1f}".format((TembaTestRunner.NEW_ENGINE_RUNS / float(total_runs)) * 100)
-            print("%d / %d (%s%%)" % (TembaTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
-        return results
+        return super(TembaTestRunner, self).run_suite(suite, **kwargs)
 
 
 def add_testing_flag_to_context(*args):
@@ -535,6 +526,7 @@ class TembaTest(SmartminTest):
 
 
 class FlowFileTest(TembaTest):
+
     def setUp(self):
         super(FlowFileTest, self).setUp()
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
@@ -621,6 +613,7 @@ class MLStripper(HTMLParser):  # pragma: no cover
 
 
 class BrowserTest(LiveServerTestCase):  # pragma: no cover
+
     @classmethod
     def setUpClass(cls):
         cls.driver = WebDriver()
@@ -793,6 +786,7 @@ class AnonymousOrg(object):
 
 
 class MockRequestValidator(RequestValidator):
+
     def __init__(self, token):
         pass
 
@@ -801,6 +795,7 @@ class MockRequestValidator(RequestValidator):
 
 
 class MockTwilioClient(TwilioClient):
+
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base
