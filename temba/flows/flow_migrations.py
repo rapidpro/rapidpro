@@ -11,6 +11,23 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
+def migrate_to_version_10_2(json_flow, flow=None):
+    """
+    Fixes malformed single message flows that have a base language but a message action that isn't localized
+    """
+    base_language = json_flow['base_language']
+    if not base_language:
+        base_language = 'base'
+    json_flow['base_language'] = base_language
+
+    def update_action(action):
+        if action['type'] == 'reply':
+            if not isinstance(action['msg'], dict):
+                action['msg'] = {base_language: action['msg']}
+        return action
+    return map_actions(json_flow, update_action)
+
+
 def migrate_to_version_10_1(json_flow, flow):
     """
     Ensures all actions have uuids
