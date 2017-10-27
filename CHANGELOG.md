@@ -1,3 +1,11 @@
+v3.0.230
+----------
+ * Deal with malformed group format as part of group updates
+ * Allow installs to configure how many fields they want to keep in @extra
+ * Fix Nexmo icon
+ * Add logs for incoming requests for InfoBip
+ * Do both Python 2 and 3 linting in a single build job
+
 v3.0.229
 ----------
  * Do not set external ID for InfoBip we have send them our ID
