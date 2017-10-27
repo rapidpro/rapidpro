@@ -846,6 +846,7 @@ class InfobipHandler(BaseChannelHandler):
                     sms.status_delivered()
                 elif status in ['REJECTED', 'UNDELIVERABLE']:
                     sms.status_fail()
+                log(sms, 'Status Updated', "SMS Status Updated")
 
             return make_response("SMS Status Updated", status_code=200)
 

@@ -4678,6 +4678,7 @@ class InfobipTest(TembaTest):
         self.assertEqual(DELIVERED, msg.status)
         msg.status = SENT
         msg.save()
+        self.assertTrue(msg.channel_logs.filter(description='Status Updated'))
 
         # assert our FAILED status
         post_data['results'][0]['status']['groupName'] = 'REJECTED'
