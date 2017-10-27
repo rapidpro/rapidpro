@@ -32,5 +32,5 @@ class DMarkType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Kampala", "Africa/Kinshasa"]
 
-    def send(self, channel, msg, text):
+    def send(self, channel, msg, text):  # pragma: no cover
         raise Exception("Sending DMark messages is only possible via Courier")
