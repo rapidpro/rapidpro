@@ -48,8 +48,8 @@ class InfobipType(ChannelType):
         # if the channel config has specified and override hostname use that, otherwise use settings
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
 
-        # the event url Junebug will relay events to
-        status_url = 'http://%s%s' % (event_hostname, reverse('courier.ib', args=[channel.uuid, 'delivered']))
+        # the event url InfoBip will forward delivery reports to
+        status_url = 'https://%s%s' % (event_hostname, reverse('courier.ib', args=[channel.uuid, 'delivered']))
 
         payload = {"messages": [
             {

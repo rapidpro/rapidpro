@@ -4725,8 +4725,8 @@ class InfobipTest(TembaTest):
                                  "application/json")
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
-                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
-                                                                             args=[self.channel.uuid, 'delivered'])))
+                                 'https://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                              args=[self.channel.uuid, 'delivered'])))
 
                 self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
@@ -4805,8 +4805,8 @@ class InfobipTest(TembaTest):
                                  "application/json")
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
-                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
-                                                                             args=[self.channel.uuid, 'delivered'])))
+                                 'https://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                              args=[self.channel.uuid, 'delivered'])))
 
                 self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
