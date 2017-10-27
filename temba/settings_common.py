@@ -1071,7 +1071,7 @@ for brand in BRANDING.values():
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
-MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
+MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
 
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
