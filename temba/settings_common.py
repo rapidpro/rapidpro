@@ -1135,10 +1135,14 @@ CHANNEL_TYPES = [
     'temba.channels.types.plivo.PlivoType',
     'temba.channels.types.redrabbit.RedRabbitType',
     'temba.channels.types.shaqodoon.ShaqodoonType',
+    'temba.channels.types.smscentral.SMSCentralType',
+    'temba.channels.types.start.StartType',
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
     'temba.channels.types.viber_public.ViberPublicType',
+    'temba.channels.types.yo.YoType',
+    'temba.channels.types.zenvia.ZenviaType',
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1172,6 +1176,7 @@ IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
 VALUE_FIELD_SIZE = 640
+FLOWRUN_FIELDS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours

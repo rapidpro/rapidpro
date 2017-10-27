@@ -43,6 +43,10 @@
     margin-top: 3px;
   }
 
+  .action-editor .modal-body input.url {
+    width: 385px;
+  }
+
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
 .modal-body
@@ -52,6 +56,7 @@
   %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}
+      -include 'partials/invalid_fields.haml'
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
@@ -93,13 +98,14 @@
       %button{ng-click:'saveMessage(message, "end_ussd")',class:"submit hide"}
 
     %span{ng-if:'config.type == "say"'}
+      -include 'partials/invalid_fields.haml'     
       %span{show-counter:"false",auto-complete:"",msg:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
 
     %span{ng-if:'config.type == "play"'}
-
       %h4
         Previous Recording
+      -include 'partials/invalid_fields.haml'
       %input{ng-model:"action.url", name:"value", auto-complete:"", flow:"[[flowId]]", ng-required:"true", type:"text", placeholder:'@flow.recording'}
       .help-text
         Enter a variable that contains a recording the contact has previously recorded. For example, @flow.voicemail or @contact.short_bio.
@@ -108,6 +114,7 @@
 
     %span{ng-if:'config.type == "send"'}
       %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
+      -include 'partials/invalid_fields.haml'
       %span{msg:"action.msg", data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
         -trans "Ok"
@@ -156,6 +163,7 @@
       .help-text
         -blocktrans
           Select an existing field, or type a name to create a new field.
+      -include 'partials/invalid_fields.haml'            
       .label
         -trans "Value"
       %input{ng-model:"action.value",name:"value",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"text"}
@@ -170,6 +178,7 @@
       .label
         -trans "To"
       %input{ng-model:"action.emails",select-email:"",name:"to",placeholder:"Enter email addresses",required:"",type:"hidden"}
+      -include 'partials/invalid_fields.haml'        
       .label
         -trans "Subject"
       %input{ng-model:"action.subject",name:"subject",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"text"}
@@ -203,7 +212,7 @@
           Using a Webhook you can fetch data from an external
           database and use it in this flow.
           Enter the URL to call out to at this point in the flow.
-
+      -include 'partials/invalid_fields.haml'            
       %select{ng-model:"action.action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
       %input{ng-model:"action.webhook",name:"url",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"url",class:"url"}
 

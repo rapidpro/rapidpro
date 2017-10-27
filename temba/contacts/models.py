@@ -113,7 +113,7 @@ class URN(object):
         """
         try:
             scheme, path = urn.split(':', 1)
-        except:
+        except Exception:
             raise ValueError("URN strings must contain scheme and path components")
 
         if not scheme or scheme not in cls.VALID_SCHEMES:
@@ -190,7 +190,7 @@ class URN(object):
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
-            return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
+            return regex.match(r'^[a-zA-Z0-9_=]{1,24}$', path, regex.V0)
 
         # anything goes for external schemes
         return True
@@ -365,6 +365,10 @@ class ContactField(SmartModel):
     def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
+            from temba.flows.models import Flow
+            if Flow.objects.filter(field_dependencies__in=[existing]).exists():
+                raise ValueError("Cannot delete field '%s' while used in flows." % key)
+
             existing.is_active = False
             existing.show_in_table = False
             existing.modified_by = user
@@ -495,7 +499,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
@@ -2211,10 +2215,6 @@ class ContactGroup(TembaModel):
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
-
-        if cls.user_groups.filter(org=org).count() >= cls.MAX_ORG_CONTACTGROUPS:
-            raise ValueError('You have reached %s contact groups, please remove some contact groups '
-                             'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)

@@ -86,9 +86,11 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        if ContactGroup.user_groups.filter(org=org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
-                                          'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
+        groups_count = ContactGroup.user_groups.filter(org=org).count()
+        if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                          "You must delete existing ones before you can "
+                                          "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
         return name
 
@@ -585,10 +587,12 @@ class ContactCRUDL(SmartCRUDL):
                 return self.cleaned_data['csv_file']
 
             def clean(self):
-                if ContactGroup.user_groups.filter(org=self.org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-                    raise forms.ValidationError('You have reached %s contact groups, please remove some contact groups '
-                                                'to be able to import contacts in a contact group' %
-                                                ContactGroup.MAX_ORG_CONTACTGROUPS)
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                                  "You must delete existing ones before you can "
+                                                  "create new ones." % (groups_count,
+                                                                        ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
                 return self.cleaned_data
 
@@ -1201,36 +1205,60 @@ class ContactGroupCRUDL(SmartCRUDL):
                 obj.update_query(obj.query)
             return obj
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
+        fields = ('id',)
 
-        def pre_process(self, request, *args, **kwargs):
-            group = self.get_object()
-            triggers = group.trigger_set.filter(is_archived=False)
-            if triggers.count() > 0:
-                trigger_list = ', '.join([six.text_type(trigger) for trigger in triggers])
-                messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
-                return HttpResponseRedirect(smart_url(self.cancel_url, group))
-            return super(ContactGroupCRUDL.Delete, self).pre_process(request, *args, **kwargs)
+        def get_context_data(self, **kwargs):
+            context = super(ContactGroupCRUDL.Delete, self).get_context_data(**kwargs)
+            context['triggers'] = self.get_object().trigger_set.filter(is_archived=False)
+            return context
+
+        def get_success_url(self):
+            return reverse("contacts.contact_list")
 
         def post(self, request, *args, **kwargs):
-            group = self.get_object()
+            # we need a self.object for get_context_data
+            self.object = self.get_object()
+            group = self.object
+
+            # if there are still dependencies, give up
+            triggers = group.trigger_set.filter(is_archived=False)
+            if triggers.count() > 0:
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+            from temba.flows.models import Flow
+            flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
+            if flows.count():
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
+            # remove our group
             group.release()
 
             # make is_active False for all its triggers too
             group.trigger_set.all().update(is_active=False)
 
-            return HttpResponseRedirect(reverse("contacts.contact_list"))
+            # we can't just redirect so as to make our modal do the right thing
+            response = self.render_to_response(self.get_context_data(success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
 
 class ManageFieldsForm(forms.Form):
+
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs['org']
+        del kwargs['org']
+        super(ManageFieldsForm, self).__init__(*args, **kwargs)
+
     def clean(self):
         used_labels = []
         for key in self.cleaned_data:
             if key.startswith('field_'):
                 idx = key[6:]
+                field = self.cleaned_data[key]
                 label = self.cleaned_data["label_%s" % idx]
 
                 if label:
@@ -1243,6 +1271,14 @@ class ManageFieldsForm(forms.Form):
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
+                else:
+                    # don't allow fields that are dependencies for flows be removed
+                    if field != '__new_field':
+                        from temba.flows.models import Flow
+                        flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
+                        if flow:
+                            raise forms.ValidationError(_('The field "%s" cannot be removed while it is still used in the flow "%s"' % (field.label, flow.name)))
+
         return self.cleaned_data
 
 
@@ -1307,6 +1343,11 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             context['contact_fields'] = contact_fields
             return context
+
+        def get_form_kwargs(self):
+            kwargs = super(ContactFieldCRUDL.Managefields, self).get_form_kwargs()
+            kwargs['org'] = self.derive_org()
+            return kwargs
 
         def get_form(self):
             form = super(ContactFieldCRUDL.Managefields, self).get_form()

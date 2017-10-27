@@ -32,19 +32,19 @@ class ClickatellTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('US', channel.country)
+        self.assertEqual('US', channel.country)
         self.assertTrue(channel.uuid)
-        self.assertEquals('+12065551212', channel.address)
-        self.assertEquals(post_data['api_id'], channel.config_json()['api_id'])
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('CT', channel.channel_type)
+        self.assertEqual('+12065551212', channel.address)
+        self.assertEqual(post_data['api_id'], channel.config_json()['api_id'])
+        self.assertEqual(post_data['username'], channel.config_json()['username'])
+        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual('CT', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'status']))
         self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'receive']))
