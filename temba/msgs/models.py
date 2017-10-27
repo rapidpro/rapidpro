@@ -24,7 +24,6 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-
 from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
@@ -35,6 +34,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
+from temba.utils.http import http_headers
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
@@ -887,8 +887,6 @@ class Msg(models.Model):
         """
         Send messages logs in batch to Chatbase
         """
-        from temba.channels.models import TEMBA_HEADERS
-
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
@@ -907,8 +905,8 @@ class Msg(models.Model):
         if log_type == 'user' and not_handled:
             message['not_handled'] = not_handled
 
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json'})
+
         requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod

@@ -15,6 +15,7 @@ def migrate_to_version_10_1(json_flow, flow):
     """
     Ensures all actions have uuids
     """
+    json_flow = map_actions(json_flow, cleanse_group_names)
     for actionset in json_flow['action_sets']:
         for action in actionset['actions']:
             uuid = action.get('uuid', None)
@@ -69,6 +70,7 @@ def migrate_to_version_10(json_flow, flow):
 
     # if we have rulesets, we need to fix those up with our new webhook types
     base_lang = json_flow.get('base_language', 'base')
+    json_flow = map_actions(json_flow, cleanse_group_names)
     if 'rule_sets' in json_flow:
         rulesets = []
         for ruleset in json_flow['rule_sets']:
@@ -195,6 +197,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         replace_with_uuid(ele, Label.label_objects, label_id_map)
 
     for flow in exported_json.get('flows', []):
+        flow = map_actions(flow, cleanse_group_names)
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
                 if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
@@ -234,7 +237,6 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
                 del event['relative_to']['id']
             if 'flow' in event:
                 remap_flow(event['flow'])
-
     return exported_json
 
 
@@ -264,6 +266,7 @@ def migrate_to_version_8(json_flow, flow=None):
                 node[key] = migrate_node(val)
         return node
 
+    json_flow = map_actions(json_flow, cleanse_group_names)
     for rule_set in json_flow.get('rule_sets', []):
         for rule in rule_set['rules']:
             migrate_node(rule['test'])
@@ -288,6 +291,7 @@ def migrate_to_version_7(json_flow, flow=None):
 
     # don't attempt if there isn't a nested definition block
     if definition:
+        definition = map_actions(definition, cleanse_group_names)
         definition['flow_type'] = json_flow.get('flow_type', 'F')
         metadata = definition.get('metadata', None)
         if not metadata:
@@ -306,7 +310,6 @@ def migrate_to_version_7(json_flow, flow=None):
         # element which should be rule_sets instead
         if 'rulesets' in definition:
             definition.pop('rulesets')
-
         return definition
 
     return json_flow  # pragma: needs cover
@@ -319,7 +322,7 @@ def migrate_to_version_6(json_flow, flow=None):
     default language.
     """
 
-    definition = json_flow.get('definition')
+    definition = map_actions(json_flow.get('definition'), cleanse_group_names)
 
     # the name of the base language if its not set yet
     base_language = 'base'
@@ -357,6 +360,7 @@ def migrate_to_version_6(json_flow, flow=None):
                 if action['type'] == SayAction.TYPE:
                     if 'recording' in action:
                         convert_to_dict(action, 'recording')
+
     return json_flow
 
 
@@ -374,7 +378,7 @@ def migrate_to_version_5(json_flow, flow=None):
             return True
         return False
 
-    definition = json_flow.get('definition')
+    definition = map_actions(json_flow.get('definition'), cleanse_group_names)
 
     for ruleset in definition.get('rule_sets', []):
 
@@ -467,12 +471,27 @@ def migrate_to_version_5(json_flow, flow=None):
     return json_flow
 
 
+def cleanse_group_names(action):
+    from temba.contacts.models import ContactGroup
+    if action['type'] == 'add_group' or action['type'] == 'del_group':
+        if 'group' in action and 'groups' not in action:
+            action['groups'] = [action['group']]
+        for group in action['groups']:
+            if isinstance(group, dict):
+                if 'name' not in group:
+                    group['name'] = 'Unknown'
+                if not ContactGroup.is_valid_name(group['name']):
+                    group['name'] = '%s %s' % ('Contacts', group['name'])
+    return action
+
+
 # ================================ Helper methods for flow migrations ===================================
 
 def get_entry(json_flow):
     """
     Returns the entry node for the passed in flow, this is the ruleset or actionset with the lowest y
     """
+    lowest_x = None
     lowest_y = None
     lowest_uuid = None
 
@@ -480,12 +499,23 @@ def get_entry(json_flow):
         if lowest_y is None or ruleset['y'] < lowest_y:
             lowest_uuid = ruleset['uuid']
             lowest_y = ruleset['y']
+            lowest_x = ruleset['x']
+        elif lowest_y == ruleset['y']:
+            if ruleset['x'] < lowest_x:
+                lowest_uuid = ruleset['uuid']
+                lowest_y = ruleset['y']
+                lowest_x = ruleset['x']
 
     for actionset in json_flow.get('action_sets', []):
-        if lowest_y is None or actionset['y'] <= lowest_y:
+        if lowest_y is None or actionset['y'] < lowest_y:
             lowest_uuid = actionset['uuid']
             lowest_y = actionset['y']
-
+            lowest_x = actionset['x']
+        elif lowest_y == actionset['y']:
+            if actionset['x'] < lowest_x:
+                lowest_uuid = actionset['uuid']
+                lowest_y = actionset['y']
+                lowest_x = actionset['x']
     return lowest_uuid
 
 
@@ -495,7 +525,8 @@ def map_actions(json_flow, fixer_method):
     removed, otherwise the returned action is used.
     """
     action_sets = []
-    for actionset in json_flow.get('action_sets', []):
+    original_action_sets = json_flow.get('action_sets', [])
+    for actionset in original_action_sets:
         actions = []
         for action in actionset.get('actions', []):
             fixed_action = fixer_method(action)
@@ -509,7 +540,10 @@ def map_actions(json_flow, fixer_method):
             action_sets.append(actionset)
 
     json_flow['action_sets'] = action_sets
-    json_flow['entry'] = get_entry(json_flow)
+
+    # if we trimmed off an actionset, reevaluate our start node
+    if len(action_sets) < len(original_action_sets):
+        json_flow['entry'] = get_entry(json_flow)
 
     return json_flow
 
