@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 SQL = """
-CREATE OR REPLACE FUNCTION public.temba_insert_flowcategorycount(_flow_id integer, result_key text, _result json, _count integer)
+CREATE OR REPLACE FUNCTION temba_insert_flowcategorycount(_flow_id integer, result_key text, _result json, _count integer)
  RETURNS void
  LANGUAGE plpgsql
 AS $function$
@@ -15,7 +15,7 @@ AS $function$
   END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.temba_update_category_counts(_flow_id integer, new json, old json)
+CREATE OR REPLACE FUNCTION temba_update_category_counts(_flow_id integer, new json, old json)
  RETURNS void
  LANGUAGE plpgsql
 AS $function$
@@ -64,7 +64,7 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.temba_update_flowcategorycount()
+CREATE OR REPLACE FUNCTION temba_update_flowcategorycount()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
