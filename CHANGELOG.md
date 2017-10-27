@@ -1,3 +1,26 @@
+v3.0.230
+----------
+ * Deal with malformed group format as part of group updates
+ * Allow installs to configure how many fields they want to keep in @extra
+ * Fix Nexmo icon
+ * Add logs for incoming requests for InfoBip
+ * Do both Python 2 and 3 linting in a single build job
+
+v3.0.229
+----------
+ * Do not set external ID for InfoBip we have send them our ID
+ * Fix channel address comparison to be insensitive to +
+ * Use status groupId to check from the InfoBip response to know if the request was erroneous
+
+v3.0.228
+----------
+ * Add id to reserved field list
+
+v3.0.227
+----------
+ * Update Infobip channel type to use the latest JSON API
+ * Migrate flows forward to have dependencies
+
 v3.0.226
 ----------
  * Fix issue with dates in the contact field extractor

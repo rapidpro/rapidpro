@@ -19,6 +19,16 @@
                 "send_all": false,
                 "type": "reply",
                 "uuid": "98388930-7a0f-4eb8-9a0a-09be2f006420"
+              },
+              {
+                "type": "add_group", 
+                "uuid": "5f5a2aac-f4f4-4b47-af6e-186f6dafb9f0", 
+                "groups": [{"name": "< 25", "id": 15572}]
+              },
+              {
+                "type": "del_group", 
+                "uuid": "2a385c5b-e27c-43ac-bbc6-49653fede421", 
+                "groups": [{"name": "> 100", "id": 15573}]
               }
             ]
           },
@@ -201,7 +211,7 @@
             "response_type": "C",
             "y": 129,
             "x": 98,
-            "webhook": "http://localhost:49999/status",
+            "webhook": "http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D",
             "webhook_action": "POST",
             "operand": "@extra.value",
             "config": {}
