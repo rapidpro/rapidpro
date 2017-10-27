@@ -7057,6 +7057,12 @@ class FlowMigrationTest(FlowFileTest):
             self.assertEqual(CURRENT_EXPORT_VERSION, flow.version_number)
             flow.delete()
 
+    def test_migrate_malformed_groups(self):
+        flow = self.get_flow('malformed_groups')
+        self.assertIsNotNone(flow)
+        self.assertTrue(ContactGroup.user_groups.filter(name='Contacts < 25').exists())
+        self.assertTrue(ContactGroup.user_groups.filter(name='Unknown').exists())
+
 
 class DuplicateValueTest(FlowFileTest):
 

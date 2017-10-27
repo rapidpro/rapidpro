@@ -474,8 +474,12 @@ def migrate_to_version_5(json_flow, flow=None):
 def cleanse_group_names(action):
     from temba.contacts.models import ContactGroup
     if action['type'] == 'add_group' or action['type'] == 'del_group':
+        if 'group' in action and 'groups' not in action:
+            action['groups'] = [action['group']]
         for group in action['groups']:
             if isinstance(group, dict):
+                if 'name' not in group:
+                    group['name'] = 'Unknown'
                 if not ContactGroup.is_valid_name(group['name']):
                     group['name'] = '%s %s' % ('Contacts', group['name'])
     return action
