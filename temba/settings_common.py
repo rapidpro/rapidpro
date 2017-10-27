@@ -44,6 +44,9 @@ EMAIL_USE_TLS = True
 # their own SMTP server.
 FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
+# HTTP Headers using for outgoing requests to other services
+OUTGOING_REQUEST_HEADERS = {'User-agent': 'RapidPro'}
+
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'

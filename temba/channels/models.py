@@ -32,12 +32,11 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-
 from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
@@ -46,8 +45,6 @@ from uuid import uuid4
 from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
-
-TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
@@ -1226,7 +1223,7 @@ class Channel(TembaModel):
         events = [event]
 
         try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+            response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
             event.status_code = response.status_code
             event.response_body = response.text
         except Exception as e:
@@ -1246,7 +1243,7 @@ class Channel(TembaModel):
                     event = HttpEvent('POST', url, payload)
                     events.append(event)
 
-                    response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+                    response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
                     event.status_code = response.status_code
                     event.response_body = response.text
 
@@ -1331,11 +1328,8 @@ class Channel(TembaModel):
                        '#tracking_data': 'tracking_id:%d' % msg.id}}
 
         event = HttpEvent('POST', url, json.dumps(payload))
-
         start = time.time()
-
-        headers = dict(Accept='application/json')
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Accept': 'application/json'})
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=5)
