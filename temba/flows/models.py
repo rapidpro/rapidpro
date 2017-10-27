@@ -3015,20 +3015,12 @@ class FlowRun(models.Model):
 
     def apply_send_msg(self, event, msg):
         """
-        A message being sent to a contact (not necessarily this contact)
+        An outgoing message being sent (not necessarily this contact)
         """
-        # use our urn if we have one specified in the event
-        recipient = event.get('urn')
-        contact_ref = event.get('contact')
-        high_priority = False
-
-        if contact_ref:
-            if self.contact.uuid == contact_ref['uuid']:
-                recipient = self.contact
-                high_priority = self.session.responded
-            else:
-                recipient = Contact.objects.get(uuid=contact_ref['uuid'], org=self.org)
-
+        urns = event.get('urns', [])
+        contact_refs = event.get('contacts', [])
+        group_refs = event.get('groups', [])
+        created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
         # convert attachment URLs to absolute URLs
@@ -3036,17 +3028,35 @@ class FlowRun(models.Model):
         for attachment in event.get('attachments', []):
             media_type, media_url = attachment.split(':', 1)
             attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
-        try:
-            return Msg.create_outgoing(self.org, user, recipient,
-                                       text=event['text'],
-                                       attachments=attachments,
-                                       channel=msg.channel if msg else None,
-                                       high_priority=high_priority,
-                                       created_on=iso8601.parse_date(event['created_on']),
-                                       response_to=msg if msg and msg.id else None)
 
-        except UnreachableException:
-            return None
+        contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+
+        # is this a reply to the run contact? if so just send as single message
+        if len(contacts) == 1 and self.contact == contacts[0]:
+            try:
+                return Msg.create_outgoing(self.org, user, self.contact,
+                                           text=event['text'],
+                                           attachments=attachments,
+                                           channel=msg.channel if msg else None,
+                                           high_priority=self.session.responded,
+                                           created_on=created_on,
+                                           response_to=msg if msg and msg.id else None)
+            except UnreachableException:
+                return None
+
+        # if not, then send as a broadcast
+        # TODO attachments
+
+        broadcast = Broadcast.create(self.org, user, event['text'], contacts + groups)
+        broadcast.send()
+        return None
+
+    def apply_send_email(self, event, msg):
+        """
+        Email being sent out
+        """
+        pass
+        # send_raw_email([event['email']], event['subject'], event['body'])
 
     def apply_update_contact(self, event, msg):
         """
@@ -3113,7 +3123,7 @@ class FlowRun(models.Model):
         user = get_flow_user(self.org)
         for group_ref in event['groups']:
             group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref['uuid'])
-            if not self.contact.is_stopped:
+            if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=True)
 
             if self.contact.is_test:
@@ -3126,18 +3136,40 @@ class FlowRun(models.Model):
         user = get_flow_user(self.org)
         for group_ref in event['groups']:
             group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref['uuid'])
-            if not self.contact.is_stopped:
+            if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=False)
 
             if self.contact.is_test:
                 ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
-    def apply_send_email(self, event, msg):
+    def apply_start_session(self, event, msg):
         """
-        Email being sent out
+        New sessions being started for other contacts
         """
-        pass
-        # send_raw_email([event['email']], event['subject'], event['body'])
+        urns = event.get('urns', [])
+        flow_ref = event['flow']
+        contact_refs = event.get('contacts', [])
+        group_refs = event.get('groups', [])
+        user = get_flow_user(self.org)
+
+        flow = self.org.flows.filter(is_active=True, is_archived=False, uuid=flow_ref['uuid'])
+        if flow:
+            contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+
+            flow.start(groups, contacts, restart_participants=True)
+
+    def _resolve_contacts_and_groups(self, user, urns, contact_refs, group_refs):
+        """
+        Helper function for send_msg and start_session events which include lists of urns, contacts and groups
+        """
+        contacts = list(Contact.objects.filter(org=self.org, is_active=True, is_stopped=False, is_blocked=False,
+                                               uuid__in=[c['uuid'] for c in contact_refs]))
+        groups = list(ContactGroup.user_groups.filter(org=self.org, is_active=True,
+                                                      uuid__in=[g['uuid'] for g in group_refs]))
+        for urn in urns:
+            contacts.append(Contact.get_or_create(self.org, user, urns=[urn]))
+
+        return contacts, groups
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,

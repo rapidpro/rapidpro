@@ -20,6 +20,7 @@ def serialize_flow(flow, strip_ui=True):
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
+    flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
     migrated_flow_def = get_client().migrate({'flows': [flow_def]})[0]
