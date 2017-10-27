@@ -113,7 +113,7 @@ class URN(object):
         """
         try:
             scheme, path = urn.split(':', 1)
-        except:
+        except Exception:
             raise ValueError("URN strings must contain scheme and path components")
 
         if not scheme or scheme not in cls.VALID_SCHEMES:
@@ -190,7 +190,7 @@ class URN(object):
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
-            return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
+            return regex.match(r'^[a-zA-Z0-9_=]{1,24}$', path, regex.V0)
 
         # anything goes for external schemes
         return True
@@ -499,7 +499,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
