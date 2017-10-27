@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import hmac
 import hashlib
+import iso8601
 import json
 import pytz
 import requests
@@ -764,10 +765,10 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
-    courier_url = r'^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_url = r'^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|receive)$'
     courier_name = 'courier.ib'
 
-    handler_url = r'^infobip/(?P<action>sent|delivered|failed|received|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_url = r'^infobip/(?P<action>delivered|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.infobip_handler'
 
     def get_channel_type(self):
@@ -776,72 +777,82 @@ class InfobipHandler(BaseChannelHandler):
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
+        request_body = request.body
+        request_method = request.method
+        request_path = request.get_full_path()
+
+        def make_response(description, status_code=None):
+            if not status_code:
+                status_code = 201
+            return HttpResponse(description, status=status_code)
+
+        def log(msg, description, response_body):
+            event = HttpEvent(request_method, request_path, request_body, 200, response_body)
+            ChannelLog.log_message(msg, description, event)
+
         channel_uuid = kwargs['uuid']
+        action = kwargs['action']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+            return make_response("Channel with uuid: %s not found." % channel_uuid, status_code=404)
 
-        # parse our raw body, it should be XML that looks something like:
-        # <DeliveryReport>
-        #   <message id="254021015120766124"
-        #    sentdate="2014/02/10 16:12:07"
-        #    donedate="2014/02/10 16:13:00"
-        #    status="DELIVERED"
-        #    gsmerror="0"
-        #    price="0.65" />
-        # </DeliveryReport>
-        root = ET.fromstring(request.body)
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return make_response("Invalid JSON in POST body: %s" % str(e), status_code=400)
 
-        message = root.find('message')
-        external_id = message.get('id')
-        status = message.get('status')
+        if action == 'receive':
 
-        # look up the message
-        sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
-        if not sms:  # pragma: needs cover
-            return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
+            msgs = []
 
-        if status == 'DELIVERED':
-            sms.status_delivered()
-        elif status == 'SENT':
-            sms.status_sent()
-        elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
-                        'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
-                        'REJECTED', 'INVALID_MESSAGE_FORMAT']:
-            sms.status_fail()
+            messageCount = body.get('messageCount')
+            for i in range(messageCount):
+                message_dict = body.get('results')[i]
 
-        return HttpResponse("SMS Status Updated")
+                external_id = message_dict.get('messageId')
+                text = message_dict.get('text')
+                receiver = message_dict.get('to')
+                sender = message_dict.get('from')
+                try:
+                    receivedAt = message_dict.get('receivedAt')
+                    msg_date = iso8601.parse_date(receivedAt, default_timezone=None)
+                except iso8601.ParseError:
+                    msg_date = None
+
+                if channel.address.lstrip('+') == receiver.lstrip('+'):
+                    urn = URN.from_tel(sender)
+                    sms = Msg.create_incoming(channel, urn, text, date=msg_date, external_id=external_id)
+                    msgs.append(sms)
+                    log(sms, "Incoming message", "SMS Accepted: %s" % sms.id)
+
+            if msgs:
+                return make_response("SMS Accepted: %s" % ",".join([str(msg.id) for msg in msgs]))
+            else:
+                return make_response("No message for channel with uuid: %s" % channel_uuid, status_code=404)
+
+        elif action == 'delivered':
+
+            msg_reports = body.get('results')
+
+            for report in msg_reports:
+                msg_id = report.get('messageId')
+
+                # look up the message
+                sms = Msg.objects.filter(channel=channel, id=msg_id).select_related('channel').first()
+                status = report.get('status', dict()).get('groupName')
+
+                if status == 'DELIVERED':
+                    sms.status_delivered()
+                elif status in ['REJECTED', 'UNDELIVERABLE']:
+                    sms.status_fail()
+
+            return make_response("SMS Status Updated", status_code=200)
+
+        return make_response("Unreconized action: %s" % action, status_status=404)  # pragma: needs cover
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
-
-        sender = self.get_param('sender')
-        text = self.get_param('text')
-        receiver = self.get_param('receiver')
-
-        # validate all the appropriate fields are there
-        if sender is None or text is None or receiver is None:  # pragma: needs cover
-            return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
-        if not channel:  # pragma: needs cover
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # validate this is not a delivery report, those must be POSTs
-        if action == 'delivered':  # pragma: needs cover
-            return HttpResponse("Illegal method, delivery reports must be POSTs", status=401)
-
-        # make sure the channel number matches the receiver
-        if channel.address != '+' + receiver:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        sms = Msg.create_incoming(channel, URN.from_tel(sender), text)
-
-        return HttpResponse("SMS Accepted: %d" % sms.id)
+        return HttpResponse("Illegal method, must be POST", status=405)
 
 
 class Hub9Handler(BaseChannelHandler):
