@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.dartmedia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 # DartMedia is an aggregator in Indonesia, set this to the endpoint for your service
@@ -68,7 +68,7 @@ class DartMediaType(ChannelType):
         start = time.time()
 
         try:
-            response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
+            response = requests.get(send_url, headers=http_headers(), timeout=15)
             event.status_code = response.status_code
             event.response_body = response.text
             if not response:  # pragma: no cover

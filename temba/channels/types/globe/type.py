@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.globe.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class GlobeType(ChannelType):
@@ -45,18 +45,15 @@ class GlobeType(ChannelType):
             'app_id': channel.config['app_id'],
             'app_secret': channel.config['app_secret']
         }
-        headers = dict(TEMBA_HEADERS)
 
         url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/%s/requests' % channel.address
-
         event = HttpEvent('POST', url, json.dumps(payload))
-
         start = time.time()
 
         try:
             response = requests.post(url,
                                      data=payload,
-                                     headers=headers,
+                                     headers=http_headers(),
                                      timeout=5)
             event.status_code = response.status_code
             event.response_body = response.text

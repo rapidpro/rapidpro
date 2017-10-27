@@ -19,12 +19,13 @@ from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
-from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import datetime_to_str, prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
+from temba.utils.http import http_headers
 from urllib import urlencode
 
 
@@ -289,10 +290,7 @@ class WebHookEvent(SmartModel):
 
             # only send webhooks when we are configured to, otherwise fail
             if settings.SEND_WEBHOOKS:
-
-                requests_headers = TEMBA_HEADERS.copy()
-                if headers:
-                    requests_headers.update(headers)
+                requests_headers = http_headers(extra=headers)
 
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == 'GET':
@@ -503,11 +501,7 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS.copy()
-
-            # also include any user-defined headers
-            headers.update(self.org.get_webhook_headers())
+            headers = http_headers(extra=self.org.get_webhook_headers())
 
             s = requests.Session()
             prepped = requests.Request('POST', self.org.get_webhook_url(),
