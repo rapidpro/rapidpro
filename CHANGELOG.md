@@ -1,3 +1,18 @@
+v3.0.231
+----------
+ * Add claim page for dmark for more prettiness
+ * Add management command to migrate flows forward
+ * Add flow migration for partially localized single message flows
+ * Recalculate topups more often
+ * Add dmark channel (only can send and receive through courier)
+ * Merge pull request #1522 from nyaruka/headers
+ * Replace TEMBA_HEADERS with http_headers()
+ * Improve mock server used by tests so it can mock specifc url with specific responses
+ * Add method to get active channels of a particular channel type category
+ * Replace remaining occurrences of assertEquals
+ * Fix the way to check USSD support
+ * Dynamic channels: Vumi and Vumi USSD
+
 v3.0.230
 ----------
  * Deal with malformed group format as part of group updates
