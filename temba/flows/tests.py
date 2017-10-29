@@ -35,6 +35,7 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
+from .flow_migrations import migrate_to_version_10_2
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
@@ -4445,18 +4446,18 @@ class FlowsTest(FlowFileTest):
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):
-            self.get_flow('not_fully_localized')
+            FlowRevision.validate_flow_definition(self.get_flow_json('not_fully_localized'))
 
         # base_language of null, but spec version 8
         with self.assertRaises(ValueError):
-            self.get_flow('no_base_language_v8')
+            FlowRevision.validate_flow_definition(self.get_flow_json('no_base_language_v8'))
 
         # base_language of 'eng' but non localized actions
         with self.assertRaises(ValueError):
-            self.get_flow('non_localized_with_language')
+            FlowRevision.validate_flow_definition(self.get_flow_json('non_localized_with_language'))
 
         with self.assertRaises(ValueError):
-            self.get_flow('non_localized_ruleset')
+            FlowRevision.validate_flow_definition(self.get_flow_json('non_localized_ruleset'))
 
     def test_sms_forms(self):
         flow = self.get_flow('sms_form')
@@ -6695,6 +6696,11 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['base_language'], 'base')
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
+
+    def test_migrate_to_10_2(self):
+        flow_json = self.get_flow_json('single_message_bad_localization')
+        flow_json = migrate_to_version_10_2(flow_json)
+        self.assertEqual('Campaign Message 12', flow_json['action_sets'][0]['actions'][0]['msg']['eng'])
 
     def test_migrate_to_10_1(self):
         favorites = self.get_flow('favorites')

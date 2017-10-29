@@ -194,7 +194,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2"
     ]
 
     name = models.CharField(max_length=64,
