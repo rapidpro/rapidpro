@@ -1,0 +1,29 @@
+{
+  "version":10,
+  "flows":[
+    {
+      "base_language":"eng",
+      "rule_sets":[
+
+      ],
+      "action_sets":[
+        {
+          "y":0,
+          "x":100,
+          "uuid":"37fe93f8-edf5-40f3-b029-3b391fa528d0",
+          "actions":[
+            {
+              "msg":"Campaign Message 12",
+              "type":"reply",
+              "uuid":"9bdb1aab-e42e-4585-8395-6504c4a683ed"
+            }
+          ]
+        }
+      ],
+      "entry":"37fe93f8-edf5-40f3-b029-3b391fa528d0"
+    }
+  ],
+  "triggers":[
+
+  ]
+}

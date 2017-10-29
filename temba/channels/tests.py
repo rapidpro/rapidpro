@@ -28,7 +28,6 @@ from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
-
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
     LINE_SCHEME, JIOCHAT_SCHEME
@@ -44,6 +43,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from temba.utils.queues import push_task
@@ -54,9 +54,8 @@ from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT, \
-    ChannelSession, CHANNEL_EVENT
-from .models import DART_MEDIA_ENDPOINT
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelSession, CHANNEL_EVENT
+from .models import DART_MEDIA_ENDPOINT, HUB9_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -870,33 +869,6 @@ class ChannelTest(TembaTest):
         response = self.client.post("%s?signature=sig&ts=%d" % (reverse('sync', args=[self.tel_channel.pk]), ts), content_type='application/json')
         self.assertEqual(401, response.status_code)
         self.assertEqual(3, response.json()['error_id'])
-
-    def test_is_ussd_channel(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        # add a non USSD channel
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
-                              dict(cmd='status', cc='RW', dev='Nexus')])
-
-        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-        self.assertEqual(200, response.status_code)
-
-        # add a USSD channel
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.assertEqual(Channel.objects.first().channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(Channel.objects.first().role, Channel.ROLE_USSD)
-        self.assertTrue(Channel.objects.first().is_ussd())
-        self.assertFalse(Channel.objects.last().is_ussd())
 
     def test_claim(self):
         # no access for regular users
@@ -2331,93 +2303,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
-    def test_claim_vumi_ussd(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], Channel.VUMI_GO_API_URL)
-        self.assertEqual(channel.channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(channel.role, Channel.ROLE_USSD)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'event']))
-
-    def test_claim_vumi_ussd_custom_api(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "+273454325324",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-            "api_url": "http://custom.api.url"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], "http://custom.api.url")
-        self.assertEqual(channel.channel_type, Channel.TYPE_VUMI_USSD)
-        self.assertEqual(channel.role, Channel.ROLE_USSD)
-
-    def test_claim_vumi_ussd_custom_api_short_code(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
-        self.assertEqual(200, response.status_code)
-
-        post_data = {
-            "country": "ZA",
-            "number": "8080",
-            "account_key": "account1",
-            "conversation_key": "conversation1",
-            "api_url": "http://custom.api.url"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
@@ -4678,6 +4563,7 @@ class InfobipTest(TembaTest):
         self.assertEqual(DELIVERED, msg.status)
         msg.status = SENT
         msg.save()
+        self.assertTrue(msg.channel_logs.filter(description='Status Updated'))
 
         # assert our FAILED status
         post_data['results'][0]['status']['groupName'] = 'REJECTED'
@@ -5293,7 +5179,7 @@ class SMSCentralTest(TembaTest):
                 mock.assert_called_with('http://smail.smscentral.com.np/bp/ApiSms.php',
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532', 'content': "Test message"},
-                                        headers=TEMBA_HEADERS,
+                                        headers=http_headers(),
                                         timeout=30)
 
                 self.clear_cache()
@@ -5352,7 +5238,7 @@ class SMSCentralTest(TembaTest):
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532',
                                               'content': "Test message\nhttps://example.com/attachments/pic.jpg"},
-                                        headers=TEMBA_HEADERS,
+                                        headers=http_headers(),
                                         timeout=30)
 
                 self.clear_cache()
@@ -6552,7 +6438,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 0,
                           'to': "250788383383",
                           'text': "Test message"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -6579,7 +6465,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 1,
                           'to': "250788383383",
                           'text': "Test message ☺"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -6642,7 +6528,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 0,
                           'to': "250788383383",
                           'text': "Test message\nhttps://example.com/attachments/pic.jpg"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -7658,6 +7544,7 @@ class MageHandlerTest(TembaTest):
                                   direction=INCOMING, created_on=timezone.now(),
                                   channel=self.channel, contact=contact, contact_urn=contact_urn)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_handle_message(self):
         url = reverse('handlers.mage_handler', args=['handle_message'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7751,6 +7638,7 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(message_id='xx'), **headers)
         self.assertEqual(400, response.status_code)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_follow_notification(self):
         url = reverse('handlers.mage_handler', args=['follow_notification'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7813,6 +7701,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)

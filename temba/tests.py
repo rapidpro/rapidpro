@@ -5,7 +5,7 @@ import inspect
 import json
 import os
 import pytz
-import re
+import regex
 import redis
 import shutil
 import string
@@ -13,6 +13,7 @@ import six
 import time
 import urlparse
 
+from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -21,7 +22,6 @@ from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from django.utils.http import quote_plus
 from HTMLParser import HTMLParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
@@ -42,46 +42,93 @@ from uuid import uuid4
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
     """
-    A simple HTTP server for mocking external services. For example:
-
-    GET http://localhost:49999/echo?content=OK
-        ->  content: 'OK', status_code: 200
-    POST http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D&status=400
-        ->  content: '{ "status": "valid" }', status_code: 400
+    A simple HTTP handler which responds to a request with a matching mocked request
     """
-    def _handle_request(self, method):
-        # record this request so calling test can verify it was made
-        TembaTestRunner.MOCKED_REQUESTS.append({'method': method, 'url': 'http://localhost:49999%s' % self.path})
+    def _handle_request(self, method, data=None):
+        if not self.server.mocked_requests:
+            raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
 
-        parsed = urlparse.urlparse(self.path)
-        params = urlparse.parse_qs(parsed.query)
-        if parsed.path == '/echo':
-            return self._handle_echo(params)
-        else:
-            self.send_response(404)
-            self.end_headers()
+        mock = self.server.mocked_requests[0]
+        if mock.method != method or mock.path != self.path:
+            raise ValueError("expected request %s %s but received %s %s" % (mock.method, mock.path, method, self.path))
 
-    def _handle_echo(self, params):
-        status = int(params.get('status', [200])[0])
-        content = params['content'][0]
-        content_type = params.get('type', ['text/plain'])[0]
+        # add some stuff to the mock from the request that the caller might want to check
+        mock.requested = True
+        mock.data = data
+        mock.headers = self.headers.dict
 
-        self.send_response(status)
-        self.send_header("Content-type", content_type)
+        # remove this mocked request now that it has been made
+        self.server.mocked_requests = self.server.mocked_requests[1:]
+
+        self.send_response(mock.status)
+        self.send_header("Content-type", mock.content_type)
         self.end_headers()
-        self.wfile.write(content.encode('utf-8'))
+        self.wfile.write(mock.content.encode('utf-8'))
 
     def do_GET(self):
         return self._handle_request('GET')
 
     def do_POST(self):
-        return self._handle_request('POST')
+        ctype, pdict = parse_header(self.headers['content-type'])
+        if ctype == 'multipart/form-data':
+            data = parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers['content-length'])
+            data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            data = {}
+
+        return self._handle_request('POST', data)
+
+
+class MockServer(HTTPServer):
+    """
+    Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
+    and provides a mechanism for mocking requests to particular URLs
+    """
+    @six.python_2_unicode_compatible
+    class Request(object):
+        def __init__(self, method, path, content, content_type, status):
+            self.method = method
+            self.path = path
+            self.content = content
+            self.content_type = content_type
+            self.status = status
+
+            self.requested = False
+            self.data = None
+            self.headers = None
+
+        def __str__(self):
+            return '%s %s -> %s' % (self.method, self.path, self.content)
+
+    def __init__(self):
+        HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
+
+        self.base_url = 'http://localhost:49999'
+        self.mocked_requests = []
+
+    def start(self):
+        """
+        Starts running mock server in a daemon thread which will automatically shut down when the main process exits
+        """
+        t = Thread(target=self.serve_forever)
+        t.setDaemon(True)
+        t.start()
+
+    def mock_request(self, method, path, content, content_type, status):
+        request = MockServer.Request(method, path, content, content_type, status)
+        self.mocked_requests.append(request)
+        return request
+
+
+mock_server = MockServer()
 
 
 class TembaTestRunner(DiscoverRunner):
-    MOCKED_SERVER_URL = 'http://localhost:49999'
-    MOCKED_REQUESTS = []
-
+    """
+    Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
+    """
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
@@ -100,11 +147,7 @@ class TembaTestRunner(DiscoverRunner):
         return suite
 
     def run_suite(self, suite, **kwargs):
-        # start running mock server in a daemon thread which will automatically shut down when the main process exits
-        mock_server = HTTPServer(('localhost', 49999), MockServerRequestHandler)
-        mock_server_thread = Thread(target=mock_server.serve_forever)
-        mock_server_thread.setDaemon(True)
-        mock_server_thread.start()
+        mock_server.start()
 
         return super(TembaTestRunner, self).run_suite(suite, **kwargs)
 
@@ -122,6 +165,7 @@ class TembaTest(SmartminTest):
             cls.COLOR_FLOW_DEFINITION = json.load(f)
 
     def setUp(self):
+        self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
         if self.get_verbosity() > 2:
@@ -192,7 +236,7 @@ class TembaTest(SmartminTest):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), re.DOTALL):
+        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))
@@ -222,6 +266,9 @@ class TembaTest(SmartminTest):
 
         from temba.flows.models import clear_flow_users
         clear_flow_users()
+
+        # clear any unused mock requests
+        self.mock_server.mocked_requests = []
 
     def clear_cache(self):
         """
@@ -415,13 +462,23 @@ class TembaTest(SmartminTest):
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
 
-    def mockedServerURL(self, content, status=200):
-        return '%s/echo?content=%s&status=%d' % (TembaTestRunner.MOCKED_SERVER_URL, quote_plus(content), status)
+    def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
+        return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
 
-    def assertMockedRequests(self, requests, reset=True):
-        self.assertEqual(TembaTestRunner.MOCKED_REQUESTS, requests)
-        if reset:
-            TembaTestRunner.MOCKED_REQUESTS = []
+    def assertMockedRequest(self, mock_request, data=None, **headers):
+        if not mock_request.requested:
+            self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
+
+        if data is not None:
+            self.assertEqual(mock_request.data, data)
+
+        # check any provided header values
+        for key, val in six.iteritems(headers):
+            self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
+
+    def assertAllRequestsMade(self):
+        if self.mock_server.mocked_requests:
+            self.fail("test has %d unused mock requests: %s" % (len(mock_server.mocked_requests), mock_server.mocked_requests))
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
