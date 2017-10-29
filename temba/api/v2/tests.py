@@ -594,7 +594,7 @@ class APITest(TembaTest):
 
         # create new broadcast with all fields
         response = self.postJSON(url, None, {
-            'text': "Hello",
+            'text': "Hi @contact",
             'urns': ["twitter:franky"],
             'contacts': [self.joe.uuid, self.frank.uuid],
             'groups': [reporters.uuid],
@@ -602,11 +602,14 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello"})
+        self.assertEqual(broadcast.text, {'base': "Hi @contact"})
         self.assertEqual(set(broadcast.urns.values_list('identity', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
+
+        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
+        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
 
         # create new broadcast with translations
         response = self.postJSON(url, None, {
