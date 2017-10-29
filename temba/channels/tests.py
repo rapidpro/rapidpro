@@ -7544,6 +7544,7 @@ class MageHandlerTest(TembaTest):
                                   direction=INCOMING, created_on=timezone.now(),
                                   channel=self.channel, contact=contact, contact_urn=contact_urn)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_handle_message(self):
         url = reverse('handlers.mage_handler', args=['handle_message'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7637,6 +7638,7 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(message_id='xx'), **headers)
         self.assertEqual(400, response.status_code)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_follow_notification(self):
         url = reverse('handlers.mage_handler', args=['follow_notification'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7699,6 +7701,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)

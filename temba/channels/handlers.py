@@ -1875,6 +1875,9 @@ class MageHandler(BaseChannelHandler):
     def post(self, request, *args, **kwargs):
         from temba.triggers.tasks import fire_follow_triggers
 
+        if not settings.MAGE_AUTH_TOKEN:  # pragma: no cover
+            return JsonResponse(dict(error="Authentication not configured"), status=401)
+
         authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
 
         if len(authorization) != 2 or authorization[0] != 'Token' or authorization[1] != settings.MAGE_AUTH_TOKEN:
