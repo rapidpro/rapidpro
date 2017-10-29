@@ -1,3 +1,8 @@
+v3.0.232
+----------
+ * Mage handler shouldn't be accessible using example token in settings_common
+ * Make Msg.has_template_error nullable and stop using it
+
 v3.0.231
 ----------
  * Add claim page for dmark for more prettiness
