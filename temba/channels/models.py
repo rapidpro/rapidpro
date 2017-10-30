@@ -1253,7 +1253,7 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.attachments and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
             # for now we only support sending one attachment per message but this could change in future
             attachment = Attachment.parse_all(msg.attachments)[0]
             text = '%s\n%s' % (text, attachment.url)
