@@ -988,7 +988,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_results'):
                 links.append(dict(title=_("Results"),
                                   style='btn-primary',
-                                  href=reverse('flows.flow_results', args=[flow.id])))
+                                  href=reverse('flows.flow_results', args=[flow.uuid])))
             if len(links) > 1:
                 links.append(dict(divider=True)),
 
@@ -1250,9 +1250,12 @@ class FlowCRUDL(SmartCRUDL):
         Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
         """
 
-        paginate_by = 100
+        paginate_by = 50
 
         def get_context_data(self, *args, **kwargs):
+            import time
+            start = time.time()
+
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
             org = self.derive_org()
@@ -1262,9 +1265,11 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
+            start = time.time()
             test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
-            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
+            start = time.time()
+            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
             query = self.request.GET.get('q', None)
             contact_ids = []
             if query:
@@ -1290,19 +1295,39 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-                values = {v.ruleset.uuid: v for v in
-                          Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
+
+                # print(run.results)
+                results = json.loads(run.results)
+                # values = {v.ruleset.uuid: v for v in
+                #          Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
+
                 run.value_list = []
                 for ruleset in context['rulesets']:
-                    value = values.get(ruleset.uuid)
-                    run.value_list.append(value)
+                    key = Flow.label_to_slug(ruleset.label)
+                    run.value_list.append(results.get(key, None))
 
             context['runs'] = runs
             context['paginate_by'] = self.paginate_by
-
+            print("Fetched runs in  %0.3fs" % (time.time() - start))
             return context
 
     class Results(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm('flows.flow_update'):
+                links.append(dict(title=_('Download'),
+                                  href='#',
+                                  js_class="download-results"))
+
+            if self.has_org_perm('flows.flow_editor'):
+                links.append(dict(title=_("View"),
+                                  style='btn-primary',
+                                  href=reverse('flows.flow_editor', args=[self.get_object().uuid])))
+
+            return links
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
@@ -1311,6 +1336,7 @@ class FlowCRUDL(SmartCRUDL):
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
+            context['categories'] = flow.get_category_counts()
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):

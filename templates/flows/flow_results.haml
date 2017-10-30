@@ -144,14 +144,6 @@
         }
     });
 
-    function exportFlow(){
-      var flowIds = getCheckedIds();
-      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
-      modal.setIcon('icon-excel');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    }
-
     Intercooler.ready(function() {
       updateCols();
     });
@@ -245,30 +237,59 @@
         columns[e.val].hidden = false;
         $(this).select2('val', '');
         updateCols();
-      })
+      });
+
+      $(".download-results").on("click", function() {
+        var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+        modal.setIcon('icon-excel');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
     });
 
--block page-top
-  .row
-    .span9
-      %h2
-        Flow Results
-      %h3.font_normalize
-        {{ flow.name }}
-
-    .span3
-      .pull-right
-        %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
-          -trans "Download"
-        %a.btn{ href: "{% url 'flows.flow_editor' object.uuid %}" }
-          -trans "View"
-
-
+  -for category in categories
+    :javascript
+      Highcharts.chart('{{category}}_chart', {
+        chart: {
+            type: 'pie'
+        },
+        plotOptions: {
+          pie: {
+              allowPointSelect: true,
+              cursor: 'pointer',
+              dataLabels: {
+                  enabled: true,
+                  format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                  style: {
+                      color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                  }
+              }
+          }
+        },
+        title: {
+            text: '{{category|title}}'
+        },
+        credits: {
+            enabled: false
+        },
+        series: [{name: 'Blerg', data: [{
+            name: 'Firefox',
+            y: 10.38
+          }, {
+            name: 'Safari',
+            y: 4.77
+          }, {
+            name: 'Opera',
+            y: 0.91
+          }]}]
+      });    
 
 -block content
+  -for category in categories
+    <div id="{{category}}_chart">{{category}}</div>
 
-  .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-    %i.fa.fa-spinner.fa-spin.fa-2x
+  //.text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+  //  %i.fa.fa-spinner.fa-spin.fa-2x
 
   .scroll-x
     %table
