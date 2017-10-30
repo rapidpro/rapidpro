@@ -8,9 +8,9 @@ import time
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import FCM_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from .views import ClaimView
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from ...models import Channel, ChannelType, SendException
 
 
 class FirebaseCloudMessagingType(ChannelType):
@@ -57,8 +57,7 @@ class FirebaseCloudMessagingType(ChannelType):
             data['content_available'] = True
 
         payload = json.dumps(data)
-        headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')})
 
         event = HttpEvent('POST', url, payload)
 

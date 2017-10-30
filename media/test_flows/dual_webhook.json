@@ -56,7 +56,7 @@
               "destination_type": "A"
             }
           ], 
-          "webhook": "http://localhost:49999/echo?content=%7B%20%22code%22%3A%20%22ABABUUDDLRS%22%20%7D",
+          "webhook": "http://localhost:49999/code",
           "ruleset_type": "webhook", 
           "label": "Webhook", 
           "operand": "@step.value", 
@@ -108,7 +108,7 @@
               "uuid": "4dd0f3e7-cc15-41fa-8a84-d53d76d46d66"
             }
           ], 
-          "webhook": "http://localhost:49999/echo?content=Success",
+          "webhook": "http://localhost:49999/success",
           "ruleset_type": "webhook", 
           "label": "Webhook 2", 
           "operand": "@step.value", 
