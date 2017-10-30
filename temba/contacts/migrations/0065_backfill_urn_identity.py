@@ -13,7 +13,8 @@ def backfill_urn_identity(apps, schema_editor):
     urns = ContactURN.objects.filter(identity=None).values_list('id', flat=True)
     count = 0
 
-    print("found %d urns to backfill" % len(urns))
+    if urns:
+        print("found %d urns to backfill" % len(urns))
 
     for batch in chunk_list(urns, 1000):
         ContactURN.objects.filter(id__in=batch).update(identity=F('urn'))

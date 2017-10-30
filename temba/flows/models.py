@@ -1274,7 +1274,7 @@ class Flow(TembaModel):
         for ruleset in ruleset_list:
             rulesets[ruleset.uuid] = ruleset
             for rule in ruleset.get_rules():
-                rule_categories[rule.uuid] = rule.get_category_name(self.base_language)
+                rule_categories[rule.uuid] = rule.category
 
         return (rulesets, rule_categories)
 
