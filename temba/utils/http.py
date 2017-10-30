@@ -2,6 +2,18 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import six
 
+from django.conf import settings
+
+
+def http_headers(extra=None):
+    """
+    Creates a dict of HTTP headers for outgoing requests
+    """
+    headers = settings.OUTGOING_REQUEST_HEADERS.copy()
+    if extra:
+        headers.update(extra)
+    return headers
+
 
 @six.python_2_unicode_compatible
 class HttpEvent(object):
