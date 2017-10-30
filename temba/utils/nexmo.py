@@ -82,7 +82,7 @@ class NexmoClient(nx.Client):
 
             response_json = response.json()
             messages = response_json.get('messages', [])
-        except:
+        except Exception:
             raise SendException(u"Failed sending message: %s" % response.text, event=event)
 
         if not messages or int(messages[0]['status']) != 0:

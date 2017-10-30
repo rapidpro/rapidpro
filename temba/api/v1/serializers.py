@@ -812,7 +812,7 @@ class MsgCreateSerializer(WriteSerializer):
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
-                except:
+                except Exception:
                     raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
 
         return data
@@ -842,5 +842,5 @@ class MsgCreateSerializer(WriteSerializer):
                                      recipients=contacts, channel=channel)
 
         # send it
-        broadcast.send()
+        broadcast.send(expressions_context={})
         return broadcast

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('contacts', '0067_auto_20170808_1852'),
-        ('flows', '0114_flowrun_results'),
+        ('flows', '0113_backfill_value_type'),
     ]
 
     operations = [

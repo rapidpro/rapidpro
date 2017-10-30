@@ -152,9 +152,9 @@
                 "base": "Other"
               }, 
               "uuid": "c3cc966c-16e0-452c-977f-377d2661ecfd", 
-              "destination": null, 
+              "destination": "932f07d9-f2c1-4af9-ae9a-65d48f4760d3",
               "label": null, 
-              "destination_type": null, 
+              "destination_type": "A",
               "test": {
                 "type": "true"
               }
@@ -330,5 +330,16 @@
       }
     }
   ], 
-  "triggers": []
+  "triggers": [
+    {
+      "trigger_type": "K",
+      "flow": {
+        "name": "Type Flow",
+        "uuid": "18098ea5-34e7-4a1f-b91c-55255b3cbffc"
+      },
+      "groups": [],
+      "keyword": "types",
+      "channel": null
+    }
+  ]
 }
