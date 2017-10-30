@@ -1081,15 +1081,6 @@ class Flow(TembaModel):
         """
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
-    def get_base_text(self, language_dict, default=''):
-        if not isinstance(language_dict, dict):  # pragma: no cover
-            return language_dict
-
-        if self.base_language:
-            return language_dict.get(self.base_language, default)
-
-        return default  # pragma: no cover
-
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
