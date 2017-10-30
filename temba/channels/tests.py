@@ -4652,6 +4652,30 @@ class InfobipTest(TembaTest):
         response = self.client.post(receive_url, "Invalid", content_type='application/json')
         self.assertEqual(400, response.status_code)
 
+        # ignore when missing results key
+        post_data = {
+            "unexpected": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": "Hello World",
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": two_hour_ago.isoformat(),
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(400, response.status_code)
+
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
         msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
@@ -4697,6 +4721,21 @@ class InfobipTest(TembaTest):
 
         # Invalid JSON should return 400
         response = self.client.post(delivery_url, "Invalid", content_type='application/json')
+        self.assertEqual(400, response.status_code)
+
+        # ignore when missing results key
+        post_data = {
+            "deliveryReport": [
+                {
+                    "messageId": msg.id,
+                    "status": {
+                        "groupName": "DELIVERED"
+                    }
+                }
+            ]
+        }
+
+        response = self.client.post(delivery_url, json.dumps(post_data), content_type='application/json')
         self.assertEqual(400, response.status_code)
 
     def test_send(self):
