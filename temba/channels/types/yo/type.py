@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.yo.views import ClaimView
 from temba.contacts.models import Contact, TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
@@ -67,7 +67,7 @@ class YoType(ChannelType):
 
             failed = False
             try:
-                response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
+                response = requests.get(url, headers=http_headers(), timeout=5)
                 event.status_code = response.status_code
                 event.response_body = response.text
 

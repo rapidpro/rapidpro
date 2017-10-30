@@ -28,7 +28,6 @@ from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
-
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
     LINE_SCHEME, JIOCHAT_SCHEME
@@ -44,6 +43,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from temba.utils.queues import push_task
@@ -54,9 +54,8 @@ from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT, \
-    ChannelSession, CHANNEL_EVENT
-from .models import DART_MEDIA_ENDPOINT
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelSession, CHANNEL_EVENT
+from .models import DART_MEDIA_ENDPOINT, HUB9_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
 
 
@@ -4281,6 +4280,7 @@ class InfobipTest(TembaTest):
         self.assertEqual(DELIVERED, msg.status)
         msg.status = SENT
         msg.save()
+        self.assertTrue(msg.channel_logs.filter(description='Status Updated'))
 
         # assert our FAILED status
         post_data['results'][0]['status']['groupName'] = 'REJECTED'
@@ -4896,7 +4896,7 @@ class SMSCentralTest(TembaTest):
                 mock.assert_called_with('http://smail.smscentral.com.np/bp/ApiSms.php',
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532', 'content': "Test message"},
-                                        headers=TEMBA_HEADERS,
+                                        headers=http_headers(),
                                         timeout=30)
 
                 self.clear_cache()
@@ -4955,7 +4955,7 @@ class SMSCentralTest(TembaTest):
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532',
                                               'content': "Test message\nhttps://example.com/attachments/pic.jpg"},
-                                        headers=TEMBA_HEADERS,
+                                        headers=http_headers(),
                                         timeout=30)
 
                 self.clear_cache()
@@ -6155,7 +6155,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 0,
                           'to': "250788383383",
                           'text': "Test message"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -6182,7 +6182,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 1,
                           'to': "250788383383",
                           'text': "Test message ☺"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -6245,7 +6245,7 @@ class ClickatellTest(TembaTest):
                           'unicode': 0,
                           'to': "250788383383",
                           'text': "Test message\nhttps://example.com/attachments/pic.jpg"}
-                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
                                         timeout=5)
 
                 self.clear_cache()
@@ -7261,6 +7261,7 @@ class MageHandlerTest(TembaTest):
                                   direction=INCOMING, created_on=timezone.now(),
                                   channel=self.channel, contact=contact, contact_urn=contact_urn)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_handle_message(self):
         url = reverse('handlers.mage_handler', args=['handle_message'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7354,6 +7355,7 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(message_id='xx'), **headers)
         self.assertEqual(400, response.status_code)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_follow_notification(self):
         url = reverse('handlers.mage_handler', args=['follow_notification'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
@@ -7416,6 +7418,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
+    @override_settings(MAGE_AUTH_TOKEN='abc123')
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)

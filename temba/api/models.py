@@ -19,12 +19,13 @@ from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
-from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import datetime_to_str, prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
+from temba.utils.http import http_headers
 from urllib import urlencode
 
 
@@ -211,7 +212,7 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, header=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
         flow = run.flow
         org = flow.org
         contact = run.contact
@@ -266,8 +267,7 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
-                    time=json_time,
-                    header=header)
+                    time=json_time)
 
         if not action:  # pragma: needs cover
             action = 'POST'
@@ -290,11 +290,7 @@ class WebHookEvent(SmartModel):
 
             # only send webhooks when we are configured to, otherwise fail
             if settings.SEND_WEBHOOKS:
-
-                requests_headers = TEMBA_HEADERS
-
-                if header:
-                    requests_headers.update(header)
+                requests_headers = http_headers(extra=headers)
 
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == 'GET':
@@ -505,11 +501,7 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS.copy()
-
-            # also include any user-defined headers
-            headers.update(self.org.get_webhook_headers())
+            headers = http_headers(extra=self.org.get_webhook_headers())
 
             s = requests.Session()
             prepped = requests.Request('POST', self.org.get_webhook_url(),

@@ -9,12 +9,11 @@ import time
 from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class InfobipType(ChannelType):
@@ -41,9 +40,11 @@ class InfobipType(ChannelType):
         password = channel.config['password']
         encoded_auth = base64.b64encode(username + ":" + password)
 
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json',
-                   'Authorization': 'Basic %s' % encoded_auth}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Basic %s' % encoded_auth
+        })
 
         # if the channel config has specified and override hostname use that, otherwise use settings
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)

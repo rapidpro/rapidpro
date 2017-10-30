@@ -5,19 +5,18 @@ import time
 import requests
 
 from datetime import timedelta
-from six import text_type
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from six import text_type
 
-
-from temba.channels.models import ChannelType, Channel, SendException, TEMBA_HEADERS
+from temba.channels.models import ChannelType, Channel, SendException
 from temba.channels.types.junebug.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import Msg, WIRED
 from temba.ussd.models import USSDSession
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 
 
 class JunebugType(ChannelType):
@@ -77,8 +76,7 @@ class JunebugType(ChannelType):
         start = time.time()
 
         event = HttpEvent('POST', log_url, json.dumps(payload))
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json'})
 
         try:
             response = requests.post(

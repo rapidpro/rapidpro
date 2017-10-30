@@ -1,19 +1,18 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
-import time
 import requests
 import six
+import time
 
 from django.core.validators import URLValidator
 from django.utils.translation import ugettext_lazy as _
-
-from temba.channels.models import ChannelType, Channel, TEMBA_HEADERS, SendException
+from temba.channels.models import ChannelType, Channel, SendException
 from temba.channels.types.vumi.views import ClaimView
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.msgs.models import Msg, WIRED
 from temba.ussd.models import USSDSession
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 
 
 class VumiType(ChannelType):
@@ -68,8 +67,7 @@ class VumiType(ChannelType):
 
         payload = json.dumps(payload)
 
-        headers = dict(TEMBA_HEADERS)
-        headers['content-type'] = 'application/json'
+        headers = http_headers(extra={'Content-Type': 'application/json'})
 
         api_url_base = channel.config.get('api_url', Channel.VUMI_GO_API_URL)
 
