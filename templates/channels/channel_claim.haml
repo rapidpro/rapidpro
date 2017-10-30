@@ -118,52 +118,6 @@
                   {{ twilio_countries }}, connect a Twilio account
                   and get a dedicated phone number.
 
-
-
-    -else
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using a Twilio phone number for SMS in your country, select this option to purchase a number or use one you already have.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twilio' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-twilio
-                %p.claim-text
-                  -trans "Twilio Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Instantly add a dedicated phone number in the area code of your choice.
-
-
-      .claim-row.twilio-messaging-service-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twilio_messaging_service' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-twilio
-                %p.claim-text
-                  -trans "Twilio Messaging Service"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
-
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel
         .row
@@ -181,20 +135,6 @@
                   Another great option is to connect
                   a <a href="http://nexmo.com" target="_blank">Nexmo</a> Account and get a dedicated number in a few minutes.
 
-    .claim-row.twiml-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twiml_api' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-twilio
-              %p.claim-text
-                -trans "TwiML API"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
 
     -if False
       .claim-row.verboice-channel
@@ -243,20 +183,6 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
-      .claim-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
-              .btn-container
-                .claim-glyph{class:"{{ ch_type.icon }}"}
-                %p.claim-text= ch_type.name
-          .span9
-            .claim-description
-              %div= ch_type.get_claim_blurb
-    %h3
-      -trans "USSD Channels"
-
-    -for ch_type in channel_types.USSD
       .claim-row
         .row
           .span3

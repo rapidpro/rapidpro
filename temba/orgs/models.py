@@ -864,13 +864,8 @@ class Org(SmartModel):
 
     def remove_twilio_account(self, user):
         if self.config:
-            # release any twilio channels
-            from temba.channels.models import Channel
-
-            twilio_channels = self.channels.filter(is_active=True,
-                                                   channel_type__in=[Channel.TYPE_TWILIO,
-                                                                     Channel.TYPE_TWILIO_MESSAGING_SERVICE])
-            for channel in twilio_channels:
+            # release any twilio and twilio messaging sevice channels
+            for channel in self.channels.filter(is_active=True, channel_type__in=['T', 'TMS']):
                 channel.release()
 
             config = self.config_json()
@@ -1180,8 +1175,7 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
+        return self.channels.filter(channel_type='T')
 
     def has_nexmo_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type='NX')

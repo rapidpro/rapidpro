@@ -150,7 +150,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             org = channel.org
 
-            if self.get_channel_type() == Channel.TYPE_TWILIO and not org.is_connected_to_twilio():
+            if self.get_channel_type() == 'T' and not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             client = self.get_client(channel=channel)
@@ -175,7 +175,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
-                                       Channel.TYPE_TWILIO)
+                                       'T')
                     call.save()
 
                     FlowRun.create(flow, contact.pk, session=session, connection=call)
@@ -208,7 +208,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 call = IVRCall.objects.filter(external_id=call_sid).first()
                 if call:
                     call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None),
-                                       Channel.TYPE_TWIML)
+                                       'TW')
                     call.save()
                     return HttpResponse("Call status updated")
             return HttpResponse("No call found")
@@ -259,7 +259,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             org = channel.org
 
-            if self.get_channel_type() == Channel.TYPE_TWILIO and not org.is_connected_to_twilio():
+            if self.get_channel_type() == 'T' and not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             client = self.get_client(channel=channel)
@@ -293,7 +293,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         return channel.get_ivr_client()
 
     def get_channel_type(self):
-        return Channel.TYPE_TWIML
+        return 'TW'
 
 
 class TwilioHandler(TwimlAPIHandler):
@@ -305,7 +305,7 @@ class TwilioHandler(TwimlAPIHandler):
     handler_name = 'handlers.twilio_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_TWILIO
+        return 'T'
 
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
@@ -329,7 +329,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TWILIO_MESSAGING_SERVICE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TMS').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 

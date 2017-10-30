@@ -31,7 +31,7 @@ class IVRTests(FlowFileTest):
         settings.SEND_CALLS = True
 
         # configure our account to be IVR enabled
-        self.channel.channel_type = Channel.TYPE_TWILIO
+        self.channel.channel_type = 'T'
         self.channel.role = Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
@@ -61,7 +61,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(IVRCall.PENDING, call.status)
 
         # call should be on a Twilio channel since that's all we have
-        self.assertEqual(Channel.TYPE_TWILIO, call.channel.channel_type)
+        self.assertEqual('T', call.channel.channel_type)
 
         # connect Nexmo instead
         self.org.connect_nexmo('123', '456', self.admin)
@@ -79,7 +79,7 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().last()
         self.assertEqual(IVRCall.PENDING, call.status)
-        self.assertEqual(Channel.TYPE_TWILIO, call.channel.channel_type)
+        self.assertEqual('T', call.channel.channel_type)
 
         # switch back to Nexmo being the preferred channel
         contact.set_preferred_channel(nexmo)
@@ -904,8 +904,7 @@ class IVRTests(FlowFileTest):
         config = {Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
                   Channel.CONFIG_ACCOUNT_SID: 'TEST_SID',
                   Channel.CONFIG_AUTH_TOKEN: 'TEST_TOKEN'}
-        channel = Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '558299990000', config, 'AC')
-
+        channel = Channel.create(self.org, self.org.get_user(), 'BR', 'TW', '+558299990000', '+558299990000', config, 'AC')
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+558299990000')
 
@@ -946,7 +945,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual('H', msg.status)
 
         # explicitly hanging up on a test call should remove it
-        call.update_status('in-progress', 0, Channel.TYPE_TWILIO)
+        call.update_status('in-progress', 0, 'T')
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
@@ -1056,12 +1055,12 @@ class IVRTests(FlowFileTest):
             else:
                 self.assertIsNone(call_to_update.ended_on)
 
-        test_status_update(call, 'queued', IVRCall.QUEUED, Channel.TYPE_TWILIO)
-        test_status_update(call, 'ringing', IVRCall.RINGING, Channel.TYPE_TWILIO)
-        test_status_update(call, 'canceled', IVRCall.CANCELED, Channel.TYPE_TWILIO)
-        test_status_update(call, 'busy', IVRCall.BUSY, Channel.TYPE_TWILIO)
-        test_status_update(call, 'failed', IVRCall.FAILED, Channel.TYPE_TWILIO)
-        test_status_update(call, 'no-answer', IVRCall.NO_ANSWER, Channel.TYPE_TWILIO)
+        test_status_update(call, 'queued', IVRCall.QUEUED, 'T')
+        test_status_update(call, 'ringing', IVRCall.RINGING, 'T')
+        test_status_update(call, 'canceled', IVRCall.CANCELED, 'T')
+        test_status_update(call, 'busy', IVRCall.BUSY, 'T')
+        test_status_update(call, 'failed', IVRCall.FAILED, 'T')
+        test_status_update(call, 'no-answer', IVRCall.NO_ANSWER, 'T')
 
         test_status_update(call, 'answered', IVRCall.IN_PROGRESS, 'NX')
         test_status_update(call, 'ringing', IVRCall.RINGING, 'NX')
@@ -1105,7 +1104,7 @@ class IVRTests(FlowFileTest):
         Contact.set_simulation(True)
         flow.start([], [test_contact])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).order_by('-pk').first()
-        call.update_status('completed', 30, Channel.TYPE_TWILIO)
+        call.update_status('completed', 30, 'T')
         call.save()
         call.refresh_from_db()
 
@@ -1113,7 +1112,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.duration, 30)
 
         # now look at implied duration
-        call.update_status('in-progress', None, Channel.TYPE_TWILIO)
+        call.update_status('in-progress', None, 'T')
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
