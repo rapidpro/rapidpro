@@ -12,7 +12,7 @@ import time
 import urllib2
 
 from collections import OrderedDict, defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
@@ -21,7 +21,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum
+from django.db.models import Q, Count, QuerySet, Sum, Max
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -374,7 +374,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2"
     ]
 
     name = models.CharField(max_length=64,
@@ -1021,7 +1021,7 @@ class Flow(TembaModel):
             value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        ruleset.save_run_value(run, rule, value, msg.text)
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -1164,6 +1164,33 @@ class Flow(TembaModel):
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
+
+    def get_category_counts(self, deleted_nodes=True):
+
+        actives = self.rule_sets.all().values('uuid', 'label')
+
+        uuids = [active['uuid'] for active in actives]
+        keys = [Flow.label_to_slug(active['label']) for active in actives]
+        counts = FlowCategoryCount.objects.filter(flow_id=self.id)
+
+        # always filter by active keys
+        counts = counts.filter(result_key__in=keys)
+
+        # filter by active nodes if we aren't including deleted nodes
+        if not deleted_nodes:
+            counts = counts.filter(node_uuid__in=uuids)
+        counts = counts.values('result_key', 'category_name').annotate(count=Sum('count'), result_name=Max('result_name'))
+
+        results = {}
+        for count in counts:
+            result = results.get(count['result_key'], {})
+            if 'name' not in result:
+                result['name'] = count['result_name']
+                result['categories'] = [dict(name=count['category_name'], count=count['count'])]
+            else:
+                result['categories'].append(dict(name=count['category_name'], count=count['count']))
+            results[count['result_key']] = result
+        return results
 
     def delete_results(self):
         """
@@ -1956,10 +1983,10 @@ class Flow(TembaModel):
         # if we have some broadcasts to optimize for
         message_map = dict()
         if broadcasts:
-            # create our message context
-            message_context_base = self.build_expressions_context(None, start_msg)
+            # create our expressions context
+            expressions_context_base = self.build_expressions_context(None, start_msg)
             if extra:
-                message_context_base['extra'] = extra
+                expressions_context_base['extra'] = extra
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
@@ -1968,7 +1995,7 @@ class Flow(TembaModel):
 
                 # create the sms messages
                 created_on = timezone.now()
-                broadcast.send(message_context=message_context_base, trigger_send=False,
+                broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
@@ -2804,6 +2831,13 @@ class FlowRun(models.Model):
 
     INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
 
+    RESULT_NAME = 'name'
+    RESULT_NODE_UUID = 'node_uuid'
+    RESULT_CATEGORY = 'category'
+    RESULT_VALUE = 'value'
+    RESULT_INPUT = 'input'
+    RESULT_MODIFIED_ON = 'modified_on'
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     output = models.TextField(null=True)
@@ -2853,6 +2887,9 @@ class FlowRun(models.Model):
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
+
+    results = models.TextField(null=True,
+                               help_text=_("The results collected during this flow run in JSON format"))
 
     @classmethod
     def create_or_update_from_goflow(cls, session, contact, run_output, run_log, wait, msg_in, broadcasts=()):
@@ -3504,6 +3541,43 @@ class FlowRun(models.Model):
 
         return msg
 
+    def results_dict(self):
+        return json.loads(self.results) if self.results else dict()
+
+    @classmethod
+    def serialize_value(cls, value):
+        """
+        Utility method to give the serialized value for the passed in value
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            return value.isoformat()
+        elif isinstance(value, AdminBoundary):
+            return value.as_path()
+        else:
+            return six.text_type(value)
+
+    def save_run_result(self, name, node_uuid, category, raw_value, raw_input):
+        # slug our name
+        key = Flow.label_to_slug(name)
+
+        # create our result dict
+        results = self.results_dict()
+        results[key] = {
+            FlowRun.RESULT_NAME: name,
+            FlowRun.RESULT_NODE_UUID: node_uuid,
+            FlowRun.RESULT_CATEGORY: category,
+            FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
+            FlowRun.RESULT_INPUT: raw_input,
+            FlowRun.RESULT_MODIFIED_ON: timezone.now().isoformat(),
+        }
+
+        self.results = json.dumps(results)
+        self.modified_on = timezone.now()
+        self.save(update_fields=['results', 'modified_on'])
+
 
 @six.python_2_unicode_compatible
 class FlowStep(models.Model):
@@ -3695,7 +3769,7 @@ class FlowStep(models.Model):
                     rule_value = value
 
                 rule.category = rule_category
-                ruleset.save_run_value(run, rule, rule_value)
+                ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
             step.rule_uuid = rule_uuid
@@ -4065,7 +4139,7 @@ class RuleSet(models.Model):
             for url in urls:
                 from temba.api.models import WebHookEvent
 
-                (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
+                (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
                 result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
                                                          headers=header)
@@ -4110,7 +4184,7 @@ class RuleSet(models.Model):
             # if we have a custom operand, figure that out
             text = None
             if self.operand:
-                (text, errors) = Msg.substitute_variables(self.operand, context, org=run.flow.org)
+                (text, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
             elif msg:
                 text = msg.text
 
@@ -4156,15 +4230,21 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
+    def save_run_value(self, run, rule, raw_value, raw_input):
+        value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
         media_value = None
 
-        if isinstance(value, AdminBoundary):  # pragma: needs cover
-            location_value = value
+        if isinstance(raw_value, AdminBoundary):
+            location_value = raw_value
+
+        elif isinstance(raw_value, datetime):
+            dt_value = raw_value
+            (date_format, time_format) = get_datetime_format(run.org.get_dayfirst())
+            value = datetime_to_str(dt_value, tz=run.org.timezone, format=time_format, ms=False)
+
         else:
             dt_value = run.flow.org.parse_date(value)
             dec_value = run.flow.org.parse_decimal(value)
@@ -4182,6 +4262,12 @@ class RuleSet(models.Model):
         Value.objects.create(contact=run.contact, run=run, ruleset=self, category=rule.category, rule_uuid=rule.uuid,
                              string_value=value, decimal_value=dec_value, datetime_value=dt_value,
                              location_value=location_value, media_value=media_value, org=run.flow.org)
+
+        run.save_run_result(name=self.label,
+                            node_uuid=self.uuid,
+                            category=rule.category,
+                            raw_value=raw_value,
+                            raw_input=raw_input)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
@@ -4420,6 +4506,33 @@ class FlowRevision(SmartModel):
                     id=self.pk,
                     version=self.spec_version,
                     revision=self.revision)
+
+
+class FlowCategoryCount(SquashableModel):
+    """
+    Maintains counts for categories across all possible results in a flow
+    """
+    SQUASH_OVER = ('flow_id', 'node_uuid', 'result_key', 'result_name', 'category_name')
+
+    flow = models.ForeignKey(Flow, related_name='category_counts', help_text="The flow the result belongs to")
+    node_uuid = models.UUIDField(db_index=True)
+    result_key = models.CharField(max_length=36, help_text="The sluggified key for the result")
+    result_name = models.CharField(max_length=36, help_text="The result the category belongs to")
+    category_name = models.CharField(max_length=36, help_text="The category name for a result")
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        params = (distinct_set.flow_id, distinct_set.node_uuid, distinct_set.result_key, distinct_set.result_name, distinct_set.category_name) * 2
+        return sql, params
 
 
 @six.python_2_unicode_compatible
@@ -5449,8 +5562,8 @@ class EmailAction(Action):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
-        (message, errors) = Msg.substitute_variables(self.message, context, org=run.flow.org)
-        (subject, errors) = Msg.substitute_variables(self.subject, context, org=run.flow.org)
+        (message, errors) = Msg.evaluate_template(self.message, context, org=run.flow.org)
+        (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
 
         # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
         subject = regex.sub('\s+', ' ', subject, regex.V0)
@@ -5460,7 +5573,7 @@ class EmailAction(Action):
         for email in self.emails:
             if email.startswith('@'):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = Msg.substitute_variables(email, context, org=run.flow.org)
+                (address, errors) = Msg.evaluate_template(email, context, org=run.flow.org)
             else:
                 address = email
 
@@ -5512,7 +5625,7 @@ class WebhookAction(Action):
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
 
-        (value, errors) = Msg.substitute_variables(self.webhook, context, org=run.flow.org, url_encode=True)
+        (value, errors) = Msg.evaluate_template(self.webhook, context, org=run.flow.org, url_encode=True)
 
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
@@ -5594,7 +5707,7 @@ class AddToGroupAction(Action):
         if contact and not (contact.is_stopped or contact.is_blocked):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
-                    (value, errors) = Msg.substitute_variables(group, context, org=run.flow.org)
+                    (value, errors) = Msg.evaluate_template(group, context, org=run.flow.org)
                     group = None
 
                     if not errors:
@@ -5724,7 +5837,7 @@ class AddLabelAction(Action):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
-                (value, errors) = Msg.substitute_variables(label, context, org=run.flow.org)
+                (value, errors) = Msg.evaluate_template(label, context, org=run.flow.org)
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
@@ -5779,7 +5892,7 @@ class SayAction(Action):
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, errors) = Msg.substitute_variables(message, context)
+        (message, errors) = Msg.evaluate_template(message, context)
 
         msg = run.create_outgoing_ivr(message, media_url, run.connection)
 
@@ -5816,7 +5929,7 @@ class PlayAction(Action):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
-        (media, errors) = Msg.substitute_variables(self.url, context)
+        (media, errors) = Msg.evaluate_template(self.url, context)
         msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.connection)
 
         if msg:
@@ -5894,14 +6007,14 @@ class ReplyAction(Action):
                 created_on = None
 
             if msg and msg.id:
-                replies = msg.reply(text, user, trigger_send=False, message_context=context,
+                replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
                                     connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
                 high_priority = run.get_session_responded()
-                replies = run.contact.send(text, user, trigger_send=False, message_context=context,
+                replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
         return replies
@@ -6055,7 +6168,7 @@ class VariableContactAction(Action):
         return variables
 
     def build_groups_and_contacts(self, run, msg):
-        message_context = run.flow.build_expressions_context(run.contact, msg)
+        expressions_context = run.flow.build_expressions_context(run.contact, msg)
         contacts = list(self.contacts)
         groups = list(self.groups)
 
@@ -6073,7 +6186,7 @@ class VariableContactAction(Action):
 
             # other type of variable, perform our substitution
             else:
-                (variable, errors) = Msg.substitute_variables(variable, message_context, org=run.flow.org)
+                (variable, errors) = Msg.evaluate_template(variable, expressions_context, org=run.flow.org)
 
                 # Check for possible contact uuid and use its contact
                 contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
@@ -6333,7 +6446,7 @@ class SaveToContactAction(Action):
         # evaluate our value
         contact = run.contact
         user = get_flow_user(run.org)
-        (value, errors) = Msg.substitute_variables(self.value, context, org=run.flow.org)
+        (value, errors) = Msg.evaluate_template(self.value, context, org=run.flow.org)
 
         if contact.is_test and errors:  # pragma: needs cover
             ActionLog.warn(run, _("Expression contained errors: %s") % ', '.join(errors))
@@ -6502,7 +6615,7 @@ class SendAction(VariableContactAction):
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
                                              media=self.media, base_language=flow.base_language)
-                broadcast.send(trigger_send=False, message_context=context)
+                broadcast.send(trigger_send=False, expressions_context=context)
                 return list(broadcast.get_messages())
 
             else:
@@ -6515,7 +6628,7 @@ class SendAction(VariableContactAction):
                         unique_contacts.add(contact.pk)
 
                 text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, errors) = Msg.substitute_variables(text, context, org=run.flow.org, partial_vars=True)
+                (message, errors) = Msg.evaluate_template(text, context, org=run.flow.org, partial_vars=True)
 
                 self.logger(run, message, len(unique_contacts))
 
@@ -6967,7 +7080,7 @@ class ContainsTest(Test):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -7037,7 +7150,7 @@ class ContainsAnyTest(ContainsTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -7079,7 +7192,7 @@ class ContainsOnlyPhraseTest(ContainsTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -7108,7 +7221,7 @@ class ContainsPhraseTest(ContainsTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -7158,7 +7271,7 @@ class StartsWithTest(Test):
     def evaluate(self, run, sms, context, text):
         # substitute any variables in our test
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # strip leading and trailing whitespace
         text = text.strip()
@@ -7219,7 +7332,7 @@ class HasDistrictTest(Test):
             return 0, None
 
         # evaluate our district in case it has a replacement variable
-        state, errors = Msg.substitute_variables(self.state, context, org=run.flow.org)
+        state, errors = Msg.evaluate_template(self.state, context, org=run.flow.org)
 
         parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
@@ -7259,8 +7372,8 @@ class HasWardTest(Test):
         district = None
 
         # evaluate our district in case it has a replacement variable
-        district_name, missing_district = Msg.substitute_variables(self.district, context, org=run.flow.org)
-        state_name, missing_state = Msg.substitute_variables(self.state, context, org=run.flow.org)
+        district_name, missing_district = Msg.evaluate_template(self.district, context, org=run.flow.org)
+        state_name, missing_state = Msg.evaluate_template(self.state, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
@@ -7311,15 +7424,13 @@ class DateTest(Test):
 
         text = text.replace(' ', "-")
 
-        test, errors = Msg.substitute_variables(self.test, context, org=org)
+        test, errors = Msg.evaluate_template(self.test, context, org=org)
         if not errors:
-            (date_format, time_format) = get_datetime_format(day_first)
-
             date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
             date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
             if self.evaluate_date_test(date_message, date_test):
-                return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
+                return 1, date_message.astimezone(tz)
 
         return 0, None
 
@@ -7409,8 +7520,8 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        min_val, min_errors = Msg.substitute_variables(self.min, context, org=run.flow.org)
-        max_val, max_errors = Msg.substitute_variables(self.max, context, org=run.flow.org)
+        min_val, min_errors = Msg.evaluate_template(self.min, context, org=run.flow.org)
+        max_val, max_errors = Msg.evaluate_template(self.max, context, org=run.flow.org)
 
         if not min_errors and not max_errors:
             try:
@@ -7463,7 +7574,7 @@ class SimpleNumericTest(NumericTest):
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
-        test, errors = Msg.substitute_variables(str(self.test), context, org=run.flow.org)
+        test, errors = Msg.evaluate_template(str(self.test), context, org=run.flow.org)
 
         text = text.replace(',', '')
         for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):

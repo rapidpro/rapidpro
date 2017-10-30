@@ -10,8 +10,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class BlackmynaType(ChannelType):
@@ -50,7 +50,7 @@ class BlackmynaType(ChannelType):
         event = HttpEvent('POST', url, payload)
 
         try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30,
+            response = requests.post(url, data=payload, headers=http_headers(), timeout=30,
                                      auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]))
             # parse our response, should be JSON that looks something like:
             # [{

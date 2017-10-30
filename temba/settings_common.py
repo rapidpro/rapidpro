@@ -44,6 +44,9 @@ EMAIL_USE_TLS = True
 # their own SMTP server.
 FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
+# HTTP Headers using for outgoing requests to other services
+OUTGOING_REQUEST_HEADERS = {'User-agent': 'RapidPro'}
+
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
@@ -1071,7 +1074,7 @@ for brand in BRANDING.values():
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
-MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
+MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
 
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
@@ -1118,6 +1121,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.blackmyna.BlackmynaType',
     'temba.channels.types.clickatell.ClickatellType',
     'temba.channels.types.dartmedia.DartMediaType',
+    'temba.channels.types.dmark.DMarkType',
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
@@ -1144,6 +1148,8 @@ CHANNEL_TYPES = [
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
     'temba.channels.types.viber_public.ViberPublicType',
+    'temba.channels.types.vumi.VumiType',
+    'temba.channels.types.vumi_ussd.VumiUSSDType',
     'temba.channels.types.yo.YoType',
     'temba.channels.types.zenvia.ZenviaType',
 ]
@@ -1200,7 +1206,7 @@ FLOW_SERVER_FORCE = False
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set()
+COURIER_CHANNELS = set(['DK'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
