@@ -843,7 +843,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
+            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.get_category_name(flow.base_language), previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1274,7 +1274,7 @@ class Flow(TembaModel):
         for ruleset in ruleset_list:
             rulesets[ruleset.uuid] = ruleset
             for rule in ruleset.get_rules():
-                rule_categories[rule.uuid] = rule.category
+                rule_categories[rule.uuid] = rule.get_category_name(self.base_language)
 
         return (rulesets, rule_categories)
 
@@ -2624,9 +2624,10 @@ class FlowRun(models.Model):
     RESULT_NAME = 'name'
     RESULT_NODE_UUID = 'node_uuid'
     RESULT_CATEGORY = 'category'
+    RESULT_CATEGORY_LOCALIZED = 'category_localized'
     RESULT_VALUE = 'value'
     RESULT_INPUT = 'input'
-    RESULT_MODIFIED_ON = 'modified_on'
+    RESULT_CREATED_ON = 'created_on'
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -3067,7 +3068,7 @@ class FlowRun(models.Model):
         else:
             return six.text_type(value)
 
-    def save_run_result(self, name, node_uuid, category, raw_value, raw_input):
+    def save_run_result(self, name, node_uuid, category, category_localized, raw_value, raw_input):
         # slug our name
         key = Flow.label_to_slug(name)
 
@@ -3077,9 +3078,10 @@ class FlowRun(models.Model):
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
+            FlowRun.RESULT_CATEGORY_LOCALIZED: category_localized,
             FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
             FlowRun.RESULT_INPUT: raw_input,
-            FlowRun.RESULT_MODIFIED_ON: timezone.now().isoformat(),
+            FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
         }
 
         self.results = json.dumps(results)
@@ -3204,10 +3206,9 @@ class FlowStep(models.Model):
                         raise ValueError("No such rule with UUID %s" % rule_uuid)
 
                     rule_uuid = rule.uuid
-                    rule_category = rule.category
+                    rule_category = rule.get_category_name(run.flow.base_language)
                     rule_value = value
 
-                rule.category = rule_category
                 ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
@@ -3249,7 +3250,7 @@ class FlowStep(models.Model):
         self.delete()
 
     def save_rule_match(self, rule, value):
-        self.rule_category = rule.category
+        self.rule_category = rule.get_category_name(self.run.flow.base_language)
         self.rule_uuid = rule.uuid
 
         if value is None:
@@ -3540,7 +3541,6 @@ class RuleSet(models.Model):
                 if isinstance(rule.test, TimeoutTest):
                     (result, value) = rule.matches(run, msg, context, orig_text)
                     if result > 0:
-                        rule.category = run.flow.get_base_text(rule.category)
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
@@ -3610,7 +3610,6 @@ class RuleSet(models.Model):
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(status_code))
                 if result > 0:
-                    rule.category = run.flow.get_base_text(rule.category)
                     return rule, body
 
         else:
@@ -3652,7 +3651,6 @@ class RuleSet(models.Model):
                     (result, value) = rule.matches(run, msg, context, text)
                     if result > 0:
                         # treat category as the base category
-                        rule.category = run.flow.get_base_text(rule.category)
                         return rule, value
             finally:
                 if msg:
@@ -3698,13 +3696,15 @@ class RuleSet(models.Model):
         # delete any existing values for this ruleset, run and contact, we only store the latest
         Value.objects.filter(contact=run.contact, run=run, ruleset=self).delete()
 
-        Value.objects.create(contact=run.contact, run=run, ruleset=self, category=rule.category, rule_uuid=rule.uuid,
+        Value.objects.create(contact=run.contact, run=run, ruleset=self, rule_uuid=rule.uuid,
+                             category=rule.get_category_name(run.flow.base_language),
                              string_value=value, decimal_value=dec_value, datetime_value=dt_value,
                              location_value=location_value, media_value=media_value, org=run.flow.org)
 
         run.save_run_result(name=self.label,
                             node_uuid=self.uuid,
-                            category=rule.category,
+                            category=rule.get_category_name(run.flow.base_language),
+                            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
                             raw_value=raw_value,
                             raw_input=raw_input)
 
@@ -6090,17 +6090,24 @@ class Rule(object):
         self.test = test
         self.label = label
 
-    def get_category_name(self, flow_lang):
+    def get_category_name(self, flow_lang, contact_lang=None):
         if not self.category:  # pragma: needs cover
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
         # return the category name for the flow language version
         if isinstance(self.category, dict):
-            if flow_lang:
-                return self.category[flow_lang]
-            else:  # pragma: needs cover
-                return self.category.values()[0]
+            category = None
+            if contact_lang:
+                category = self.category.get(contact_lang)
+
+            if not category and flow_lang:
+                category = self.category.get(flow_lang)
+
+            if not category:  # pragma: needs cover
+                category = self.category.values()[0]
+
+            return category
 
         return self.category  # pragma: needs cover
 

@@ -1948,7 +1948,7 @@ class FlowTest(TembaTest):
         self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
         self.assertEqual("> 10", results['color']['category'])
         self.assertEqual("color", results['color']['name'])
-        self.assertIsNotNone(results['color']['modified_on'])
+        self.assertIsNotNone(results['color']['created_on'])
 
         # and that the category counts have been updated
         self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid='bd531ace-911e-4722-8e53-6730d6122fe1', category_name='> 10',
@@ -8201,6 +8201,7 @@ class TypeTest(TembaTest):
         self.assertEqual('Rwanda > Eastern Province > Gatsibo', results['district']['value'])
         self.assertEqual('That\'s in Gatsibo', results['district']['input'])
         self.assertEqual('district', results['district']['category'])
+        self.assertEqual('le district', results['district']['category_localized'])
 
         self.assertEqual('Ward', results['ward']['name'])
         self.assertEqual('Rwanda > Eastern Province > Gatsibo > Kageyo', results['ward']['value'])
