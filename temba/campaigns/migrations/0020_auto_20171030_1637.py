@@ -22,8 +22,6 @@ def cleanup_dependencies(apps, schema_editor):
     for event in events:
         release_flow(event.flow)
 
-    raise Exception('Kabo0m')
-
 
 class Migration(migrations.Migration):
 
