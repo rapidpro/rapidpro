@@ -106,6 +106,28 @@
                   Another great option is to connect
                   a <a href="http://nexmo.com" target="_blank">Nexmo</a> Account and get a dedicated number in a few minutes.
 
+
+    .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
+      .recommendation.hide
+        %h3
+          -trans "Recommendation"
+        -blocktrans
+          We recommend using a Plivo number in your country, select this option to purchase a number or use one you already have.
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-plivo{href:"#"}
+            .btn-container
+              .claim-glyph.icon-channel-plivo
+              %p.claim-text
+                -trans "Plivo Number"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                <a href="http://plivo.com" target="_blank">Plivo</a> provides local connectivity in a number of countries, connect
+                your Plivo Account and get a dedicated number in a few minutes.
+
     -if False
       .claim-row.verboice-channel
         .recommendation.hide
