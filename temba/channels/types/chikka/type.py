@@ -12,8 +12,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.chikka.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import Msg, WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class ChikkaType(ChannelType):
@@ -71,7 +71,7 @@ class ChikkaType(ChannelType):
         events = [event]
 
         try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+            response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
             event.status_code = response.status_code
             event.response_body = response.text
         except Exception as e:
@@ -91,7 +91,7 @@ class ChikkaType(ChannelType):
                     event = HttpEvent('POST', url, payload)
                     events.append(event)
 
-                    response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+                    response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
                     event.status_code = response.status_code
                     event.response_body = response.text
 
