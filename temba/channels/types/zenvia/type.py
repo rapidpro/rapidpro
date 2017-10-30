@@ -1,18 +1,17 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import requests
 import six
-from django.utils.http import urlencode
 
+from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.zenvia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class ZenviaType(ChannelType):
@@ -50,8 +49,7 @@ class ZenviaType(ChannelType):
                        callbackOption=1)
 
         zenvia_url = "http://www.zenvia360.com.br/GatewayIntegration/msgSms.do"
-        headers = {'Content-Type': "text/html", 'Accept-Charset': 'ISO-8859-1'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': "text/html", 'Accept-Charset': 'ISO-8859-1'})
 
         event = HttpEvent('POST', zenvia_url, urlencode(payload))
 

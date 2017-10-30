@@ -24,7 +24,6 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-
 from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
@@ -35,6 +34,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
+from temba.utils.http import http_headers
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
@@ -320,7 +320,7 @@ class Broadcast(models.Model):
                                      media=self.media, base_language=self.base_language,
                                      parent=self)
 
-        broadcast.send(trigger_send=True)
+        broadcast.send(trigger_send=True, expressions_context={})
 
         return broadcast
 
@@ -331,12 +331,6 @@ class Broadcast(models.Model):
 
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
-
-    def get_messages_substitution_complete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=False)
-
-    def get_messages_substitution_incomplete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=True)
 
     def get_message_count(self):
         return self.get_messages().count()
@@ -391,7 +385,7 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
+    def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -441,9 +435,6 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
-        if not message_context:
-            message_context = {}
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
@@ -458,9 +449,13 @@ class Broadcast(models.Model):
                 if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
-            context = message_context.copy()
-            if 'contact' not in context:
-                context['contact'] = contact.build_expressions_context()
+            # build our message specific context
+            if expressions_context is not None:
+                message_context = expressions_context.copy()
+                if 'contact' not in message_context:
+                    message_context['contact'] = contact.build_expressions_context()
+            else:
+                message_context = None
 
             # add in our parent context if the message references @parent
             if run_map:
@@ -472,7 +467,7 @@ class Broadcast(models.Model):
                     if 'parent' in text:
                         if run.parent:
                             from temba.flows.models import Flow
-                            context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -482,7 +477,7 @@ class Broadcast(models.Model):
                                           broadcast=self,
                                           channel=self.channel,
                                           response_to=response_to,
-                                          message_context=context,
+                                          expressions_context=message_context,
                                           status=status,
                                           msg_type=msg_type,
                                           high_priority=high_priority,
@@ -702,8 +697,8 @@ class Msg(models.Model):
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
-    has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
-                                             help_text=_("Whether data for variable substitution are missing"))
+    has_template_error = models.NullBooleanField(default=False, verbose_name=_("Has Template Error"),
+                                                 help_text=_("Whether data for variable substitution are missing"))
 
     msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
@@ -887,8 +882,6 @@ class Msg(models.Model):
         """
         Send messages logs in batch to Chatbase
         """
-        from temba.channels.models import TEMBA_HEADERS
-
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
@@ -907,8 +900,8 @@ class Msg(models.Model):
         if log_type == 'user' and not_handled:
             message['not_handled'] = not_handled
 
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json'})
+
         requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod
@@ -1123,10 +1116,10 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(self, text, user, trigger_send=False, message_context=None, connection=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+        return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
 
@@ -1363,7 +1356,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, context, org=None, url_encode=False, partial_vars=False):
+    def evaluate_template(cls, text, context, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1408,7 +1401,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
         if not org or not user:  # pragma: no cover
@@ -1443,30 +1436,31 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date?  set it to now
+        # no creation date? set it to now
         if not created_on:
             created_on = timezone.now()
 
-        # substitute variables in the text messages
-        if not message_context:
-            message_context = dict()
+        # evaluate expressions in the text and attachments if a context was provided
+        if expressions_context is not None:
+            # make sure 'channel' is populated if we have a channel
+            if channel and 'channel' not in expressions_context:
+                expressions_context['channel'] = channel.build_expressions_context()
 
-        # make sure 'channel' is populated if we have a channel
-        if channel and 'channel' not in message_context:
-            message_context['channel'] = channel.build_expressions_context()
+            (text, errors) = Msg.evaluate_template(text, expressions_context, org=org)
+            if text:
+                text = text[:Msg.MAX_TEXT_LEN]
 
-        (text, errors) = Msg.substitute_variables(text, message_context, org=org)
-        if text:
+            evaluated_attachments = []
+            if attachments:
+                for attachment in attachments:
+                    (attachment, errors) = Msg.evaluate_template(attachment, expressions_context, org=org)
+                    evaluated_attachments.append(attachment)
+        else:
             text = text[:Msg.MAX_TEXT_LEN]
-
-        evaluated_attachments = []
-        if attachments:
-            for attachment in attachments:
-                (attachment, errors) = Msg.substitute_variables(attachment, message_context, org=org)
-                evaluated_attachments.append(attachment)
+            evaluated_attachments = attachments
 
         # prefer none to empty lists in the database
-        if len(evaluated_attachments) == 0:
+        if evaluated_attachments is not None and len(evaluated_attachments) == 0:
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
@@ -1529,8 +1523,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         high_priority=high_priority,
                         attachments=evaluated_attachments,
-                        connection=connection,
-                        has_template_error=len(errors) > 0)
+                        connection=connection)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id

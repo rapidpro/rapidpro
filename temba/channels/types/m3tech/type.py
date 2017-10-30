@@ -2,18 +2,17 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
-
 import requests
 import six
-from django.utils.http import urlencode
 
+from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS, Encoding
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException, Encoding
 
 
 class M3TechType(ChannelType):
@@ -66,7 +65,7 @@ class M3TechType(ChannelType):
         start = time.time()
 
         try:
-            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
+            response = requests.get(url, params=payload, headers=http_headers(), timeout=5)
             event.status_code = response.status_code
             event.response_body = response.text
 

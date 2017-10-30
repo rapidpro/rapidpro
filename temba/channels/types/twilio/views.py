@@ -1,8 +1,8 @@
 from __future__ import unicode_literals, absolute_import
 
-from uuid import uuid4
-
 import phonenumbers
+
+from uuid import uuid4
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
