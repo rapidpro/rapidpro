@@ -26,6 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from uuid import uuid4
 from urllib import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
@@ -593,7 +594,7 @@ class APITest(TembaTest):
 
         # create new broadcast with all fields
         response = self.postJSON(url, None, {
-            'text': "Hello",
+            'text': "Hi @contact",
             'urns': ["twitter:franky"],
             'contacts': [self.joe.uuid, self.frank.uuid],
             'groups': [reporters.uuid],
@@ -601,11 +602,14 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello"})
+        self.assertEqual(broadcast.text, {'base': "Hi @contact"})
         self.assertEqual(set(broadcast.urns.values_list('identity', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
+
+        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
+        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
 
         # create new broadcast with translations
         response = self.postJSON(url, None, {
@@ -1621,8 +1625,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact fields, please remove some contact fields "
-                                 "to be able to create new contact fields")
+                                 "This org has 10 contact fields and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
 
     def test_flows(self):
         url = reverse('api.v2.flows')
@@ -1790,8 +1794,12 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact groups, please remove some contact groups "
-                                 "to be able to create new contact groups")
+                                 "This org has 10 groups and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
+
+        group1 = ContactGroup.user_groups.filter(org=self.org, name='group1').first()
+        response = self.deleteJSON(url, 'uuid=%s' % group1.uuid)
+        self.assertEqual(response.status_code, 204)
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
@@ -1889,7 +1897,9 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 labels, please remove some to be able to add a new label")
+                                 "This org has 10 labels and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones."
+                                 )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
@@ -2527,7 +2537,8 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
+                                                       dict(base="Hi @extra.first_name @extra.last_name, "
                                                                  "what's your favorite color?")).as_json()])
         first_action.save()
 

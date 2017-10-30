@@ -43,46 +43,6 @@
                 you already have. You just need an Android phone
                 to get started.
 
-    -if org_timezone == 'America/Sao_Paulo'
-      .claim-row.zenvia-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_zenvia' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Zenvia Short Code"
-          .span9.no-margin
-            .claim-description
-              %div
-                -blocktrans
-                  If you are based in Brazil, you can purchase a short
-                  code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
-                  in a few simple steps.
-
-    -if org_timezone == 'Africa/Kampala'
-      .claim-row.yo-channel{class:"{% if recommended_channel == 'YO' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://www.yo.co.ug/'>" as link_start and "</a>" as link_end
-            We recommend using Yo! in Uganda. Visit {{link_start}}their website{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_yo' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Yo! Short Code"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans with brand.name as brand
-                  If you are based in Uganda, you can integrate {{ brand }} with Yo! to send
-                  and receive messages on your shortcode.
-
     -if org_timezone == 'Asia/Manila'
       .claim-row.chikka-channel
         .row
@@ -228,38 +188,6 @@
               -blocktrans
                 Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
 
-    -if org_timezone == 'Asia/Kathmandu'
-      .claim-row.smscentral-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_smscentral' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "SMSCentral Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
-
-    -if org_timezone == 'Europe/Kiev'
-      .claim-row.start-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_start' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Start Mobile Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
-
     -if False
       .claim-row.verboice-channel
         .recommendation.hide
@@ -280,47 +208,6 @@
               %div
                 -blocktrans
                   Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
-
-    -if False
-      .claim-row.vumi-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using Vumi to connect a short code in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Vumi Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
-
-    -if org_timezone == 'Africa/Johannesburg'
-      .claim-row.vumi-ussd-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using Vumi USSD to connect a USSD code in your country, select this option to configure your channel.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi_ussd' %}"}
-              .claim-glyph.icon-channel-external
-              %p.claim-text
-                -trans "Vumi USSD"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
 
     -for ch_type in channel_types.PHONE
       .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
@@ -354,6 +241,24 @@
           .span9
             .claim-description
               %div= ch_type.get_claim_blurb
+
+    %h3
+      -trans "API Channels"
+
+    -for ch_type in channel_types.API
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
     %h3
       -trans "USSD Channels"
 
@@ -373,9 +278,9 @@
               %div= ch_type.get_claim_blurb
 
     %h3
-      -trans "API Channels"
+      -trans "USSD Channels"
 
-    -for ch_type in channel_types.API
+    -for ch_type in channel_types.USSD
       .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
         .recommendation.hide
           %h3

@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.shaqodoon.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class ShaqodoonType(ChannelType):
@@ -53,7 +53,7 @@ class ShaqodoonType(ChannelType):
 
         try:
             # these guys use a self signed certificate
-            response = requests.get(url, headers=TEMBA_HEADERS, timeout=15, verify=False)
+            response = requests.get(url, headers=http_headers(), timeout=15, verify=False)
             event.status_code = response.status_code
             event.response_body = response.text
 

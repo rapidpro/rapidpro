@@ -19,7 +19,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelType
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -339,8 +339,7 @@ class UssdTriggerForm(BaseTriggerForm):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
         super(UssdTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
-        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 channel_type__in=Channel.USSD_CHANNELS)
+        self.fields['channel'].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()

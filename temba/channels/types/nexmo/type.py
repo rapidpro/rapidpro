@@ -25,7 +25,7 @@ class NexmoType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Nexmo"
-    icon = "icon-channel-nexmo",
+    icon = "icon-channel-nexmo"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs.""")
     claim_view = ClaimView
