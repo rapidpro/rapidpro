@@ -216,7 +216,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
 
     for flow in exported_json.get('flows', []):
         flow = map_actions(flow, cleanse_group_names)
-        
+
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
                 if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
