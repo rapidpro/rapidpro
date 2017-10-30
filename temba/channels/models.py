@@ -104,6 +104,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return True
 
+    def is_recommended_to(self, user):
+        """
+        Determines whether this channel type is recommended to the given user.
+        """
+        return False
+
     def get_claim_blurb(self):
         """
         Gets the blurb for use on the claim page list of channel types

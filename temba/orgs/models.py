@@ -1796,35 +1796,11 @@ class Org(SmartModel):
 
     def get_recommended_channel(self):
         from temba.channels.views import TWILIO_SEARCH_COUNTRIES
-        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
-                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
-
         countrycode = timezone_to_country_code(self.timezone)
         recommended = 'A'
 
         if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
             recommended = 'T'
-
-        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'NX'
-
-        elif countrycode == 'KE':
-            recommended = 'AT'
-
-        elif countrycode == 'ID':
-            recommended = 'H9'
-
-        elif countrycode == 'SO':
-            recommended = 'SQ'
-
-        elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'BM'
-
-        elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'YO'
-
-        elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'GL'
 
         return recommended
 
