@@ -91,9 +91,11 @@
       %script{src:"{{ STATIC_URL }}lib/uuid.js"}
       %script{src:"{{ STATIC_URL }}lib/bootstrap-limit.js"}
       %script{src:"{{ STATIC_URL }}lib/jquery-ui-timepicker-addon.js"}
-
-      -if not debug and not testing
-        %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
+        -if not debug and not testing and RAVEN_PUBLIC_DSN
+          %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
+          -block raven-config
+            :javascript
+              Raven.config('{{ RAVEN_PUBLIC_DSN }}').install();
 
     -compress js
       %script{src:"{{ STATIC_URL }}js/omnibox.js"}
