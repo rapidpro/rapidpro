@@ -51,25 +51,16 @@ class FacebookType(ChannelType):
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
 
-    @classmethod
-    def format_quick_replies(cls, quick_replies):
-        data = json.loads(quick_replies)
-        data = data.get('quick_replies', None)
-        replies = []
-
-        if data:
-            replies = [dict(title=item, payload=item, content_type='text') for item in data]
-
-        return replies
-
     def send(self, channel, msg, text):
         # build our payload
         payload = {'message': {'text': text}}
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else None
-        quick_replies = self.format_quick_replies(metadata) if metadata else None
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(title=item, payload=item, content_type='text') for item in quick_replies]
+
         if quick_replies:
-            payload['message']['quick_replies'] = quick_replies
+            payload['message']['quick_replies'] = formatted_replies
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
