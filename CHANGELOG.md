@@ -1,3 +1,7 @@
+v3.0.234
+----------
+ * Remove single message flows when events are deleted
+
 v3.0.233
 ----------
  * Remove field dependencies on flow release, cleanup migration
