@@ -961,6 +961,7 @@ class Flow(TembaModel):
 
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
+        self.field_dependencies.clear()
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
