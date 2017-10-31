@@ -33,12 +33,6 @@ class FirebaseCloudMessagingType(ChannelType):
     free_sending = True
     quick_reply_text_size = 36
 
-    @classmethod
-    def format_quick_replies(cls, quick_replies):
-        data = json.loads(quick_replies)
-        data = data.get('quick_replies', None)
-        return data
-
     def send(self, channel, msg, text):
         start = time.time()
 
@@ -63,8 +57,9 @@ class FirebaseCloudMessagingType(ChannelType):
             }
             data['content_available'] = True
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else None
-        quick_replies = self.format_quick_replies(metadata) if metadata else None
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+
         if quick_replies:
             data['data']['metadata'] = quick_replies
 
