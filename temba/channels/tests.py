@@ -7065,7 +7065,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -7533,7 +7533,7 @@ class TwitterTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         try:
@@ -7589,7 +7589,7 @@ class TwitterTest(TembaTest):
                 self.assertEqual(msg.status, WIRED)
                 self.assertTrue(msg.sent_on)
                 self.assertEqual(msg.external_id, "000000000000000000")
-                self.assertEqual(msg.metadata, metadata)
+                self.assertEqual(json.loads(msg.metadata), metadata)
                 data_args = json.loads(mock.call_args[1]['data'])
                 message_data = data_args['event']['message_create']['message_data']
                 self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
@@ -9586,7 +9586,7 @@ class FacebookTest(TembaTest):
 
     def test_send_quick_replies(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
@@ -9612,7 +9612,7 @@ class FacebookTest(TembaTest):
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
 
         joe_test = self.create_contact("Joe", urn="facebook:12345", is_test=True)
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         msg2 = joe_test.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
@@ -10788,7 +10788,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -10831,7 +10831,7 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, "999")
-            self.assertEqual(msg.metadata, metadata)
+            self.assertEqual(json.loads(msg.metadata), metadata)
             self.clear_cache()
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Yes')
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][1]['Text'], 'No')
@@ -11007,7 +11007,7 @@ class FcmTest(TembaTest):
                 self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
+        metadata = dict(quick_replies=['Yes', 'No'])
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 

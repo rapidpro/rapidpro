@@ -1058,17 +1058,13 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):
-        msg_json = dict(direction=self.direction,
-                        text=self.text,
-                        id=self.id,
-                        attachments=self.attachments,
-                        created_on=self.created_on.strftime('%x %X'),
-                        model="msg")
-
-        if self.metadata:
-            msg_json['metadata'] = self.metadata
-
-        return msg_json
+        return dict(direction=self.direction,
+                    text=self.text,
+                    id=self.id,
+                    attachments=self.attachments,
+                    created_on=self.created_on.strftime('%x %X'),
+                    model="msg",
+                    metadata=self.metadata or {})
 
     def simulator_json(self):
         msg_json = self.as_json()
