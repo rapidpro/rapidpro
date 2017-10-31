@@ -2993,7 +2993,7 @@ class ActionTest(TembaTest):
 
         payload = [dict(eng='Yes'), dict(eng='No')]
 
-        action = ReplyAction(msg=dict(base="Are you fine?"), quick_replies=payload)
+        action = ReplyAction(str(uuid4()), msg=dict(base="Are you fine?"), quick_replies=payload)
         action_json = action.as_json()
         action = ReplyAction.from_json(self.org, action_json)
 
