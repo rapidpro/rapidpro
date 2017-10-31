@@ -29,15 +29,24 @@ install:
   - pip --version
   - pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
+
   # install flake8 on Python 3
   - export PATH=$HOME/.local/bin:$PATH
   - python3 --version
   - pip3 --version
   - pip3 install flake8 --user `whoami`
+
   # switch to Node 6 and install our node dependencies
   - nvm install 6
   - nvm use 6
   - npm install
+
+  # fire up a goflow flowserver instance
+  - GOFLOW_VERSION=0.4.3
+  - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+  - mkdir goflow
+  - tar -xf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz --directory goflow
+  - goflow/flowserver &
 
 before_script:
   # setup test database
@@ -47,6 +56,7 @@ before_script:
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
   - psql -U temba postgres -c "CREATE DATABASE temba;"
+
   # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
