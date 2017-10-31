@@ -387,7 +387,6 @@ class Broadcast(models.Model):
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
-        metadata = json.loads(metadata)
         for item in metadata.get('quick_replies'):
             current_language = preferred_languages[0] if preferred_languages else None
             quick_reply = item.get(current_language) if current_language in item else item.get(self.base_language)
@@ -404,7 +403,7 @@ class Broadcast(models.Model):
 
     def get_broadcast_metadata(self, metadata, contact):
         if metadata:
-            return json.dumps(dict(quick_replies=self.get_translated_metadata(metadata, contact)))
+            return dict(quick_replies=self.get_translated_metadata(metadata, contact))
         else:
             return None
 
@@ -1439,7 +1438,6 @@ class Msg(models.Model):
 
     @classmethod
     def get_outgoing_metadata(cls, metadata, expressions_context, contact, org, channel):
-        metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         if quick_replies:
             for counter, reply in enumerate(quick_replies):

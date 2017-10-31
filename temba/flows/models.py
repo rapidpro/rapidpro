@@ -1647,7 +1647,7 @@ class Flow(TembaModel):
     @classmethod
     def get_send_action_metadata(cls, send_action):
         if send_action.quick_replies:
-            return json.dumps(dict(quick_replies=send_action.quick_replies))
+            return dict(quick_replies=send_action.quick_replies)
         else:
             return None
 
@@ -5339,8 +5339,7 @@ class ReplyAction(Action):
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
             quick_replies = ReplyAction.get_translated_metadata(self.quick_replies, run) if self.quick_replies else []
-
-            metadata = json.dumps(dict(quick_replies=quick_replies))
+            metadata = dict(quick_replies=quick_replies)
 
             attachments = None
             if self.media:
