@@ -47,7 +47,7 @@ class NexmoType(ChannelType):
                                        'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return self.is_available_to(user) and countrycode in NEXMO_RECOMMENDED_COUNTRIES
+        return countrycode in NEXMO_RECOMMENDED_COUNTRIES
 
     def send(self, channel, msg, text):
 

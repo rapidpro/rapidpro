@@ -43,7 +43,7 @@ class TwilioType(ChannelType):
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return self.is_available_to(user) and countrycode in TWILIO_SEARCH_COUNTRIES
+        return countrycode in TWILIO_SEARCH_COUNTRIES
 
     def deactivate(self, channel):
         config = channel.config_json()

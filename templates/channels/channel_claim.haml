@@ -95,13 +95,7 @@
                   and receive messages on your shortcode.
 
     -if not user_org.is_connected_to_twilio
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://twilio.com'>" as link_start and "</a>" as link_end
-            We recommend using a Twilio phone number for SMS in your country. Sign up for a {{link_start}}Twilio Account{{link_end}} if you don't already have one.
-
+      .claim-row.twilio-channel{class:"{% if 'T' in recommended_channels_to_connect %}recommended{% endif %}"}
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twilio{href:"#"}
@@ -113,13 +107,13 @@
           .span9
             .claim-description
               %div
-                -blocktrans
+                -blocktrans with "<a href='http://twilio.com' target='_blank'>" as link_start and "</a>" as link_end
                   The easiest way to get started if you are in
-                  {{ twilio_countries }}, connect a Twilio account
+                  {{ twilio_countries }}, connect a {{link_start}}Twilio Account{{link_end}}
                   and get a dedicated phone number.
 
     -if not user_org.is_connected_to_nexmo
-      .claim-row.nexmo-channel
+      .claim-row.nexmo-channel{class:"{% if 'NX' in recommended_channels_to_connect %}recommended{% endif %}"}
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
@@ -215,6 +209,12 @@
   {{block.super}}
 
   :javascript
+    $(document).ready(function() {
+      var channel = $('.claim-row.recommended');
+      $('.channel-options').prepend(channel);
+    });
+
+
     {% if not user_org.is_connected_to_twilio %}
       $(".connect-twilio").live('click', function() {
         var modal = new Modax('{% trans "Connect Twilio" %}', '{% url "orgs.org_twilio_connect" %}');
