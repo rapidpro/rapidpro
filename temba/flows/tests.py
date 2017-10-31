@@ -5829,6 +5829,16 @@ class FlowsTest(FlowFileTest):
         self.client.post(reverse('flows.flow_delete', args=[child.id]))
         self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=False).first())
 
+        # deleting our parent flow should work
+        self.client.post(reverse('flows.flow_delete', args=[parent.id]))
+        self.assertIsNotNone(Flow.objects.filter(id=parent.id, is_active=False).first())
+
+        # our parent should no longer have any dependencies
+        parent.refresh_from_db()
+        self.assertEqual(0, parent.field_dependencies.all().count())
+        self.assertEqual(0, parent.flow_dependencies.all().count())
+        self.assertEqual(0, parent.group_dependencies.all().count())
+
     def test_start_flow_action(self):
         self.import_file('flow_starts')
         parent = Flow.objects.get(name='Parent Flow')

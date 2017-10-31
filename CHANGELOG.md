@@ -1,3 +1,12 @@
+v3.0.234
+----------
+ * Remove single message flows when events are deleted
+
+v3.0.233
+----------
+ * Remove field dependencies on flow release, cleanup migration
+ * Update to latest Django 1.11.6
+
 v3.0.232
 ----------
  * Mage handler shouldn't be accessible using example token in settings_common
