@@ -232,7 +232,7 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for this msg"))
+    metadata = models.TextField(null=True, help_text=_("The metadata for messages of this broadcast"))
 
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
@@ -750,7 +750,7 @@ class Msg(models.Model):
     connection = models.ForeignKey('channels.ChannelSession', null=True,
                                    help_text=_("The session this message was a part of if any"))
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for any type msgs"))
+    metadata = models.TextField(null=True, help_text=_("The metadata for this msg"))
 
     @classmethod
     def send_messages(cls, all_msgs):
