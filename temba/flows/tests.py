@@ -4596,6 +4596,9 @@ class FlowsTest(FlowFileTest):
         counts = favorites.get_category_counts()
         assertCount(counts, 'beer', 'Turbo King', 3)
 
+        # test tostring
+        six.text_type(FlowCategoryCount.objects.all().first())
+
         # and if we delete our runs, things zero out
         FlowRun.objects.all().delete()
         counts = favorites.get_category_counts()
@@ -5926,6 +5929,9 @@ class FlowsTest(FlowFileTest):
         # get the latest run
         first_run = flow.runs.all()[0]
         first_expires = first_run.expires_on
+
+        # make sure __str__ works
+        six.text_type(first_run)
 
         time.sleep(1)
 
