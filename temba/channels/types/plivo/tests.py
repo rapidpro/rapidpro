@@ -24,6 +24,7 @@ class PlivoTypeTest(TembaTest):
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Connect plivo")
         self.assertContains(response, reverse('orgs.org_plivo_connect'))
+        self.assertNotContains(response, reverse('channels.claim_plivo'))
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))
