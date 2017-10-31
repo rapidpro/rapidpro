@@ -3069,11 +3069,14 @@ class FlowRun(models.Model):
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
-            FlowRun.RESULT_CATEGORY_LOCALIZED: category_localized,
             FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
             FlowRun.RESULT_INPUT: raw_input,
             FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
         }
+
+        # if we have a different localized name for our category, save it as well
+        if category != category_localized:
+            results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
 
         self.results = json.dumps(results)
         self.modified_on = timezone.now()

@@ -8196,6 +8196,7 @@ class TypeTest(TembaTest):
         self.assertEqual('Rwanda > Eastern Province', results['state']['value'])
         self.assertEqual('I\'m in Eastern Province', results['state']['input'])
         self.assertEqual('state', results['state']['category'])
+        self.assertFalse('category_localized' in results['state'])
 
         self.assertEqual('District', results['district']['name'])
         self.assertEqual('Rwanda > Eastern Province > Gatsibo', results['district']['value'])
