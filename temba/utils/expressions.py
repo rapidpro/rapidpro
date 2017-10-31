@@ -1,8 +1,11 @@
 from __future__ import absolute_import, unicode_literals
 
+import pytz
 import regex
+import six
 
-from temba_expressions.evaluator import Evaluator, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
+from temba_expressions.evaluator import Evaluator, EvaluationContext, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
+from temba.contacts.models import ContactField
 
 ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step', 'parent', 'child')
 
@@ -257,3 +260,38 @@ def convert_equals_style(expression):
         expression = '(%s)' % expression
 
     return expression
+
+
+class ContactFieldCollector(EvaluationContext):
+    """
+    A simple evaluator that extracts contact fields from the parse tree
+    """
+
+    @classmethod
+    def get_contact_field(cls, path):
+        parts = path.split('.')
+        if len(parts) > 1:
+            if parts[0] in ('parent', 'child'):
+                parts = parts[1:]
+                if len(parts) < 2:
+                    return None
+            if parts[0] == 'contact':
+                field_name = parts[1]
+                if ContactField.is_valid_key(field_name):
+                    return parts[1]
+        return None
+
+    def __init__(self):
+        super(ContactFieldCollector, self).__init__(dict(), pytz.UTC, None)
+
+    def get_contact_fields(self, msg):
+        self.contact_fields = set()
+        if msg:
+            evaluate_template(six.text_type(msg), self, False, True)
+        return self.contact_fields
+
+    def resolve_variable(self, path):
+        contact_field = ContactFieldCollector.get_contact_field(path)
+        if contact_field:
+            self.contact_fields.add(contact_field)
+        return ""

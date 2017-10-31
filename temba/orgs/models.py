@@ -52,8 +52,8 @@ from uuid import uuid4
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 10
-EARLIEST_IMPORT_VERSION = 3
+CURRENT_EXPORT_VERSION = "10.2"
+EARLIEST_IMPORT_VERSION = "3"
 
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
@@ -375,10 +375,10 @@ class Org(SmartModel):
         # see if our export needs to be updated
         export_version = data.get('version', 0)
         from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
-        if export_version < CURRENT_EXPORT_VERSION:
+        if Flow.is_before_version(export_version, CURRENT_EXPORT_VERSION):
             from temba.flows.models import FlowRevision
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
@@ -555,8 +555,8 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_ussd_channels(self):
-        from temba.channels.models import Channel
-        return self.channels.filter(is_active=True, org=self, channel_type__in=Channel.USSD_CHANNELS)
+        from temba.channels.models import ChannelType, Channel
+        return Channel.get_by_category(self, ChannelType.Category.USSD)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -1415,7 +1415,7 @@ class Org(SmartModel):
             remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 100:
+            if not remaining or int(remaining) < 5000:
                 active_topup_pk = None
 
         # calculate our active topup if we need to

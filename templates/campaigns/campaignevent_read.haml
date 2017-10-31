@@ -1,10 +1,18 @@
 -extends "smartmin/read.html"
--load smartmin sms temba compress humanize contacts
+-load smartmin sms temba compress humanize contacts i18n
+
+-block page-title
+  -if object.offset < 0
+    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
+  -elif object.offset == 0
+    On
+  -else
+    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
+  {{object.relative_to|title}}
 
 -block title-icon
   .title-icon
     %span.glyph.icon-instant
-    
 
 -block title-text
   .title-text

@@ -789,7 +789,8 @@ class TriggerTest(TembaTest):
             self.assertTrue(contact.name, "Ben Haggerty")
 
             # and a new channel event for the conversation
-            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact, event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
+            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact,
+                                                        event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
 
             run = FlowRun.objects.get(contact=contact)
             self.assertEqual(run.flow, flow)
@@ -1155,7 +1156,7 @@ class TriggerTest(TembaTest):
         self.assertContains(response, 'USSD mobile initiated flow')
 
         channel = Channel.add_config_external_channel(self.org, self.user,
-                                                      "HU", 1234, Channel.TYPE_VUMI_USSD,
+                                                      "HU", 1234, 'VMU',
                                                       dict(account_key="11111",
                                                            access_token=str(uuid4()),
                                                            transport_name="ussd_transport",

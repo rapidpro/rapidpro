@@ -69,7 +69,8 @@ app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout
   $scope.applyDefinition = (definition) ->
 
     for actionset in definition.action_sets
-        for action in actionset.actions
+      for action in actionset.actions
+        if not action.uuid
           action.uuid = uuid()
 
     # remove all revision selection
@@ -900,6 +901,7 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
   $scope.ok = ->
 
+    inputs = []
     for rule in ruleset.rules
       if rule.category
         if rule._translation.category.to and rule._translation.category.to.strip().length > 0
@@ -911,8 +913,12 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
           if rule._translation.test.to and rule._translation.test.to.strip().length > 0
             rule.test.test[Flow.language.iso_code] = rule._translation.test.to
+            inputs.push(rule._translation.test.to)
           else
             delete rule.test.test[Flow.language.iso_code]
+
+    if $scope.hasInvalidFields(inputs)
+      return true
 
     # USSD message translation save
     if Flow.flow.flow_type == 'U'
@@ -933,12 +939,14 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
     $modalInstance.dismiss "cancel"
 
 # The controller for our translation modal
-TranslationController = ($scope, $modalInstance, language, translations) ->
+TranslationController = ($rootScope, $scope, $modalInstance, language, translations, Flow) ->
   $scope.translations = translations
   $scope.language = language
 
-  $scope.ok = (translationText) ->
-    $modalInstance.close translationText
+  $scope.ok = (translations) ->
+    if $scope.hasInvalidFields((translation.to for translation in translations))
+      return
+    $modalInstance.close translations
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
@@ -1127,6 +1135,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.updateActionForm = (config) ->
 
+    # when our action form changes, clear our invalid fields
+    $scope.invalidFields = null
+
     # emails are not localized, if our msg is localized, grab the base text
     if config.type == 'email'
       if typeof $scope.action.msg == 'object'
@@ -1197,6 +1208,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     formData.flow = {}
 
   $scope.rulesetTypeChanged = () ->
+    # when our ruleset form changes clear our invalid fields
+    $scope.invalidFields = null
+
     if $scope.formData.rulesetConfig.type == "random"
       if not formData.buckets
         formData.buckets = 2
@@ -1660,6 +1674,22 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.okRules = (splitEditor) ->
 
+    # track if any of our inputs are using invalid fields
+    fieldChecks = []
+
+    if formData.rulesetConfig.type == 'expression'
+      fieldChecks.push($scope.ruleset.operand)
+
+    if formData.rulesetConfig.type == 'webhook'
+      fieldChecks.push(formData.webhook)
+    
+    for rule in $scope.ruleset.rules
+      if rule.test._base
+        fieldChecks.push(rule.test._base)
+    
+    if $scope.hasInvalidFields(fieldChecks)
+      return
+
     # close our dialog
     stopWatching()
     $modalInstance.close ""
@@ -1714,7 +1744,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       else if rulesetConfig.type == 'webhook'
         webhook_headers = []
-
         item_counter = 0
         if formData.webhook_headers
           for item in formData.webhook_headers
@@ -1923,6 +1952,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     return valid
 
   $scope.savePlay = ->
+    if $scope.hasInvalidFields([$scope.action.url])
+      return
+
     $scope.action.type = 'play'
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
@@ -1935,6 +1967,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply', hasAttachURL=false) ->
 
+    inputs = [message]
+    if hasAttachURL
+      inputs.push($scope.action._attachURL)
+    if $scope.hasInvalidFields(inputs)
+      return
+
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
 
@@ -1944,7 +1982,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if hasAttachURL and $scope.action._attachURL
       if not $scope.action.media
         $scope.action.media = {}
-      
+
       $scope.action.media[$scope.base_language] = $scope.action._attachType + ':' + $scope.action._attachURL
 
       # make sure our localizations all have the same type
@@ -1966,6 +2004,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving a message to somebody else
   $scope.saveSend = (omnibox, message) ->
+
+    if $scope.hasInvalidFields([message])
+      return
 
     groups = []
     for group in omnibox.groups
@@ -2046,6 +2087,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Save the updating of a contact
   $scope.saveUpdateContact = (field, value) ->
 
+    if $scope.hasInvalidFields([value])
+      return
+
     if field.id.indexOf('[_NEW_]') == 0 and field.text.indexOf("Add new variable:") == 0
       field.text = field.text.slice(18)
       field.id = field.id.slice(7)
@@ -2071,6 +2115,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # save a webhook action
   $scope.saveWebhook = (method, url) ->
+
+    if $scope.hasInvalidFields([url])
+      return
+
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
@@ -2090,6 +2138,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close()
 
   $scope.saveEmail = (addresses) ->
+
+    if $scope.hasInvalidFields([$scope.action.subject, $scope.action.msg])
+      return
 
     to = []
     for address in addresses

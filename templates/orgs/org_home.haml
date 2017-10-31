@@ -2,6 +2,9 @@
 
 -load temba compress smartmin i18n
 
+-block page-title
+  {{user_org.name|capfirst}}
+  
 -block title
   .medium-help.icon-home{ style:'float:left;' }
   %h2.header-margin
