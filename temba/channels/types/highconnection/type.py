@@ -13,8 +13,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class HighConnectionType(ChannelType):
@@ -62,7 +62,7 @@ class HighConnectionType(ChannelType):
         event = HttpEvent('GET', url, log_payload)
 
         try:
-            response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
+            response = requests.get(url, headers=http_headers(), timeout=30)
             event.status_code = response.status_code
             event.response_body = response.text
         except Exception as e:

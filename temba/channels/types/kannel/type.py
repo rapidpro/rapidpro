@@ -27,7 +27,7 @@ class KannelType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Kannel"
-    icon = "icon-channel-kannel",
+    icon = "icon-channel-kannel"
 
     claim_blurb = _("""Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
                        the steps necessary to get your SMSC connection working in a few minutes.""")

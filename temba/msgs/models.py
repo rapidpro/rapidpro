@@ -24,7 +24,6 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-
 from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
@@ -35,6 +34,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
+from temba.utils.http import http_headers
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
@@ -320,7 +320,7 @@ class Broadcast(models.Model):
                                      media=self.media, base_language=self.base_language,
                                      parent=self)
 
-        broadcast.send(trigger_send=True)
+        broadcast.send(trigger_send=True, expressions_context={})
 
         return broadcast
 
@@ -331,12 +331,6 @@ class Broadcast(models.Model):
 
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
-
-    def get_messages_substitution_complete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=False)
-
-    def get_messages_substitution_incomplete(self):  # pragma: needs cover
-        return self.get_messages().filter(has_template_error=True)
 
     def get_message_count(self):
         return self.get_messages().count()
@@ -391,7 +385,7 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
+    def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -455,6 +449,14 @@ class Broadcast(models.Model):
                 if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
+            # build our message specific context
+            if expressions_context is not None:
+                message_context = expressions_context.copy()
+                if 'contact' not in message_context:
+                    message_context['contact'] = contact.build_expressions_context()
+            else:
+                message_context = None
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,7 +467,6 @@ class Broadcast(models.Model):
                     if 'parent' in text:
                         if run.parent:
                             from temba.flows.models import Flow
-                            message_context = message_context.copy()
                             message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
@@ -476,7 +477,7 @@ class Broadcast(models.Model):
                                           broadcast=self,
                                           channel=self.channel,
                                           response_to=response_to,
-                                          message_context=message_context,
+                                          expressions_context=message_context,
                                           status=status,
                                           msg_type=msg_type,
                                           high_priority=high_priority,
@@ -665,9 +666,6 @@ class Msg(models.Model):
     text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=500, null=True,
-                                   help_text=_("The priority for this message to be sent, higher is higher priority"))
-
     high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
 
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
@@ -699,8 +697,8 @@ class Msg(models.Model):
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
-    has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
-                                             help_text=_("Whether data for variable substitution are missing"))
+    has_template_error = models.NullBooleanField(default=False, verbose_name=_("Has Template Error"),
+                                                 help_text=_("Whether data for variable substitution are missing"))
 
     msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
@@ -760,10 +758,6 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    # TODO remove numeric priority from msg JSON
-                    if not hasattr(msg, 'high_priority') and hasattr(msg, 'priority'):  # pragma: no cover
-                        msg.high_priority = msg.priority >= 500
-
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
                         if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
                             courier_msgs.append(msg)
@@ -799,7 +793,6 @@ class Msg(models.Model):
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                    is_bulk=not task_msgs[0].high_priority,  # TODO remove
                                                     high_priority=task_msgs[0].high_priority))
                         task_msgs = []
 
@@ -810,7 +803,6 @@ class Msg(models.Model):
                 # push any remaining courier msgs
                 if task_msgs:
                     courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                is_bulk=not task_msgs[0].high_priority,  # TODO remove
                                                 high_priority=task_msgs[0].high_priority))
 
         # send our batches
@@ -825,12 +817,7 @@ class Msg(models.Model):
     @classmethod
     def _send_courier_msg_batches(cls, batches):
         for batch in batches:
-            high_priority = batch.get('high_priority')
-            if high_priority is None:  # pragma: no cover
-                # TODO remove
-                high_priority = not batch['is_bulk']
-
-            push_courier_msgs(batch['channel'], batch['msgs'], high_priority)
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['high_priority'])
 
     @classmethod
     def process_message(cls, msg):
@@ -895,8 +882,6 @@ class Msg(models.Model):
         """
         Send messages logs in batch to Chatbase
         """
-        from temba.channels.models import TEMBA_HEADERS
-
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
@@ -915,8 +900,8 @@ class Msg(models.Model):
         if log_type == 'user' and not_handled:
             message['not_handled'] = not_handled
 
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json'})
+
         requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod
@@ -1131,10 +1116,10 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(self, text, user, trigger_send=False, message_context=None, connection=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+        return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
 
@@ -1205,7 +1190,7 @@ class Msg(models.Model):
         else:
             on_transaction_commit(lambda: self.queue_handling())
 
-    def build_expressions_context(self, contact_context=None):
+    def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
         value = six.text_type(self)
         attachments = {six.text_type(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
@@ -1215,7 +1200,6 @@ class Msg(models.Model):
             'value': value,
             'text': self.text,
             'attachments': attachments,
-            'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
@@ -1258,9 +1242,6 @@ class Msg(models.Model):
         """
         Used internally to serialize to JSON when queueing messages in Redis
         """
-        # TODO remove numeric priority from msg JSON
-        priority = 500 if self.high_priority else 100
-
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
@@ -1269,7 +1250,7 @@ class Msg(models.Model):
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on,
-                    high_priority=self.high_priority, priority=priority,
+                    high_priority=self.high_priority,
                     connection_id=self.connection_id)
 
         if self.contact_urn.auth:
@@ -1375,7 +1356,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, context, contact=None, org=None, url_encode=False, partial_vars=False):
+    def evaluate_template(cls, text, context, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1387,13 +1368,11 @@ class Msg(models.Model):
         if not text or text.find('@') < 0:
             return text, []
 
-        # a provided contact overrides the run contact, e.g. sending to a different contact
-        if contact:
-            context['contact'] = contact.build_expressions_context()
-
-        # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in context or 'contact' not in context['step']:
-            context['step'] = dict(contact=context['contact'])
+        # add 'step.contact' if it isn't populated for backwards compatibility
+        if 'step' not in context:
+            context['step'] = dict()
+        if 'contact' not in context['step']:
+            context['step']['contact'] = context.get('contact')
 
         if not org:
             dayfirst = True
@@ -1422,7 +1401,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
         if not org or not user:  # pragma: no cover
@@ -1457,30 +1436,31 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date?  set it to now
+        # no creation date? set it to now
         if not created_on:
             created_on = timezone.now()
 
-        # substitute variables in the text messages
-        if not message_context:
-            message_context = dict()
+        # evaluate expressions in the text and attachments if a context was provided
+        if expressions_context is not None:
+            # make sure 'channel' is populated if we have a channel
+            if channel and 'channel' not in expressions_context:
+                expressions_context['channel'] = channel.build_expressions_context()
 
-        # make sure 'channel' is populated if we have a channel
-        if channel:
-            message_context['channel'] = channel.build_expressions_context()
+            (text, errors) = Msg.evaluate_template(text, expressions_context, org=org)
+            if text:
+                text = text[:Msg.MAX_TEXT_LEN]
 
-        (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
-        if text:
+            evaluated_attachments = []
+            if attachments:
+                for attachment in attachments:
+                    (attachment, errors) = Msg.evaluate_template(attachment, expressions_context, org=org)
+                    evaluated_attachments.append(attachment)
+        else:
             text = text[:Msg.MAX_TEXT_LEN]
-
-        evaluated_attachments = []
-        if attachments:
-            for attachment in attachments:
-                (attachment, errors) = Msg.substitute_variables(attachment, message_context, contact=contact, org=org)
-                evaluated_attachments.append(attachment)
+            evaluated_attachments = attachments
 
         # prefer none to empty lists in the database
-        if len(evaluated_attachments) == 0:
+        if evaluated_attachments is not None and len(evaluated_attachments) == 0:
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
@@ -1541,11 +1521,9 @@ class Msg(models.Model):
                         broadcast=broadcast,
                         response_to=response_to,
                         msg_type=msg_type,
-                        priority=500 if high_priority else 100,
                         high_priority=high_priority,
                         attachments=evaluated_attachments,
-                        connection=connection,
-                        has_template_error=len(errors) > 0)
+                        connection=connection)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1868,10 +1846,6 @@ class Label(TembaModel):
         if label:
             return label
 
-        if Label.label_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_LABELS:
-            raise ValueError("You have reached %s labels, "
-                             "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
-
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
@@ -1884,10 +1858,6 @@ class Label(TembaModel):
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:  # pragma: needs cover
             return folder
-
-        if Label.folder_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_FOLDERS:
-            raise ValueError("You have reached %s labels, "
-                             "please remove some to be able to add a new label" % cls.MAX_ORG_FOLDERS)
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)

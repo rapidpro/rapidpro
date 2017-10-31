@@ -1197,7 +1197,8 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         def substitute(s, context):
-            return Msg.substitute_variables(s, context, contact=self.joe)
+            context['contact'] = self.joe.build_expressions_context()
+            return Msg.evaluate_template(s, context)
 
         self.assertEqual(("Hello World", []), substitute("Hello World", dict()))
         self.assertEqual(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
@@ -1283,8 +1284,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(context['value'], "keyword remainder-remainder")
         self.assertEqual(context['text'], "keyword remainder-remainder")
         self.assertEqual(context['attachments'], {})
-        self.assertEqual(context['contact']['__default__'], "Joe Blow")
-        self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
         self.assertEqual(context['time'], datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone))
@@ -1320,24 +1319,24 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, "team", "Amavubi")
         self.kevin.set_field(self.user, "team", "Junior")
 
-        self.broadcast = Broadcast.create(self.org, self.user,
-                                          "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
-                                          [self.joe_and_frank, self.kevin])
-        self.broadcast.send(trigger_send=False)
+        broadcast1 = Broadcast.create(self.org, self.user,
+                                      "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
+                                      [self.joe_and_frank, self.kevin])
+        broadcast1.send(trigger_send=False, expressions_context={})
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEqual(Msg.objects.all().count(), 3)
 
-        sms_to_joe = Msg.objects.get(contact=self.joe)
-        sms_to_frank = Msg.objects.get(contact=self.frank)
-        sms_to_kevin = Msg.objects.get(contact=self.kevin)
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast1).text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast1).text, 'Hi Frank Blow, You live in Remera and your team is .')
+        self.assertEqual(self.kevin.msgs.get(broadcast=broadcast1).text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
 
-        self.assertEqual(sms_to_joe.text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
-        self.assertFalse(sms_to_joe.has_template_error)
-        self.assertEqual(sms_to_frank.text, 'Hi Frank Blow, You live in Remera and your team is .')
-        self.assertFalse(sms_to_frank.has_template_error)
-        self.assertEqual(sms_to_kevin.text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
-        self.assertFalse(sms_to_kevin.has_template_error)
+        # if we don't provide a context then substitution isn't performed
+        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin])
+        broadcast2.send(trigger_send=False)
+
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
     def test_purge(self):
         today = timezone.now().date()
@@ -1591,22 +1590,6 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    @patch.object(Label, "MAX_ORG_LABELS", new=10)
-    def test_maximum_labels_reached(self):
-        for i in range(Label.MAX_ORG_LABELS):
-            Label.get_or_create(self.org, self.user, "label%d" % i)
-
-        for i in range(Label.MAX_ORG_FOLDERS):
-            Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
-
-        # allow to query existing labels
-        Label.get_or_create(self.org, self.user, "label1")
-        Label.get_or_create_folder(self.org, self.user, "folder1")
-
-        # don't allow creating more than 250
-        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "foo")
-        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "bar")
-
     def test_is_valid_name(self):
         self.assertTrue(Label.is_valid_name('x'))
         self.assertTrue(Label.is_valid_name('1'))
@@ -1798,7 +1781,8 @@ class LabelCRUDLTest(TembaTest):
 
         response = self.client.post(create_label_url, dict(name="Label"))
         self.assertFormError(response, 'form', 'name',
-                             "You have reached 10 labels, please remove some to be able to add a new label")
+                             "This org has 10 labels and the limit is 10. "
+                             "You must delete existing ones before you can create new ones.")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")
