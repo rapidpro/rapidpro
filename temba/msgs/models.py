@@ -1292,7 +1292,7 @@ class Msg(models.Model):
                              is_org_connected_to_chatbase=True))
 
         if self.metadata:
-            data['metadata'] = self.metadata
+            data['metadata'] = json.loads(self.metadata)
 
         return data
 
