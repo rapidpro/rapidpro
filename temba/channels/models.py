@@ -546,18 +546,6 @@ class Channel(TembaModel):
         # otherwise, this is unicode
         return Encoding.UNICODE, text
 
-    @classmethod
-    def supports_media(cls, channel):
-        """
-        Can this channel send images, audio, and video. This is static to work
-        with ChannelStructs or Channels
-        """
-        # Twilio only supports mms in the US and Canada
-        if channel.channel_type == 'T':
-            return channel.country in ('US', 'CA')
-        else:
-            return cls.get_type_from_code(channel.channel_type).has_attachment_support(channel)
-
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
 
@@ -1259,7 +1247,7 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.attachments and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
             # for now we only support sending one attachment per message but this could change in future
             attachment = Attachment.parse_all(msg.attachments)[0]
             text = '%s\n%s' % (text, attachment.url)

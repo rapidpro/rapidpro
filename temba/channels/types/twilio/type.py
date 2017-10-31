@@ -32,8 +32,6 @@ class TwilioType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
 
-    attachment_support = True
-
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
 
     def is_available_to(self, user):
@@ -44,6 +42,9 @@ class TwilioType(ChannelType):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
         return countrycode in TWILIO_SEARCH_COUNTRIES
+
+    def has_attachment_support(self, channel):
+        return channel.country in ('US', 'CA')
 
     def deactivate(self, channel):
         config = channel.config_json()
