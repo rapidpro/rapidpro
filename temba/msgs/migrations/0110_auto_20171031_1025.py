@@ -20,6 +20,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='msg',
             name='metadata',
-            field=models.TextField(help_text='The metadata for any type msgs', null=True),
+            field=models.TextField(help_text='The metadata for this msg', null=True),
         ),
     ]
