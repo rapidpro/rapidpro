@@ -3040,6 +3040,11 @@ class ExternalTest(TembaTest):
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
         self.assertEqual(response.context['object'].description, 'Successfully delivered')
 
+        # test our log items if we don't have a message set (should only list the single message)
+        log_item.msg = None
+        log_item.save(update_fields=['msg'])
+        self.assertEqual([log_item], list(log_item.log_group()))
+
         # make sure we can't see it as anon
         self.org.is_anon = True
         self.org.save()
