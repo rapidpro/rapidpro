@@ -1866,11 +1866,7 @@ class ChannelLog(models.Model):
 
     def log_group(self):
         if self.msg:
-            if self.connection:
-                return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
-
-            if self.channel:
-                return ChannelLog.objects.filter(msg=self.msg, channel=self.channel).order_by('-created_on')
+            return ChannelLog.objects.filter(msg=self.msg).order_by('-created_on')
 
         return ChannelLog.objects.filter(id=self.id)
 
