@@ -4556,10 +4556,21 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
 
+        # test update flow values
+        for i in range(0, 5):
+            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            self.send_message(favorites, 'orange', contact=contact)
+            self.send_message(favorites, 'green', contact=contact)
+            self.send_message(favorites, 'skol', contact=contact)
+
         counts = favorites.get_category_counts()
         assertCount(counts, 'color', 'Blue', 10)
         assertCount(counts, 'color', 'Red', 5)
         assertCount(counts, 'beer', 'Primus', 15)
+
+        # five oranges went back and became greens
+        assertCount(counts, 'color', 'Other', 0)
+        assertCount(counts, 'color', 'Green', 5)
 
         # now remap the uuid for our color node
         flow_json = favorites.as_json()
@@ -4569,7 +4580,7 @@ class FlowsTest(FlowFileTest):
 
         # send a few more runs through our updated flow
         for i in range(0, 3):
-            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            contact = self.create_contact('Contact %d' % i, '+120655533%d' % i)
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'turbo', contact=contact)
 
