@@ -1,3 +1,10 @@
+v3.0.237
+----------
+ * Fix Nexmo channel link
+ * Add results field to FlowRun and start populating
+ * Add FlowCategoryCount model for aggregating flow results
+ * Remove duplicate USSD channels section
+
 v3.0.234
 ----------
  * Remove single message flows when events are deleted
