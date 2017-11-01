@@ -1,3 +1,7 @@
+v3.0.239
+----------
+ * Migration to increase size of category count
+
 v3.0.238
 ----------
  * Increase character limits on category counts
