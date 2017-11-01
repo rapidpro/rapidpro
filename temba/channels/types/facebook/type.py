@@ -56,7 +56,7 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {'message': {'text': text}}
         ###################### MX ABIERTO   ######################
-        # Parse options like "1.- .. 2.- "
+        """ Parse options like "1.- .. 2.- "
         print type(channel)
         this_org = Org.objects.get(id=channel.org)
         if this_org.use_customize:
@@ -101,7 +101,7 @@ class FacebookType(ChannelType):
                 title = ' '.join(t.split()[:-1])
                 elements = [{"content_type":"text",  "title":"Si", "payload":"Si"},
                             {"content_type":"text",  "title":"No", "payload":"No"}]
-                payload = {'message': {'text': title,'quick_replies' : elements}}
+                payload = {'message': {'text': title,'quick_replies' : elements}}"""
             # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
             payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
