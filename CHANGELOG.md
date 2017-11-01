@@ -1,3 +1,7 @@
+v3.0.238
+----------
+ * Increase character limits on category counts
+
 v3.0.237
 ----------
  * Fix Nexmo channel link
