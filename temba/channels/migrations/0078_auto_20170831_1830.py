@@ -59,7 +59,9 @@ def delete_inactive_channelevents(apps, schema_editor):
 
     # delete all channel events that are inactive, we don't care to keep those around
     ids = ChannelEvent.objects.filter(is_active=False).values_list('id', flat=True)
-    print("Found %d channel events to delete" % len(ids))
+    if ids:
+        print("Found %d channel events to delete" % len(ids))
+
     count = 0
     for chunk in chunk_list(ids, 1000):
         ChannelEvent.objects.filter(id__in=chunk).delete()
@@ -72,7 +74,9 @@ def migrate_duration_extra(apps, schema_editor):
 
     # find all events with a duration and convert them to extra
     ids = ChannelEvent.objects.filter(duration__gte=0).values_list('id', flat=True)
-    print("Found %d channel events to set extra on" % len(ids))
+    if ids:
+        print("Found %d channel events to set extra on" % len(ids))
+
     count = 0
     for chunk in chunk_list(ids, 250):
         ChannelEvent.objects.filter(id__in=chunk).update(extra=Concat(Value('{"duration":'), F('duration'), Value('}'), output_field=TextField()))
