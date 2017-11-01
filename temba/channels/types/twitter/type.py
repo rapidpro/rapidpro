@@ -47,13 +47,6 @@ class TwitterType(ChannelType):
         # tell Mage to deactivate this channel
         notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
-    @classmethod
-    def format_quick_replies(cls, quick_replies):
-        data = json.loads(quick_replies)
-        data = data.get('quick_replies', None)
-        replies = [dict(label=item) for item in data] if data else []
-        return replies
-
     def send(self, channel, msg, text):
         twitter = TembaTwython.from_channel(channel)
         start = time.time()
