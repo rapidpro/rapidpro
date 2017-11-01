@@ -24,7 +24,7 @@ class AfricastalkingTypeTest(TembaTest):
         self.assertContains(response, url)
         # visit the africa's talking page
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         post_data = response.context['form'].initial
 
         post_data['shortcode'] = '5259'
@@ -36,17 +36,17 @@ class AfricastalkingTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('temba', channel.config_json()['username'])
-        self.assertEquals('asdf-asdf-asdf-asdf-asdf', channel.config_json()['api_key'])
-        self.assertEquals('5259', channel.address)
-        self.assertEquals('KE', channel.country)
-        self.assertEquals('AT', channel.channel_type)
+        self.assertEqual('temba', channel.config_json()['username'])
+        self.assertEqual('asdf-asdf-asdf-asdf-asdf', channel.config_json()['api_key'])
+        self.assertEqual('5259', channel.address)
+        self.assertEqual('KE', channel.country)
+        self.assertEqual('AT', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'status']))

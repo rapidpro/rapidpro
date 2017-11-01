@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.utils.crypto import constant_time_compare
 from django_redis import get_redis_connection
 from temba.channels.models import ChannelLog
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 
 JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
 JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK = 'jiochat_channel_access_token:refresh-lock:%s'
@@ -161,10 +161,7 @@ class JiochatClient:
         return response, event
 
     def _request(self, url, method='GET', params=None, access_token=None):
-        from temba.channels.models import TEMBA_HEADERS
-
-        headers = {'Authorization': 'Bearer ' + access_token} if access_token else {}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Authorization': 'Bearer ' + access_token} if access_token else {})
 
         if method == 'POST_JSON':
             response = requests.post(url, json=params, headers=headers, timeout=15)

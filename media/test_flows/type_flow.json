@@ -1,0 +1,334 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "d935221d-6506-4d92-b560-ae0e32c9e6e9", 
+          "uuid": "039bef45-d80a-491b-a656-456e7c0d8da0", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send text"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 214, 
+          "x": 108, 
+          "destination": "45168802-bb16-487a-82c5-8e6783d6afa4", 
+          "uuid": "932f07d9-f2c1-4af9-ae9a-65d48f4760d3", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send date"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 483, 
+          "x": 111, 
+          "destination": "4438997f-aebd-484a-ba31-da41b8666659", 
+          "uuid": "7464e953-e55c-436d-9d15-51c121cd4f0f", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send number"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 762, 
+          "x": 102, 
+          "destination": "2061fa25-17d8-4e6b-a608-c82bae12870e", 
+          "uuid": "31868840-46d9-41e1-b09e-c001664e9ae2", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send state"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 1029, 
+          "x": 98, 
+          "destination": "446eb4ff-026b-4b14-8e68-0cc2d65e255a", 
+          "uuid": "532e8ac5-800e-4cd0-bbe4-83689a4bf790", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send district"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 1325, 
+          "x": 90, 
+          "destination": "c1311a39-c18f-4eab-864e-3168fa11e4f5", 
+          "uuid": "ea9bba44-7ed4-4dd7-96dc-8f384acb28d5", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send ward"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "039bef45-d80a-491b-a656-456e7c0d8da0", 
+      "rule_sets": [
+        {
+          "uuid": "d935221d-6506-4d92-b560-ae0e32c9e6e9", 
+          "rules": [
+            {
+              "category": {
+                "base": "All Responses"
+              }, 
+              "uuid": "165648a5-0e55-46ca-9bc0-6aef3eea7728", 
+              "destination": "932f07d9-f2c1-4af9-ae9a-65d48f4760d3", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Text", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 104, 
+          "x": 247, 
+          "config": {}
+        }, 
+        {
+          "uuid": "45168802-bb16-487a-82c5-8e6783d6afa4", 
+          "rules": [
+            {
+              "category": {
+                "base": "is a date"
+              }, 
+              "uuid": "7c2d0407-81b4-4331-a583-9da7dda0d500", 
+              "destination": "7464e953-e55c-436d-9d15-51c121cd4f0f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "date"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "c3cc966c-16e0-452c-977f-377d2661ecfd", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Date", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 333, 
+          "x": 247, 
+          "config": {}
+        }, 
+        {
+          "uuid": "4438997f-aebd-484a-ba31-da41b8666659", 
+          "rules": [
+            {
+              "category": {
+                "base": "numeric"
+              }, 
+              "uuid": "41186c50-5f03-40ed-8849-11c36c4e0ae5", 
+              "destination": "31868840-46d9-41e1-b09e-c001664e9ae2", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "216cb225-9b0e-45aa-944d-5e81f0bcd108", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Number", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 616, 
+          "x": 249, 
+          "config": {}
+        }, 
+        {
+          "uuid": "2061fa25-17d8-4e6b-a608-c82bae12870e", 
+          "rules": [
+            {
+              "category": {
+                "base": "state"
+              }, 
+              "uuid": "7e227ada-2c20-4977-8ff9-18112ee32bac", 
+              "destination": "532e8ac5-800e-4cd0-bbe4-83689a4bf790", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "state"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "aa7d5096-c0ca-4f5a-b45c-67ebb7a6240b", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "State", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 885, 
+          "x": 245, 
+          "config": {}
+        }, 
+        {
+          "uuid": "446eb4ff-026b-4b14-8e68-0cc2d65e255a", 
+          "rules": [
+            {
+              "category": {
+                "base": "district"
+              }, 
+              "uuid": "b1abb3d1-9be0-456d-88d6-50b41fb5df82", 
+              "destination": "ea9bba44-7ed4-4dd7-96dc-8f384acb28d5", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": "@flow.state", 
+                "type": "district"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "0291703f-404f-47a3-8b12-8d2f11119daa", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "District", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1163, 
+          "x": 259, 
+          "config": {}
+        }, 
+        {
+          "uuid": "c1311a39-c18f-4eab-864e-3168fa11e4f5", 
+          "rules": [
+            {
+              "category": {
+                "base": "ward"
+              }, 
+              "uuid": "0dbc2822-dc13-4120-bba4-efcfdbc079ca", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "state": "@flow.state.", 
+                "type": "ward", 
+                "district": "@flow.distict"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "318fdea3-31f7-4e5a-aba4-eff01c80da82", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Ward", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1453, 
+          "x": 276, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 26, 
+        "uuid": "18098ea5-34e7-4a1f-b91c-55255b3cbffc", 
+        "name": "Type Flow", 
+        "saved_on": "2017-10-18T15:55:10.210437Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

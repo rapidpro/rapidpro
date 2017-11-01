@@ -5,6 +5,8 @@
 -block html-tag
   <html lang="en" ng-app="app">
 
+-block page-title
+  {{object.name}}
 
 -block extra-less
   -compress css
@@ -31,14 +33,21 @@
 -block extra-script
   {{ block.super }}
 
+  -if org_perms.flows.flow_delete
+    :javascript
+      $(".delete-flow").live('click', function() {    
+        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        modal.addClass("alert");
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
   -compress js
     %script{type:'text/javascript', src:'{{ STATIC_URL }}bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/jquery-autosize/jquery.autosize.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-elastic/elastic.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-ui-sortable/sortable.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}js/temba-ui-bootstrap-tpls.js"}
-
-  %script{src:"{{ STATIC_URL }}js/excellent.js"}
 
   :javascript
     window.flowId = {{ object.pk }};

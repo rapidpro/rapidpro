@@ -83,7 +83,7 @@
               "destination_type": "A"
             }
           ],
-          "webhook": "http://localhost:49999/echo?content=%7B%20%22text%22%3A%20%22%28I%20came%20from%20a%20webhook%29%22%20%7D",
+          "webhook": "http://localhost:49999/where",
           "ruleset_type": "webhook",
           "label": "Response 1",
           "operand": "@step.value",

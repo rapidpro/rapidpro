@@ -266,7 +266,7 @@
           "y": 0, 
           "x": 160, 
           "config": {
-            "webhook": "http://localhost:49999/echo?content=Success",
+            "webhook": "http://localhost:49999/status",
             "webhook_action": "GET"
           }
         }, 
