@@ -50,14 +50,6 @@ class ViberPublicType(ChannelType):
         auth_token = channel.config_json()['auth_token']
         requests.post('https://chatapi.viber.com/pa/set_webhook', json={'auth_token': auth_token, 'url': ''})
 
-    @classmethod
-    def format_quick_replies(cls, quick_replies):
-        data = json.loads(quick_replies)
-        data = data.get('quick_replies', None)
-        replies = [dict(Text=item, ActionBody=item, ActionType='reply',
-                        TextSize='regular') for item in data] if data else []
-        return replies
-
     def send(self, channel, msg, text):
         url = 'https://chatapi.viber.com/pa/send_message'
         payload = {
@@ -68,10 +60,13 @@ class ViberPublicType(ChannelType):
             'tracking_data': msg.id
         }
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else None
-        quick_replies = self.format_quick_replies(metadata) if metadata else None
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(Text=item, ActionBody=item, ActionType='reply',
+                                  TextSize='regular') for item in quick_replies]
+
         if quick_replies:
-            payload['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=quick_replies)
+            payload['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=formatted_replies)
 
         event = HttpEvent('POST', url, json.dumps(payload))
         start = time.time()
