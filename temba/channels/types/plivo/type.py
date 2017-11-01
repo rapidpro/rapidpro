@@ -35,6 +35,9 @@ class PlivoType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
 
+    def is_available_to(self, user):
+        return False
+
     def deactivate(self, channel):
         config = channel.config_json()
         client = plivo.RestAPI(config[Channel.CONFIG_PLIVO_AUTH_ID],
