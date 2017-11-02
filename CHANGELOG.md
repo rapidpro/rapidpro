@@ -1,6 +1,6 @@
 v3.0.242
 ----------
- * Date migration to populate results on FlowRun (timeconsuming, may want to fake and run offline)
+ * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)
 
 v3.0.239
 ----------
