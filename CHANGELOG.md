@@ -1,3 +1,7 @@
+v3.0.242
+----------
+ * Date migration to populate results on FlowRun (timeconsuming, may want to fake and run offline)
+
 v3.0.239
 ----------
  * Migration to increase size of category count
