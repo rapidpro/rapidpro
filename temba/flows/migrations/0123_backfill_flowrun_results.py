@@ -10,6 +10,8 @@ from datetime import datetime
 import six
 import time
 from django_redis import get_redis_connection
+from django.utils import timezone
+from datetime import timedelta
 
 # these are called out here because we can't reference the real FlowRun in this migration
 RESULT_NAME = 'name'
@@ -71,14 +73,14 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
             chunk_count = 0
 
             for flow in Flow.objects.filter(id__in=flow_chunk):
-                # build a our mapping of ruleset uuid to category name
-                id_to_ruleset = {r.id: r for r in RuleSet.objects.filter(flow=flow).only('id', 'label', 'uuid')}
-                ruleset_uuids = [r.uuid for r in id_to_ruleset.values()]
-
                 # figure out if we already migrated this flow
                 migrated = cache.sismember("results_mig", flow.id)
                 if migrated:
                     continue
+
+                # build a our mapping of ruleset uuid to category name
+                id_to_ruleset = {r.id: r for r in RuleSet.objects.filter(flow=flow).only('id', 'label', 'uuid')}
+                ruleset_uuids = [r.uuid for r in id_to_ruleset.values()]
 
                 run_ids = FlowRun.objects.filter(flow=flow, id__lt=highwater).values_list('id', flat=True)
                 for run_chunk in chunk_list(run_ids, 1000):
@@ -146,8 +148,9 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
 
                     # figure out estimated time remaining
                     mins = ((flowrun_count - update_count) / per_sec) / 60
+                    finished = timezone.now() + timedelta(minutes=mins)
 
-                    print("Updated %d runs of %d (%2.2f per sec, %1.2f mins remain)" % (update_count, flowrun_count, per_sec, mins))
+                    print("Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (update_count, flowrun_count, per_sec, mins, finished))
 
                 # mark this flow's results as migrated (new runs and values are already good)
                 cache.sadd("results_mig", flow.id)
