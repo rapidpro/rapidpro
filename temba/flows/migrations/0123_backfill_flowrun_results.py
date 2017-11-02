@@ -64,9 +64,9 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 cache.set("results_mig_highwater", highwater)
 
         # for estimation, figure out total # of runs
-        flowrun_count = FlowRun.objects.all().count()
+        flowrun_count = FlowRun.objects.filter(flow__is_active=True).count()
         mig_count = cache.get("results_mig_count")
-        update_count = mig_count if mig_count else 0
+        update_count = int(mig_count) if mig_count else 0
 
         for flow_chunk in chunk_list(flow_ids, 100):
             start = time.time()
@@ -150,7 +150,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                     mins = ((flowrun_count - update_count) / per_sec) / 60
                     finished = timezone.now() + timedelta(minutes=mins)
 
-                    print("Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (update_count, flowrun_count, per_sec, mins, finished))
+                    print("Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (update_count, flowrun_count, per_sec, finished))
 
                 # mark this flow's results as migrated (new runs and values are already good)
                 cache.sadd("results_mig", flow.id)
