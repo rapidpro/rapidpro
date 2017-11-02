@@ -1,7 +1,3 @@
-v3.0.241
-----------
- * Migration to populate run results (timeconsuming, may want to fake and run manually)
-
 v3.0.239
 ----------
  * Migration to increase size of category count
