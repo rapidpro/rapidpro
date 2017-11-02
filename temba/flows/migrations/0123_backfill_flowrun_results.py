@@ -48,15 +48,24 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
 
     cache = get_redis_connection()
 
-    # for estimation, figure out total # of runs
-    flowrun_count = FlowRun.objects.all().count()
-    mig_count = cache.get("results_mig_count")
-    update_count = mig_count if mig_count else 0
-
     # get all active flow ids
     flow_ids = Flow.objects.filter(is_active=True).values_list('id', flat=True)
     if flow_ids:
         print("Found %d flows to migrate results for" % len(flow_ids))
+
+        # flow runs past this point are being written with results, don't migrate them again
+        highwater = cache.get("results_mig_highwater")
+        if not highwater:
+            last = FlowRun.objects.all().order_by('-id').first()
+            if last:
+                highwater = last.id
+                cache.set("results_mig_highwater", highwater)
+
+        # for estimation, figure out total # of runs
+        flowrun_count = FlowRun.objects.all().count()
+        mig_count = cache.get("results_mig_count")
+        update_count = mig_count if mig_count else 0
+
         for flow_chunk in chunk_list(flow_ids, 100):
             start = time.time()
             chunk_count = 0
@@ -71,7 +80,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 if migrated:
                     continue
 
-                run_ids = FlowRun.objects.filter(flow=flow).values_list('id', flat=True)
+                run_ids = FlowRun.objects.filter(flow=flow, id__lt=highwater).values_list('id', flat=True)
                 for run_chunk in chunk_list(run_ids, 1000):
                     runs = FlowRun.objects.filter(id__in=run_chunk).prefetch_related('values')
 
@@ -147,6 +156,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 # clear this key after 7 days of inactivity
                 cache.expire("results_mig", 3600 * 24 * 30)
                 cache.expire("results_mig_count", 3600 * 24 * 30)
+                cache.expire("results_mig_highwater", 3600 * 24 * 30)
 
 
 def apply_manual():
@@ -164,12 +174,21 @@ def apply_as_migration(apps, schema_editor):
     backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value)
 
 
+def undo_migration(apps, schema_editor):
+    # this just clears out all our redis keys so we recalculate everything
+    cache = get_redis_connection()
+    cache.delete("results_mig", 3600 * 24 * 30)
+    cache.delete("results_mig_count", 3600 * 24 * 30)
+    cache.delete("results_mig_highwater", 3600 * 24 * 30)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('values', '0012_auto_20170606_1326'),
         ('flows', '0122_auto_20171101_2041'),
     ]
 
     operations = [
-        migrations.RunPython(apply_as_migration)
+        migrations.RunPython(apply_as_migration, undo_migration)
     ]
