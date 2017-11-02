@@ -67,11 +67,10 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
         flowrun_count = FlowRun.objects.filter(flow__is_active=True).count()
         mig_count = cache.get("results_mig_count")
         update_count = int(mig_count) if mig_count else 0
+        current_update_count = 0
+        start = time.time()
 
         for flow_chunk in chunk_list(flow_ids, 100):
-            start = time.time()
-            chunk_count = 0
-
             for flow in Flow.objects.filter(id__in=flow_chunk):
                 # figure out if we already migrated this flow
                 migrated = cache.sismember("results_mig", flow.id)
@@ -138,10 +137,10 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                             run.save(update_fields=['results'])
 
                     update_count += len(runs)
-                    chunk_count += len(runs)
+                    current_update_count += len(runs)
 
                     # figure out our rate
-                    rate = (time.time() - start) / chunk_count
+                    rate = (time.time() - start) / current_update_count
 
                     # figure out per second
                     per_sec = 1 / rate
