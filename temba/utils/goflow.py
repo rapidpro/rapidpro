@@ -270,10 +270,7 @@ class RequestBuilder(object):
         if org.country_id:
             type_urls['location_hierarchy'] = get_assets_url(org, self.asset_timestamp, 'location_hierarchy')
 
-        self.request['asset_server'] = {
-            'auth_header': 'flow-user-token %s' % org.flow_user_token,
-            'type_urls': type_urls
-        }
+        self.request['asset_server'] = {'type_urls': type_urls}
         return self
 
     def start(self, flow):

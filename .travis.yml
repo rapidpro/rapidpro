@@ -44,9 +44,8 @@ install:
   # fire up a goflow flowserver instance
   - GOFLOW_VERSION=0.4.3
   - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
-  - mkdir goflow
-  - tar -xf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz --directory goflow
-  - goflow/flowserver &
+  - tar -xf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+  - flowserver &
 
 before_script:
   # setup test database
