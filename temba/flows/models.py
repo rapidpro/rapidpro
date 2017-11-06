@@ -1916,6 +1916,14 @@ class Flow(TembaModel):
         for msg in msgs:
             step.add_message(msg)
 
+        path = run.get_path()
+        if path and rule:
+            path[-1][FlowRun.PATH_EXIT_UUID] = rule
+        path.append({FlowRun.PATH_NODE_UUID: node.uuid, FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()})
+
+        run.path = json.dumps(path)
+        run.save(update_fields=('path',))
+
         return step
 
     def get_entry_send_actions(self):
@@ -2621,6 +2629,10 @@ class FlowRun(models.Model):
     RESULT_INPUT = 'input'
     RESULT_CREATED_ON = 'created_on'
 
+    PATH_NODE_UUID = 'node_uuid'
+    PATH_ARRIVED_ON = 'arrived_on'
+    PATH_EXIT_UUID = 'exit_uuid'
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
@@ -2669,8 +2681,9 @@ class FlowRun(models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
-    results = models.TextField(null=True,
-                               help_text=_("The results collected during this flow run in JSON format"))
+    results = models.TextField(null=True, help_text=_("The results collected during this flow run in JSON format"))
+
+    path = models.TextField(null=True, help_text=_("The path taken during this flow run in JSON format"))
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
@@ -3044,6 +3057,9 @@ class FlowRun(models.Model):
 
     def results_dict(self):
         return json.loads(self.results) if self.results else dict()
+
+    def get_path(self):
+        return json.loads(self.path) if self.path else []
 
     @classmethod
     def serialize_value(cls, value):

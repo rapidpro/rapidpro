@@ -503,6 +503,16 @@ class FlowTest(TembaTest):
         self.assertEqual(set(contact1_steps[1].messages.all()), set())
         self.assertEqual(contact1_steps[1].next_uuid, None)
 
+        # check equivalent "steps" in the path fields
+        contact1_path = contact1_run.get_path()
+        self.assertEqual(len(contact1_path), 2)
+        self.assertEqual(contact1_path[0]['node_uuid'], entry.uuid)
+        self.assertEqual(contact1_path[0]['arrived_on'], contact1_steps[0].arrived_on.isoformat())
+        self.assertNotIn('exit_uuid', contact1_path[0])
+        self.assertEqual(contact1_path[1]['node_uuid'], entry.destination)
+        self.assertEqual(contact1_path[1]['arrived_on'], contact1_steps[1].arrived_on.isoformat())
+        self.assertNotIn('exit_uuid', contact1_path[1])
+
         # test our message context
         context = self.flow.build_expressions_context(self.contact, None)
         self.assertEqual(dict(__default__=''), context['flow'])
