@@ -1,5 +1,5 @@
 from django import template
-from django.template import TemplateSyntaxError
+from django.template import Engine, Context, TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
@@ -18,6 +18,14 @@ TIME_SINCE_CHUNKS = (
     (60, ungettext_lazy('%d minute', '%d minutes')),
     (1, ungettext_lazy('%d second', '%d seconds'))
 )
+
+
+@register.filter
+def for_org_context(template, org):
+    context = dict(org=org, brand=org.get_branding())
+    engine = Engine.get_default()
+    template_text = engine.from_string(template)
+    return template_text.render(Context(context))
 
 
 @register.filter

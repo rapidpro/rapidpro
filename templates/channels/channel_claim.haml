@@ -222,7 +222,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
 
     %h3
       -trans "Social Network Channels"
@@ -240,7 +241,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
 
     %h3
       -trans "API Channels"
@@ -258,7 +260,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
     %h3
       -trans "USSD Channels"
 
@@ -275,7 +278,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
 
 
 -block form-buttons
