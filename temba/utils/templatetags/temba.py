@@ -21,7 +21,7 @@ TIME_SINCE_CHUNKS = (
 
 
 @register.filter
-def for_org_context(template, org):
+def render_for_org_context(template, org):
     context = dict(org=org, brand=org.get_branding())
     engine = Engine.get_default()
     template_text = engine.from_string(template)

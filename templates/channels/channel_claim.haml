@@ -223,7 +223,7 @@
           .span9
             .claim-description
               %div
-                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
+                {{ ch_type.get_claim_blurb|render_for_org_context:user_org }}
 
     %h3
       -trans "Social Network Channels"
@@ -242,7 +242,7 @@
           .span9
             .claim-description
               %div
-                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
+                {{ ch_type.get_claim_blurb|render_for_org_context:user_org }}
 
     %h3
       -trans "API Channels"
@@ -261,7 +261,7 @@
           .span9
             .claim-description
               %div
-                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
+                {{ ch_type.get_claim_blurb|render_for_org_context:user_org }}
     %h3
       -trans "USSD Channels"
 
@@ -279,7 +279,7 @@
           .span9
             .claim-description
               %div
-                {{ ch_type.get_claim_blurb|for_org_context:user_org }}
+                {{ ch_type.get_claim_blurb|render_for_org_context:user_org }}
 
 
 -block form-buttons
