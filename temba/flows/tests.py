@@ -6669,6 +6669,51 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(mock_post_transferto.call_count, 0)
         mock_post_transferto.reset_mock()
 
+    @patch('temba.flows.models.FlowRun.PATH_MAX_STEPS', 8)
+    def test_run_path(self):
+        flow = self.get_flow('favorites')
+        colorPrompt = ActionSet.objects.get(uuid=flow.entry_uuid)
+        colorRuleSet = RuleSet.objects.get(uuid=colorPrompt.destination)
+        redRule = colorRuleSet.get_rules()[0]
+        otherRule = colorRuleSet.get_rules()[-1]
+        tryAgainPrompt = ActionSet.objects.get(uuid=otherRule.destination)
+        beerPrompt = ActionSet.objects.get(uuid=redRule.destination)
+        beerRuleSet = RuleSet.objects.get(uuid=beerPrompt.destination)
+
+        # send an invalid response several times til we hit the path length limit
+        for m in range(3):
+            self.send_message(flow, "beige")
+
+        run = FlowRun.objects.get()
+        path = run.get_path()
+
+        self.assertEqual(len(path), 8)
+        self.assertEqual(path[0]['node_uuid'], colorPrompt.uuid)
+        self.assertEqual(path[1]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[1]['exit_uuid'], otherRule.uuid)
+        self.assertEqual(path[2]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[3]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[4]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[5]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[6]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[7]['node_uuid'], colorRuleSet.uuid)
+
+        self.send_message(flow, "red")
+
+        run.refresh_from_db()
+        path = run.get_path()
+
+        self.assertEqual(len(path), 8)
+        self.assertEqual(path[0]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[1]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[2]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[3]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[4]['node_uuid'], tryAgainPrompt.uuid)
+        self.assertEqual(path[5]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual(path[5]['exit_uuid'], redRule.uuid)
+        self.assertEqual(path[6]['node_uuid'], beerPrompt.uuid)
+        self.assertEqual(path[7]['node_uuid'], beerRuleSet.uuid)
+
 
 class FlowMigrationTest(FlowFileTest):
 

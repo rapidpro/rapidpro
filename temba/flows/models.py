@@ -1921,6 +1921,10 @@ class Flow(TembaModel):
             path[-1][FlowRun.PATH_EXIT_UUID] = rule
         path.append({FlowRun.PATH_NODE_UUID: node.uuid, FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()})
 
+        # trim path to ensure it can't grow indefinitely
+        if len(path) > FlowRun.PATH_MAX_STEPS:
+            path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
+
         run.path = json.dumps(path)
         run.save(update_fields=('path',))
 
@@ -2632,6 +2636,7 @@ class FlowRun(models.Model):
     PATH_NODE_UUID = 'node_uuid'
     PATH_ARRIVED_ON = 'arrived_on'
     PATH_EXIT_UUID = 'exit_uuid'
+    PATH_MAX_STEPS = 100
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
