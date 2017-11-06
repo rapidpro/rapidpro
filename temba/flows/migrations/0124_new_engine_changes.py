@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0116_auto_20171020_1754'),
+        ('flows', '0123_backfill_flowrun_results'),
     ]
 
     operations = [
@@ -28,11 +28,6 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[('W', 'Waiting'), ('C', 'Completed'), ('I', 'Interrupted'), ('X', 'Expired'),
                          ('E', 'Errored')], help_text='The status of this session', max_length=1, null=True),
-        ),
-        migrations.AddField(
-            model_name='flowrun',
-            name='output',
-            field=models.TextField(null=True),
         ),
         migrations.AlterField(
             model_name='actionlog',
