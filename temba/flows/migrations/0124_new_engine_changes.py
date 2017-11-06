@@ -13,6 +13,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
+            model_name='flowrun',
+            name='path',
+            field=models.TextField(help_text='The path taken through the flow in JSON format', null=True),
+        ),
+        migrations.AddField(
             model_name='flowsession',
             name='output',
             field=models.TextField(null=True),

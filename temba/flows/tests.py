@@ -45,7 +45,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
-from .models import VariableContactAction, UssdAction
+from .models import VariableContactAction, UssdAction, FlowNodeCount
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
 from .tasks import update_run_expirations_task, prune_recentmessages, squash_flowruncounts, squash_flowpathcounts
@@ -4463,6 +4463,9 @@ class FlowsTest(FlowFileTest):
 
     def test_simple(self):
         favorites = self.get_flow('favorites')
+        action_set1 = favorites.action_sets.order_by('y').first()
+        rule_set1 = favorites.rule_sets.order_by('y').first()
+
         run, = favorites.start([], [self.contact])
 
         msg1 = Msg.objects.get()
@@ -4475,56 +4478,53 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(run.exited_on)
         self.assertFalse(run.responded)
 
-        steps = list(run.steps.order_by('id'))
-        self.assertEqual(len(steps), 2)
-        self.assertEqual(steps[0].step_type, 'A')
-        self.assertIsNotNone(steps[0].arrived_on)
-        self.assertIsNone(steps[0].rule_uuid)
-        self.assertIsNone(steps[0].rule_category)
-        self.assertIsNotNone(steps[0].left_on)
-        self.assertEqual(set(steps[0].messages.all()), {msg1})
-        self.assertEqual(steps[1].step_type, 'R')
-        self.assertIsNotNone(steps[1].arrived_on)
-        self.assertIsNone(steps[1].rule_uuid)
-        self.assertIsNone(steps[1].rule_category)
-        self.assertIsNone(steps[1].left_on)
-        self.assertIsNone(steps[1].next_uuid)
-        self.assertEqual(set(steps[1].messages.all()), set())
+        # TODO need to generate these from run.path instead of triggers on step table
+        # self.assertEqual(FlowNodeCount.get_totals(favorites), {rule_set1.uuid: 1})
+        # self.assertEqual(FlowPathCount.get_totals(favorites), {action_set1.uuid + ':' + rule_set1.uuid: 1})
 
-        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
+        self.assertEqual(FlowCategoryCount.objects.count(), 0)
+
+        #recent = FlowPathRecentMessage.objects.get()
+        #self.assertEqual(recent.text, "What is your favorite color?")
+
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
 
         run.refresh_from_db()
+        results = json.loads(run.results)
+
         self.assertIsNone(run.exit_type)
         self.assertIsNone(run.exited_on)
         self.assertTrue(run.responded)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['color']['category'], "Red")
+        self.assertEqual(results['color']['input'], "I like red")
+        self.assertEqual(results['color']['value'], "red")
+        self.assertEqual(results['color']['name'], "Color")
+
+        cat_counts = list(FlowCategoryCount.objects.order_by('id'))
+        self.assertEqual(len(cat_counts), 1)
+        self.assertEqual(cat_counts[0].result_name, "Color")
+        self.assertEqual(cat_counts[0].category_name, "Red")
+        self.assertEqual(cat_counts[0].count, 1)
 
         msg3 = Msg.objects.get(id__gt=msg2.id)
         self.assertEqual(msg3.direction, 'O')
         self.assertEqual(msg3.text, "Good choice, I like Red too! What is your favorite beer?")
 
-        steps = list(run.steps.order_by('id'))
-        self.assertEqual(len(steps), 4)
-        self.assertEqual(steps[0].step_type, 'A')
-        self.assertIsNotNone(steps[0].arrived_on)
-        self.assertIsNone(steps[0].rule_uuid)
-        self.assertIsNone(steps[0].rule_category)
-        self.assertIsNotNone(steps[0].left_on)
-        self.assertEqual(set(steps[0].messages.all()), {msg1})
-        self.assertEqual(steps[1].step_type, 'R')
-        self.assertIsNotNone(steps[1].arrived_on)
-        self.assertEqual(steps[1].rule_category, "Red")
-        self.assertIsNotNone(steps[1].left_on)
-        self.assertEqual(set(steps[1].messages.all()), {msg2})
-        self.assertEqual(steps[2].step_type, 'A')
-        self.assertIsNotNone(steps[2].arrived_on)
-        self.assertIsNotNone(steps[2].left_on)
-        self.assertEqual(set(steps[2].messages.all()), {msg3})
-        self.assertEqual(steps[3].step_type, 'R')
-        self.assertIsNotNone(steps[3].arrived_on)
-        self.assertIsNone(steps[3].left_on)
-        self.assertEqual(set(steps[3].messages.all()), set())
-
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
+
+        run.refresh_from_db()
+        results = json.loads(run.results)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results['color']['category'], "Red")
+        self.assertEqual(results['color']['input'], "I like red")
+        self.assertEqual(results['color']['value'], "red")
+        self.assertEqual(results['color']['name'], "Color")
+        self.assertEqual(results['beer']['category'], "Primus")
+        self.assertEqual(results['beer']['input'], "primus")
+        self.assertEqual(results['beer']['value'], "primus")
+        self.assertEqual(results['beer']['name'], "Beer")
 
         msg5 = Msg.objects.get(id__gt=msg4.id)
         self.assertEqual(msg5.direction, 'O')
@@ -4539,6 +4539,10 @@ class FlowsTest(FlowFileTest):
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
+
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
+    def test_simple_with_flowserver(self):
+        self.test_simple()
 
     def test_validate_flow_definition(self):
 

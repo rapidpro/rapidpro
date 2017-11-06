@@ -486,7 +486,7 @@ class Flow(TembaModel):
         if not settings.FLOW_SERVER_URL:
             return False
 
-        if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE or self.FLOW):
+        if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE, self.FLOW):
             return True
 
         return self.flow_server_enabled
@@ -2833,8 +2833,6 @@ class FlowRun(models.Model):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    output = models.TextField(null=True)
-
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
     flow = models.ForeignKey(Flow, related_name='runs')
@@ -2881,6 +2879,8 @@ class FlowRun(models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
+    path = models.TextField(null=True, help_text=_("The path taken through the flow in JSON format"))
+
     results = models.TextField(null=True,
                                help_text=_("The results collected during this flow run in JSON format"))
 
@@ -2890,7 +2890,7 @@ class FlowRun(models.Model):
         Creates or updates a flow run from the given output returned from goflow
         """
         uuid = run_output['uuid']
-        path = run_output['path']
+        results = run_output.get('results', {})
         is_active = run_output['status'] in ('active', 'waiting')
         is_error = run_output['status'] == 'errored'
         created_on = iso8601.parse_date(run_output['created_on'])
@@ -2906,24 +2906,25 @@ class FlowRun(models.Model):
         else:
             exit_type = None
 
-        if existing:
-            prev_path = json.loads(existing.output)['path'] if existing.output else []
+        # we store a simplified version of the path
+        path = [{"node": s['node_uuid'], "time": s['arrived_on']} for s in run_output['path']]
 
-            existing.output = json.dumps(run_output)
+        if existing:
+            existing.path = json.dumps(path)
+            existing.results = json.dumps(results)
             existing.expires_on = expires_on
             existing.timeout_on = timeout_on
             existing.modified_on = timezone.now()
             existing.exited_on = exited_on
             existing.exit_type = exit_type
+            existing.responded |= bool(msg_in)
             existing.is_active = is_active
-            existing.save(update_fields=('output', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'is_active'))
+            existing.save(update_fields=('path', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
             msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
         else:
-            prev_path = []
-
             # use our now for created_on/modified_on as this needs to be as close as possible to database time for API
             # run syncing to work
             now = timezone.now()
@@ -2936,8 +2937,10 @@ class FlowRun(models.Model):
             run = cls.objects.create(org=contact.org, uuid=uuid,
                                      flow=flow, contact=contact,
                                      parent=parent,
-                                     output=json.dumps(run_output),
+                                     path=json.dumps(path),
+                                     results=json.dumps(results),
                                      session=session,
+                                     responded=bool(msg_in),
                                      is_active=is_active,
                                      exited_on=exited_on, exit_type=exit_type,
                                      expires_on=expires_on, timeout_on=timeout_on,
@@ -2957,24 +2960,6 @@ class FlowRun(models.Model):
             for msgs in six.itervalues(msgs_out_by_step):
                 start_msgs.extend(msgs)
             run.start_msgs = start_msgs
-
-        # generate set of ruleset UUIDs to help us resolve node types
-        ruleset_uuids = {r.uuid for r in run.flow.rule_sets.all()}
-
-        # only steps that need updated are new ones and the previous last one if it exists
-        path_to_update = path[len(prev_path) - 1:] if prev_path else path
-
-        # create flow steps for these path steps
-        for p, path_item in enumerate(path_to_update):
-            next_item = path_to_update[p + 1] if p < len(path_to_update) - 1 else None
-
-            step_type = FlowStep.TYPE_RULE_SET if path_item['node_uuid'] in ruleset_uuids else FlowStep.TYPE_ACTION_SET
-            step_messages = msgs_out_by_step[path_item['uuid']]
-
-            if p == 0:
-                step_messages.append(msg_in)
-
-            FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_type, step_messages)
 
         return run, msgs_to_send
 
@@ -3623,76 +3608,6 @@ class FlowStep(models.Model):
 
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-    @classmethod
-    def create_or_update_from_goflow(cls, run, path_step, next_path_step, step_type, step_messages):
-        """
-        Creates or updates a flow step for the given path step returned from goflow
-        """
-        arrived_on = iso8601.parse_date(path_step['arrived_on'])
-        left_on = iso8601.parse_date(path_step['left_on']) if 'left_on' in path_step else None
-        node_uuid = path_step['node_uuid']
-        rule_uuid = path_step.get('exit_uuid') if step_type == FlowStep.TYPE_RULE_SET else None
-        next_uuid = next_path_step['node_uuid'] if next_path_step else None
-
-        # look through our events for flow results to save as ruleset results
-        category = None
-        value = None
-        decimal_value = None
-        for event in path_step.get('events', []):
-            if event['type'] == 'save_flow_result' and event['category']:
-                category = event['category']
-                value = event['value']
-                try:
-                    decimal_value = Decimal(event['value'])
-                except Exception:
-                    pass
-                break
-
-        if step_type == cls.TYPE_RULE_SET:
-            ruleset = RuleSet.objects.filter(flow=run.flow, uuid=node_uuid).first()
-            if ruleset:
-                rule = None
-                for r in ruleset.get_rules():
-                    if r.uuid == rule_uuid:
-                        rule = r
-                        break
-                if rule and category:
-                    rule.category = category
-                    ruleset.save_run_value(run, rule, value)
-
-        # are we completing an existing step?
-        existing = cls.objects.filter(run=run, arrived_on=arrived_on, step_uuid=node_uuid).first()
-
-        if existing:
-            existing.left_on = left_on
-            existing.rule_uuid = rule_uuid
-            existing.rule_category = category
-            existing.rule_value = value
-            existing.rule_decimal_value = decimal_value
-            existing.next_uuid = next_uuid
-            existing.save(update_fields=('left_on', 'rule_uuid', 'next_uuid', 'rule_category', 'rule_value', 'rule_decimal_value'))
-            step = existing
-        else:
-            step = cls.objects.create(step_uuid=node_uuid,
-                                      step_type=step_type,
-                                      run=run,
-                                      contact=run.contact,
-                                      arrived_on=arrived_on,
-                                      left_on=left_on,
-                                      next_uuid=next_uuid,
-                                      rule_category=category,
-                                      rule_value=value,
-                                      rule_decimal_value=decimal_value,
-                                      rule_uuid=rule_uuid)
-
-        for msg in step_messages:
-            step.add_message(msg)
-
-        if next_uuid and not run.contact.is_test:
-            FlowPathRecentMessage.record_step(step)
-
-        return step
 
     @classmethod
     def from_json(cls, json_obj, flow, run, previous_rule=None):
