@@ -2686,9 +2686,11 @@ class FlowRun(models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
-    results = models.TextField(null=True, help_text=_("The results collected during this flow run in JSON format"))
+    results = models.TextField(null=True,
+                               help_text=_("The results collected during this flow run in JSON format"))
 
-    path = models.TextField(null=True, help_text=_("The path taken during this flow run in JSON format"))
+    path = models.TextField(null=True,
+                            help_text=_("The path taken during this flow run in JSON format"))
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
