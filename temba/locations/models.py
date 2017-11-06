@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import geojson
@@ -20,6 +21,10 @@ class AdminBoundary(MPTTModel, models.Model):
     LEVEL_STATE = 1
     LEVEL_DISTRICT = 2
     LEVEL_WARD = 3
+
+    # used to separate segments in a hierarchy of boundaries. Has the advantage of being a character in GSM7 and
+    # being very unlikely to show up in an admin boundary name.
+    PATH_SEPARATOR = '>'
 
     osm_id = models.CharField(max_length=15, unique=True,
                               help_text="This is the OSM id for this administrative boundary")
@@ -70,6 +75,16 @@ class AdminBoundary(MPTTModel, models.Model):
         for child in self.children.all():
             children.append(child.get_geojson_feature())
         return AdminBoundary.get_geojson_dump(children)
+
+    def as_path(self):
+        """
+        Returns the full path for this admin boundary, from country downwards using > as separator between
+        each level.
+        """
+        if self.parent:
+            return "%s %s %s" % (self.parent.as_path(), AdminBoundary.PATH_SEPARATOR, self.name.replace(AdminBoundary.PATH_SEPARATOR, " "))
+        else:
+            return self.name.replace(AdminBoundary.PATH_SEPARATOR, " ")
 
     def update(self, **kwargs):
         AdminBoundary.objects.filter(id=self.id).update(**kwargs)

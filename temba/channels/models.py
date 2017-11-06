@@ -1662,7 +1662,10 @@ class ChannelLog(models.Model):
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
-        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
+        if self.msg:
+            return ChannelLog.objects.filter(msg=self.msg).order_by('-created_on')
+
+        return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
         if not self.request:
