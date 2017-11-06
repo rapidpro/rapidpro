@@ -40,7 +40,7 @@ BEGIN
 
             IF (_old->>'node_uuid') = (_new->>'node_uuid') THEN
                 -- we already have this key, check if the value is newer
-                IF timestamptz(_new->>'modified_on') > timestamptz(_old->>'modified_on') THEN
+                IF timestamptz(_new->>'created_on') > timestamptz(_old->>'created_on') THEN
                     -- found an update to an existing key, create a negative and positive count accordingly
                     execute temba_insert_flowcategorycount(_flow_id, result_key, _old, -1);
                     execute temba_insert_flowcategorycount(_flow_id, result_key, _new, 1);

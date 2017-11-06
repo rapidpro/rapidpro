@@ -4634,10 +4634,21 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
 
+        # test update flow values
+        for i in range(0, 5):
+            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            self.send_message(favorites, 'orange', contact=contact)
+            self.send_message(favorites, 'green', contact=contact)
+            self.send_message(favorites, 'skol', contact=contact)
+
         counts = favorites.get_category_counts()
         assertCount(counts, 'color', 'Blue', 10)
         assertCount(counts, 'color', 'Red', 5)
         assertCount(counts, 'beer', 'Primus', 15)
+
+        # five oranges went back and became greens
+        assertCount(counts, 'color', 'Other', 0)
+        assertCount(counts, 'color', 'Green', 5)
 
         # now remap the uuid for our color node
         flow_json = favorites.as_json()
@@ -4647,7 +4658,7 @@ class FlowsTest(FlowFileTest):
 
         # send a few more runs through our updated flow
         for i in range(0, 3):
-            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            contact = self.create_contact('Contact %d' % i, '+120655533%d' % i)
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'turbo', contact=contact)
 
@@ -4673,6 +4684,9 @@ class FlowsTest(FlowFileTest):
         FlowCategoryCount.squash()
         counts = favorites.get_category_counts()
         assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # test tostring
+        six.text_type(FlowCategoryCount.objects.all().first())
 
         # and if we delete our runs, things zero out
         FlowRun.objects.all().delete()
@@ -5727,7 +5741,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_raw('edd').startswith('2015-01-31'))
+        self.assertTrue(mother.get_field_raw('edd').startswith('31-01-2015'))
         self.assertEqual(mother.get_field_raw('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
         self.assertEqual(mother.get_field_raw('chw_name'), self.contact.name)
 
@@ -5760,7 +5774,7 @@ class FlowsTest(FlowFileTest):
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('2014-01-31'))
+        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
         self.assertEqual("+12065552020", mother.get_field_raw('chw'))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
@@ -6004,6 +6018,9 @@ class FlowsTest(FlowFileTest):
         # get the latest run
         first_run = flow.runs.all()[0]
         first_expires = first_run.expires_on
+
+        # make sure __str__ works
+        six.text_type(first_run)
 
         time.sleep(1)
 

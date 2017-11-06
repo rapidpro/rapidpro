@@ -3575,6 +3575,9 @@ class FlowRun(models.Model):
         self.modified_on = timezone.now()
         self.save(update_fields=['results', 'modified_on'])
 
+    def __str__(self):
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results_dict(), indent=2))
+
 
 @six.python_2_unicode_compatible
 class FlowStep(models.Model):
@@ -3811,7 +3814,13 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
+
+        # format our rule value appropriately
+        if isinstance(value, datetime):
+            (date_format, time_format) = get_datetime_format(self.run.flow.org.get_dayfirst())
+            self.rule_value = datetime_to_str(value, tz=self.run.flow.org.timezone, format=time_format, ms=False)
+        else:
+            self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -4511,9 +4520,9 @@ class FlowCategoryCount(SquashableModel):
 
     flow = models.ForeignKey(Flow, related_name='category_counts', help_text="The flow the result belongs to")
     node_uuid = models.UUIDField(db_index=True)
-    result_key = models.CharField(max_length=36, help_text="The sluggified key for the result")
-    result_name = models.CharField(max_length=36, help_text="The result the category belongs to")
-    category_name = models.CharField(max_length=36, help_text="The category name for a result")
+    result_key = models.CharField(max_length=128, help_text="The sluggified key for the result")
+    result_name = models.CharField(max_length=128, help_text="The result the category belongs to")
+    category_name = models.CharField(max_length=128, help_text="The category name for a result")
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -4528,6 +4537,9 @@ class FlowCategoryCount(SquashableModel):
 
         params = (distinct_set.flow_id, distinct_set.node_uuid, distinct_set.result_key, distinct_set.result_name, distinct_set.category_name) * 2
         return sql, params
+
+    def __str__(self):
+        return "%s: %s" % (self.category_name, self.count)
 
 
 @six.python_2_unicode_compatible
