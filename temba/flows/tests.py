@@ -1953,7 +1953,7 @@ class FlowTest(TembaTest):
 
         # get our run and assert our value is saved (as a string)
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
-        results = run.results_dict()
+        results = run.get_results()
         self.assertEqual("15", results['color']['value'])
         self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
         self.assertEqual("> 10", results['color']['category'])
@@ -8239,7 +8239,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
 
-        results = FlowRun.objects.get().results_dict()
+        results = FlowRun.objects.get().get_results()
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
@@ -8257,7 +8257,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo")))
 
-        results = FlowRun.objects.get().results_dict()
+        results = FlowRun.objects.get().get_results()
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
