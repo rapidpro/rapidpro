@@ -3060,7 +3060,7 @@ class FlowRun(models.Model):
 
         return msg
 
-    def results_dict(self):
+    def get_results(self):
         return json.loads(self.results) if self.results else dict()
 
     def get_path(self):
@@ -3086,7 +3086,7 @@ class FlowRun(models.Model):
         key = Flow.label_to_slug(name)
 
         # create our result dict
-        results = self.results_dict()
+        results = self.get_results()
         results[key] = {
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
@@ -3105,7 +3105,7 @@ class FlowRun(models.Model):
         self.save(update_fields=['results', 'modified_on'])
 
     def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results_dict(), indent=2))
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.get_results(), indent=2))
 
 
 @six.python_2_unicode_compatible
