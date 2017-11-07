@@ -223,7 +223,7 @@
           .span9
             .claim-description
               %div
-                {% include ch_type.get_claim_blurb with brand=request.branding.name %}
+                {% include ch_type.get_claim_blurb with brand=org_brand %}
 
     %h3
       -trans "Social Network Channels"
@@ -242,7 +242,7 @@
           .span9
             .claim-description
               %div
-                {% include ch_type.get_claim_blurb with brand=request.branding.name %}
+                {% include ch_type.get_claim_blurb with brand=org_brand %}
 
     %h3
       -trans "API Channels"
@@ -261,7 +261,7 @@
           .span9
             .claim-description
               %div
-                {% include ch_type.get_claim_blurb with brand=request.branding.name %}
+                {% include ch_type.get_claim_blurb with brand=org_brand %}
 
     %h3
       -trans "USSD Channels"
@@ -280,7 +280,7 @@
           .span9
             .claim-description
               %div
-                {% include ch_type.get_claim_blurb with brand=request.branding.name %}
+                {% include ch_type.get_claim_blurb with brand=org_brand %}
 
 
 -block form-buttons
