@@ -96,8 +96,8 @@ FLOWS = (
 
 # contact names are generated from these components
 CONTACT_NAMES = (
-    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor", "Rowan", "Nic", "Norbert", "Kellan", "Eric"),
-    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts", "Seymour", "Pottier", "Kwizera", "Alexander", "Newcomer"),
+    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
+    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
 CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
