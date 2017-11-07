@@ -652,6 +652,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': campaign2.uuid,
             'name': "Reminders #2",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign2.created_on)
         })
@@ -673,6 +674,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json(), {
             'uuid': campaign3.uuid,
             'name': "Reminders #3",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign3.created_on)
         })

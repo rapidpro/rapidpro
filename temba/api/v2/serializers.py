@@ -171,11 +171,12 @@ class ChannelEventReadSerializer(ReadSerializer):
 
 
 class CampaignReadSerializer(ReadSerializer):
+    archived = serializers.ReadOnlyField(source='is_archived')
     group = fields.ContactGroupField()
 
     class Meta:
         model = Campaign
-        fields = ('uuid', 'name', 'group', 'created_on')
+        fields = ('uuid', 'name', 'archived', 'group', 'created_on')
 
 
 class CampaignWriteSerializer(WriteSerializer):
