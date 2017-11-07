@@ -372,9 +372,9 @@ class FlowRunCRUDL(SmartCRUDL):
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
-               'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
-               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages',
-               'upload_media_action')
+               'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'category_counts', 'json',
+               'broadcast', 'activity', 'activity_chart', 'filter', 'campaign', 'completion', 'revisions',
+               'recent_messages', 'upload_media_action')
 
     model = Flow
 
@@ -1213,7 +1213,7 @@ class FlowCRUDL(SmartCRUDL):
                 histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
                 if date_range < timedelta(days=21):
                     histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
-                    min_date = end_date - timedelta(hours=100)
+                    min_date = start_date - timedelta(hours=1)
                 elif date_range < timedelta(days=500):
                     histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
                     min_date = end_date - timedelta(days=100)
@@ -1223,8 +1223,9 @@ class FlowCRUDL(SmartCRUDL):
 
                 histogram = histogram.values('bucket').annotate(count=Sum('count')).order_by('bucket')
                 context['histogram'] = histogram
+
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
-                context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
+                context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
                 context['min_date'] = min_date
 
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
@@ -1311,6 +1312,12 @@ class FlowCRUDL(SmartCRUDL):
             print("Fetched runs in  %0.3fs" % (time.time() - start))
             return context
 
+    class CategoryCounts(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
+        def render_to_response(self, context, **response_kwargs):
+            return JsonResponse(self.get_object().get_category_counts())
+
     class Results(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
 
@@ -1336,7 +1343,7 @@ class FlowCRUDL(SmartCRUDL):
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
-            context['categories'] = flow.get_category_counts()
+            context['categories'] = flow.get_category_counts()['counts']
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):
