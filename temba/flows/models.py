@@ -844,7 +844,8 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.get_category_name(flow.base_language), previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=rule.uuid,
+                                 category=rule.get_category_name(flow.base_language), previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1588,7 +1589,7 @@ class Flow(TembaModel):
             else:
                 entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
-                step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
+                step = self.add_step(run, entry_rule, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
                     handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
@@ -1815,7 +1816,7 @@ class Flow(TembaModel):
                     run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
                                                               skip_leading_reply_actions=not optimize_sending_action)
 
-                    step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
                     # and onto the destination
                     if entry_actions.destination:
@@ -1834,7 +1835,7 @@ class Flow(TembaModel):
                         run.set_completed(final_step=step)
 
                 elif entry_rules:
-                    step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
 
                     # if we have a start message, go and handle the rule
                     if start_msg:
@@ -1885,8 +1886,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node,
-                 msgs=None, rule=None, category=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1896,7 +1896,9 @@ class Flow(TembaModel):
         if previous_step:
             previous_step.left_on = arrived_on
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'next_uuid'))
+            previous_step.rule_uuid = exit_uuid
+            previous_step.rule_category = category
+            previous_step.save(update_fields=('left_on', 'next_uuid', 'rule_uuid', 'rule_category'))
 
             if not previous_step.contact.is_test:
                 FlowPathRecentMessage.record_step(previous_step)
@@ -1904,11 +1906,6 @@ class Flow(TembaModel):
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
         run.update_timeout(arrived_on, timeout)
-
-        if not is_start:
-            # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -3201,7 +3198,7 @@ class FlowStep(models.Model):
                 context = flow.build_expressions_context(run.contact, last_incoming)
                 msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=previous_rule)
 
         # if a rule was picked on this ruleset
         if node.is_ruleset() and json_obj['rule']:
