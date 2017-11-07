@@ -3959,9 +3959,9 @@ class FlowCategoryCount(SquashableModel):
 
     flow = models.ForeignKey(Flow, related_name='category_counts', help_text="The flow the result belongs to")
     node_uuid = models.UUIDField(db_index=True)
-    result_key = models.CharField(max_length=36, help_text="The sluggified key for the result")
-    result_name = models.CharField(max_length=36, help_text="The result the category belongs to")
-    category_name = models.CharField(max_length=36, help_text="The category name for a result")
+    result_key = models.CharField(max_length=128, help_text="The sluggified key for the result")
+    result_name = models.CharField(max_length=128, help_text="The result the category belongs to")
+    category_name = models.CharField(max_length=128, help_text="The category name for a result")
     count = models.IntegerField(default=0)
 
     @classmethod

@@ -123,7 +123,7 @@ class Command(BaseCommand):
                                            parser_class=lambda **kw: CommandParser(cmd, **kw))
 
         gen_parser = subparsers.add_parser('generate', help='Generates a clean testing database')
-        gen_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=2)
+        gen_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=10)
         gen_parser.add_argument('--contacts', type=int, action='store', dest='num_contacts', default=10000)
         gen_parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 

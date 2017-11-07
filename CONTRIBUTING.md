@@ -1,6 +1,6 @@
 # Contributing to RapidPro
 
-Contributions to the RapidPro projects are highly appreciated!
+Contributions to the RapidPro projects are highly appreciated! 
 
 We accept contributions in the form of:
  * bug reports 
