@@ -1254,9 +1254,6 @@ class FlowCRUDL(SmartCRUDL):
         paginate_by = 50
 
         def get_context_data(self, *args, **kwargs):
-            import time
-            start = time.time()
-
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
             org = self.derive_org()
@@ -1266,10 +1263,8 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            start = time.time()
             test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
 
-            start = time.time()
             runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
             query = self.request.GET.get('q', None)
             contact_ids = []
@@ -1296,12 +1291,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-
-                # print(run.results)
                 results = json.loads(run.results)
-                # values = {v.ruleset.uuid: v for v in
-                #          Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
-
                 run.value_list = []
                 for ruleset in context['rulesets']:
                     key = Flow.label_to_slug(ruleset.label)
@@ -1309,7 +1299,6 @@ class FlowCRUDL(SmartCRUDL):
 
             context['runs'] = runs
             context['paginate_by'] = self.paginate_by
-            print("Fetched runs in  %0.3fs" % (time.time() - start))
             return context
 
     class CategoryCounts(OrgObjPermsMixin, SmartReadView):

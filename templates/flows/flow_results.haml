@@ -457,7 +457,7 @@
     function updatePreviousCharts(from, to, counts) {
       var chartCount = to - from;
       if (chartCount % 3 == 0) {
-        for (var j=from; j<to; j++) {
+        for (var j=from; j < to; j++) {
           counts[j]['size'] = 'small';
         }
       } else if (chartCount == 1) {

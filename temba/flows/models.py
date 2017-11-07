@@ -1000,7 +1000,10 @@ class Flow(TembaModel):
 
         for k, v in six.iteritems(results):
             for cat in results[k]['categories']:
-                cat['pct'] = float(cat['count']) / float(results[k]['total'])
+                if (results[k]['total']):
+                    cat['pct'] = float(cat['count']) / float(results[k]['total'])
+                else:
+                    cat['pct'] = 0
 
         # order counts by their place on the flow
         result_list = []
