@@ -1636,6 +1636,9 @@ class APITest(TembaTest):
         registration = self.create_flow(name="Registration")
         survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
 
+        # add a campaign message flow that shoudl be filtered out
+        Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
+
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
         survey.labels.add(reporting)

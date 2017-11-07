@@ -1805,6 +1805,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
+        queryset = queryset.exclude(flow_type=Flow.MESSAGE)
+
         # filter by UUID (optional)
         uuid = params.get('uuid')
         if uuid:
