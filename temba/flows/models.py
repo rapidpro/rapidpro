@@ -3830,8 +3830,8 @@ class ActionSet(models.Model):
         self.actions = json.dumps(json_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict(),
-                    exit_uuid=str(self.exit_uuid))
+        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
+                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)
