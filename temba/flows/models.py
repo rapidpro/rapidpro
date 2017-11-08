@@ -760,7 +760,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            step = run.flow.add_step(run, destination, previous_step=step)
+            step = run.flow.add_step(run, destination, previous_step=step, exit_uuid=actionset.exit_uuid)
         else:
             run.set_completed(final_step=step)
             step = None
@@ -1824,7 +1824,7 @@ class Flow(TembaModel):
                                                     entry_actions.destination,
                                                     entry_actions.destination_type)
 
-                        next_step = self.add_step(run, destination, previous_step=step)
+                        next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -1896,7 +1896,7 @@ class Flow(TembaModel):
         if previous_step:
             previous_step.left_on = arrived_on
             previous_step.next_uuid = node.uuid
-            previous_step.rule_uuid = exit_uuid
+            previous_step.rule_uuid = exit_uuid if previous_step.step_type == FlowStep.TYPE_RULE_SET else None
             previous_step.rule_category = category
             previous_step.save(update_fields=('left_on', 'next_uuid', 'rule_uuid', 'rule_category'))
 
@@ -1916,8 +1916,12 @@ class Flow(TembaModel):
             step.add_message(msg)
 
         path = run.get_path()
-        if path and rule:
-            path[-1][FlowRun.PATH_EXIT_UUID] = rule
+
+        # complete previous step
+        if path and exit_uuid:
+            path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
+
+        # create new step
         path.append({FlowRun.PATH_NODE_UUID: node.uuid, FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()})
 
         # trim path to ensure it can't grow indefinitely
