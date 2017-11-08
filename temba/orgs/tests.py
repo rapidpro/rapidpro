@@ -37,7 +37,7 @@ from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
 from uuid import uuid4
-from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
+from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, get_current_export_version
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
 from .models import WHITELISTED, SUSPENDED, RESTORED
@@ -2732,7 +2732,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = response.json()
-        self.assertEqual(CURRENT_EXPORT_VERSION, exported.get('version', 0))
+        self.assertEqual(get_current_export_version(), exported.get('version', 0))
         self.assertEqual('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEqual(8, len(exported.get('flows', [])))
