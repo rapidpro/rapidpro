@@ -118,7 +118,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                     for run in runs:
                         results = {}
                         for value in run.values.all():
-                            if not value.ruleset_id or value.ruleset_id not in id_to_ruleset:
+                            if not value.ruleset_id or value.ruleset_id not in id_to_ruleset or not value.category:
                                 continue
 
                             rs = id_to_ruleset[value.ruleset_id]
