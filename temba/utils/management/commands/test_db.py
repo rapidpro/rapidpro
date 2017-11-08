@@ -130,7 +130,7 @@ class Command(BaseCommand):
         sim_parser = subparsers.add_parser('simulate', help='Simulates activity on an existing database')
         sim_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=1)
         sim_parser.add_argument('--runs', type=int, action='store', dest='num_runs', default=500)
-        sim_parser.add_argument('--flow', type=unicode, action='store', dest='flow_name', default=None)
+        sim_parser.add_argument('--flow', type=str, action='store', dest='flow_name', default=None)
 
     def handle(self, command, *args, **kwargs):
         start = time.time()
