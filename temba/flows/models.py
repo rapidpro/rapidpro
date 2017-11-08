@@ -4104,6 +4104,11 @@ class FlowPathRecentMessage(models.Model):
 
         return cursor.rowcount  # number of deleted entries
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
+        ]
+
 
 class FlowNodeCount(SquashableModel):
     """
