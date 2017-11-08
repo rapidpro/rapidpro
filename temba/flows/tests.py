@@ -27,7 +27,7 @@ from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
-from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str
@@ -201,8 +201,8 @@ class FlowTest(TembaTest):
         self.assertEqual(1, revisions[0].revision)
         self.assertEqual(2, revisions[1].revision)
 
-        self.assertEqual(CURRENT_EXPORT_VERSION, revisions[0].spec_version)
-        self.assertEqual(CURRENT_EXPORT_VERSION, revisions[0].as_json()['version'])
+        self.assertEqual(get_current_export_version(), revisions[0].spec_version)
+        self.assertEqual(get_current_export_version(), revisions[0].as_json()['version'])
         self.assertEqual('base', revisions[0].get_definition_json()['base_language'])
 
         # now make one revision invalid
@@ -1287,7 +1287,7 @@ class FlowTest(TembaTest):
         # back out as json
         json_dict = self.flow.as_json()
 
-        self.assertEqual(json_dict['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(json_dict['version'], get_current_export_version())
         self.assertEqual(json_dict['flow_type'], self.flow.flow_type)
         self.assertEqual(json_dict['metadata'], {
             'name': self.flow.name,
@@ -6730,12 +6730,12 @@ class FlowMigrationTest(FlowFileTest):
         self.assertFalse(Flow.is_before_version("200", "5"))
         self.assertFalse(Flow.is_before_version("3.1", "3.5"))
 
-        self.assertFalse(Flow.is_before_version(CURRENT_EXPORT_VERSION, 10))
+        self.assertFalse(Flow.is_before_version(get_current_export_version(), 10))
 
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         flow_json = flow.as_json()
         if Flow.is_before_version(flow.version_number, "6"):
@@ -6808,7 +6808,7 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(len(flow_json['action_sets']), 1)
         self.assertEqual(len(flow_json['rule_sets']), 0)
-        self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow_json['version'], get_current_export_version())
         self.assertEqual(flow_json['metadata']['revision'], 2)
 
     def test_migration_string_group(self):
@@ -6843,7 +6843,7 @@ class FlowMigrationTest(FlowFileTest):
         # updating our dependencies should ensure the current version
         flow.update_dependencies()
 
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call_me_maybe')['definition']
@@ -6867,6 +6867,13 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_10_3(self):
+        favorites = self.get_flow('favorites')
+
+        # make sure all of our action sets have an exit uuid
+        for actionset in favorites.action_sets.all():
+            self.assertIsNotNone(actionset.exit_uuid)
+
     def test_migrate_to_10_2(self):
         flow_json = self.get_flow_json('single_message_bad_localization')
         flow_json = migrate_to_version_10_2(flow_json)
@@ -6884,7 +6891,7 @@ class FlowMigrationTest(FlowFileTest):
         exported = favorites.as_json()
         flow = Flow.objects.filter(name='Favorites').first()
         self.assertEqual(exported, flow.as_json())
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
@@ -7218,7 +7225,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertTrue(ContactGroup.user_groups.filter(name='Contacts > 100').exists(), error % ("> 100", v))
 
             ContactGroup.user_groups.all().delete()
-            self.assertEqual(CURRENT_EXPORT_VERSION, flow.version_number)
+            self.assertEqual(get_current_export_version(), flow.version_number)
             flow.delete()
 
     def test_migrate_malformed_groups(self):

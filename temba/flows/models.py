@@ -35,7 +35,7 @@ from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, get_current_export_version
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
@@ -147,6 +147,7 @@ class Flow(TembaModel):
     CONFIG = 'config'
     ACTIONS = 'actions'
     DESTINATION = 'destination'
+    EXIT_UUID = 'exit_uuid'
     LABEL = 'label'
     WEBHOOK_URL = 'webhook'
     WEBHOOK_ACTION = 'webhook_action'
@@ -194,7 +195,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3"
     ]
 
     name = models.CharField(max_length=64,
@@ -235,7 +236,7 @@ class Flow(TembaModel):
                                      help_text=_('The primary language for editing this flow'),
                                      default='base')
 
-    version_number = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8,
+    version_number = models.CharField(default=get_current_export_version, max_length=8,
                                       help_text=_("The flow version this definition is in"))
 
     flow_dependencies = models.ManyToManyField('Flow', related_name='dependent_flows', verbose_name=("Flow Dependencies"), blank=True,
@@ -1144,6 +1145,7 @@ class Flow(TembaModel):
         remap_uuid(flow_json, 'entry')
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, 'uuid')
+            remap_uuid(actionset, 'exit_uuid')
             remap_uuid(actionset, 'destination')
 
             # for all of our recordings, pull them down and remap
@@ -2091,7 +2093,7 @@ class Flow(TembaModel):
         # required flow running details
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.VERSION] = CURRENT_EXPORT_VERSION
+        flow[Flow.VERSION] = get_current_export_version()
         flow[Flow.METADATA] = self.get_metadata()
         return flow
 
@@ -2190,7 +2192,7 @@ class Flow(TembaModel):
         Makes sure the flow is at the current version. If it isn't it will
         migrate the definition forward updating the flow accordingly.
         """
-        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
+        if Flow.is_before_version(self.version_number, get_current_export_version()):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:
@@ -2253,13 +2255,8 @@ class Flow(TembaModel):
             top_uuid = None
 
             # load all existing objects into dicts by uuid
-            existing_actionsets = dict()
-            for actionset in self.action_sets.all():
-                existing_actionsets[actionset.uuid] = actionset
-
-            existing_rulesets = dict()
-            for ruleset in self.rule_sets.all():
-                existing_rulesets[ruleset.uuid] = ruleset
+            existing_actionsets = {actionset.uuid: actionset for actionset in self.action_sets.all()}
+            existing_rulesets = {ruleset.uuid: ruleset for ruleset in self.rule_sets.all()}
 
             # set of uuids which we've seen, we use this set to remove objects no longer used in this flow
             seen = set()
@@ -2368,6 +2365,7 @@ class Flow(TembaModel):
             # now work through our action sets
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
                 uuid = actionset.get(Flow.UUID)
+                exit_uuid = actionset.get(Flow.EXIT_UUID)
 
                 # skip actionsets without any actions. This happens when there are no valid
                 # actions in an actionset such as when deleted groups or flows are the only actions
@@ -2399,6 +2397,7 @@ class Flow(TembaModel):
                         # print "Updating %s to point to %s" % (unicode(actions), destination_uuid)
                         existing.destination = destination_uuid
                         existing.destination_type = destination_type
+                        existing.exit_uuid = exit_uuid
                         existing.set_actions_dict(actions)
                         (existing.x, existing.y) = (x, y)
                         existing.save()
@@ -2407,6 +2406,7 @@ class Flow(TembaModel):
                                                             uuid=uuid,
                                                             destination=destination_uuid,
                                                             destination_type=destination_type,
+                                                            exit_uuid=exit_uuid,
                                                             actions=json.dumps(actions),
                                                             x=x, y=y)
 
@@ -2466,7 +2466,7 @@ class Flow(TembaModel):
             if user and user != flow_user:
                 self.saved_on = timezone.now()
 
-            self.version_number = CURRENT_EXPORT_VERSION
+            self.version_number = get_current_export_version()
             self.save()
 
             # clear property cache
@@ -2486,7 +2486,7 @@ class Flow(TembaModel):
             self.revisions.create(definition=json.dumps(json_dict),
                                   created_by=user,
                                   modified_by=user,
-                                  spec_version=CURRENT_EXPORT_VERSION,
+                                  spec_version=get_current_export_version(),
                                   revision=revision)
 
             self.update_dependencies()
@@ -2506,7 +2506,7 @@ class Flow(TembaModel):
     def update_dependencies(self):
 
         # if we are an older version, induce a system rev which will update our dependencies
-        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
+        if Flow.is_before_version(self.version_number, get_current_export_version()):
             self.ensure_current_version()
             return
 
@@ -3779,6 +3779,8 @@ class ActionSet(models.Model):
     destination = models.CharField(max_length=36, null=True)
     destination_type = models.CharField(max_length=1, choices=FlowStep.STEP_TYPE_CHOICES, null=True)
 
+    exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
+
     actions = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
     x = models.IntegerField()
@@ -3851,7 +3853,8 @@ class ActionSet(models.Model):
         self.actions = json.dumps(json_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
+        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
+                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)
@@ -3865,7 +3868,7 @@ class FlowRevision(SmartModel):
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
-    spec_version = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8,
+    spec_version = models.CharField(default=get_current_export_version, max_length=8,
                                     help_text=_("The flow version this definition is in"))
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
@@ -3906,7 +3909,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         for version in Flow.get_versions_after(version):
             version_slug = version.replace(".", "_")
@@ -3934,7 +3937,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         for version in flow.get_newer_versions():
             version_slug = version.replace(".", "_")
@@ -3960,7 +3963,7 @@ class FlowRevision(SmartModel):
                               revision=self.revision, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
-        if self.spec_version != CURRENT_EXPORT_VERSION:
+        if self.spec_version != get_current_export_version():
             definition = FlowRevision.migrate_definition(definition, self.flow)
         return definition
 
@@ -4126,6 +4129,11 @@ class FlowPathRecentMessage(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
+        ]
 
 
 class FlowNodeCount(SquashableModel):

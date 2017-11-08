@@ -25,7 +25,7 @@ class GlobeType(ChannelType):
 
     name = "Globe Labs"
 
-    claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand }} with Globe Labs to send
+    claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
                        and receive messages on your shortcode.""")
     claim_view = ClaimView
 

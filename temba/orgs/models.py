@@ -52,8 +52,14 @@ from uuid import uuid4
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = "10.2"
 EARLIEST_IMPORT_VERSION = "3"
+
+
+# making this a function allows it to be used as a default for Django fields
+def get_current_export_version():
+    from temba.flows.models import Flow
+    return Flow.VERSIONS[-1]
+
 
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
@@ -374,11 +380,10 @@ class Org(SmartModel):
 
         # see if our export needs to be updated
         export_version = data.get('version', 0)
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
         if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
-        if Flow.is_before_version(export_version, CURRENT_EXPORT_VERSION):
+        if Flow.is_before_version(export_version, get_current_export_version()):
             from temba.flows.models import FlowRevision
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
@@ -407,7 +412,7 @@ class Org(SmartModel):
             elif isinstance(component, Trigger):
                 exported_triggers.append(component.as_json())
 
-        return dict(version=CURRENT_EXPORT_VERSION,
+        return dict(version=get_current_export_version(),
                     site=site_link,
                     flows=exported_flows,
                     campaigns=exported_campaigns,
