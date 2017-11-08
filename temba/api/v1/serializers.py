@@ -13,7 +13,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import get_current_export_version
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -648,7 +648,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        definition = FlowRevision.migrate_definition(definition, self.flow_obj, CURRENT_EXPORT_VERSION)
+        definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
 
         for step in steps:
             node_obj = None
@@ -698,9 +698,11 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         step_objs = []
         previous_rule = None
+        previous_category = None
         for step in steps:
-            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule)
+            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule, previous_category)
             previous_rule = step_obj.rule_uuid
+            previous_category = step_obj.rule_category
             step_objs.append(step_obj)
 
         if completed:
