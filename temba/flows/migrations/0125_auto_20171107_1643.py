@@ -9,7 +9,7 @@ import temba.orgs.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0123_backfill_flowrun_results'),
+        ('flows', '0124_auto_20171107_2120'),
     ]
 
     operations = [
