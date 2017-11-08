@@ -773,7 +773,7 @@ class OrgTest(TembaTest):
         response = self.client.post(admin_create_login_url, post_data, follow=True)
         self.assertEqual(200, response.status_code)
 
-        # as a surveyor we should have been rerourted
+        # as a surveyor we should have been rerouted
         self.assertEqual(reverse('orgs.org_surveyor'), response._request.path)
         self.assertFalse(Invitation.objects.get(pk=surveyor_invite.pk).is_active)
 
@@ -871,6 +871,17 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEqual(response.context_data['org'], self.org2)
+        self.assertContains(response, "Nyaruka")
+        self.assertContains(response, "Trileet Inc")
+
+        # make org2 inactive
+        self.org2.is_active = False
+        self.org2.save(update_fields=['is_active'])
+
+        # go back to our choose url, should only show Nyaruka
+        response = self.client.get(choose_url, follow=True)
+        self.assertNotContains(response, "Trileet Inc")
+        self.assertContains(response, "Nyaruka")
 
         # a non org user get's logged out
         self.login(self.non_org_user)

@@ -1976,8 +1976,9 @@ def get_user_orgs(user, brand=None):
 
     if user.is_superuser:
         return Org.objects.all()
+
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.filter(brand=brand).distinct().order_by('name')
+    return user_orgs.filter(brand=brand, is_active=True).distinct().order_by('name')
 
 
 def get_org(obj):
