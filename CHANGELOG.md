@@ -1,3 +1,7 @@
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
 v3.0.243
 ----------
  * Add index to FlowPathRecentMessage
