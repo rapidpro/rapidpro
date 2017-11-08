@@ -839,6 +839,9 @@ class InfobipHandler(BaseChannelHandler):
                 except iso8601.ParseError:
                     msg_date = None
 
+                if not text:
+                    continue
+
                 if channel.address.lstrip('+') == receiver.lstrip('+'):
                     urn = URN.from_tel(sender)
                     sms = Msg.create_incoming(channel, urn, text, date=msg_date, external_id=external_id)
