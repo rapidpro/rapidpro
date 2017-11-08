@@ -12,7 +12,7 @@ from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
 from temba.msgs.models import Msg
-from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -82,7 +82,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_message_event(self):
         # update the planting date for our contacts

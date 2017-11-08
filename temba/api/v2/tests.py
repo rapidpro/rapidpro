@@ -652,6 +652,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': campaign2.uuid,
             'name': "Reminders #2",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign2.created_on)
         })
@@ -673,6 +674,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json(), {
             'uuid': campaign3.uuid,
             'name': "Reminders #3",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign3.created_on)
         })
@@ -1635,6 +1637,9 @@ class APITest(TembaTest):
 
         registration = self.create_flow(name="Registration")
         survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
+
+        # add a campaign message flow that should be filtered out
+        Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
