@@ -9,6 +9,8 @@ import time
 import urlparse
 
 from abc import ABCMeta, abstractmethod
+
+from django.template import Engine
 from enum import Enum
 from datetime import timedelta
 from django.conf import settings
@@ -24,7 +26,6 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django_countries.fields import CountryField
 from django_redis import get_redis_connection
@@ -113,7 +114,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Gets the blurb for use on the claim page list of channel types
         """
-        return mark_safe(self.claim_blurb)
+        return Engine.get_default().from_string(self.claim_blurb)
 
     def get_claim_url(self):
         """
@@ -1668,7 +1669,10 @@ class ChannelLog(models.Model):
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
-        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
+        if self.msg:
+            return ChannelLog.objects.filter(msg=self.msg).order_by('-created_on')
+
+        return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
         if not self.request:

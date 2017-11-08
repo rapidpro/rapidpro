@@ -176,7 +176,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {% include ch_type.get_claim_blurb %}
 
     %h3
       -trans "Social Network Channels"
@@ -191,7 +192,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {% include ch_type.get_claim_blurb %}
 
     %h3
       -trans "API Channels"
@@ -206,7 +208,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {% include ch_type.get_claim_blurb %}
 
     %h3
       -trans "USSD Channels"
@@ -221,7 +224,8 @@
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_claim_blurb
+              %div
+                {% include ch_type.get_claim_blurb %}
 
 -block form-buttons
 

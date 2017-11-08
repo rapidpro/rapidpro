@@ -817,6 +817,10 @@ class InfobipHandler(BaseChannelHandler):
         except Exception as e:
             return make_response("Invalid JSON in POST body: %s" % str(e), status_code=400)
 
+        # ignore if the JSON does not have results key
+        if 'results' not in body:
+            return make_response('Missing "results" in payload', status_code=400)
+
         if action == 'receive':
 
             msgs = []

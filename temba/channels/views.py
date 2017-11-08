@@ -1399,6 +1399,8 @@ class ChannelCRUDL(SmartCRUDL):
             org = user.get_org()
             context['org_timezone'] = six.text_type(org.timezone)
 
+            context['brand'] = org.get_branding()
+
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
             recommended_channels = []

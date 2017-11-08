@@ -419,6 +419,10 @@ class CampaignEvent(TembaModel):
         # delete any pending event fires
         EventFire.update_eventfires_for_event(self)
 
+        # if our flow is a single message flow, release that too
+        if self.flow.flow_type == Flow.MESSAGE:
+            self.flow.release()
+
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
         return self.calculate_scheduled_fire_for_value(date_value, timezone.now())

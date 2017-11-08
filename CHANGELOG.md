@@ -1,3 +1,42 @@
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
+v3.0.243
+----------
+ * Add index to FlowPathRecentMessage
+ * Flows API endpoint should filter out campaign message flow type
+ * Add archived field to campaings API endpoint
+ * Fix to correctly substitute context brand variable in dynamic channel blurb
+
+v3.0.242
+----------
+ * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)
+
+v3.0.239
+----------
+ * Migration to increase size of category count
+
+v3.0.238
+----------
+ * Increase character limits on category counts
+
+v3.0.237
+----------
+ * Fix Nexmo channel link
+ * Add results field to FlowRun and start populating
+ * Add FlowCategoryCount model for aggregating flow results
+ * Remove duplicate USSD channels section
+
+v3.0.234
+----------
+ * Remove single message flows when events are deleted
+
+v3.0.233
+----------
+ * Remove field dependencies on flow release, cleanup migration
+ * Update to latest Django 1.11.6
+
 v3.0.232
 ----------
  * Mage handler shouldn't be accessible using example token in settings_common
