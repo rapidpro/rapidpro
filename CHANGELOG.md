@@ -1,3 +1,14 @@
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
+v3.0.243
+----------
+ * Add index to FlowPathRecentMessage
+ * Flows API endpoint should filter out campaign message flow type
+ * Add archived field to campaings API endpoint
+ * Fix to correctly substitute context brand variable in dynamic channel blurb
+
 v3.0.242
 ----------
  * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)

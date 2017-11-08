@@ -11,6 +11,15 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
+def migrate_to_version_10_3(json_flow, flow=None):
+    """
+    Adds exit_uuid to actionsets so flows can be migrated in goflow deterministically
+    """
+    for actionset in json_flow['action_sets']:
+        actionset['exit_uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
 def migrate_to_version_10_2(json_flow, flow=None):
     """
     Fixes malformed single message flows that have a base language but a message action that isn't localized

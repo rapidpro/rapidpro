@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from temba.flows.models import Flow
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
 
 
@@ -12,7 +12,7 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, *args, **options):
         # all flows not current set at the current version
-        flow_ids = list(Flow.objects.filter(is_active=True).filter(~Q(version_number=CURRENT_EXPORT_VERSION)).values_list('id', flat=True))
+        flow_ids = list(Flow.objects.filter(is_active=True).filter(~Q(version_number=get_current_export_version())).values_list('id', flat=True))
         total = len(flow_ids)
         updated = 0
         for id_batch in chunk_list(flow_ids, 1000):

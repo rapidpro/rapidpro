@@ -22,6 +22,7 @@ class GlobeTypeTest(TembaTest):
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_url)
+        self.assertContains(response, 'you can integrate RapidPro with Globe Labs')
 
         response = self.client.get(claim_url)
         self.assertEqual(200, response.status_code)
