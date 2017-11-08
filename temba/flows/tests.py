@@ -6687,32 +6687,32 @@ class FlowsTest(FlowFileTest):
         run = FlowRun.objects.get()
         path = run.get_path()
 
-        self.assertEqual(len(path), 8)
-        self.assertEqual(path[0]['node_uuid'], colorPrompt.uuid)
-        self.assertEqual(path[1]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[1]['exit_uuid'], otherRule.uuid)
-        self.assertEqual(path[2]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[3]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[4]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[5]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[6]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[7]['node_uuid'], colorRuleSet.uuid)
+        self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
+            (colorPrompt.uuid, colorPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, None),
+        ])
 
         self.send_message(flow, "red")
 
         run.refresh_from_db()
         path = run.get_path()
 
-        self.assertEqual(len(path), 8)
-        self.assertEqual(path[0]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[1]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[2]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[3]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[4]['node_uuid'], tryAgainPrompt.uuid)
-        self.assertEqual(path[5]['node_uuid'], colorRuleSet.uuid)
-        self.assertEqual(path[5]['exit_uuid'], redRule.uuid)
-        self.assertEqual(path[6]['node_uuid'], beerPrompt.uuid)
-        self.assertEqual(path[7]['node_uuid'], beerRuleSet.uuid)
+        self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, redRule.uuid),
+            (beerPrompt.uuid, beerPrompt.exit_uuid),
+            (beerRuleSet.uuid, None),
+        ])
 
 
 class FlowMigrationTest(FlowFileTest):
