@@ -30,7 +30,8 @@
                   %p.claim-text= ch_type.name
             .span9
               .claim-description
-                %div= ch_type.get_claim_blurb
+                %div
+                  {% include ch_type.get_claim_blurb %}
     -else
       .claim-row.android-channel.recommended
         .recommendation
@@ -53,8 +54,6 @@
                   Works in any country and uses the cell phone plan
                   you already have. You just need an Android phone
                   to get started.
-
-
 
     %h3
       -trans "Phone Channels"
