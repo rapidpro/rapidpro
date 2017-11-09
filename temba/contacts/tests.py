@@ -3533,10 +3533,7 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.serialize_field_value(state_field, value), 'Kigali City')
 
         value = joe.get_field(color_field.key)
-        value.category = "Dark"
-        value.save()
-
-        self.assertEqual(Contact.serialize_field_value(color_field, value), 'Dark')
+        self.assertEqual(Contact.serialize_field_value(color_field, value), 'green')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
@@ -3559,8 +3556,8 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=joe, contact_field=state_field).first()
         self.assertTrue(value.location_value)
         self.assertEqual(value.location_value.name, "Kigali City")
-        self.assertEqual("Kigali City", joe.get_field_display_for_value(not_state_field, value))
-        self.assertEqual("Kigali City", joe.serialize_field_value(not_state_field, value))
+        self.assertEqual("Kigali City", joe.get_field_display_for_value(state_field, value))
+        self.assertEqual("Kigali City", joe.serialize_field_value(state_field, value))
 
         # test that we don't normalize non-location fields
         joe.set_field(self.user, 'not_state', 'kigali city')
