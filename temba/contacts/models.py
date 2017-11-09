@@ -597,7 +597,7 @@ class Contact(TembaModel):
         channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.order_by('-event__created_on').select_related('event__campaign')[:MAX_HISTORY]
+        event_fires = event_fires.order_by('-fired').select_related('event__campaign')[:MAX_HISTORY]
 
         webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
         webhook_results = webhook_results.order_by('-created_on').select_related('event')[:MAX_HISTORY]
