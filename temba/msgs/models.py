@@ -509,7 +509,7 @@ class Broadcast(models.Model):
                                           insert_object=False,
                                           attachments=[media] if media else None,
                                           created_on=created_on,
-                                          metadata=_metadata)
+                                          quick_replies=_metadata)
 
             except UnreachableException:
                 # there was no way to reach this contact, do not create a message
@@ -1450,7 +1450,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
-                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, metadata=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1557,8 +1557,9 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
-        if metadata:
-            metadata = Msg.get_outgoing_metadata(metadata, expressions_context, contact, org, channel)
+        metadata = None
+        if quick_replies:
+            metadata = Msg.get_outgoing_metadata(quick_replies, expressions_context, contact, org, channel)
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
