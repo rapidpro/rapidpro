@@ -41,7 +41,7 @@ class TelegramTypeTest(TembaTest):
         self.assertEqual('Your authentication token is invalid, please check and try again',
                          response.context['form'].errors['auth_token'][0])
 
-        user = telegram.User(123, 'Rapid')
+        user = telegram.User(123, 'Rapid', True)
         user.last_name = 'Bot'
         user.username = 'rapidbot'
 

@@ -1,10 +1,9 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-from time import sleep
-
 import regex
 
+from time import sleep
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType, Channel, SendException

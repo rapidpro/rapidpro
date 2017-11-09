@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from six import text_type
+
 from temba.channels.models import ChannelType, Channel, SendException
 from temba.channels.types.junebug.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
