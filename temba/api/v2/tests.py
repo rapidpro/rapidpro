@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import iso8601
 import json
 import pytz
 import six
@@ -2168,7 +2169,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -2211,7 +2212,7 @@ class APITest(TembaTest):
                     'value': "blue",
                     'category': "Blue",
                     'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
+                    'time': format_datetime(iso8601.parse_date(joe_run1.get_results()['color']['created_on']))
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
