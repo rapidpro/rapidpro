@@ -1669,6 +1669,19 @@ class ContactTest(TembaTest):
         # and we should have a marker for older items
         self.assertTrue(response.context['has_older'])
 
+        # make our message event older than our planting reminder
+        self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
+        self.message_event.save()
+
+        # but fire it immediately
+        scheduled = timezone.now()
+        EventFire.objects.create(event=self.message_event, contact=self.joe, scheduled=scheduled, fired=scheduled)
+
+        # with a max history of one, we should see this event first
+        models.MAX_HISTORY = 1
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]) + '?before=%d' % datetime_to_ms(timezone.now()), self.admin)
+        self.assertEqual(self.message_event, response.context['activity'][0]['obj'].event)
+
     def test_event_times(self):
 
         self.create_campaign()
