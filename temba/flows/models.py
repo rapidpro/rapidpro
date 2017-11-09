@@ -1886,7 +1886,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=True, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
