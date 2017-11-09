@@ -12,7 +12,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
 from twilio import TwilioRestException
 
-from temba.orgs.models import ACCOUNT_SID
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
 from ...models import Channel
@@ -149,7 +149,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
             number_sid = twilio_phone.sid
 
-        config = {'application_sid': new_app.sid, 'number_sid': number_sid}
+        org_config = org.config_json()
+        config = {Channel.CONFIG_APPLICATION_SID: new_app.sid,
+                  Channel.CONFIG_NUMBER_SID: number_sid,
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         channel = Channel.create(org, user, country, 'T', name=phone, address=phone_number, role=role,
                                  config=config, uuid=channel_uuid)
