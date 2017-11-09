@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from twilio import TwilioRestException
 
 from temba.channels.types.twilio.views import ClaimView
-from temba.channels.views import TWILIO_SEARCH_COUNTRIES
+from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED, Attachment
 from temba.utils.timezones import timezone_to_country_code
@@ -34,6 +34,8 @@ class TwilioType(ChannelType):
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
 
+    ordering = 1
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.is_connected_to_twilio()
@@ -41,7 +43,7 @@ class TwilioType(ChannelType):
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in TWILIO_SEARCH_COUNTRIES
+        return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
 
     def has_attachment_support(self, channel):
         return channel.country in ('US', 'CA')

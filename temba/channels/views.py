@@ -1405,7 +1405,7 @@ class ChannelCRUDL(SmartCRUDL):
             types_by_category = defaultdict(list)
             recommended_channels = []
             recommended_channels_to_connect = []
-            for ch_type in sorted(Channel.get_types(), key=lambda t: t.name):
+            for ch_type in sorted(Channel.get_types(), key=lambda t: (t.ordering, t.name)):
                 if ch_type.is_recommended_to(user):
                     if ch_type.is_available_to(user):
                         recommended_channels.append(ch_type)

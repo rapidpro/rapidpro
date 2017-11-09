@@ -18,6 +18,7 @@
   .channel-options
     %h3
       -trans "Recommendations"
+    .channel-options-recommended
 
     -if recommended_channels
       -for ch_type in recommended_channels
@@ -217,7 +218,7 @@
   :javascript
     $(document).ready(function() {
       var channel = $('.claim-row.recommended');
-      $('.channel-options').prepend(channel);
+      $('.channel-options-recommended').prepend(channel);
     });
 
 

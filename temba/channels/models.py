@@ -98,6 +98,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     ivr_protocol = None
 
+    ordering = 20
+
     def is_available_to(self, user):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
