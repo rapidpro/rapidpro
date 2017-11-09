@@ -817,6 +817,10 @@ class InfobipHandler(BaseChannelHandler):
         except Exception as e:
             return make_response("Invalid JSON in POST body: %s" % str(e), status_code=400)
 
+        # ignore if the JSON does not have results key
+        if 'results' not in body:
+            return make_response('Missing "results" in payload', status_code=400)
+
         if action == 'receive':
 
             msgs = []
@@ -834,6 +838,9 @@ class InfobipHandler(BaseChannelHandler):
                     msg_date = iso8601.parse_date(receivedAt, default_timezone=None)
                 except iso8601.ParseError:
                     msg_date = None
+
+                if not text:
+                    continue
 
                 if channel.address.lstrip('+') == receiver.lstrip('+'):
                     urn = URN.from_tel(sender)

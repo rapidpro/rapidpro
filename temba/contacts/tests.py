@@ -4095,7 +4095,6 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         self.get_flow('dependencies')
 
-        # flow = Flow.objects.filter(name='Dependencies').first()
         manage_fields_url = reverse('contacts.contactfield_managefields')
         response = self.client.get(manage_fields_url)
 

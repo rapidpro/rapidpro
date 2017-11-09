@@ -9,6 +9,8 @@ import time
 import urlparse
 
 from abc import ABCMeta, abstractmethod
+
+from django.template import Engine
 from enum import Enum
 from datetime import timedelta
 from django.conf import settings
@@ -24,7 +26,6 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django_countries.fields import CountryField
 from django_redis import get_redis_connection
@@ -107,7 +108,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Gets the blurb for use on the claim page list of channel types
         """
-        return mark_safe(self.claim_blurb)
+        return Engine.get_default().from_string(self.claim_blurb)
 
     def get_claim_url(self):
         """
@@ -536,18 +537,6 @@ class Channel(TembaModel):
 
         # otherwise, this is unicode
         return Encoding.UNICODE, text
-
-    @classmethod
-    def supports_media(cls, channel):
-        """
-        Can this channel send images, audio, and video. This is static to work
-        with ChannelStructs or Channels
-        """
-        # Twilio only supports mms in the US and Canada
-        if channel.channel_type == 'T':
-            return channel.country in ('US', 'CA')
-        else:
-            return cls.get_type_from_code(channel.channel_type).has_attachment_support(channel)
 
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
@@ -1179,7 +1168,7 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.attachments and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
             # for now we only support sending one attachment per message but this could change in future
             attachment = Attachment.parse_all(msg.attachments)[0]
             text = '%s\n%s' % (text, attachment.url)
@@ -1599,7 +1588,10 @@ class ChannelLog(models.Model):
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
-        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
+        if self.msg:
+            return ChannelLog.objects.filter(msg=self.msg).order_by('-created_on')
+
+        return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
         if not self.request:

@@ -11,7 +11,7 @@ import time
 import urllib2
 
 from collections import OrderedDict, defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum
+from django.db.models import Q, Count, QuerySet, Sum, Max
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -35,7 +35,7 @@ from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, get_current_export_version
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
@@ -147,6 +147,7 @@ class Flow(TembaModel):
     CONFIG = 'config'
     ACTIONS = 'actions'
     DESTINATION = 'destination'
+    EXIT_UUID = 'exit_uuid'
     LABEL = 'label'
     WEBHOOK_URL = 'webhook'
     WEBHOOK_ACTION = 'webhook_action'
@@ -194,7 +195,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3"
     ]
 
     name = models.CharField(max_length=64,
@@ -235,7 +236,7 @@ class Flow(TembaModel):
                                      help_text=_('The primary language for editing this flow'),
                                      default='base')
 
-    version_number = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8,
+    version_number = models.CharField(default=get_current_export_version, max_length=8,
                                       help_text=_("The flow version this definition is in"))
 
     flow_dependencies = models.ManyToManyField('Flow', related_name='dependent_flows', verbose_name=("Flow Dependencies"), blank=True,
@@ -821,7 +822,7 @@ class Flow(TembaModel):
             value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        ruleset.save_run_value(run, rule, value, msg.text)
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -843,7 +844,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
+            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.get_category_name(flow.base_language), previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -961,9 +962,37 @@ class Flow(TembaModel):
 
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
+        self.field_dependencies.clear()
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
+
+    def get_category_counts(self, deleted_nodes=True):
+
+        actives = self.rule_sets.all().values('uuid', 'label')
+
+        uuids = [active['uuid'] for active in actives]
+        keys = [Flow.label_to_slug(active['label']) for active in actives]
+        counts = FlowCategoryCount.objects.filter(flow_id=self.id)
+
+        # always filter by active keys
+        counts = counts.filter(result_key__in=keys)
+
+        # filter by active nodes if we aren't including deleted nodes
+        if not deleted_nodes:
+            counts = counts.filter(node_uuid__in=uuids)
+        counts = counts.values('result_key', 'category_name').annotate(count=Sum('count'), result_name=Max('result_name'))
+
+        results = {}
+        for count in counts:
+            result = results.get(count['result_key'], {})
+            if 'name' not in result:
+                result['name'] = count['result_name']
+                result['categories'] = [dict(name=count['category_name'], count=count['count'])]
+            else:
+                result['categories'].append(dict(name=count['category_name'], count=count['count']))
+            results[count['result_key']] = result
+        return results
 
     def delete_results(self):
         """
@@ -1054,15 +1083,6 @@ class Flow(TembaModel):
         """
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
-    def get_base_text(self, language_dict, default=''):
-        if not isinstance(language_dict, dict):  # pragma: no cover
-            return language_dict
-
-        if self.base_language:
-            return language_dict.get(self.base_language, default)
-
-        return default  # pragma: no cover
-
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
@@ -1125,6 +1145,7 @@ class Flow(TembaModel):
         remap_uuid(flow_json, 'entry')
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, 'uuid')
+            remap_uuid(actionset, 'exit_uuid')
             remap_uuid(actionset, 'destination')
 
             # for all of our recordings, pull them down and remap
@@ -2060,7 +2081,7 @@ class Flow(TembaModel):
         # required flow running details
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.VERSION] = CURRENT_EXPORT_VERSION
+        flow[Flow.VERSION] = get_current_export_version()
         flow[Flow.METADATA] = self.get_metadata()
         return flow
 
@@ -2159,7 +2180,7 @@ class Flow(TembaModel):
         Makes sure the flow is at the current version. If it isn't it will
         migrate the definition forward updating the flow accordingly.
         """
-        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
+        if Flow.is_before_version(self.version_number, get_current_export_version()):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:
@@ -2222,13 +2243,8 @@ class Flow(TembaModel):
             top_uuid = None
 
             # load all existing objects into dicts by uuid
-            existing_actionsets = dict()
-            for actionset in self.action_sets.all():
-                existing_actionsets[actionset.uuid] = actionset
-
-            existing_rulesets = dict()
-            for ruleset in self.rule_sets.all():
-                existing_rulesets[ruleset.uuid] = ruleset
+            existing_actionsets = {actionset.uuid: actionset for actionset in self.action_sets.all()}
+            existing_rulesets = {ruleset.uuid: ruleset for ruleset in self.rule_sets.all()}
 
             # set of uuids which we've seen, we use this set to remove objects no longer used in this flow
             seen = set()
@@ -2337,6 +2353,7 @@ class Flow(TembaModel):
             # now work through our action sets
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
                 uuid = actionset.get(Flow.UUID)
+                exit_uuid = actionset.get(Flow.EXIT_UUID)
 
                 # skip actionsets without any actions. This happens when there are no valid
                 # actions in an actionset such as when deleted groups or flows are the only actions
@@ -2368,6 +2385,7 @@ class Flow(TembaModel):
                         # print "Updating %s to point to %s" % (unicode(actions), destination_uuid)
                         existing.destination = destination_uuid
                         existing.destination_type = destination_type
+                        existing.exit_uuid = exit_uuid
                         existing.set_actions_dict(actions)
                         (existing.x, existing.y) = (x, y)
                         existing.save()
@@ -2376,6 +2394,7 @@ class Flow(TembaModel):
                                                             uuid=uuid,
                                                             destination=destination_uuid,
                                                             destination_type=destination_type,
+                                                            exit_uuid=exit_uuid,
                                                             actions=json.dumps(actions),
                                                             x=x, y=y)
 
@@ -2435,7 +2454,7 @@ class Flow(TembaModel):
             if user and user != flow_user:
                 self.saved_on = timezone.now()
 
-            self.version_number = CURRENT_EXPORT_VERSION
+            self.version_number = get_current_export_version()
             self.save()
 
             # clear property cache
@@ -2455,7 +2474,7 @@ class Flow(TembaModel):
             self.revisions.create(definition=json.dumps(json_dict),
                                   created_by=user,
                                   modified_by=user,
-                                  spec_version=CURRENT_EXPORT_VERSION,
+                                  spec_version=get_current_export_version(),
                                   revision=revision)
 
             self.update_dependencies()
@@ -2475,7 +2494,7 @@ class Flow(TembaModel):
     def update_dependencies(self):
 
         # if we are an older version, induce a system rev which will update our dependencies
-        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
+        if Flow.is_before_version(self.version_number, get_current_export_version()):
             self.ensure_current_version()
             return
 
@@ -2594,6 +2613,14 @@ class FlowRun(models.Model):
 
     INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
 
+    RESULT_NAME = 'name'
+    RESULT_NODE_UUID = 'node_uuid'
+    RESULT_CATEGORY = 'category'
+    RESULT_CATEGORY_LOCALIZED = 'category_localized'
+    RESULT_VALUE = 'value'
+    RESULT_INPUT = 'input'
+    RESULT_CREATED_ON = 'created_on'
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
@@ -2641,6 +2668,9 @@ class FlowRun(models.Model):
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
+
+    results = models.TextField(null=True,
+                               help_text=_("The results collected during this flow run in JSON format"))
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
@@ -3012,6 +3042,50 @@ class FlowRun(models.Model):
 
         return msg
 
+    def results_dict(self):
+        return json.loads(self.results) if self.results else dict()
+
+    @classmethod
+    def serialize_value(cls, value):
+        """
+        Utility method to give the serialized value for the passed in value
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            return value.isoformat()
+        elif isinstance(value, AdminBoundary):
+            return value.as_path()
+        else:
+            return six.text_type(value)
+
+    def save_run_result(self, name, node_uuid, category, category_localized, raw_value, raw_input):
+        # slug our name
+        key = Flow.label_to_slug(name)
+
+        # create our result dict
+        results = self.results_dict()
+        results[key] = {
+            FlowRun.RESULT_NAME: name,
+            FlowRun.RESULT_NODE_UUID: node_uuid,
+            FlowRun.RESULT_CATEGORY: category,
+            FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
+            FlowRun.RESULT_INPUT: raw_input,
+            FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
+        }
+
+        # if we have a different localized name for our category, save it as well
+        if category != category_localized:
+            results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
+
+        self.results = json.dumps(results)
+        self.modified_on = timezone.now()
+        self.save(update_fields=['results', 'modified_on'])
+
+    def __str__(self):
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results_dict(), indent=2))
+
 
 @six.python_2_unicode_compatible
 class FlowStep(models.Model):
@@ -3130,11 +3204,10 @@ class FlowStep(models.Model):
                         raise ValueError("No such rule with UUID %s" % rule_uuid)
 
                     rule_uuid = rule.uuid
-                    rule_category = rule.category
+                    rule_category = rule.get_category_name(run.flow.base_language)
                     rule_value = value
 
-                rule.category = rule_category
-                ruleset.save_run_value(run, rule, rule_value)
+                ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
             step.rule_uuid = rule_uuid
@@ -3175,12 +3248,18 @@ class FlowStep(models.Model):
         self.delete()
 
     def save_rule_match(self, rule, value):
-        self.rule_category = rule.category
+        self.rule_category = rule.get_category_name(self.run.flow.base_language)
         self.rule_uuid = rule.uuid
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
+
+        # format our rule value appropriately
+        if isinstance(value, datetime):
+            (date_format, time_format) = get_datetime_format(self.run.flow.org.get_dayfirst())
+            self.rule_value = datetime_to_str(value, tz=self.run.flow.org.timezone, format=time_format, ms=False)
+        else:
+            self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3466,7 +3545,6 @@ class RuleSet(models.Model):
                 if isinstance(rule.test, TimeoutTest):
                     (result, value) = rule.matches(run, msg, context, orig_text)
                     if result > 0:
-                        rule.category = run.flow.get_base_text(rule.category)
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
@@ -3536,7 +3614,6 @@ class RuleSet(models.Model):
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(status_code))
                 if result > 0:
-                    rule.category = run.flow.get_base_text(rule.category)
                     return rule, body
 
         else:
@@ -3578,7 +3655,6 @@ class RuleSet(models.Model):
                     (result, value) = rule.matches(run, msg, context, text)
                     if result > 0:
                         # treat category as the base category
-                        rule.category = run.flow.get_base_text(rule.category)
                         return rule, value
             finally:
                 if msg:
@@ -3595,15 +3671,21 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
+    def save_run_value(self, run, rule, raw_value, raw_input):
+        value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
         media_value = None
 
-        if isinstance(value, AdminBoundary):  # pragma: needs cover
-            location_value = value
+        if isinstance(raw_value, AdminBoundary):
+            location_value = raw_value
+
+        elif isinstance(raw_value, datetime):
+            dt_value = raw_value
+            (date_format, time_format) = get_datetime_format(run.org.get_dayfirst())
+            value = datetime_to_str(dt_value, tz=run.org.timezone, format=time_format, ms=False)
+
         else:
             dt_value = run.flow.org.parse_date(value)
             dec_value = run.flow.org.parse_decimal(value)
@@ -3618,9 +3700,17 @@ class RuleSet(models.Model):
         # delete any existing values for this ruleset, run and contact, we only store the latest
         Value.objects.filter(contact=run.contact, run=run, ruleset=self).delete()
 
-        Value.objects.create(contact=run.contact, run=run, ruleset=self, category=rule.category, rule_uuid=rule.uuid,
+        Value.objects.create(contact=run.contact, run=run, ruleset=self, rule_uuid=rule.uuid,
+                             category=rule.get_category_name(run.flow.base_language),
                              string_value=value, decimal_value=dec_value, datetime_value=dt_value,
                              location_value=location_value, media_value=media_value, org=run.flow.org)
+
+        run.save_run_result(name=self.label,
+                            node_uuid=self.uuid,
+                            category=rule.get_category_name(run.flow.base_language),
+                            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
+                            raw_value=raw_value,
+                            raw_input=raw_input)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
@@ -3665,6 +3755,8 @@ class ActionSet(models.Model):
 
     destination = models.CharField(max_length=36, null=True)
     destination_type = models.CharField(max_length=1, choices=FlowStep.STEP_TYPE_CHOICES, null=True)
+
+    exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
     actions = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
@@ -3738,7 +3830,8 @@ class ActionSet(models.Model):
         self.actions = json.dumps(json_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
+        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
+                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)
@@ -3752,7 +3845,7 @@ class FlowRevision(SmartModel):
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
-    spec_version = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8,
+    spec_version = models.CharField(default=get_current_export_version, max_length=8,
                                     help_text=_("The flow version this definition is in"))
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
@@ -3793,7 +3886,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         for version in Flow.get_versions_after(version):
             version_slug = version.replace(".", "_")
@@ -3821,7 +3914,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         for version in flow.get_newer_versions():
             version_slug = version.replace(".", "_")
@@ -3847,7 +3940,7 @@ class FlowRevision(SmartModel):
                               revision=self.revision, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
-        if self.spec_version != CURRENT_EXPORT_VERSION:
+        if self.spec_version != get_current_export_version():
             definition = FlowRevision.migrate_definition(definition, self.flow)
         return definition
 
@@ -3859,6 +3952,36 @@ class FlowRevision(SmartModel):
                     id=self.pk,
                     version=self.spec_version,
                     revision=self.revision)
+
+
+class FlowCategoryCount(SquashableModel):
+    """
+    Maintains counts for categories across all possible results in a flow
+    """
+    SQUASH_OVER = ('flow_id', 'node_uuid', 'result_key', 'result_name', 'category_name')
+
+    flow = models.ForeignKey(Flow, related_name='category_counts', help_text="The flow the result belongs to")
+    node_uuid = models.UUIDField(db_index=True)
+    result_key = models.CharField(max_length=128, help_text="The sluggified key for the result")
+    result_name = models.CharField(max_length=128, help_text="The result the category belongs to")
+    category_name = models.CharField(max_length=128, help_text="The category name for a result")
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        params = (distinct_set.flow_id, distinct_set.node_uuid, distinct_set.result_key, distinct_set.result_name, distinct_set.category_name) * 2
+        return sql, params
+
+    def __str__(self):
+        return "%s: %s" % (self.category_name, self.count)
 
 
 @six.python_2_unicode_compatible
@@ -3983,6 +4106,11 @@ class FlowPathRecentMessage(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
+        ]
 
 
 class FlowNodeCount(SquashableModel):
@@ -5977,17 +6105,24 @@ class Rule(object):
         self.test = test
         self.label = label
 
-    def get_category_name(self, flow_lang):
+    def get_category_name(self, flow_lang, contact_lang=None):
         if not self.category:  # pragma: needs cover
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
         # return the category name for the flow language version
         if isinstance(self.category, dict):
-            if flow_lang:
-                return self.category[flow_lang]
-            else:  # pragma: needs cover
-                return self.category.values()[0]
+            category = None
+            if contact_lang:
+                category = self.category.get(contact_lang)
+
+            if not category and flow_lang:
+                category = self.category.get(flow_lang)
+
+            if not category:  # pragma: needs cover
+                category = self.category.values()[0]
+
+            return category
 
         return self.category  # pragma: needs cover
 
@@ -6750,13 +6885,11 @@ class DateTest(Test):
 
         test, errors = Msg.evaluate_template(self.test, context, org=org)
         if not errors:
-            (date_format, time_format) = get_datetime_format(day_first)
-
             date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
             date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
             if self.evaluate_date_test(date_message, date_test):
-                return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
+                return 1, date_message.astimezone(tz)
 
         return 0, None
 

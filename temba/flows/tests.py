@@ -27,10 +27,10 @@ from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
-from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str, str_to_datetime
+from temba.utils import datetime_to_str
 from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
@@ -38,7 +38,7 @@ from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate
 from .flow_migrations import migrate_to_version_10_2
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import FlowCategoryCount, FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, DateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
@@ -201,8 +201,8 @@ class FlowTest(TembaTest):
         self.assertEqual(1, revisions[0].revision)
         self.assertEqual(2, revisions[1].revision)
 
-        self.assertEqual(CURRENT_EXPORT_VERSION, revisions[0].spec_version)
-        self.assertEqual(CURRENT_EXPORT_VERSION, revisions[0].as_json()['version'])
+        self.assertEqual(get_current_export_version(), revisions[0].spec_version)
+        self.assertEqual(get_current_export_version(), revisions[0].as_json()['version'])
         self.assertEqual('base', revisions[0].get_definition_json()['base_language'])
 
         # now make one revision invalid
@@ -1277,7 +1277,7 @@ class FlowTest(TembaTest):
         # back out as json
         json_dict = self.flow.as_json()
 
-        self.assertEqual(json_dict['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(json_dict['version'], get_current_export_version())
         self.assertEqual(json_dict['flow_type'], self.flow.flow_type)
         self.assertEqual(json_dict['metadata'], {
             'name': self.flow.name,
@@ -1403,8 +1403,7 @@ class FlowTest(TembaTest):
         if expected_test and expected_value:
             # convert our expected date time the right timezone
             expected_tz = expected_value.astimezone(tz)
-            expected_value = expected_value.replace(hour=expected_tz.hour).replace(day=expected_tz.day).replace(month=expected_tz.month)
-            self.assertTrue(abs((expected_value - str_to_datetime(tuple[1], tz=timezone.utc)).total_seconds()) < 60)
+            self.assertTrue(abs((expected_tz - tuple[1]).total_seconds()) < 60, "%s does not match expected %s" % (tuple[1], expected_tz))
 
     def test_location_tests(self):
         sms = self.create_msg(contact=self.contact, text="")
@@ -1808,13 +1807,17 @@ class FlowTest(TembaTest):
                 test = DateTest()
                 self.assertDateTest(False, None, test)
 
-                sms.text = "123"
-                self.assertDateTest(True, now.replace(year=123), test)
+                sms.text = "1980"
+                self.assertDateTest(True, now.replace(year=1980), test)
 
-                sms.text = "December 14, 1892"
-                self.assertDateTest(True, now.replace(year=1892, month=12, day=14), test)
+                sms.text = "December 14, 1982"
+                self.assertDateTest(True, now.replace(year=1982, month=12, day=14), test)
 
-                sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
+                if dayfirst:
+                    sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
+                else:
+                    sms.text = "sometime on %d/%d/%d" % (now.month, now.day, now.year)
+
                 self.assertDateTest(True, now, test)
 
                 # date before/equal/after tests using date arithmetic
@@ -1837,7 +1840,10 @@ class FlowTest(TembaTest):
                 test = DateAfterTest('@(date.today + 3)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
+                else:
+                    sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.month, five_days_next.day, five_days_next.year)
                 self.assertDateTest(True, five_days_next, test)
 
         # check date tests in both date modes
@@ -1934,6 +1940,19 @@ class FlowTest(TembaTest):
         self.assertEqual("40cc7c36-b7c8-4f05-ae82-25275607e5aa", step.rule_uuid)
         self.assertEqual("15", step.rule_value)
         self.assertEqual(Decimal("15"), step.rule_decimal_value)
+
+        # get our run and assert our value is saved (as a string)
+        run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
+        results = run.results_dict()
+        self.assertEqual("15", results['color']['value'])
+        self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
+        self.assertEqual("> 10", results['color']['category'])
+        self.assertEqual("color", results['color']['name'])
+        self.assertIsNotNone(results['color']['created_on'])
+
+        # and that the category counts have been updated
+        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid='bd531ace-911e-4722-8e53-6730d6122fe1', category_name='> 10',
+                                                              result_name='color', result_key='color', count=1).first())
 
     def test_location_entry_test(self):
 
@@ -4513,6 +4532,89 @@ class FlowsTest(FlowFileTest):
         response = flow.update(flow_json, self.admin)
         self.assertEqual(response.get('status'), 'unsaved')
 
+    def test_flow_category_counts(self):
+
+        def assertCount(count_map, result_key, category_name, count):
+            categories = count_map[result_key]['categories']
+            found = False
+            for category in categories:
+                if category['name'] == category_name:
+                    found = True
+                    self.assertEqual(category['count'], count)
+            self.assertTrue(found)
+
+        favorites = self.get_flow('favorites')
+
+        # add in some fake data
+        for i in range(0, 10):
+            contact = self.create_contact('Contact %d' % i, '+120655530%d' % i)
+            self.send_message(favorites, 'blue', contact=contact)
+            self.send_message(favorites, 'primus', contact=contact)
+
+        for i in range(0, 5):
+            contact = self.create_contact('Contact %d' % i, '+120655531%d' % i)
+            self.send_message(favorites, 'red', contact=contact)
+            self.send_message(favorites, 'primus', contact=contact)
+
+        # test update flow values
+        for i in range(0, 5):
+            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            self.send_message(favorites, 'orange', contact=contact)
+            self.send_message(favorites, 'green', contact=contact)
+            self.send_message(favorites, 'skol', contact=contact)
+
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'color', 'Blue', 10)
+        assertCount(counts, 'color', 'Red', 5)
+        assertCount(counts, 'beer', 'Primus', 15)
+
+        # five oranges went back and became greens
+        assertCount(counts, 'color', 'Other', 0)
+        assertCount(counts, 'color', 'Green', 5)
+
+        # now remap the uuid for our color node
+        flow_json = favorites.as_json()
+        color_ruleset = (flow_json['rule_sets'][0])
+        flow_json = json.loads(json.dumps(flow_json).replace(color_ruleset['uuid'], str(uuid4())))
+        favorites.update(flow_json)
+
+        # send a few more runs through our updated flow
+        for i in range(0, 3):
+            contact = self.create_contact('Contact %d' % i, '+120655533%d' % i)
+            self.send_message(favorites, 'red', contact=contact)
+            self.send_message(favorites, 'turbo', contact=contact)
+
+        # should now have three more reds
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'color', 'Red', 8)
+        assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # but if we ignore the ones from our deleted color node, should only have the three new ones
+        counts = favorites.get_category_counts(deleted_nodes=False)
+        assertCount(counts, 'color', 'Red', 3)
+
+        # now erase the color key entirely
+        flow_json['rule_sets'] = flow_json['rule_sets'][1:]
+        favorites.update(flow_json)
+
+        # now the color counts have been removed, but beer is still there
+        counts = favorites.get_category_counts()
+        self.assertNotIn('color', counts)
+        assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # make sure it still works after ze squashings
+        FlowCategoryCount.squash()
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # test tostring
+        six.text_type(FlowCategoryCount.objects.all().first())
+
+        # and if we delete our runs, things zero out
+        FlowRun.objects.all().delete()
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'beer', 'Turbo King', 0)
+
     def test_flow_results(self):
         favorites = self.get_flow('favorites')
         FlowCRUDL.RunTable.paginate_by = 1
@@ -5741,6 +5843,16 @@ class FlowsTest(FlowFileTest):
         self.client.post(reverse('flows.flow_delete', args=[child.id]))
         self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=False).first())
 
+        # deleting our parent flow should work
+        self.client.post(reverse('flows.flow_delete', args=[parent.id]))
+        self.assertIsNotNone(Flow.objects.filter(id=parent.id, is_active=False).first())
+
+        # our parent should no longer have any dependencies
+        parent.refresh_from_db()
+        self.assertEqual(0, parent.field_dependencies.all().count())
+        self.assertEqual(0, parent.flow_dependencies.all().count())
+        self.assertEqual(0, parent.group_dependencies.all().count())
+
     def test_start_flow_action(self):
         self.import_file('flow_starts')
         parent = Flow.objects.get(name='Parent Flow')
@@ -5828,6 +5940,9 @@ class FlowsTest(FlowFileTest):
         # get the latest run
         first_run = flow.runs.all()[0]
         first_expires = first_run.expires_on
+
+        # make sure __str__ works
+        six.text_type(first_run)
 
         time.sleep(1)
 
@@ -6560,12 +6675,12 @@ class FlowMigrationTest(FlowFileTest):
         self.assertFalse(Flow.is_before_version("200", "5"))
         self.assertFalse(Flow.is_before_version("3.1", "3.5"))
 
-        self.assertFalse(Flow.is_before_version(CURRENT_EXPORT_VERSION, 10))
+        self.assertFalse(Flow.is_before_version(get_current_export_version(), 10))
 
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
-            to_version = CURRENT_EXPORT_VERSION
+            to_version = get_current_export_version()
 
         flow_json = flow.as_json()
         if Flow.is_before_version(flow.version_number, "6"):
@@ -6638,7 +6753,7 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(len(flow_json['action_sets']), 1)
         self.assertEqual(len(flow_json['rule_sets']), 0)
-        self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow_json['version'], get_current_export_version())
         self.assertEqual(flow_json['metadata']['revision'], 2)
 
     def test_migration_string_group(self):
@@ -6673,7 +6788,7 @@ class FlowMigrationTest(FlowFileTest):
         # updating our dependencies should ensure the current version
         flow.update_dependencies()
 
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call_me_maybe')['definition']
@@ -6697,6 +6812,13 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_10_3(self):
+        favorites = self.get_flow('favorites')
+
+        # make sure all of our action sets have an exit uuid
+        for actionset in favorites.action_sets.all():
+            self.assertIsNotNone(actionset.exit_uuid)
+
     def test_migrate_to_10_2(self):
         flow_json = self.get_flow_json('single_message_bad_localization')
         flow_json = migrate_to_version_10_2(flow_json)
@@ -6714,7 +6836,7 @@ class FlowMigrationTest(FlowFileTest):
         exported = favorites.as_json()
         flow = Flow.objects.filter(name='Favorites').first()
         self.assertEqual(exported, flow.as_json())
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
@@ -7048,7 +7170,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertTrue(ContactGroup.user_groups.filter(name='Contacts > 100').exists(), error % ("> 100", v))
 
             ContactGroup.user_groups.all().delete()
-            self.assertEqual(CURRENT_EXPORT_VERSION, flow.version_number)
+            self.assertEqual(get_current_export_version(), flow.version_number)
             flow.delete()
 
     def test_migrate_malformed_groups(self):
@@ -8052,10 +8174,71 @@ class FlowTriggerTest(TembaTest):
 class TypeTest(TembaTest):
 
     def test_value_types(self):
+
+        contact = self.create_contact("Joe", "+250788373373")
         self.get_flow('type_flow')
+
         self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
-        self.assertEqual(Value.TYPE_DECIMAL, RuleSet.objects.get(label="Number").value_type)
         self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
+        self.assertEqual(Value.TYPE_DECIMAL, RuleSet.objects.get(label="Number").value_type)
         self.assertEqual(Value.TYPE_STATE, RuleSet.objects.get(label="State").value_type)
         self.assertEqual(Value.TYPE_DISTRICT, RuleSet.objects.get(label="District").value_type)
         self.assertEqual(Value.TYPE_WARD, RuleSet.objects.get(label="Ward").value_type)
+
+        incoming = self.create_msg(direction=INCOMING, contact=contact, text="types")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
+
+        results = FlowRun.objects.get().results_dict()
+
+        self.assertEqual('Text', results['text']['name'])
+        self.assertEqual('Some Text', results['text']['value'])
+        self.assertEqual('Some Text', results['text']['input'])
+        self.assertEqual('All Responses', results['text']['category'])
+
+        self.assertEqual('Date', results['date']['name'])
+        self.assertEqual("not a date", results['date']['value'])
+        self.assertEqual('not a date', results['date']['input'])
+        self.assertEqual('Other', results['date']['category'])
+
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 06/23/1977")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="The number is 10")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="I'm in Eastern Province")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo")))
+
+        results = FlowRun.objects.get().results_dict()
+
+        self.assertEqual('Text', results['text']['name'])
+        self.assertEqual('Some Text', results['text']['value'])
+        self.assertEqual('Some Text', results['text']['input'])
+        self.assertEqual('All Responses', results['text']['category'])
+
+        self.assertEqual('Date', results['date']['name'])
+        self.assertTrue(results['date']['value'].startswith("1977-06-23T"))
+        self.assertEqual('Born 06/23/1977', results['date']['input'])
+        self.assertEqual('is a date', results['date']['category'])
+
+        self.assertEqual('Number', results['number']['name'])
+        self.assertEqual('10', results['number']['value'])
+        self.assertEqual('The number is 10', results['number']['input'])
+        self.assertEqual('numeric', results['number']['category'])
+
+        self.assertEqual('State', results['state']['name'])
+        self.assertEqual('Rwanda > Eastern Province', results['state']['value'])
+        self.assertEqual('I\'m in Eastern Province', results['state']['input'])
+        self.assertEqual('state', results['state']['category'])
+        self.assertFalse('category_localized' in results['state'])
+
+        self.assertEqual('District', results['district']['name'])
+        self.assertEqual('Rwanda > Eastern Province > Gatsibo', results['district']['value'])
+        self.assertEqual('That\'s in Gatsibo', results['district']['input'])
+        self.assertEqual('district', results['district']['category'])
+        self.assertEqual('le district', results['district']['category_localized'])
+
+        self.assertEqual('Ward', results['ward']['name'])
+        self.assertEqual('Rwanda > Eastern Province > Gatsibo > Kageyo', results['ward']['value'])
+        self.assertEqual('ya ok that\'s Kageyo', results['ward']['input'])
+        self.assertEqual('ward', results['ward']['category'])

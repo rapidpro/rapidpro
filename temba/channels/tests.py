@@ -2725,6 +2725,11 @@ class ExternalTest(TembaTest):
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
         self.assertEqual(response.context['object'].description, 'Successfully delivered')
 
+        # test our log items if we don't have a message set (should only list the single message)
+        log_item.msg = None
+        log_item.save(update_fields=['msg'])
+        self.assertEqual([log_item], list(log_item.log_group()))
+
         # make sure we can't see it as anon
         self.org.is_anon = True
         self.org.save()
@@ -4222,6 +4227,55 @@ class InfobipTest(TembaTest):
         response = self.client.post(receive_url, "Invalid", content_type='application/json')
         self.assertEqual(400, response.status_code)
 
+        # ignore when missing results key
+        post_data = {
+            "unexpected": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": "Hello World",
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": two_hour_ago.isoformat(),
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(400, response.status_code)
+
+        # missing text
+        post_data = {
+            "results": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": None,
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": two_hour_ago.isoformat(),
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
+
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(404, response.status_code)
+
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
         msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
@@ -4269,6 +4323,21 @@ class InfobipTest(TembaTest):
         response = self.client.post(delivery_url, "Invalid", content_type='application/json')
         self.assertEqual(400, response.status_code)
 
+        # ignore when missing results key
+        post_data = {
+            "deliveryReport": [
+                {
+                    "messageId": msg.id,
+                    "status": {
+                        "groupName": "DELIVERED"
+                    }
+                }
+            ]
+        }
+
+        response = self.client.post(delivery_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(400, response.status_code)
+
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("Test message", self.admin, trigger_send=False)[0]
@@ -4295,8 +4364,8 @@ class InfobipTest(TembaTest):
                                  "application/json")
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
-                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
-                                                                             args=[self.channel.uuid, 'delivered'])))
+                                 'https://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                              args=[self.channel.uuid, 'delivered'])))
 
                 self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
@@ -4375,8 +4444,8 @@ class InfobipTest(TembaTest):
                                  "application/json")
 
                 self.assertEqual(mock.call_args[1]['json']['messages'][0]['notifyUrl'],
-                                 'http://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
-                                                                             args=[self.channel.uuid, 'delivered'])))
+                                 'https://%s%s' % (settings.HOSTNAME, reverse('courier.ib',
+                                                                              args=[self.channel.uuid, 'delivered'])))
 
                 self.assertTrue(mock.call_args[1]['json']['messages'][0]['intermediateReport'])
 
