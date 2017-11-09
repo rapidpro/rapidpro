@@ -110,11 +110,11 @@
 
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header
-          .quick_reply-title
+          .quick-reply-title
             -trans "Quick Replies"
 
         .modal-quick-reply{ng-repeat:"reply in quickReplies", class:""}
-          .quick_reply-title
+          .quick-reply-title
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply[base_language]", ng-required:"true"}
 
           .icon.icon-close{ng-click:"removeQuickReply(quickReplies, $index);"}

@@ -31,11 +31,11 @@
 
             .quick-reply{ng-show:"translation.fromQuickReplies.length"}
               .modal-quick-reply-header
-                .quick_reply-title
+                .quick-reply-title
                   -trans "Quick Replies"
 
               .modal-quick-reply{ng-repeat:"response in translation.fromQuickReplies", class:""}
-                .quick_reply-title.center-translate
+                .quick-reply-title.center-translate
                   .translate-from{ng-show:"translation.fromQuickReplies"}
                     -trans "[[ response[language.from] ]]"
                   %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response[language.to]", ng-required:"true"}
