@@ -3,10 +3,6 @@ v3.0.246
  * Update smartmin to version 1.11.4
  * Dynamic channels: Chikka, Twilio, Twilio Messaging Service and TwiML Rest API
 
-v3.0.246
-----------
- * Update to smartmin 1.11.4
-
 v3.0.245
 ----------
  * Tweaks to the great FlowRun results migration for better logging and for parallel migrations
