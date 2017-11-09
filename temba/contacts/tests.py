@@ -3540,6 +3540,7 @@ class ContactTest(TembaTest):
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
+        not_state_field = ContactField.get_or_create(self.org, self.admin, 'not_state', 'Not State', None, Value.TYPE_TEXT)
 
         # add duplicate district in different states
         east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
@@ -3558,6 +3559,14 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=joe, contact_field=state_field).first()
         self.assertTrue(value.location_value)
         self.assertEqual(value.location_value.name, "Kigali City")
+        self.assertEqual("Kigali City", joe.get_field_display_for_value(not_state_field, value))
+        self.assertEqual("Kigali City", joe.serialize_field_value(not_state_field, value))
+
+        # test that we don't normalize non-location fields
+        joe.set_field(self.user, 'not_state', 'kigali city')
+        value = Value.objects.filter(contact=joe, contact_field=not_state_field).first()
+        self.assertEqual("kigali city", joe.get_field_display_for_value(not_state_field, value))
+        self.assertEqual("kigali city", joe.serialize_field_value(not_state_field, value))
 
         joe.set_field(self.user, 'district', 'Remera')
         value = Value.objects.filter(contact=joe, contact_field=district_field).first()
