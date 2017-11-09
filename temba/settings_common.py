@@ -1116,6 +1116,7 @@ MESSAGE_HANDLERS = [
 CHANNEL_TYPES = [
     'temba.channels.types.africastalking.AfricasTalkingType',
     'temba.channels.types.blackmyna.BlackmynaType',
+    'temba.channels.types.chikka.ChikkaType',
     'temba.channels.types.clickatell.ClickatellType',
     'temba.channels.types.dartmedia.DartMediaType',
     'temba.channels.types.dmark.DMarkType',
@@ -1142,6 +1143,9 @@ CHANNEL_TYPES = [
     'temba.channels.types.smscentral.SMSCentralType',
     'temba.channels.types.start.StartType',
     'temba.channels.types.telegram.TelegramType',
+    'temba.channels.types.twilio.TwilioType',
+    'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
+    'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
     'temba.channels.types.viber_public.ViberPublicType',
