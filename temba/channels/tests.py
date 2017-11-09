@@ -4283,6 +4283,31 @@ class InfobipTest(TembaTest):
         response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
         self.assertEqual(400, response.status_code)
 
+        # missing text
+        post_data = {
+            "results": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": None,
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": two_hour_ago.isoformat(),
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
+
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(404, response.status_code)
+
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
         msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
