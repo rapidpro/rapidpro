@@ -1989,38 +1989,6 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, reverse('channels.channel_read', args=[channel.uuid]))
 
-    def test_claim_chikka(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_chikka'))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.context['view'].get_country({}), 'Philippines')
-
-        post_data = response.context['form'].initial
-
-        post_data['number'] = '5259'
-        post_data['username'] = 'chikka'
-        post_data['password'] = 'password'
-
-        response = self.client.post(reverse('channels.channel_claim_chikka'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEqual('chikka', channel.config_json()[Channel.CONFIG_USERNAME])
-        self.assertEqual('password', channel.config_json()[Channel.CONFIG_PASSWORD])
-        self.assertEqual('5259', channel.address)
-        self.assertEqual('PH', channel.country)
-        self.assertEqual(Channel.TYPE_CHIKKA, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
         # set our last seen to a while ago
@@ -4282,6 +4250,31 @@ class InfobipTest(TembaTest):
         }
         response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
         self.assertEqual(400, response.status_code)
+
+        # missing text
+        post_data = {
+            "results": [
+                {
+                    "messageId": "817790313235066447",
+                    "from": "2347030767143",
+                    "to": "2347030767144",
+                    "text": None,
+                    "cleanText": "World",
+                    "keyword": "Hello",
+                    "receivedAt": two_hour_ago.isoformat(),
+                    "smsCount": 1,
+                    "price": {
+                        "pricePerMessage": 0,
+                        "currency": "EUR"
+                    },
+                    "callbackData": "callbackData"
+                }],
+            "messageCount": 1,
+            "pendingMessageCount": 0
+        }
+
+        response = self.client.post(receive_url, json.dumps(post_data), content_type='application/json')
+        self.assertEqual(404, response.status_code)
 
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
@@ -7666,7 +7659,7 @@ class ChikkaTest(TembaTest):
         super(ChikkaTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'PH', Channel.TYPE_CHIKKA, None, '920920',
+        self.channel = Channel.create(self.org, self.user, 'PH', 'CK', None, '920920',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         config = {Channel.CONFIG_USERNAME: 'username', Channel.CONFIG_PASSWORD: 'password'}

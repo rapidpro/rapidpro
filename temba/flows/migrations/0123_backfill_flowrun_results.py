@@ -12,6 +12,7 @@ import time
 from django_redis import get_redis_connection
 from django.utils import timezone
 from datetime import timedelta
+import os
 
 # these are called out here because we can't reference the real FlowRun in this migration
 RESULT_NAME = 'name'
@@ -55,6 +56,11 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
     if flow_ids:
         print("Found %d flows to migrate results for" % len(flow_ids))
 
+        partition = os.environ.get('PARTITION')
+        if partition is not None:
+            partition = int(partition)
+            print("Migrating flows in partition %d" % partition)
+
         # flow runs past this point are being written with results, don't migrate them again
         highwater = cache.get("results_mig_highwater")
         if not highwater:
@@ -64,7 +70,10 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 cache.set("results_mig_highwater", highwater)
 
         # for estimation, figure out total # of runs
-        flowrun_count = FlowRun.objects.filter(flow__is_active=True).count()
+        if not highwater:
+            flowrun_count = FlowRun.objects.filter(flow__is_active=True).count()
+        else:
+            flowrun_count = int(highwater)
         mig_count = cache.get("results_mig_count")
         update_count = int(mig_count) if mig_count else 0
         current_update_count = 0
@@ -77,12 +86,19 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 if migrated:
                     continue
 
+                # figure out if we should ignore this flow
+                if partition is not None and flow.id % 2 != partition:
+                    continue
+
+                print("Migrating %s (%d)" % (flow.name, flow.id))
+
                 # build a our mapping of ruleset uuid to category name
                 id_to_ruleset = {r.id: r for r in RuleSet.objects.filter(flow=flow).only('id', 'label', 'uuid')}
                 ruleset_uuids = [r.uuid for r in id_to_ruleset.values()]
 
                 run_ids = FlowRun.objects.filter(flow=flow, id__lt=highwater).values_list('id', flat=True)
                 for run_chunk in chunk_list(run_ids, 1000):
+                    chunk_start = time.time()
                     runs = FlowRun.objects.filter(id__in=run_chunk).prefetch_related('values')
 
                     # get all the steps across these runs
@@ -102,7 +118,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                     for run in runs:
                         results = {}
                         for value in run.values.all():
-                            if not value.ruleset_id or value.ruleset_id not in id_to_ruleset:
+                            if not value.ruleset_id or value.ruleset_id not in id_to_ruleset or not value.category:
                                 continue
 
                             rs = id_to_ruleset[value.ruleset_id]
@@ -141,15 +157,17 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
 
                     # figure out our rate
                     rate = (time.time() - start) / current_update_count
+                    chunk_rate = (time.time() - chunk_start) / len(runs)
 
                     # figure out per second
                     per_sec = 1 / rate
+                    chunk_per_sec = 1 / chunk_rate
 
                     # figure out estimated time remaining
                     mins = ((flowrun_count - update_count) / per_sec) / 60
                     finished = timezone.now() + timedelta(minutes=mins)
 
-                    print("Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (update_count, flowrun_count, per_sec, finished))
+                    print("Updated %d runs of %d (%2.2f per sec / %2.2f per sec chunk) Est finish: %s" % (update_count, flowrun_count, per_sec, chunk_per_sec, finished))
 
                 # mark this flow's results as migrated (new runs and values are already good)
                 cache.sadd("results_mig", flow.id)

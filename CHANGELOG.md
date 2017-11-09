@@ -1,3 +1,9 @@
+v3.0.245
+----------
+ * Tweaks to the great FlowRun results migration for better logging and for parallel migrations
+ * Fixes us showing inactive orgs in nav bar and choose page
+ * Ignore requests missing text for incoming message from Infobip
+
 v3.0.244
 ----------
  * Add exit_uuid to all flow action_sets (needed for goflow migrations)
