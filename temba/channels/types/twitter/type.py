@@ -66,23 +66,18 @@ class TwitterType(ChannelType):
                 formatted_replies = [dict(label=item) for item in quick_replies]
 
                 if quick_replies:
-                    params = dict(
-                        event=dict(
-                            type='message_create',
-                            message_create=dict(
-                                target=dict(
-                                    recipient_id=path
-                                ),
-                                message_data=dict(
-                                    text=text,
-                                    quick_reply=dict(
-                                        type='options',
-                                        options=formatted_replies
-                                    )
-                                )
-                            )
-                        )
-                    )
+                    params = {
+                        'event': {
+                            'type': 'message_create',
+                            'message_create': {
+                                'target': {'recipient_id': path},
+                                'message_data': {
+                                    'text': text,
+                                    'quick_reply': {'type': 'options', 'options': formatted_replies}
+                                }
+                            }
+                        }
+                    }
                     dm = twitter.post('direct_messages/events/new', params=params)
                     external_id = dm['event']['id']
                 else:
