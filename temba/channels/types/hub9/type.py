@@ -40,7 +40,7 @@ class Hub9Type(ChannelType):
         return org.timezone and six.text_type(org.timezone) in ["Asia/Jakarta"]
 
     def is_recommended_to(self, user):
-        self.is_available_to(user)
+        return self.is_available_to(user)
 
     def send(self, channel, msg, text):
 
