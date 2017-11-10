@@ -1665,13 +1665,11 @@ class Flow(TembaModel):
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                    metadata = dict(quick_replies=send_action.quick_replies) if send_action.quick_replies else None
-
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                                  media=send_action.media,
                                                  base_language=self.base_language,
                                                  send_all=send_action.send_all,
-                                                 metadata=metadata)
+                                                 quick_replies=send_action.quick_replies)
                     broadcast.update_contacts(all_contact_ids)
 
                     # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -5309,7 +5307,7 @@ class ReplyAction(Action):
                     send_all=self.send_all)
 
     @staticmethod
-    def get_translated_metadata(metadata, run):
+    def get_translated_quick_replies(metadata, run):
         """
         Gets the appropriate metadata translation for the given contact
         """
@@ -5331,8 +5329,8 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            quick_replies = ReplyAction.get_translated_metadata(self.quick_replies, run) if self.quick_replies else []
-            metadata = dict(quick_replies=quick_replies)
+            quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run) \
+                if self.quick_replies else []
 
             attachments = None
             if self.media:
@@ -5353,7 +5351,7 @@ class ReplyAction(Action):
 
             if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
-                                    connection=run.connection, msg_type=self.MSG_TYPE, metadata=metadata,
+                                    connection=run.connection, msg_type=self.MSG_TYPE, quick_replies=quick_replies,
                                     attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 # if our run has been responded to or any of our parent runs have
@@ -5361,7 +5359,8 @@ class ReplyAction(Action):
                 high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           quick_replies=metadata, created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
+                                           quick_replies=quick_replies, created_on=created_on, all_urns=self.send_all,
+                                           high_priority=high_priority)
         return replies
 
 

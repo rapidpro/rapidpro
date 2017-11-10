@@ -236,7 +236,7 @@ class Broadcast(models.Model):
 
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
-               metadata=None, **kwargs):
+               quick_replies=None, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
@@ -246,6 +246,10 @@ class Broadcast(models.Model):
             raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language %s doesn't exist in the provided translations dict")
+
+        metadata = None
+        if quick_replies:
+            metadata = json.dumps(dict(quick_replies=quick_replies))
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
@@ -381,12 +385,13 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
-    def get_translated_metadata(self, metadata, contact, org=None):
+    def get_translated_quick_replies(self, metadata, contact, org=None):
         """
         Gets the appropriate metadata translation for the given contact
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
+        metadata = json.loads(metadata)
         for item in metadata.get('quick_replies'):
             current_language = preferred_languages[0] if preferred_languages else None
             quick_reply = item.get(current_language) if current_language in item else item.get(self.base_language)
@@ -401,9 +406,9 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
-    def get_broadcast_metadata(self, metadata, contact):
+    def get_broadcast_quick_replies(self, metadata, contact):
         if metadata:
-            return dict(quick_replies=self.get_translated_metadata(metadata, contact))
+            return self.get_translated_quick_replies(metadata, contact)
         else:
             return None
 
@@ -463,8 +468,8 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
-            # get the appropriate metadata translation for this contact
-            _metadata = self.get_broadcast_metadata(metadata, contact)
+            # get the appropriate quick replies translation for this contact
+            quick_replies = self.get_broadcast_quick_replies(metadata, contact)
 
             media = self.get_translated_media(contact)
             if media:
@@ -509,7 +514,7 @@ class Broadcast(models.Model):
                                           insert_object=False,
                                           attachments=[media] if media else None,
                                           created_on=created_on,
-                                          quick_replies=_metadata)
+                                          quick_replies=quick_replies)
 
             except UnreachableException:
                 # there was no way to reach this contact, do not create a message
@@ -1146,12 +1151,12 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, metadata=None):
+              send_all=False, created_on=None, quick_replies=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True,
-                                 quick_replies=metadata)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 high_priority=True, quick_replies=quick_replies)
 
     def update(self, cmd):
         """
@@ -1292,7 +1297,8 @@ class Msg(models.Model):
                              is_org_connected_to_chatbase=True))
 
         if self.metadata:
-            data['metadata'] = json.loads(self.metadata)
+            metadata = json.loads(self.metadata)
+            data['quick_replies'] = metadata.get('quick_replies', None)
 
         return data
 
@@ -1433,19 +1439,17 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def get_outgoing_metadata(cls, metadata, expressions_context, contact, org, channel):
-        quick_replies = metadata.get('quick_replies', None)
-        if quick_replies:
-            for counter, reply in enumerate(quick_replies):
-                (text, errors) = Msg.evaluate_template(reply, expressions_context, org=org)
-                if text:
-                    if contact.is_test:
-                        quick_replies[counter] = text
-                    else:
-                        channel_type = Channel.get_type_from_code(channel.channel_type)
-                        quick_replies[counter] = text[:channel_type.quick_reply_text_size]
+    def get_outgoing_metadata(cls, quick_replies, expressions_context, contact, org, channel):
+        for counter, reply in enumerate(quick_replies):
+            (text, errors) = Msg.evaluate_template(reply, expressions_context, org=org)
+            if text:
+                if contact.is_test:
+                    quick_replies[counter] = text
+                else:
+                    channel_type = Channel.get_type_from_code(channel.channel_type)
+                    quick_replies[counter] = text[:channel_type.quick_reply_text_size]
 
-        return json.dumps(metadata)
+        return quick_replies
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
@@ -1559,7 +1563,8 @@ class Msg(models.Model):
 
         metadata = None
         if quick_replies:
-            metadata = Msg.get_outgoing_metadata(quick_replies, expressions_context, contact, org, channel)
+            quick_replies = Msg.get_outgoing_metadata(quick_replies, expressions_context, contact, org, channel)
+            metadata = json.dumps(dict(quick_replies=quick_replies))
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,

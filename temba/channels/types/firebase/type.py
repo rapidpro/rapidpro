@@ -57,11 +57,10 @@ class FirebaseCloudMessagingType(ChannelType):
             }
             data['content_available'] = True
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
-        quick_replies = metadata.get('quick_replies', [])
+        quick_replies = msg.quick_replies if hasattr(msg, 'quick_replies') else {}
 
         if quick_replies:
-            data['data']['metadata'] = quick_replies
+            data['data']['quick_replies'] = quick_replies
 
         payload = json.dumps(data)
         headers = http_headers(extra={'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')})

@@ -55,8 +55,7 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {'message': {'text': text}}
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
-        quick_replies = metadata.get('quick_replies', [])
+        quick_replies = msg.quick_replies if hasattr(msg, 'quick_replies') else {}
         formatted_replies = [dict(title=item, payload=item, content_type='text') for item in quick_replies]
 
         if quick_replies:

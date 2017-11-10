@@ -60,8 +60,7 @@ class ViberPublicType(ChannelType):
             'tracking_data': msg.id
         }
 
-        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
-        quick_replies = metadata.get('quick_replies', [])
+        quick_replies = msg.quick_replies if hasattr(msg, 'quick_replies') else {}
         formatted_replies = [dict(Text=item, ActionBody=item, ActionType='reply',
                                   TextSize='regular') for item in quick_replies]
 
