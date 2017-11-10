@@ -38,8 +38,6 @@ class NexmoType(ChannelType):
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
 
-    ordering = 3
-
     def is_recommended_to(self, user):
         NEXMO_RECOMMENDED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
                                        'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']

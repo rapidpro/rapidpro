@@ -29,8 +29,6 @@ class TwilioMessagingServiceType(ChannelType):
 
     attachment_support = True
 
-    ordering = 2
-
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)

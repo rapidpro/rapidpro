@@ -34,8 +34,6 @@ class TwilioType(ChannelType):
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
 
-    ordering = 1
-
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
