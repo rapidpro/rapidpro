@@ -1644,13 +1644,6 @@ class Flow(TembaModel):
 
         return runs
 
-    @classmethod
-    def get_send_action_metadata(cls, send_action):
-        if send_action.quick_replies:
-            return dict(quick_replies=send_action.quick_replies)
-        else:
-            return None
-
     def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
                        flow_start=None, parent_run=None):
 
@@ -1672,7 +1665,7 @@ class Flow(TembaModel):
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                    metadata = Flow.get_send_action_metadata(send_action)
+                    metadata = dict(quick_replies=send_action.quick_replies) if send_action.quick_replies else None
 
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                                  media=send_action.media,
