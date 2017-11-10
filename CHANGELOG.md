@@ -1,3 +1,7 @@
+v3.0.254
+----------
+ * Use get_host() when calculating signature for voice callbacks
+
 v3.0.253
 ----------
  * use get_host() when validating IVR requests
