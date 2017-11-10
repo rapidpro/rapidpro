@@ -1554,7 +1554,7 @@ class MiddlewareTest(TembaTest):
         # now set our brand to redirect
         branding = copy.deepcopy(settings.BRANDING)
         branding['rapidpro.io']['redirect'] = '/redirect'
-        with(override_settings(BRANDING=branding)):
+        with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
 
     def test_flow_simulation(self):
