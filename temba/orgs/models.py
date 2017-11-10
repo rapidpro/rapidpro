@@ -43,7 +43,6 @@ from temba.utils.currencies import currency_for_country
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
 from temba.utils.text import random_string
-from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from urlparse import urlparse
 from uuid import uuid4
@@ -1792,40 +1791,6 @@ class Org(SmartModel):
             add_component(component)
 
         return all_components
-
-    def get_recommended_channel(self):
-        from temba.channels.views import TWILIO_SEARCH_COUNTRIES
-        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
-                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
-
-        countrycode = timezone_to_country_code(self.timezone)
-        recommended = 'A'
-
-        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = 'T'
-
-        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'NX'
-
-        elif countrycode == 'KE':
-            recommended = 'AT'
-
-        elif countrycode == 'ID':
-            recommended = 'H9'
-
-        elif countrycode == 'SO':
-            recommended = 'SQ'
-
-        elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'BM'
-
-        elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'YO'
-
-        elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'GL'
-
-        return recommended
 
     def increment_unread_msg_count(self, type):
         """

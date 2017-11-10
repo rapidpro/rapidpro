@@ -13,6 +13,7 @@ from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_SECRET, NEXMO_KEY
 from temba.utils.nexmo import NexmoClient
+from temba.utils.timezones import timezone_to_country_code
 
 
 class NexmoType(ChannelType):
@@ -37,9 +38,12 @@ class NexmoType(ChannelType):
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
 
-    def is_available_to(self, user):
+    def is_recommended_to(self, user):
+        NEXMO_RECOMMENDED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
+                                       'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
         org = user.get_org()
-        return org.is_connected_to_nexmo()
+        countrycode = timezone_to_country_code(org.timezone)
+        return countrycode in NEXMO_RECOMMENDED_COUNTRIES
 
     def send(self, channel, msg, text):
 

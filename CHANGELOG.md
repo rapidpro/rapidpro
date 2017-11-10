@@ -1,3 +1,7 @@
+v3.0.250
+----------
+ * Tweaks to recommended channels display
+
 v3.0.246
 ----------
  * Update smartmin to version 1.11.4

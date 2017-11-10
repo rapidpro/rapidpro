@@ -1397,17 +1397,20 @@ class ChannelCRUDL(SmartCRUDL):
             context['twilio_countries'] = twilio_countries_str
 
             org = user.get_org()
-            context['recommended_channel'] = org.get_recommended_channel()
             context['org_timezone'] = six.text_type(org.timezone)
 
             context['brand'] = org.get_branding()
 
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
-            for ch_type in sorted(Channel.get_types(), key=lambda t: t.name):
-                if ch_type.is_available_to(user) and ch_type.category:
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif ch_type.is_available_to(user) and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
 
+            context['recommended_channels'] = recommended_channels
             context['channel_types'] = types_by_category
             return context
 
