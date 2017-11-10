@@ -1190,7 +1190,12 @@ class OrgTest(TembaTest):
             with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
                 mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
 
-                self.client.post(connect_url, post_data)
+                response = self.client.post(connect_url, post_data)
+                self.assertEqual(response.status_code, 302)
+
+                response = self.client.post(connect_url, post_data, follow=True)
+                self.assertEqual(response.request['PATH_INFO'], reverse("channels.channel_claim"))
+
                 self.org.refresh_from_db()
                 self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
                 self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
@@ -1584,7 +1589,8 @@ class OrgTest(TembaTest):
                 # believe it or not nexmo returns 'error-code' 200
                 nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                self.assertEqual(response.status_code, 302)
 
                 # nexmo should now be connected
                 self.org = Org.objects.get(pk=self.org.pk)
