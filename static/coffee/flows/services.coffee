@@ -1001,8 +1001,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if cfg.type == operatorType
           return cfg
 
-    fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
-      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
+    fetchRecentMessages: (exit_uuids, to_uuid) ->
+      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?exits=' + exit_uuids.join() + '&to=' + to_uuid).success (data) ->
 
     fetch: (flowId, onComplete = null) ->
 

@@ -1899,7 +1899,7 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentMessage.record_step(previous_step)
+                FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -4083,22 +4083,18 @@ class FlowPathRecentMessage(models.Model):
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
-    def record_step(cls, step):
-        from_uuid = step.rule_uuid or step.step_uuid
-        to_uuid = step.next_uuid
-
+    def record(cls, exit_uuid, to_uuid, run, msgs):
         objs = []
-        for msg in step.messages.all():
-            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text, created_on=msg.created_on))
+        for msg in msgs:
+            objs.append(cls(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
+    def get_recent(cls, from_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid=to_uuid).order_by('-created_on')
         if limit:
             recent = recent[:limit]
 
