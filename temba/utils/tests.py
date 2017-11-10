@@ -1547,6 +1547,13 @@ class MiddlewareTest(TembaTest):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
 
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        settings.BRANDING['rapidpro.io']['redirect'] = '/redirect'
+        self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
+
     def test_flow_simulation(self):
         Contact.set_simulation(True)
 
