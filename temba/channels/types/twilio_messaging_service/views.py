@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
 from twilio import TwilioRestException
 
-from temba.orgs.models import ACCOUNT_SID
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from ...models import Channel
 from ...views import ClaimViewMixin, TWILIO_SUPPORTED_COUNTRIES
 
@@ -50,7 +50,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        config = dict(messaging_service_sid=data['messaging_service_sid'])
+        org_config = org.config_json()
+        config = {Channel.CONFIG_MESSAGING_SERVICE_SID: data['messaging_service_sid'],
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         self.object = Channel.create(org, user, data['country'], 'TMS',
                                      name=data['messaging_service_sid'], address=None, config=config)
