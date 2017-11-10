@@ -637,12 +637,7 @@ class OrgCRUDL(SmartCRUDL):
             org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(reverse("channels.channel_claim"))
 
     class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
 
@@ -791,12 +786,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
