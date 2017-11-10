@@ -5346,7 +5346,7 @@ class TwilioTest(TembaTest):
         if not validator:
             validator = RequestValidator(self.org.get_twilio_client().auth[1])
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + url, data)
+        signature = validator.compute_signature('https://' + 'testserver' + url, data)
         return self.client.post(url, data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -5558,7 +5558,7 @@ class TwilioTest(TembaTest):
         client = self.channel.get_twiml_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-            'https://' + settings.HOSTNAME + '/handlers/twiml_api/' + self.channel.uuid,
+            'https://testserver/handlers/twiml_api/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twiml_api_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5582,7 +5582,7 @@ class TwilioTest(TembaTest):
 
         joe = self.create_contact("Joe", "+250788383383")
 
-        with self.settings(SEND_MESSAGES=True):
+        with self.settings(SEND_MESSAGES=True, TEMBA_HOST='testserver'):
             with patch('twilio.rest.resources.base.make_request') as mock:
                 for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
@@ -5723,7 +5723,7 @@ class TwilioTest(TembaTest):
             self.assertEqual(0, self.channel.get_error_log_count())
             self.assertEqual(1, self.channel.get_success_log_count())
 
-    @override_settings(SEND_MESSAGES=True)
+    @override_settings(SEND_MESSAGES=True, TEMBA_HOST='testserver')
     def test_send_media(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
@@ -5818,7 +5818,7 @@ class TwilioMessagingServiceTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            'https://testserver/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5838,7 +5838,7 @@ class TwilioMessagingServiceTest(TembaTest):
         self.channel.org.save()
 
         signature = validator.compute_signature(
-            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            'https://testserver/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})

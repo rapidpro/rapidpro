@@ -669,8 +669,6 @@ class Contact(TembaModel):
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.name
-        elif value.category:
-            return value.category
         else:
             return value.string_value
 
@@ -688,8 +686,6 @@ class Contact(TembaModel):
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.name
-        elif value.category:
-            return value.category
         else:
             return value.string_value
 

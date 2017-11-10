@@ -123,7 +123,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
+        url = "https://" + request.get_host() + "%s" % request.get_full_path()
 
         channel_uuid = kwargs.get('uuid')
         call_sid = self.get_param('CallSid')
@@ -324,7 +324,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.HOSTNAME + "%s" % request.get_full_path()
+        url = "https://" + request.get_host() + "%s" % request.get_full_path()
 
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
