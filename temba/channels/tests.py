@@ -5794,7 +5794,7 @@ class TwilioMessagingServiceTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            'https://testserver/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5814,7 +5814,7 @@ class TwilioMessagingServiceTest(TembaTest):
         self.channel.org.save()
 
         signature = validator.compute_signature(
-            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            'https://testserver/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
