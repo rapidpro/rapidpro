@@ -31,10 +31,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
+                return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
             self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
         except TwilioRestException:
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
     def get_context_data(self, **kwargs):
         context = super(ClaimView, self).get_context_data(**kwargs)

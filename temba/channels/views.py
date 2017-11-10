@@ -1404,18 +1404,13 @@ class ChannelCRUDL(SmartCRUDL):
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
             recommended_channels = []
-            recommended_channels_to_connect = []
             for ch_type in sorted(Channel.get_types(), key=lambda t: (t.ordering, t.name)):
                 if ch_type.is_recommended_to(user):
-                    if ch_type.is_available_to(user):
-                        recommended_channels.append(ch_type)
-                    else:
-                        recommended_channels_to_connect.append(ch_type.code)
+                    recommended_channels.append(ch_type)
                 elif ch_type.is_available_to(user) and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
 
             context['recommended_channels'] = recommended_channels
-            context['recommended_channels_to_connect'] = recommended_channels_to_connect
             context['channel_types'] = types_by_category
             return context
 

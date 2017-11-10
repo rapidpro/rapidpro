@@ -40,10 +40,6 @@ class NexmoType(ChannelType):
 
     ordering = 3
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.is_connected_to_nexmo()
-
     def is_recommended_to(self, user):
         NEXMO_RECOMMENDED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
                                        'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']

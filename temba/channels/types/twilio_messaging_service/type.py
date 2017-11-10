@@ -31,14 +31,10 @@ class TwilioMessagingServiceType(ChannelType):
 
     ordering = 2
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.is_connected_to_twilio()
-
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
+        return org.is_connected_to_twilio() and countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
 
     def send(self, channel, msg, text):
         # use regular Twilio channel sending

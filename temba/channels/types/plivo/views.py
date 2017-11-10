@@ -42,7 +42,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if client:
             return None
         else:
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_plivo_connect'))
 
     def get_valid_client(self):
         auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
