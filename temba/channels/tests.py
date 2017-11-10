@@ -887,6 +887,30 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
                                                                "Sweden, United Kingdom or United States")
 
+        self.assertEqual(len(response.context['recommended_channels']), 0)
+
+        self.assertEqual(response.context['channel_types']['PHONE'][0].code, 'T')
+        self.assertEqual(response.context['channel_types']['PHONE'][1].code, 'TMS')
+        self.assertEqual(response.context['channel_types']['PHONE'][2].code, 'NX')
+        self.assertEqual(response.context['channel_types']['PHONE'][3].code, 'CT')
+        self.assertEqual(response.context['channel_types']['PHONE'][4].code, 'EX')
+
+        self.org.timezone = 'Canada/Central'
+        self.org.save()
+
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertEqual(200, response.status_code)
+
+        self.assertEqual(len(response.context['recommended_channels']), 3)
+        self.assertEqual(response.context['recommended_channels'][0].code, 'T')
+        self.assertEqual(response.context['recommended_channels'][1].code, 'TMS')
+        self.assertEqual(response.context['recommended_channels'][2].code, 'NX')
+
+        self.assertEqual(response.context['channel_types']['PHONE'][0].code, 'CT')
+        self.assertEqual(response.context['channel_types']['PHONE'][1].code, 'EX')
+        self.assertEqual(response.context['channel_types']['PHONE'][2].code, 'IB')
+        self.assertEqual(response.context['channel_types']['PHONE'][3].code, 'JS')
+
     def test_register_and_claim_android(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None

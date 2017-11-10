@@ -43,7 +43,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if client:
             return None
         else:  # pragma: needs cover
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_nexmo_connect'))
 
     def is_valid_country(self, country_code):
         return country_code in NEXMO_SUPPORTED_COUNTRY_CODES

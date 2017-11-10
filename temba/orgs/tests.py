@@ -155,31 +155,6 @@ class OrgTest(TembaTest):
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
 
-    def test_recommended_channel(self):
-        self.org.timezone = pytz.timezone('Africa/Nairobi')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'AT')
-
-        self.org.timezone = pytz.timezone('America/Phoenix')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'T')
-
-        self.org.timezone = pytz.timezone('Asia/Jakarta')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'H9')
-
-        self.org.timezone = pytz.timezone('Africa/Mogadishu')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'SQ')
-
-        self.org.timezone = pytz.timezone('Europe/Amsterdam')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'NX')
-
-        self.org.timezone = pytz.timezone('Africa/Kigali')
-        self.org.save()
-        self.assertEqual(self.org.get_recommended_channel(), 'A')
-
     def test_country(self):
         country_url = reverse('orgs.org_country')
 
