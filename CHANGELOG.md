@@ -1,3 +1,7 @@
+v3.0.253
+----------
+ * use get_host() when validating IVR requests
+
 v3.0.252
 ----------
  * Better Twilio channel claiming
