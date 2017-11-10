@@ -37,7 +37,7 @@ class TwilioType(ChannelType):
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return org.is_connected_to_twilio() and countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
+        return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
 
     def has_attachment_support(self, channel):
         return channel.country in ('US', 'CA')
