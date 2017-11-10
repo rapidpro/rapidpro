@@ -1,3 +1,7 @@
+v3.0.252
+----------
+ * Better Twilio channel claiming
+
 v3.0.250
 ----------
  * Tweaks to recommended channels display
