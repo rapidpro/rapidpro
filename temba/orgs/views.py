@@ -637,7 +637,7 @@ class OrgCRUDL(SmartCRUDL):
             org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
-            return HttpResponseRedirect(reverse("channels.channel_claim"))
+            return HttpResponseRedirect(self.get_success_url())
 
     class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
 
