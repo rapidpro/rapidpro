@@ -36,6 +36,9 @@ class ShaqodoonType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ['Africa/Mogadishu']
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
         # requests are signed with a key built as follows:
         # signing_key = md5(username|password|from|to|msg|key|current_date)

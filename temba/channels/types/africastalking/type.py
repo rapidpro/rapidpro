@@ -38,6 +38,9 @@ class AfricasTalkingType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Nairobi", "Africa/Kampala", "Africa/Lilongwe"]
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
 
         payload = dict(username=channel.config['username'],

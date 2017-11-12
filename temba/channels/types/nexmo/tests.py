@@ -16,13 +16,19 @@ class NexmoTypeTest(TembaTest):
         mock_time_sleep.return_value = None
         self.login(self.admin)
 
+        claim_nexmo = reverse('channels.claim_nexmo')
+
         # remove any existing channels
         self.org.channels.update(is_active=False, org=None)
 
         # make sure nexmo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Nexmo")
-        self.assertContains(response, reverse('orgs.org_nexmo_connect'))
+
+        response = self.client.get(claim_nexmo)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(claim_nexmo, follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
 
         nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
                             NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
@@ -30,7 +36,6 @@ class NexmoTypeTest(TembaTest):
         self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
-        claim_nexmo = reverse('channels.claim_nexmo')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_nexmo)
 

@@ -698,11 +698,9 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         step_objs = []
         previous_rule = None
-        previous_category = None
         for step in steps:
-            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule, previous_category)
+            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule)
             previous_rule = step_obj.rule_uuid
-            previous_category = step_obj.rule_category
             step_objs.append(step_obj)
 
         if completed:
