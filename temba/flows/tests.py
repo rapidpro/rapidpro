@@ -503,6 +503,16 @@ class FlowTest(TembaTest):
         self.assertEqual(set(contact1_steps[1].messages.all()), set())
         self.assertEqual(contact1_steps[1].next_uuid, None)
 
+        # check equivalent "steps" in the path fields
+        contact1_path = contact1_run.get_path()
+        self.assertEqual(len(contact1_path), 2)
+        self.assertEqual(contact1_path[0]['node_uuid'], entry.uuid)
+        self.assertEqual(contact1_path[0]['arrived_on'], contact1_steps[0].arrived_on.isoformat())
+        self.assertNotIn('exit_uuid', contact1_path[0])
+        self.assertEqual(contact1_path[1]['node_uuid'], entry.destination)
+        self.assertEqual(contact1_path[1]['arrived_on'], contact1_steps[1].arrived_on.isoformat())
+        self.assertNotIn('exit_uuid', contact1_path[1])
+
         # test our message context
         context = self.flow.build_expressions_context(self.contact, None)
         self.assertEqual(dict(__default__=''), context['flow'])
@@ -1943,7 +1953,7 @@ class FlowTest(TembaTest):
 
         # get our run and assert our value is saved (as a string)
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
-        results = run.results_dict()
+        results = run.get_results()
         self.assertEqual("15", results['color']['value'])
         self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
         self.assertEqual("> 10", results['color']['category'])
@@ -6659,6 +6669,51 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(mock_post_transferto.call_count, 0)
         mock_post_transferto.reset_mock()
 
+    @patch('temba.flows.models.FlowRun.PATH_MAX_STEPS', 8)
+    def test_run_path(self):
+        flow = self.get_flow('favorites')
+        colorPrompt = ActionSet.objects.get(uuid=flow.entry_uuid)
+        colorRuleSet = RuleSet.objects.get(uuid=colorPrompt.destination)
+        redRule = colorRuleSet.get_rules()[0]
+        otherRule = colorRuleSet.get_rules()[-1]
+        tryAgainPrompt = ActionSet.objects.get(uuid=otherRule.destination)
+        beerPrompt = ActionSet.objects.get(uuid=redRule.destination)
+        beerRuleSet = RuleSet.objects.get(uuid=beerPrompt.destination)
+
+        # send an invalid response several times til we hit the path length limit
+        for m in range(3):
+            self.send_message(flow, "beige")
+
+        run = FlowRun.objects.get()
+        path = run.get_path()
+
+        self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
+            (colorPrompt.uuid, colorPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, None),
+        ])
+
+        self.send_message(flow, "red")
+
+        run.refresh_from_db()
+        path = run.get_path()
+
+        self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, otherRule.uuid),
+            (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
+            (colorRuleSet.uuid, redRule.uuid),
+            (beerPrompt.uuid, beerPrompt.exit_uuid),
+            (beerRuleSet.uuid, None),
+        ])
+
 
 class FlowMigrationTest(FlowFileTest):
 
@@ -8191,7 +8246,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
 
-        results = FlowRun.objects.get().results_dict()
+        results = FlowRun.objects.get().get_results()
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
@@ -8209,7 +8264,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo")))
 
-        results = FlowRun.objects.get().results_dict()
+        results = FlowRun.objects.get().get_results()
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])

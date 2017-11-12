@@ -760,7 +760,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            step = run.flow.add_step(run, destination, previous_step=step)
+            step = run.flow.add_step(run, destination, previous_step=step, exit_uuid=actionset.exit_uuid)
         else:
             run.set_completed(final_step=step)
             step = None
@@ -844,7 +844,8 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.get_category_name(flow.base_language), previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=rule.uuid,
+                                 category=rule.get_category_name(flow.base_language), previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1823,7 +1824,7 @@ class Flow(TembaModel):
                                                     entry_actions.destination,
                                                     entry_actions.destination_type)
 
-                        next_step = self.add_step(run, destination, previous_step=step)
+                        next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -1885,8 +1886,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node,
-                 msgs=None, rule=None, category=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1908,7 +1908,7 @@ class Flow(TembaModel):
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
             self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=rule, rule_category=category)
+                                                                  rule_uuid=exit_uuid, rule_category=category)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -1917,6 +1917,22 @@ class Flow(TembaModel):
         # for each message, associate it with this step and set the label on it
         for msg in msgs:
             step.add_message(msg)
+
+        path = run.get_path()
+
+        # complete previous step
+        if path and exit_uuid:
+            path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
+
+        # create new step
+        path.append({FlowRun.PATH_NODE_UUID: node.uuid, FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()})
+
+        # trim path to ensure it can't grow indefinitely
+        if len(path) > FlowRun.PATH_MAX_STEPS:
+            path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
+
+        run.path = json.dumps(path)
+        run.save(update_fields=('path',))
 
         return step
 
@@ -2621,6 +2637,11 @@ class FlowRun(models.Model):
     RESULT_INPUT = 'input'
     RESULT_CREATED_ON = 'created_on'
 
+    PATH_NODE_UUID = 'node_uuid'
+    PATH_ARRIVED_ON = 'arrived_on'
+    PATH_EXIT_UUID = 'exit_uuid'
+    PATH_MAX_STEPS = 100
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
@@ -2671,6 +2692,9 @@ class FlowRun(models.Model):
 
     results = models.TextField(null=True,
                                help_text=_("The results collected during this flow run in JSON format"))
+
+    path = models.TextField(null=True,
+                            help_text=_("The path taken during this flow run in JSON format"))
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
@@ -3042,8 +3066,11 @@ class FlowRun(models.Model):
 
         return msg
 
-    def results_dict(self):
+    def get_results(self):
         return json.loads(self.results) if self.results else dict()
+
+    def get_path(self):
+        return json.loads(self.path) if self.path else []
 
     @classmethod
     def serialize_value(cls, value):
@@ -3065,7 +3092,7 @@ class FlowRun(models.Model):
         key = Flow.label_to_slug(name)
 
         # create our result dict
-        results = self.results_dict()
+        results = self.get_results()
         results[key] = {
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
@@ -3084,7 +3111,7 @@ class FlowRun(models.Model):
         self.save(update_fields=['results', 'modified_on'])
 
     def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results_dict(), indent=2))
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.get_results(), indent=2))
 
 
 @six.python_2_unicode_compatible
@@ -3178,7 +3205,8 @@ class FlowStep(models.Model):
                 context = flow.build_expressions_context(run.contact, last_incoming)
                 msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on,
+                             exit_uuid=previous_rule)
 
         # if a rule was picked on this ruleset
         if node.is_ruleset() and json_obj['rule']:
