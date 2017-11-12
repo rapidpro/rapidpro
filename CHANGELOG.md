@@ -1,3 +1,9 @@
+v3.0.255
+----------
+ * Fix Twilio to redirect to twilio claim page after connecting Twilio
+ * Add FlowRun.path and start populating it for new flow steps
+ * Removes no longer used Msg.has_template_error field
+
 v3.0.254
 ----------
  * Use get_host() when calculating signature for voice callbacks
