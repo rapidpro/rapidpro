@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
+from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction, ActionSet, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
@@ -2141,6 +2141,10 @@ class APITest(TembaTest):
         flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
 
+        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
+        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
+        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
+
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
         joe_run1, = start1.start()
@@ -2186,8 +2190,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2202,16 +2206,16 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
+                    'node': color_ruleset.uuid,
+                    'time': format_datetime(self.joe.values.get(ruleset=color_ruleset).modified_on)
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
