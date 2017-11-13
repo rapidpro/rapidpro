@@ -282,14 +282,30 @@ class Flow(TembaModel):
         flow = Flow.create(org, user, name, base_language=base_language)
 
         entry_uuid = six.text_type(uuid4())
-        actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
-                   dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
+        actions = [
+            {
+                'uuid': str(uuid4()),
+                'type': 'add_group',
+                'group': {'uuid': group.uuid, 'name': group.name}
+            },
+            {
+                'uuid': str(uuid4()),
+                'type': 'save',
+                'field': 'name',
+                'label': 'Contact Name',
+                'value': '@(PROPER(REMOVE_FIRST_WORD(step.value)))'
+            }
+        ]
 
         if response:
-            actions += [dict(type='reply', msg={base_language: response})]
+            actions.append({'uuid': str(uuid4()), 'type': 'reply', 'msg': {base_language: response}})
 
         if start_flow:
-            actions += [dict(type='flow', flow=dict(uuid=start_flow.uuid, name=start_flow.name))]
+            actions.append({
+                'uuid': str(uuid4()),
+                'type': 'flow',
+                'flow': {'uuid': start_flow.uuid, 'name': start_flow.name}
+            })
 
         flow.update({
             'entry': entry_uuid,
@@ -297,8 +313,7 @@ class Flow(TembaModel):
             'rule_sets': [],
             'action_sets': [
                 {
-                    'x': 100,
-                    'y': 0,
+                    'x': 100, 'y': 0,
                     'uuid': entry_uuid,
                     'exit_uuid': str(uuid4()),
                     'actions': actions
@@ -1226,12 +1241,11 @@ class Flow(TembaModel):
             'rule_sets': [],
             'action_sets': [
                 {
-                    'x': 100,
-                    'y': 0,
+                    'x': 100, 'y': 0,
                     'uuid': entry_uuid,
                     'exit_uuid': str(uuid4()),
                     'actions': [
-                        {'type': 'reply', 'msg': translations}
+                        {'uuid': str(uuid4()), 'type': 'reply', 'msg': translations}
                     ]
                 }
             ]
