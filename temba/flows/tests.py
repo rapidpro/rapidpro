@@ -2711,15 +2711,12 @@ class FlowTest(TembaTest):
         # should have 2 messages on the actionset step
         self.assertEqual(actionset_step.messages.all().count(), 1)
 
-        runs = flow.start_msg_flow([self.contact3.id, self.contact4.id])
-        self.assertEqual(2, len(runs))
+        runs = flow.start([], [self.contact3, self.contact4])
+        self.assertEqual(1, len(runs))
 
         contact_test = self.create_contact('Teeh', '+250788123457', language='por', is_test=True)
         flow.start([], [contact_test])
         self.assertTrue(FlowRun.objects.filter(contact=contact_test))
-
-        runs = flow.start_msg_flow([contact_test.id])
-        self.assertEqual(1, len(runs))
 
     def test_multiple(self):
         self.flow.start([], [self.contact])
