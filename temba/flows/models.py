@@ -281,7 +281,7 @@ class Flow(TembaModel):
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
 
-        uuid = six.text_type(uuid4())
+        entry_uuid = six.text_type(uuid4())
         actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
@@ -291,9 +291,20 @@ class Flow(TembaModel):
         if start_flow:
             actions += [dict(type='flow', flow=dict(uuid=start_flow.uuid, name=start_flow.name))]
 
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
-        flow.update(dict(entry=uuid, base_language=base_language,
-                         rule_sets=[], action_sets=action_sets))
+        flow.update({
+            'entry': entry_uuid,
+            'base_language': base_language,
+            'rule_sets': [],
+            'action_sets': [
+                {
+                    'x': 100,
+                    'y': 0,
+                    'uuid': entry_uuid,
+                    'exit_uuid': str(uuid4()),
+                    'actions': actions
+                }
+            ]
+        })
 
         return flow
 
@@ -1207,9 +1218,24 @@ class Flow(TembaModel):
         self.base_language = base_language
         self.save(update_fields=('name', 'flow_type', 'base_language'))
 
-        uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=translations)])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=base_language))
+        entry_uuid = str(uuid4())
+
+        self.update({
+            'entry': entry_uuid,
+            'base_language': base_language,
+            'rule_sets': [],
+            'action_sets': [
+                {
+                    'x': 100,
+                    'y': 0,
+                    'uuid': entry_uuid,
+                    'exit_uuid': str(uuid4()),
+                    'actions': [
+                        {'type': 'reply', 'msg': translations}
+                    ]
+                }
+            ]
+        })
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)

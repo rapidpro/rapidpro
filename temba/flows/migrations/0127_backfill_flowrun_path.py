@@ -22,7 +22,7 @@ PATH_MAX_STEPS = 100
 
 def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     # get all flow action sets
-    action_sets = list(ActionSet.objects.all())
+    action_sets = list(ActionSet.objects.filter(flow__is_active=True))
     if not action_sets:
         return
 
@@ -33,7 +33,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
 
     if len(action_sets) != len(action_set_uuid_to_exit):
         raise ValueError(
-            "Found actionsets without exit_uuids, use ensure_current_version command to migrate these flows forward"
+            "Found actionsets without exit_uuids, use migrate_flows command to migrate these flows forward"
         )
 
     # has this migration been run before but didn't complete?
