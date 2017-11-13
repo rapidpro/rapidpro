@@ -385,16 +385,17 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
-    def get_translated_quick_replies(self, metadata, contact, org=None):
+    def get_translated_quick_replies(self, contact, org=None):
         """
         Gets the appropriate quick replies translation for the given contact
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
-        metadata = json.loads(metadata)
-        for item in metadata.get('quick_replies'):
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
-            language_metadata.append(text)
+        if self.metadata:
+            metadata = json.loads(self.metadata)
+            for item in metadata.get('quick_replies'):
+                text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+                language_metadata.append(text)
 
         return language_metadata
 
@@ -405,14 +406,8 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
-    def get_broadcast_quick_replies(self, metadata, contact):
-        if metadata:
-            return self.get_translated_quick_replies(metadata, contact)
-        else:
-            return None
-
     def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None, metadata=None, high_priority=False):
+             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
@@ -468,7 +463,7 @@ class Broadcast(models.Model):
             text = self.get_translated_text(contact)
 
             # get the appropriate quick replies translation for this contact
-            quick_replies = self.get_broadcast_quick_replies(metadata, contact)
+            quick_replies = self.get_translated_quick_replies(contact)
 
             media = self.get_translated_media(contact)
             if media:

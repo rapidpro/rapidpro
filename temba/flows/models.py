@@ -1760,8 +1760,8 @@ class Flow(TembaModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, metadata=broadcast.metadata,
-                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, created_on=created_on,
+                               partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
