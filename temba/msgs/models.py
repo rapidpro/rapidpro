@@ -387,15 +387,14 @@ class Broadcast(models.Model):
 
     def get_translated_quick_replies(self, metadata, contact, org=None):
         """
-        Gets the appropriate metadata translation for the given contact
+        Gets the appropriate quick replies translation for the given contact
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
         metadata = json.loads(metadata)
         for item in metadata.get('quick_replies'):
-            current_language = preferred_languages[0] if preferred_languages else None
-            quick_reply = item.get(current_language) if current_language in item else item.get(self.base_language)
-            language_metadata.append(quick_reply)
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
 
         return language_metadata
 

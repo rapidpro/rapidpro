@@ -5312,10 +5312,10 @@ class ReplyAction(Action):
         Gets the appropriate metadata translation for the given contact
         """
         language_metadata = []
+        preferred_languages = [run.contact.language, run.flow.base_language]
         for item in metadata:
-            quick_reply = item.get(run.contact.language) \
-                if run.contact.language and run.contact.language in item else item.get(run.flow.base_language)
-            language_metadata.append(quick_reply)
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
 
         return language_metadata
 
