@@ -1241,7 +1241,7 @@ class Channel(TembaModel):
         elif channel_type == 'TW':
             url = reverse('courier.tw', args=[channel_uuid, 'status'])
 
-        url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
+        url = "https://" + settings.HOSTNAME + url + "?action=callback&id=%d" % sms_id
         return url
 
     def __str__(self):  # pragma: no cover

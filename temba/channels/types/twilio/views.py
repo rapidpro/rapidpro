@@ -101,12 +101,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         channel_uuid = uuid4()
 
         # create new TwiML app
-        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('courier.t', args=[channel_uuid, 'receive'])
-        new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
-        new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
+        new_receive_url = "https://" + settings.HOSTNAME + reverse('courier.t', args=[channel_uuid, 'receive'])
+        new_status_url = "https://" + settings.HOSTNAME + reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        new_voice_url = "https://" + settings.HOSTNAME + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
-            friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel_uuid),
+            friendly_name="%s/%s" % (settings.HOSTNAME.lower(), channel_uuid),
             sms_url=new_receive_url,
             sms_method="POST",
             voice_url=new_voice_url,
@@ -123,7 +123,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             if short_codes:
                 short_code = short_codes[0]
                 number_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                app_url = "https://" + settings.HOSTNAME + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
                 client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE

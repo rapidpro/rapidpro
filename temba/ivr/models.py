@@ -66,7 +66,7 @@ class IVRCall(ChannelSession):
         from temba.flows.models import ActionLog, FlowRun
         if client:
             try:
-                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
+                url = "https://%s%s" % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[self.pk]))
                 if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 

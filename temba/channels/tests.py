@@ -5360,7 +5360,7 @@ class TwilioTest(TembaTest):
 
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + twilio_url, post_data)
+        signature = validator.compute_signature('https://' + settings.HOSTNAME + twilio_url, post_data)
 
         with patch('requests.get') as response:
             mock = MockResponse(200, 'Fake Recording Bits')
@@ -5387,7 +5387,7 @@ class TwilioTest(TembaTest):
             response.return_value = mock
 
             post_data['Body'] = ''
-            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            signature = validator.compute_signature('https://' + settings.HOSTNAME + '/handlers/twilio/', post_data)
             self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         # should have a single message with an attachment but no text
@@ -5407,7 +5407,7 @@ class TwilioTest(TembaTest):
             response.side_effect = (mock1, mock2)
 
             post_data['Body'] = ''
-            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            signature = validator.compute_signature('https://' + settings.HOSTNAME + '/handlers/twilio/', post_data)
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         msg = Msg.objects.get()
@@ -5435,7 +5435,7 @@ class TwilioTest(TembaTest):
         self.channel.org.config = json.dumps({})
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        signature = validator.compute_signature('https://' + settings.HOSTNAME + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEqual(400, response.status_code)
@@ -5582,7 +5582,7 @@ class TwilioTest(TembaTest):
 
         joe = self.create_contact("Joe", "+250788383383")
 
-        with self.settings(SEND_MESSAGES=True, TEMBA_HOST='testserver'):
+        with self.settings(SEND_MESSAGES=True, HOSTNAME='testserver'):
             with patch('twilio.rest.resources.base.make_request') as mock:
                 for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
@@ -5723,7 +5723,7 @@ class TwilioTest(TembaTest):
             self.assertEqual(0, self.channel.get_error_log_count())
             self.assertEqual(1, self.channel.get_success_log_count())
 
-    @override_settings(SEND_MESSAGES=True, TEMBA_HOST='testserver')
+    @override_settings(SEND_MESSAGES=True, HOSTNAME='testserver')
     def test_send_media(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
