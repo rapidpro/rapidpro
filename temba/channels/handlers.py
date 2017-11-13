@@ -157,8 +157,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
             signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
-            base_url = settings.TEMBA_HOST
-            url = "https://%s%s" % (base_url, request.get_full_path())
+            url = "https://%s%s" % (request.get_host(), request.get_full_path())
 
             if validator.validate(url, request.POST, signature):
                 from temba.ivr.models import IVRCall

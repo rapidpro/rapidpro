@@ -1333,7 +1333,7 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow.start([], [contact1, contact2, contact3])
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
@@ -1636,17 +1636,17 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         registration = self.create_flow(name="Registration")
-        survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
+        color = self.get_flow('color')
 
         # add a campaign message flow that should be filtered out
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
-        survey.labels.add(reporting)
+        color.labels.add(reporting)
 
         # run joe through through a flow
-        survey.start([], [self.joe])
+        color.start([], [self.joe])
         self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
 
         # flow belong to other org
@@ -1661,14 +1661,14 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
             {
-                'uuid': survey.uuid,
-                'name': "Survey",
+                'uuid': color.uuid,
+                'name': "Color Flow",
                 'archived': False,
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(survey.created_on),
-                'modified_on': format_datetime(survey.modified_on)
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
             },
             {
                 'uuid': registration.uuid,
@@ -1683,16 +1683,16 @@ class APITest(TembaTest):
         ])
 
         # filter by UUID
-        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'uuid=%s' % color.uuid)
+        self.assertResultsByUUID(response, [color])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(registration.modified_on))
         self.assertResultsByUUID(response, [registration])
 
         # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
@@ -2138,7 +2138,7 @@ class APITest(TembaTest):
         self.frank.language = 'fre'
         self.frank.save()
 
-        flow1 = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)

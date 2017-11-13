@@ -1,3 +1,25 @@
+v3.0.256
+----------
+ * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
+
+v3.0.255
+----------
+ * Fix Twilio to redirect to twilio claim page after connecting Twilio
+ * Add FlowRun.path and start populating it for new flow steps
+ * Removes no longer used Msg.has_template_error field
+
+v3.0.254
+----------
+ * Use get_host() when calculating signature for voice callbacks
+
+v3.0.253
+----------
+ * use get_host() when validating IVR requests
+
+v3.0.252
+----------
+ * Better Twilio channel claiming
+
 v3.0.250
 ----------
  * Tweaks to recommended channels display

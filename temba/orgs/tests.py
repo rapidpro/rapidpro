@@ -1188,48 +1188,55 @@ class OrgTest(TembaTest):
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
-                mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+                with patch('twilio.rest.resources.ListResource.get') as mock_list_resource_get:
+                    mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+                    mock_list_resource_get.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
 
-                self.client.post(connect_url, post_data)
-                self.org.refresh_from_db()
-                self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-                self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    response = self.client.post(connect_url, post_data)
+                    self.assertEqual(response.status_code, 302)
 
-                twilio_account_url = reverse('orgs.org_twilio_account')
-                response = self.client.get(twilio_account_url)
-                self.assertEqual("AccountSid", response.context['account_sid'])
+                    response = self.client.post(connect_url, post_data, follow=True)
+                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.claim_twilio"))
 
-                self.org.refresh_from_db()
-                config = self.org.config_json()
-                self.assertEqual('AccountSid', config['ACCOUNT_SID'])
-                self.assertEqual('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                # post without a sid or token, should get a form validation error
-                response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
-                self.assertEqual('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
-                                 response.context['form'].errors['__all__'].as_json())
+                    twilio_account_url = reverse('orgs.org_twilio_account')
+                    response = self.client.get(twilio_account_url)
+                    self.assertEqual("AccountSid", response.context['account_sid'])
 
-                # all our twilio creds should remain the same
-                self.org.refresh_from_db()
-                config = self.org.config_json()
-                self.assertEqual(config['ACCOUNT_SID'], "AccountSid")
-                self.assertEqual(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEqual('AccountSid', config['ACCOUNT_SID'])
+                    self.assertEqual('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
-                # now try with all required fields, and a bonus field we shouldn't change
-                self.client.post(twilio_account_url, dict(account_sid='AccountSid',
-                                                          account_token='SecondaryToken',
-                                                          disconnect='false',
-                                                          name='DO NOT CHANGE ME'), follow=True)
-                # name shouldn't change
-                self.org.refresh_from_db()
-                self.assertEqual(self.org.name, "Temba")
+                    # post without a sid or token, should get a form validation error
+                    response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
+                    self.assertEqual('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
+                                     response.context['form'].errors['__all__'].as_json())
 
-                # now disconnect our twilio connection
-                self.assertTrue(self.org.is_connected_to_twilio())
-                self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
+                    # all our twilio creds should remain the same
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEqual(config['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                self.org.refresh_from_db()
-                self.assertFalse(self.org.is_connected_to_twilio())
+                    # now try with all required fields, and a bonus field we shouldn't change
+                    self.client.post(twilio_account_url, dict(account_sid='AccountSid',
+                                                              account_token='SecondaryToken',
+                                                              disconnect='false',
+                                                              name='DO NOT CHANGE ME'), follow=True)
+                    # name shouldn't change
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.name, "Temba")
+
+                    # now disconnect our twilio connection
+                    self.assertTrue(self.org.is_connected_to_twilio())
+                    self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
+
+                    self.org.refresh_from_db()
+                    self.assertFalse(self.org.is_connected_to_twilio())
 
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
@@ -1584,7 +1591,8 @@ class OrgTest(TembaTest):
                 # believe it or not nexmo returns 'error-code' 200
                 nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                self.assertEqual(response.status_code, 302)
 
                 # nexmo should now be connected
                 self.org = Org.objects.get(pk=self.org.pk)
@@ -1973,7 +1981,7 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "123123")
 
         # create a flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # start the contact down it
         flow.start([], [contact])
