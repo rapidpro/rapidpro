@@ -44,10 +44,14 @@ window.updateSimulator = (data) ->
 
     quick_replies = null
 
-    if msg.metadata and Object.keys(msg.metadata).length > 1
-      params = JSON.parse(msg.metadata)
+    metadata = msg.metadata
+    if metadata
+      if typeof(metadata) == "object"
+        metadata = JSON.stringify(metadata)
 
-      if params.quick_replies? and params.quick_replies[0]?
+      params = JSON.parse(metadata)
+
+      if params and params.quick_replies?
         quick_replies = "<div id='quick-reply-content'>"
         for reply in params.quick_replies
           quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
