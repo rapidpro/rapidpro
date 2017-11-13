@@ -230,7 +230,7 @@ class WebHookTest(TembaTest):
         org = self.channel.org
         org.save()
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
