@@ -1603,12 +1603,12 @@ class OrgTest(TembaTest):
                 nexmo_uuid = self.org.config_json()['NEXMO_UUID']
 
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['answer_url'],
-                                 "https://%s%s" % (settings.HOSTNAME.lower(),
+                                 "https://%s%s" % (self.org.get_brand_domain().lower(),
                                                    reverse('handlers.nexmo_call_handler', args=['answer',
                                                                                                 nexmo_uuid])))
 
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['event_url'],
-                                 "https://%s%s" % (settings.HOSTNAME.lower(),
+                                 "https://%s%s" % (self.org.get_brand_domain().lower(),
                                                    reverse('handlers.nexmo_call_handler', args=['event',
                                                                                                 nexmo_uuid])))
 
@@ -1617,7 +1617,7 @@ class OrgTest(TembaTest):
 
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['name'],
-                                 "%s/%s" % (settings.HOSTNAME.lower(), nexmo_uuid))
+                                 "%s/%s" % (self.org.get_brand_domain().lower(), nexmo_uuid))
 
                 nexmo_account_url = reverse('orgs.org_nexmo_account')
                 response = self.client.get(nexmo_account_url)

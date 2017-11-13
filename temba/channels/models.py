@@ -365,7 +365,8 @@ class Channel(TembaModel):
             config = {}
 
         # save what domain this channel should use for callbacks
-        config[Channel.CONFIG_CALLBACK_DOMAIN] = org.get_brand_domain()
+        if org is not None:
+            config[Channel.CONFIG_CALLBACK_DOMAIN] = org.get_brand_domain()
 
         create_args = dict(org=org, created_by=user, modified_by=user,
                            country=country,
