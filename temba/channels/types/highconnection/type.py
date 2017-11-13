@@ -4,7 +4,6 @@ import time
 import requests
 import six
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
@@ -40,6 +39,7 @@ class HighConnectionType(ChannelType):
         return org.timezone and six.text_type(org.timezone) in ["Europe/Paris"]
 
     def send(self, channel, msg, text):
+        callback_domain = channel.callback_domain
 
         payload = {
             'accountid': channel.config[Channel.CONFIG_USERNAME],
@@ -49,8 +49,8 @@ class HighConnectionType(ChannelType):
             'ret_id': msg.id,
             'datacoding': 8,
             'userdata': 'textit',
-            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
-            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
+            'ret_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
+            'ret_mo_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
         }
 
         # build our send URL

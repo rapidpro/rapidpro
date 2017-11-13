@@ -27,7 +27,7 @@ class IVRException(Exception):
 
 class NexmoClient(NexmoCli):
 
-    def __init__(self, api_key, api_secret, app_id, app_private_key, org=None):
+    def __init__(self, api_key, api_secret, app_id, app_private_key, org):
         self.org = org
         NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
         self.events = []
@@ -56,7 +56,7 @@ class NexmoClient(NexmoCli):
             raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
-        url = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[call.pk]))
+        url = 'https://%s%s' % (self.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
 
         params = dict()
         params['answer_url'] = [url]
@@ -121,7 +121,7 @@ class NexmoClient(NexmoCli):
 
 class TwilioClient(TembaTwilioRestClient):
 
-    def __init__(self, account, token, org=None, **kwargs):
+    def __init__(self, account, token, org, **kwargs):
         self.org = org
         super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
 

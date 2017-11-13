@@ -775,8 +775,7 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                     help_text=_("The country this phone number is used in"))
         number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                 help_text=_(
-                                     "The phone number or short code you are connecting with country code. ex: +250788123124"))
+                                 help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"))
         username = forms.CharField(label=_("Username"),
                                    help_text=_("The username provided by the provider to use their API"))
         password = forms.CharField(label=_("Password"),
@@ -1618,7 +1617,7 @@ class ChannelCRUDL(SmartCRUDL):
                 context['example_url'] = Channel.replace_variables(send_url, example_payload)
                 context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
 
-            context['domain'] = settings.HOSTNAME
+            context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
 
             return context

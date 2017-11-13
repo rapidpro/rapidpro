@@ -429,7 +429,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = FlowRun.objects.filter(connection=call, is_active=True).order_by('-created_on').first()
+        run = FlowRun.objects.filter(connection=call, is_active=True).select_related('org').order_by('-created_on').first()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -508,7 +508,7 @@ class Flow(TembaModel):
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
         if isinstance(destination, RuleSet):
             response = call.channel.generate_ivr_response()
-            callback = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[call.pk]))
+            callback = 'https://%s%s' % (run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
@@ -2955,7 +2955,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
-            callback = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[self.connection.pk]))
+            callback = 'https://%s%s' % (self.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[self.connection.pk]))
             self.voice_response.redirect(url=callback + '?resume=1')
         else:
             # if we have a parent to continue
@@ -5839,7 +5839,7 @@ class StartFlowAction(Action):
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
                                       restart_participants=True, extra=extra, parent_run=run)[0]
-            url = "https://%s%s" % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[new_run.connection.pk]))
+            url = "https://%s%s" % (new_run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[new_run.connection.pk]))
             run.voice_response.redirect(url)
         else:
             child_runs = self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,

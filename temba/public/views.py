@@ -139,6 +139,7 @@ class LeadCRUDL(SmartCRUDL):
 
 
 class Blog(RedirectView):
+    # whitelabels don't have blogs, so we don't use the brand domain here
     url = "http://blog." + settings.HOSTNAME
 
 

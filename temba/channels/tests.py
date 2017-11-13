@@ -3388,11 +3388,13 @@ class KannelTest(TembaTest):
             self.assertEqual("Normal", mock.call_args[1]['params']['text'])
             self.assertFalse('coding' in mock.call_args[1]['params'])
             self.assertFalse('charset' in mock.call_args[1]['params'])
+            self.assertEqual('https://%s/c/kn/%s/status?id=%d&status=%%d' % (self.org.get_brand_domain(), self.channel.uuid, msg.id), mock.call_args[1]['params']['dlr-url'])
 
             self.clear_cache()
 
         self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
                                               encoding=Channel.ENCODING_UNICODE,
+                                              callback_domain='custom-domain.io',
                                               send_url='http://foo/', verify_ssl=False))
         self.channel.save()
 
@@ -3411,6 +3413,7 @@ class KannelTest(TembaTest):
             self.assertEqual("Normal", mock.call_args[1]['params']['text'])
             self.assertEqual('2', mock.call_args[1]['params']['coding'])
             self.assertEqual('utf8', mock.call_args[1]['params']['charset'])
+            self.assertEqual('https://custom-domain.io/c/kn/%s/status?id=%d&status=%%d' % (self.channel.uuid, msg.id), mock.call_args[1]['params']['dlr-url'])
 
             self.clear_cache()
 
@@ -5616,7 +5619,7 @@ class TwilioTest(TembaTest):
                     self.clear_cache()
 
                     # handle the status callback
-                    callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id)
+                    callback_url = Channel.build_twilio_callback_url(self.channel.callback_domain, channel_type, self.channel.uuid, msg.id)
 
                     self.assertTrue(callback_url.find("c/%s/%s/status" % (channel_type.lower(), self.channel.uuid)) >= 0)
 
@@ -5687,7 +5690,7 @@ class TwilioTest(TembaTest):
                     response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
                     self.assertEqual(response.status_code, 200)
 
-                    missing_sms_callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id + 100)
+                    missing_sms_callback_url = Channel.build_twilio_callback_url(self.channel.callback_domain, channel_type, self.channel.uuid, msg.id + 100)
                     response = self.client.post(missing_sms_callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
                     self.assertEqual(response.status_code, 400)
 
@@ -5753,7 +5756,7 @@ class TwilioTest(TembaTest):
             self.clear_cache()
 
             # handle the status callback
-            callback_url = Channel.build_twilio_callback_url(self.channel.channel_type, self.channel.uuid, msg.id)
+            callback_url = Channel.build_twilio_callback_url(self.channel.callback_domain, self.channel.channel_type, self.channel.uuid, msg.id)
 
             client = self.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
