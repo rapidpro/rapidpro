@@ -33,8 +33,8 @@ def fix_twilio_twiml_apps(Org):
             client = get_twilio_client(twilio_org)
 
             if client:
-                app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), twilio_org.pk)
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
+                app_name = "%s/%d" % (settings.HOSTNAME.lower(), twilio_org.pk)
+                app_url = "https://" + settings.HOSTNAME + "%s" % reverse('handlers.twilio_handler')
 
                 try:
                     apps = client.applications.list(friendly_name=app_name)

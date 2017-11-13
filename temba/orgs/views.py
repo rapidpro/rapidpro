@@ -652,9 +652,9 @@ class OrgCRUDL(SmartCRUDL):
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             try:
-                from temba.settings import TEMBA_HOST
-                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
-                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+                from temba.settings import HOSTNAME
+                nexmo_client.update_account('http://%s%s' % (HOSTNAME, mo_path),
+                                            'http://%s%s' % (HOSTNAME, dl_path))
 
                 return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
@@ -664,7 +664,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
 
-            from temba.settings import TEMBA_HOST
+            from temba.settings import HOSTNAME
             org = self.get_object()
             config = org.config_json()
             context['nexmo_api_key'] = config[NEXMO_KEY]
@@ -673,8 +673,8 @@ class OrgCRUDL(SmartCRUDL):
             nexmo_uuid = config.get(NEXMO_UUID, None)
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
-            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
-            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
+            context['mo_path'] = 'https://%s%s' % (HOSTNAME, mo_path)
+            context['dl_path'] = 'https://%s%s' % (HOSTNAME, dl_path)
 
             return context
 

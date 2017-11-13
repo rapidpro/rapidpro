@@ -32,7 +32,7 @@ def update_nexmo_config(Org):
 
                 nx_client = nx.Client(key=nexmo_api_key, secret=nexmo_secret)
 
-                app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid)
+                app_name = "%s/%s" % (settings.HOSTNAME.lower(), nexmo_uuid)
                 answer_url = reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid])
 
                 event_url = reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid])
@@ -66,7 +66,7 @@ def update_nexmo_config(Org):
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
                     nexmo_client.update_nexmo_number(six.text_type(channel.country), channel.address,
-                                                     'https://%s%s' % (settings.TEMBA_HOST, mo_path),
+                                                     'https://%s%s' % (settings.HOSTNAME, mo_path),
                                                      app_id)
 
                     nexmo_phones = nexmo_client.get_numbers(channel.address)

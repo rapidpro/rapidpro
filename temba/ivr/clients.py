@@ -56,7 +56,7 @@ class NexmoClient(NexmoCli):
             raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
-        url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+        url = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[call.pk]))
 
         params = dict()
         params['answer_url'] = [url]
