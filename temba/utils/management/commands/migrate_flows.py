@@ -24,7 +24,7 @@ class Command(BaseCommand):  # pragma: no cover
         print("Found %d flows to migrate to %s..." % (len(flow_ids), latest_version))
 
         num_updated = 0
-        num_errored = 0
+        errored = []
 
         for id_batch in chunk_list(flow_ids, 1000):
             for flow in Flow.objects.filter(id__in=id_batch):
@@ -33,6 +33,9 @@ class Command(BaseCommand):  # pragma: no cover
                     num_updated += 1
                 except Exception:
                     print("Unable to migrate flow '%s' (#%d)" % (flow.name, flow.id))
-                    num_errored += 1
+                    errored.append(flow)
 
-            print("> Flows migrated: %d of %d (%d errored)" % (num_updated, total, num_errored))
+            print(" > Flows migrated: %d of %d (%d errored)" % (num_updated, total, len(errored)))
+
+        if errored:
+            print(" > Errored flows: %s" % (", ".join([str(e.id) for e in errored])))
