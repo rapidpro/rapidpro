@@ -128,7 +128,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
                         Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id}
+                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id,
+                        Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         plivo_number = phone_number.strip('+ ').replace(' ', '')
 

@@ -804,6 +804,12 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
     def get_submitted_country(self, data):
         return data['country']
 
+    def get_channel_config(self, org, data):
+        """
+        Subclasses can override this method to add in other channel config variables
+        """
+        return {}
+
     def form_valid(self, form):
         org = self.request.user.get_org()
 
@@ -811,15 +817,18 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
             raise Exception("No org for this user, cannot claim")
 
         data = form.cleaned_data
-        self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                 self.get_submitted_country(data),
-                                                                 data['number'],
-                                                                 data['username'],
-                                                                 data['password'],
-                                                                 self.channel_type,
-                                                                 data.get('url'))
+        extra_config = self.get_channel_config(org, data)
+        self.object = Channel.add_authenticated_external_channel(
+            org, self.request.user, self.get_submitted_country(data), data['number'], data['username'],
+            data['password'], self.channel_type, data.get('url'), extra_config=extra_config,
+        )
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)
+
+
+class AuthenticatedExternalCallbackClaimView(AuthenticatedExternalClaimView):
+    def get_channel_config(self, org, data):
+        return {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
 
 class BaseClaimNumberMixin(ClaimViewMixin):

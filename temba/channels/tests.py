@@ -5587,7 +5587,7 @@ class TwilioTest(TembaTest):
 
         joe = self.create_contact("Joe", "+250788383383")
 
-        with self.settings(SEND_MESSAGES=True, HOSTNAME='testserver'):
+        with self.settings(SEND_MESSAGES=True):
             with patch('twilio.rest.resources.base.make_request') as mock:
                 for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
@@ -5630,7 +5630,11 @@ class TwilioTest(TembaTest):
                     post_data = dict(SmsStatus='delivered', To='+250788383383')
                     signature = validator.compute_signature(callback_url, post_data)
 
-                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    client_kwargs = {
+                        'SERVER_NAME': self.channel.callback_domain,
+                        'HTTP_X_TWILIO_SIGNATURE': signature,
+                    }
+                    response = self.client.post(callback_url, post_data, **client_kwargs)
 
                     self.assertEqual(response.status_code, 200)
                     msg.refresh_from_db()
@@ -5641,9 +5645,9 @@ class TwilioTest(TembaTest):
 
                     validator = RequestValidator(client.auth[1])
                     post_data = dict(SmsStatus='sent', To='+250788383383')
-                    signature = validator.compute_signature(callback_url, post_data)
+                    client_kwargs['HTTP_X_TWILIO_SIGNATURE'] = validator.compute_signature(callback_url, post_data)
 
-                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    response = self.client.post(callback_url, post_data, **client_kwargs)
 
                     self.assertEqual(response.status_code, 200)
                     msg.refresh_from_db()
@@ -5654,9 +5658,9 @@ class TwilioTest(TembaTest):
 
                     validator = RequestValidator(client.auth[1])
                     post_data = dict(SmsStatus='failed', To='+250788383383')
-                    signature = validator.compute_signature(callback_url, post_data)
+                    client_kwargs['HTTP_X_TWILIO_SIGNATURE'] = validator.compute_signature(callback_url, post_data)
 
-                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    response = self.client.post(callback_url, post_data, **client_kwargs)
 
                     self.assertEqual(response.status_code, 200)
                     msg.refresh_from_db()
@@ -5689,16 +5693,16 @@ class TwilioTest(TembaTest):
 
                     msg.channel = None
                     msg.save()
-                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    response = self.client.post(callback_url, post_data, **client_kwargs)
                     self.assertEqual(response.status_code, 200)
 
                     missing_sms_callback_url = Channel.build_twilio_callback_url(self.channel.callback_domain, channel_type, self.channel.uuid, msg.id + 100)
-                    response = self.client.post(missing_sms_callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    response = self.client.post(missing_sms_callback_url, post_data, **client_kwargs)
                     self.assertEqual(response.status_code, 400)
 
                     with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_twilio:
                         mock_connected_twilio.return_value = False
-                        response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                        response = self.client.post(callback_url, post_data, **client_kwargs)
                         self.assertEqual(response.status_code, 400)
 
             # check that our channel log works as well
@@ -5765,7 +5769,10 @@ class TwilioTest(TembaTest):
             post_data = dict(SmsStatus='delivered', To='+250788383383')
             signature = validator.compute_signature(callback_url, post_data)
 
-            response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            response = self.client.post(
+                callback_url, post_data,
+                **{'SERVER_NAME': self.channel.callback_domain, 'HTTP_X_TWILIO_SIGNATURE': signature}
+            )
 
             self.assertEqual(response.status_code, 200)
             msg.refresh_from_db()

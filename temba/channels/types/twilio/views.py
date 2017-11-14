@@ -154,7 +154,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         config = {Channel.CONFIG_APPLICATION_SID: new_app.sid,
                   Channel.CONFIG_NUMBER_SID: number_sid,
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
-                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN],
+                  Channel.CONFIG_CALLBACK_DOMAIN: callback_domain}
 
         channel = Channel.create(org, user, country, 'T', name=phone, address=phone_number, role=role,
                                  config=config, uuid=channel_uuid)

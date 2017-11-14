@@ -8,7 +8,7 @@ import time
 
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from temba.channels.views import AuthenticatedExternalClaimView
+from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
 from temba.utils.http import HttpEvent, http_headers
@@ -26,7 +26,7 @@ class InfobipType(ChannelType):
     name = "Infobip"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.""")
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
     max_length = 1600

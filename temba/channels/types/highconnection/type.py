@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.views import AuthenticatedExternalClaimView
+from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
 from temba.utils.http import HttpEvent, http_headers
@@ -28,7 +28,7 @@ class HighConnectionType(ChannelType):
 
     claim_blurb = _("""If you are based in France, you can purchase a number from High Connexion
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.""")
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
     max_length = 1500

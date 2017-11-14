@@ -364,10 +364,6 @@ class Channel(TembaModel):
         if config is None:
             config = {}
 
-        # save what domain this channel should use for callbacks
-        if org is not None:
-            config[Channel.CONFIG_CALLBACK_DOMAIN] = org.get_brand_domain()
-
         create_args = dict(org=org, created_by=user, modified_by=user,
                            country=country,
                            channel_type=channel_type.code,
@@ -416,8 +412,9 @@ class Channel(TembaModel):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
 
     @classmethod
-    def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url, role=DEFAULT_ROLE):
+    def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
+                                           url, role=DEFAULT_ROLE, extra_config=None):
+
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -426,6 +423,9 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
+        if extra_config:
+            config.update(extra_config)
+
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
                               role=role)
 
