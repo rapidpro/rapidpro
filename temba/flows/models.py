@@ -280,34 +280,11 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
+        flow.version_number = '10.4'
+        flow.save(update_fields=('version_number',))
 
         entry_uuid = six.text_type(uuid4())
-        actions = [
-            {
-                'uuid': str(uuid4()),
-                'type': 'add_group',
-                'group': {'uuid': group.uuid, 'name': group.name}
-            },
-            {
-                'uuid': str(uuid4()),
-                'type': 'save',
-                'field': 'name',
-                'label': 'Contact Name',
-                'value': '@(PROPER(REMOVE_FIRST_WORD(step.value)))'
-            }
-        ]
-
-        if response:
-            actions.append({'uuid': str(uuid4()), 'type': 'reply', 'msg': {base_language: response}})
-
-        if start_flow:
-            actions.append({
-                'uuid': str(uuid4()),
-                'type': 'flow',
-                'flow': {'uuid': start_flow.uuid, 'name': start_flow.name}
-            })
-
-        flow.update({
+        definition = {
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -316,11 +293,39 @@ class Flow(TembaModel):
                     'x': 100, 'y': 0,
                     'uuid': entry_uuid,
                     'exit_uuid': str(uuid4()),
-                    'actions': actions
+                    'actions': [
+                        {
+                            'uuid': str(uuid4()),
+                            'type': 'add_group',
+                            'group': {'uuid': group.uuid, 'name': group.name}
+                        },
+                        {
+                            'uuid': str(uuid4()),
+                            'type': 'save',
+                            'field': 'name',
+                            'label': 'Contact Name',
+                            'value': '@(PROPER(REMOVE_FIRST_WORD(step.value)))'
+                        }
+                    ]
                 }
             ]
-        })
+        }
 
+        if response:
+            definition['action_sets'][0]['actions'].append({
+                'uuid': str(uuid4()),
+                'type': 'reply',
+                'msg': {base_language: response}
+            })
+
+        if start_flow:
+            definition['action_sets'][0]['actions'].append({
+                'uuid': str(uuid4()),
+                'type': 'flow',
+                'flow': {'uuid': start_flow.uuid, 'name': start_flow.name}
+            })
+
+        flow.update(FlowRevision.migrate_definition(definition, flow))
         return flow
 
     @classmethod
@@ -1231,11 +1236,11 @@ class Flow(TembaModel):
 
         self.flow_type = Flow.MESSAGE
         self.base_language = base_language
-        self.save(update_fields=('name', 'flow_type', 'base_language'))
+        self.version_number = '10.4'
+        self.save(update_fields=('name', 'flow_type', 'base_language', 'version_number'))
 
         entry_uuid = str(uuid4())
-
-        self.update({
+        definition = {
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -1249,7 +1254,9 @@ class Flow(TembaModel):
                     ]
                 }
             ]
-        })
+        }
+
+        self.update(FlowRevision.migrate_definition(definition, self))
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
