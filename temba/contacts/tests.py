@@ -576,7 +576,7 @@ class ContactTest(TembaTest):
     def create_campaign(self):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
-        self.reminder_flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        self.reminder_flow = self.get_flow('color')
         self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
