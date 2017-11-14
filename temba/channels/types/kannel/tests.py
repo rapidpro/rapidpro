@@ -1,6 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-from django.test import override_settings
 from django.urls import reverse
 from temba.tests import TembaTest
 from ...models import Channel
@@ -8,9 +7,13 @@ from ...models import Channel
 
 class KannelTypeTest(TembaTest):
 
-    @override_settings(HOSTNAME="custom-domain.io")
     def test_claim(self):
         Channel.objects.all().delete()
+
+        # override the ORG brand
+        self.org.brand = 'custom-brand.io'
+        self.org.save()
+
         self.login(self.admin)
 
         url = reverse('channels.claim_kannel')
@@ -43,7 +46,7 @@ class KannelTypeTest(TembaTest):
         # make sure we generated a username and password
         self.assertTrue(channel.config_json()['username'])
         self.assertTrue(channel.config_json()['password'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], "custom-domain.io")
+        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], "custom-brand.io")
         self.assertEqual('KN', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
@@ -53,4 +56,4 @@ class KannelTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # our configuration page should list our receive URL
-        self.assertContains(response, "https://custom-domain.io" + reverse('courier.kn', args=[channel.uuid, 'receive']))
+        self.assertContains(response, "https://custom-brand.io" + reverse('courier.kn', args=[channel.uuid, 'receive']))

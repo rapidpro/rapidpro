@@ -5732,7 +5732,7 @@ class TwilioTest(TembaTest):
             self.assertEqual(0, self.channel.get_error_log_count())
             self.assertEqual(1, self.channel.get_success_log_count())
 
-    @override_settings(SEND_MESSAGES=True, HOSTNAME='testserver')
+    @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()

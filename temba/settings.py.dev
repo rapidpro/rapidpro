@@ -20,7 +20,7 @@ DEBUG_TOOLBAR = False
 # Used when creating callbacks for Twilio, Nexmo etc..
 # -----------------------------------------------------------------------------------
 HOSTNAME = 'temba.ngrok.io'
-ALLOWED_HOSTS = ['localhost', 'temba.ngrok.io']
+ALLOWED_HOSTS = ['*']
 
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
