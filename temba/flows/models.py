@@ -921,6 +921,17 @@ class Flow(TembaModel):
         return changed
 
     @classmethod
+    def get_versions_before(cls, version_number):
+        versions = []
+        version_str = six.text_type(version_number)
+        for ver in Flow.VERSIONS:
+            if version_str != ver:
+                versions.append(ver)
+            else:
+                break
+        return versions
+
+    @classmethod
     def get_versions_after(cls, version_number):
         versions = []
         version_str = six.text_type(version_number)
@@ -2238,12 +2249,14 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
-    def ensure_current_version(self):
+    def ensure_current_version(self, min_version=None):
         """
         Makes sure the flow is at the current version. If it isn't it will
         migrate the definition forward updating the flow accordingly.
         """
-        if Flow.is_before_version(self.version_number, get_current_export_version()):
+        to_version = min_version or get_current_export_version()
+
+        if Flow.is_before_version(self.version_number, to_version):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:

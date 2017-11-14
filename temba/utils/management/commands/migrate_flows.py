@@ -6,10 +6,13 @@ from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
 
 
-def migrate_flows():  # pragma: no cover
-    # get all flows not at the current version
-    latest_version = get_current_export_version()
-    flows_to_migrate = Flow.objects.filter(is_active=True).exclude(version_number=latest_version)
+def migrate_flows(min_version=None):  # pragma: no cover
+    to_version = min_version or get_current_export_version()
+
+    # get all flows below the min version
+    old_versions = Flow.get_versions_before(to_version)
+
+    flows_to_migrate = Flow.objects.filter(is_active=True, version_number__in=old_versions)
 
     flow_ids = list(flows_to_migrate.values_list('id', flat=True))
     total = len(flow_ids)
@@ -18,7 +21,7 @@ def migrate_flows():  # pragma: no cover
         print("All flows up to date")
         return True
 
-    print("Found %d flows to migrate to %s..." % (len(flow_ids), latest_version))
+    print("Found %d flows to migrate to %s..." % (len(flow_ids), to_version))
 
     num_updated = 0
     errored = []
@@ -26,7 +29,7 @@ def migrate_flows():  # pragma: no cover
     for id_batch in chunk_list(flow_ids, 1000):
         for flow in Flow.objects.filter(id__in=id_batch):
             try:
-                flow.ensure_current_version()
+                flow.ensure_current_version(min_version=to_version)
                 num_updated += 1
             except Exception:
                 print("Unable to migrate flow '%s' (#%d)" % (flow.name, flow.id))

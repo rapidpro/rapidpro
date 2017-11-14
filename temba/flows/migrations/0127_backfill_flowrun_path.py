@@ -22,8 +22,8 @@ PATH_MAX_STEPS = 100
 
 
 def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
-    # start by ensuring all flows are at latest export version
-    if not migrate_flows():
+    # start by ensuring all flows are at a minimum version
+    if not migrate_flows('10.4'):
         raise ValueError("Migration can't proceed because some flows couldn't be migrated")
 
     # get all flow action sets
