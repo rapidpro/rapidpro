@@ -6,7 +6,7 @@ from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
 
 
-def migrate_flows():
+def migrate_flows():  # pragma: no cover
     # get all flows not at the current version
     latest_version = get_current_export_version()
     flows_to_migrate = Flow.objects.filter(is_active=True).exclude(version_number=latest_version)
