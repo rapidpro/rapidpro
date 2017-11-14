@@ -137,8 +137,10 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
-                                     text=text, base_language=base_language,
-                                     recipients=recipients, channel=self.validated_data.get('channel'))
+                                     text=text,
+                                     base_language=base_language,
+                                     recipients=recipients,
+                                     channel=self.validated_data.get('channel'))
 
         # send in task
         on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
@@ -169,11 +171,12 @@ class ChannelEventReadSerializer(ReadSerializer):
 
 
 class CampaignReadSerializer(ReadSerializer):
+    archived = serializers.ReadOnlyField(source='is_archived')
     group = fields.ContactGroupField()
 
     class Meta:
         model = Campaign
-        fields = ('uuid', 'name', 'group', 'created_on')
+        fields = ('uuid', 'name', 'archived', 'group', 'created_on')
 
 
 class CampaignWriteSerializer(WriteSerializer):

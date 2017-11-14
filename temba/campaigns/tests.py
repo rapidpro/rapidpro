@@ -12,7 +12,7 @@ from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
 from temba.msgs.models import Msg
-from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -82,7 +82,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_message_event(self):
         # update the planting date for our contacts
@@ -179,7 +179,7 @@ class CampaignTest(TembaTest):
         self.assertEqual('', response.context['form'].fields['ace'].initial)
 
         # now we save our new settings
-        post_data = dict(relative_to=self.planting_date.pk, event_type='M', base='Required', spa="This is my message", ace='',
+        post_data = dict(relative_to=self.planting_date.pk, event_type='M', base='Required', spa="This is my spanish @contact.planting_date", ace='',
                          direction='B', offset=1, unit='W', flow_to_start='', delivery_hour=13)
         response = self.client.post(url, post_data)
         self.assertEqual(302, response.status_code)
@@ -195,8 +195,21 @@ class CampaignTest(TembaTest):
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
         self.assertTrue('base' in response.context['form'].fields)
-        self.assertEqual('This is my message', response.context['form'].fields['spa'].initial)
+        self.assertEqual('This is my spanish @contact.planting_date', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
+
+        # our single message flow should have a dependency on planting_date
+        event.flow.refresh_from_db()
+        self.assertEqual(1, event.flow.field_dependencies.all().count())
+
+        # delete the event
+        self.client.post(reverse('campaigns.campaignevent_delete', args=[event.pk]), dict())
+        self.assertFalse(CampaignEvent.objects.get(id=event.id).is_active)
+
+        # our single message flow should be released and take its dependencies with it
+        event.flow.refresh_from_db()
+        self.assertFalse(event.flow.is_active)
+        self.assertEqual(0, event.flow.field_dependencies.all().count())
 
     def test_views(self):
         # update the planting date for our contacts

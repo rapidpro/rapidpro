@@ -1,0 +1,44 @@
+{
+  "version": 4,
+  "flows": [
+    {
+      "definition": {
+        "base_language": "base",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": null,
+            "uuid": "a6676605-332a-4309-a8b8-79b33e73adcd",
+            "actions": [
+              {
+                "type": "add_group", 
+                "uuid": "5f5a2aac-f4f4-4b47-af6e-186f6dafb9f0", 
+                "group": {"name": "< 25", "id": 15572}
+              },
+              {
+                "type": "del_group", 
+                "uuid": "2a385c5b-e27c-43ac-bbc6-49653fede421", 
+                "group": {"id": 15573}
+              }
+            ]
+          }
+        ],
+        "rule_sets": [],
+        "metadata": {
+          "uuid": "77ae372d-a937-4d9b-a703-cc1c75c4c6f1",
+          "notes": [],
+          "expires": 720,
+          "name": "Bad Mojo",
+          "revision": 1,
+          "saved_on": "2017-08-16T23:10:18.579169Z"
+        }
+      },
+      "version": 4,
+      "flow_type": "F",
+      "name": "Bad Mojo",
+      "entry": "a6676605-332a-4309-a8b8-79b33e73adcd"
+    }
+  ],
+  "triggers": []
+}

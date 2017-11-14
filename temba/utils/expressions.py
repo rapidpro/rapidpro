@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import pytz
 import regex
 import six
 
@@ -272,6 +273,8 @@ class ContactFieldCollector(EvaluationContext):
         if len(parts) > 1:
             if parts[0] in ('parent', 'child'):
                 parts = parts[1:]
+                if len(parts) < 2:
+                    return None
             if parts[0] == 'contact':
                 field_name = parts[1]
                 if ContactField.is_valid_key(field_name):
@@ -279,7 +282,7 @@ class ContactFieldCollector(EvaluationContext):
         return None
 
     def __init__(self):
-        super(ContactFieldCollector, self).__init__(dict(), None, None)
+        super(ContactFieldCollector, self).__init__(dict(), pytz.UTC, None)
 
     def get_contact_fields(self, msg):
         self.contact_fields = set()

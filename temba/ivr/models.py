@@ -44,7 +44,7 @@ class IVRCall(ChannelSession):
         runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
         for run in runs:
             test_call = IVRCall.objects.filter(id=run.connection.id).first()
-            if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
+            if test_call.channel.channel_type in ['T', 'TW']:
                 if not test_call.is_done():
                     test_call.close()
 
@@ -66,7 +66,7 @@ class IVRCall(ChannelSession):
         from temba.flows.models import ActionLog, FlowRun
         if client:
             try:
-                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
+                url = "https://%s%s" % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[self.pk]))
                 if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 

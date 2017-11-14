@@ -2,9 +2,9 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import copy
 import datetime
 import json
-
 import pycountry
 import pytz
 import six
@@ -40,6 +40,7 @@ from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
+from .http import http_headers
 from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
@@ -234,6 +235,13 @@ class InitTest(TembaTest):
 
     def test_replace_non_characters(self):
         self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
+
+    def test_http_headers(self):
+        headers = http_headers(extra={'Foo': "Bar"})
+        headers['Token'] = "123456"
+
+        self.assertEqual(headers, {'User-agent': 'RapidPro', 'Foo': "Bar", 'Token': "123456"})
+        self.assertEqual(http_headers(), {'User-agent': 'RapidPro'})  # check changes don't leak
 
 
 class TimezonesTest(TembaTest):
@@ -1539,6 +1547,15 @@ class MiddlewareTest(TembaTest):
     def test_branding(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['redirect'] = '/redirect'
+        with self.settings(BRANDING=branding):
+            self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
 
     def test_flow_simulation(self):
         Contact.set_simulation(True)

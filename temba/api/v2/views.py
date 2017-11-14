@@ -717,6 +717,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **name** - the name of the campaign (string).
+     * **archived** - whether this campaign is archived (boolean)
      * **group** - the group this campaign operates on (object).
      * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
 
@@ -733,6 +734,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "name": "Reminders",
+                "archived": false,
                 "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
@@ -760,6 +762,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "name": "Reminders",
+            "archived": false,
             "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
             "created_on": "2013-08-19T19:11:21.088Z"
         }
@@ -1804,6 +1807,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
+
+        queryset = queryset.exclude(flow_type=Flow.MESSAGE)
 
         # filter by UUID (optional)
         uuid = params.get('uuid')

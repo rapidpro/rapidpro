@@ -43,7 +43,6 @@ from temba.utils.currencies import currency_for_country
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
 from temba.utils.text import random_string
-from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from urlparse import urlparse
 from uuid import uuid4
@@ -52,8 +51,14 @@ from uuid import uuid4
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 10
-EARLIEST_IMPORT_VERSION = 3
+EARLIEST_IMPORT_VERSION = "3"
+
+
+# making this a function allows it to be used as a default for Django fields
+def get_current_export_version():
+    from temba.flows.models import Flow
+    return Flow.VERSIONS[-1]
+
 
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
@@ -374,11 +379,10 @@ class Org(SmartModel):
 
         # see if our export needs to be updated
         export_version = data.get('version', 0)
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
-        if export_version < CURRENT_EXPORT_VERSION:
+        if Flow.is_before_version(export_version, get_current_export_version()):
             from temba.flows.models import FlowRevision
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
@@ -407,7 +411,7 @@ class Org(SmartModel):
             elif isinstance(component, Trigger):
                 exported_triggers.append(component.as_json())
 
-        return dict(version=CURRENT_EXPORT_VERSION,
+        return dict(version=get_current_export_version(),
                     site=site_link,
                     flows=exported_flows,
                     campaigns=exported_campaigns,
@@ -555,8 +559,8 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_ussd_channels(self):
-        from temba.channels.models import Channel
-        return self.channels.filter(is_active=True, org=self, channel_type__in=Channel.USSD_CHANNELS)
+        from temba.channels.models import ChannelType, Channel
+        return Channel.get_by_category(self, ChannelType.Category.USSD)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -783,13 +787,13 @@ class Org(SmartModel):
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        temba_host = settings.TEMBA_HOST.lower()
+        hostname = settings.HOSTNAME.lower()
 
-        app_name = "%s/%s" % (temba_host, nexmo_uuid)
+        app_name = "%s/%s" % (hostname, nexmo_uuid)
 
-        answer_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
+        answer_url = "https://%s%s" % (hostname, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
 
-        event_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
+        event_url = "https://%s%s" % (hostname, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
 
         params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
                       event_url=event_url, event_method='POST')
@@ -864,13 +868,8 @@ class Org(SmartModel):
 
     def remove_twilio_account(self, user):
         if self.config:
-            # release any twilio channels
-            from temba.channels.models import Channel
-
-            twilio_channels = self.channels.filter(is_active=True,
-                                                   channel_type__in=[Channel.TYPE_TWILIO,
-                                                                     Channel.TYPE_TWILIO_MESSAGING_SERVICE])
-            for channel in twilio_channels:
+            # release any twilio and twilio messaging sevice channels
+            for channel in self.channels.filter(is_active=True, channel_type__in=['T', 'TMS']):
                 channel.release()
 
             config = self.config_json()
@@ -1180,8 +1179,7 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
+        return self.channels.filter(channel_type='T')
 
     def has_nexmo_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type='NX')
@@ -1415,7 +1413,7 @@ class Org(SmartModel):
             remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 100:
+            if not remaining or int(remaining) < 5000:
                 active_topup_pk = None
 
         # calculate our active topup if we need to
@@ -1794,40 +1792,6 @@ class Org(SmartModel):
 
         return all_components
 
-    def get_recommended_channel(self):
-        from temba.channels.views import TWILIO_SEARCH_COUNTRIES
-        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
-                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
-
-        countrycode = timezone_to_country_code(self.timezone)
-        recommended = 'A'
-
-        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = 'T'
-
-        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'NX'
-
-        elif countrycode == 'KE':
-            recommended = 'AT'
-
-        elif countrycode == 'ID':
-            recommended = 'H9'
-
-        elif countrycode == 'SO':
-            recommended = 'SQ'
-
-        elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'BM'
-
-        elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'YO'
-
-        elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'GL'
-
-        return recommended
-
     def increment_unread_msg_count(self, type):
         """
         Increments our redis cache of how many unread messages exist for this org and type.
@@ -1971,8 +1935,9 @@ def get_user_orgs(user, brand=None):
 
     if user.is_superuser:
         return Org.objects.all()
+
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.filter(brand=brand).distinct().order_by('name')
+    return user_orgs.filter(brand=brand, is_active=True).distinct().order_by('name')
 
 
 def get_org(obj):

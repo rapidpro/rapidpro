@@ -20,7 +20,6 @@ DEBUG_TOOLBAR = False
 # Used when creating callbacks for Twilio, Nexmo etc..
 # -----------------------------------------------------------------------------------
 HOSTNAME = 'temba.ngrok.io'
-TEMBA_HOST = 'temba.ngrok.io'
 ALLOWED_HOSTS = ['localhost', 'temba.ngrok.io']
 
 # -----------------------------------------------------------------------------------

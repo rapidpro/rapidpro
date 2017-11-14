@@ -1,3 +1,135 @@
+v3.0.256
+----------
+ * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
+
+v3.0.255
+----------
+ * Fix Twilio to redirect to twilio claim page after connecting Twilio
+ * Add FlowRun.path and start populating it for new flow steps
+ * Removes no longer used Msg.has_template_error field
+
+v3.0.254
+----------
+ * Use get_host() when calculating signature for voice callbacks
+
+v3.0.253
+----------
+ * use get_host() when validating IVR requests
+
+v3.0.252
+----------
+ * Better Twilio channel claiming
+
+v3.0.250
+----------
+ * Tweaks to recommended channels display
+
+v3.0.246
+----------
+ * Update smartmin to version 1.11.4
+ * Dynamic channels: Chikka, Twilio, Twilio Messaging Service and TwiML Rest API
+
+v3.0.245
+----------
+ * Tweaks to the great FlowRun results migration for better logging and for parallel migrations
+ * Fixes us showing inactive orgs in nav bar and choose page
+ * Ignore requests missing text for incoming message from Infobip
+
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
+v3.0.243
+----------
+ * Add index to FlowPathRecentMessage
+ * Flows API endpoint should filter out campaign message flow type
+ * Add archived field to campaings API endpoint
+ * Fix to correctly substitute context brand variable in dynamic channel blurb
+
+v3.0.242
+----------
+ * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)
+
+v3.0.239
+----------
+ * Migration to increase size of category count
+
+v3.0.238
+----------
+ * Increase character limits on category counts
+
+v3.0.237
+----------
+ * Fix Nexmo channel link
+ * Add results field to FlowRun and start populating
+ * Add FlowCategoryCount model for aggregating flow results
+ * Remove duplicate USSD channels section
+
+v3.0.234
+----------
+ * Remove single message flows when events are deleted
+
+v3.0.233
+----------
+ * Remove field dependencies on flow release, cleanup migration
+ * Update to latest Django 1.11.6
+
+v3.0.232
+----------
+ * Mage handler shouldn't be accessible using example token in settings_common
+ * Make Msg.has_template_error nullable and stop using it
+
+v3.0.231
+----------
+ * Add claim page for dmark for more prettiness
+ * Add management command to migrate flows forward
+ * Add flow migration for partially localized single message flows
+ * Recalculate topups more often
+ * Add dmark channel (only can send and receive through courier)
+ * Merge pull request #1522 from nyaruka/headers
+ * Replace TEMBA_HEADERS with http_headers()
+ * Improve mock server used by tests so it can mock specifc url with specific responses
+ * Add method to get active channels of a particular channel type category
+ * Replace remaining occurrences of assertEquals
+ * Fix the way to check USSD support
+ * Dynamic channels: Vumi and Vumi USSD
+
+v3.0.230
+----------
+ * Deal with malformed group format as part of group updates
+ * Allow installs to configure how many fields they want to keep in @extra
+ * Fix Nexmo icon
+ * Add logs for incoming requests for InfoBip
+ * Do both Python 2 and 3 linting in a single build job
+
+v3.0.229
+----------
+ * Do not set external ID for InfoBip we have send them our ID
+ * Fix channel address comparison to be insensitive to +
+ * Use status groupId to check from the InfoBip response to know if the request was erroneous
+
+v3.0.228
+----------
+ * Add id to reserved field list
+
+v3.0.227
+----------
+ * Update Infobip channel type to use the latest JSON API
+ * Migrate flows forward to have dependencies
+
+v3.0.226
+----------
+ * Fix issue with dates in the contact field extractor
+ * Allow org admin to remove invites
+
+v3.0.225
+----------
+ * Optimize how we check for unsent messages on channels
+ * Ensure all actions have a UUID in new flow spec version 10.1
+ * Fixes viber URN validation: can be up to 24 chars
+ * Dynamic channels: Zenvia, YO
+ * Add support for minor flow migrations
+
 v3.0.224
 ----------
  * Remove duplicate excellent includes (only keep compressed version)

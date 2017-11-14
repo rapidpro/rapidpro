@@ -69,7 +69,8 @@ app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout
   $scope.applyDefinition = (definition) ->
 
     for actionset in definition.action_sets
-        for action in actionset.actions
+      for action in actionset.actions
+        if not action.uuid
           action.uuid = uuid()
 
     # remove all revision selection
@@ -392,6 +393,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId
+            exit_uuid: uuid()
             actions: [
               type: defaultActionSetType()
               msg: msg
@@ -994,7 +996,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       _switchedFromRule: true
       x: ruleset.x
       y: ruleset.y
-      uuid: uuid()
+      uuid: uuid(),
+      exit_uuid: uuid(),
       actions: [ action ]
 
   else if options.nodeType == 'actions'

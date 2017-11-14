@@ -22,8 +22,13 @@ class PlivoTypeTest(TembaTest):
 
         # make sure plivo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Connect plivo")
-        self.assertContains(response, reverse('orgs.org_plivo_connect'))
+        self.assertContains(response, "Plivo")
+        self.assertContains(response, reverse('channels.claim_plivo'))
+
+        response = self.client.get(claim_plivo_url)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(claim_plivo_url, follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))

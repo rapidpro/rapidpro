@@ -13,7 +13,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import get_current_export_version
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -648,7 +648,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        definition = FlowRevision.migrate_definition(definition, self.flow_obj, self.flow_obj.version_number, CURRENT_EXPORT_VERSION)
+        definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
 
         for step in steps:
             node_obj = None
@@ -812,7 +812,7 @@ class MsgCreateSerializer(WriteSerializer):
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
-                except:
+                except Exception:
                     raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
 
         return data
@@ -842,5 +842,5 @@ class MsgCreateSerializer(WriteSerializer):
                                      recipients=contacts, channel=channel)
 
         # send it
-        broadcast.send()
+        broadcast.send(expressions_context={})
         return broadcast
