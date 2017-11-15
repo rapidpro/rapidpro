@@ -4,13 +4,9 @@ v3.0.258
 
 v3.0.257
 ----------
- * Update path backfill migration to first migrate all flows to 10.4 which fixes missing exit_uuids and action UUIDs
+ * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
  * Ensure actions have UUIDs in single message and join-group flows
  * Flow migration command shouldn't blow up if a single flow fails
-
-v3.0.256
-----------
- * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
 
 v3.0.255
 ----------
