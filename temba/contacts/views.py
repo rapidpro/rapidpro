@@ -32,7 +32,7 @@ from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException
+from .search import SearchException, parse_query
 from .tasks import export_contacts_task
 
 
@@ -107,6 +107,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     add_button = True
     paginate_by = 50
 
+    parsed_search = None
+
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
@@ -125,6 +127,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if search_query:
             try:
                 qs = Contact.search(org, search_query, group)
+                # TODO: Contact.search is already parsing the search
+                # TODO: but I'm reluctant to change search method specification
+                self.parsed_search = parse_query(search_query)
             except SearchException as e:
                 self.search_error = six.text_type(e)
                 qs = Contact.objects.none()
@@ -160,6 +165,12 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
+
+        # replace search string with parsed search expression
+        if self.parsed_search is not None:
+            context['search'] = self.parsed_search.as_text()
+            context['save_dynamic_search'] = 'name' not in self.parsed_search.get_prop_map(self.org)
+
         return context
 
     def get_user_groups(self, org):
@@ -873,7 +884,11 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search') and not self.search_error:
+            # define save search conditions
+            valid_search_condition = self.request.GET.get('search') and not self.search_error
+            has_contactgroup_create_perm = self.has_org_perm('contacts.contactgroup_create')
+
+            if has_contactgroup_create_perm and valid_search_condition:
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):

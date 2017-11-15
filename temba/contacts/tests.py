@@ -91,10 +91,20 @@ class ContactCRUDLTest(_CRUDLTest):
 
         response = self._do_test_view('list', query_string='search=age+%3D+18')
         self.assertEqual(list(response.context['object_list']), [self.frank])
+        self.assertEqual(response.context['search'], 'age = 18')
+        self.assertEqual(response.context['save_dynamic_search'], True)
         self.assertIsNone(response.context['search_error'])
 
         response = self._do_test_view('list', query_string='search=age+>+18+and+home+%3D+"Kigali"')
         self.assertEqual(list(response.context['object_list']), [self.joe])
+        self.assertEqual(response.context['search'], 'age > 18 AND home = "Kigali"')
+        self.assertEqual(response.context['save_dynamic_search'], True)
+        self.assertIsNone(response.context['search_error'])
+
+        response = self._do_test_view('list', query_string='search=Joe')
+        self.assertEqual(list(response.context['object_list']), [self.joe])
+        self.assertEqual(response.context['search'], 'name ~ "Joe"')
+        self.assertEqual(response.context['save_dynamic_search'], False)
         self.assertIsNone(response.context['search_error'])
 
         # try with invalid search string
@@ -4098,7 +4108,9 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(41):
+        # TODO: implicit search gets rewritten to 'name ~ "Hagg"'
+        # TODO: there is one EXTRA query ... is this significant ???
+        with self.assertNumQueries(42):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
                 ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
