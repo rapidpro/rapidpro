@@ -11,6 +11,21 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
+def migrate_to_version_10_4(json_flow, flow=None):
+    """
+    Fixes flows which don't have exit_uuids on actionsets or uuids on actions
+    """
+    for actionset in json_flow['action_sets']:
+        if not actionset.get('exit_uuid'):
+            actionset['exit_uuid'] = six.text_type(uuid4())
+
+        for action in actionset['actions']:
+            uuid = action.get('uuid')
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
 def migrate_to_version_10_3(json_flow, flow=None):
     """
     Adds exit_uuid to actionsets so flows can be migrated in goflow deterministically
