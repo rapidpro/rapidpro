@@ -312,29 +312,6 @@ BRANDING = {
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.")
-    },
-    'custom-brand.io': {
-        'slug': 'custom',
-        'name': 'Custom Brand',
-        'org': 'Custom',
-        'colors': dict(primary='#0c6596'),
-        'styles': ['brands/custom-brand/font/style.css'],
-        'welcome_topup': 1000,
-        'email': 'join@custom-brand.io',
-        'support_email': 'support@custom-brand.io',
-        'link': 'https://custom-brand.io',
-        'api_link': 'https://custom-brand.io',
-        'docs_link': 'http://custom-brand.io',
-        'domain': 'custom-brand.io',
-        'favico': 'brands/custom-brand/custom-brand.ico',
-        'splash': '/brands/custom-brand/splash.jpg',
-        'logo': '/brands/custom-brand/logo.png',
-        'allow_signups': True,
-        'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
-        'bundles': [],
-        'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="Custom Account")],
-        'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2017 Custom, Nyaruka. All Rights Reserved.")
     }
 }
 DEFAULT_BRAND = 'rapidpro.io'

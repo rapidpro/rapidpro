@@ -10,11 +10,26 @@ from __future__ import absolute_import, unicode_literals
 #     - a redis instance listening on localhost
 # -----------------------------------------------------------------------------------
 
-import warnings
+import warnings, copy
 
 from .settings_common import *  # noqa
 
 DEBUG_TOOLBAR = False
+
+# -----------------------------------------------------------------------------------
+# Add a custom brand for development
+# -----------------------------------------------------------------------------------
+
+custom = copy.deepcopy(BRANDING['rapidpro.io'])
+custom['name'] = 'Custom Brand'
+custom['slug'] = 'custom'
+custom['org'] = 'Custom'
+custom['api_link'] = 'http://custom-brand.io'
+custom['domain'] = 'custom-brand.io'
+custom['email'] = 'join@custom-brand.io'
+custom['support_email'] = 'support@custom-brand.io'
+custom['allow_signups'] = True
+BRANDING['custom-brand.io'] = custom
 
 # -----------------------------------------------------------------------------------
 # Used when creating callbacks for Twilio, Nexmo etc..
