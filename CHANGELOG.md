@@ -1,3 +1,7 @@
+v3.0.258
+----------
+ * Set brand domain on channel creations, use for callbacks
+
 v3.0.257
 ----------
  * Update path backfill migration to first migrate all flows to 10.4 which fixes missing exit_uuids and action UUIDs
