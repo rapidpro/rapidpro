@@ -463,7 +463,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     actionset =
       x: 100
       y: 0
-      uuid: uuid()
+      uuid: uuid(),
+      exit_uuid: uuid(),
       actions: [
         uuid: uuid()
         type: defaultActionSetType()

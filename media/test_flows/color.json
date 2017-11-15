@@ -1,139 +1,152 @@
 {
   "version": 8,
-  "flow_type": "F",
-  "base_language": "base",
-  "metadata": {
-    "author": "Ryan Lewis"
-  },
-  "entry": "d51ec25f-04e6-4349-a448-e7c4d93d4597",
-  "action_sets": [
+  "site": "http://rapidpro.io",
+  "flows": [
     {
-      "y": 1,
-      "x": 1,
-      "destination": "bd531ace-911e-4722-8e53-6730d6122fe1",
-      "uuid": "d51ec25f-04e6-4349-a448-e7c4d93d4597",
-      "actions": [
+      "version": 8,
+      "flow_type": "F",
+      "base_language": "base",
+      "metadata": {
+        "uuid": "2a385c5b-e27c-43ac-bbc6-49653fede421",
+        "author": "Ryan Lewis",
+        "name": "Color Flow"
+      },
+      "entry": "d51ec25f-04e6-4349-a448-e7c4d93d4597",
+      "action_sets": [
         {
-          "msg": {
-            "base": "What is your favorite color?",
-            "fre": "Quelle est votre couleur pr\u00e9f\u00e9r\u00e9e?"
-          },
-          "media": {},
-          "send_all": false,
-          "type": "reply"
+          "y": 1,
+          "x": 1,
+          "destination": "bd531ace-911e-4722-8e53-6730d6122fe1",
+          "uuid": "d51ec25f-04e6-4349-a448-e7c4d93d4597",
+          "actions": [
+            {
+              "msg": {
+                "base": "What is your favorite color?",
+                "fre": "Quelle est votre couleur pr\u00e9f\u00e9r\u00e9e?"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "98388930-7a0f-4eb8-9a0a-09be2f006420"
+            }
+          ]
+        },
+        {
+          "y": 2,
+          "x": 2,
+          "destination": null,
+          "uuid": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
+          "actions": [
+            {
+              "msg": {
+                "base": "I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "cf57f270-c9d7-4826-b3cc-7bfc22ac4ef6"
+            }
+          ]
+        },
+        {
+          "y": 3,
+          "x": 3,
+          "destination": null,
+          "uuid": "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f",
+          "actions": [
+            {
+              "msg": {
+                "base": "Blue is sad. :("
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "d6aee40b-3710-4358-b0a6-c0ddc1d7734e"
+            }
+          ]
+        },
+        {
+          "y": 4,
+          "x": 4,
+          "destination": "bd531ace-911e-4722-8e53-6730d6122fe1",
+          "uuid": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
+          "actions": [
+            {
+              "msg": {
+                "base": "That is a funny color. Try again."
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "ca798d2d-2c95-468a-a857-74797a4d5301"
+            }
+          ]
         }
-      ]
-    },
-    {
-      "y": 2,
-      "x": 2,
-      "destination": null,
-      "uuid": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
-      "actions": [
+      ],
+      "rule_sets": [
         {
-          "msg": {
-            "base": "I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow"
-          },
-          "media": {},
-          "send_all": false,
-          "type": "reply"
-        }
-      ]
-    },
-    {
-      "y": 3,
-      "x": 3,
-      "destination": null,
-      "uuid": "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f",
-      "actions": [
-        {
-          "msg": {
-            "base": "Blue is sad. :("
-          },
-          "media": {},
-          "send_all": false,
-          "type": "reply"
-        }
-      ]
-    },
-    {
-      "y": 4,
-      "x": 4,
-      "destination": "bd531ace-911e-4722-8e53-6730d6122fe1",
-      "uuid": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
-      "actions": [
-        {
-          "msg": {
-            "base": "That is a funny color. Try again."
-          },
-          "media": {},
-          "send_all": false,
-          "type": "reply"
+          "uuid": "bd531ace-911e-4722-8e53-6730d6122fe1",
+          "rules": [
+            {
+              "category": {
+                "base": "Orange"
+              },
+              "test": {
+                "test": {
+                  "base": "orange"
+                },
+                "type": "contains"
+              },
+              "destination": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
+              "uuid": "1c75fd71-027b-40e8-a819-151a0f8140e6",
+              "destination_type": "A"
+            },
+            {
+              "category": {
+                "base": "Blue"
+              },
+              "test": {
+                "test": {
+                  "base": "blue"
+                },
+                "type": "contains"
+              },
+              "destination": "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f",
+              "uuid": "40cc7c36-b7c8-4f05-ae82-25275607e5aa",
+              "destination_type": "A"
+            },
+            {
+              "category": {
+                "base": "Other"
+              },
+              "test": {
+                "type": "true"
+              },
+              "destination": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
+              "uuid": "93998b50-6580-4574-8f60-74654df7d243",
+              "destination_type": "A"
+            },
+            {
+              "category": {
+                "base": "Nothing"
+              },
+              "test": {
+                "type": "true"
+              },
+              "uuid": "a51ff58e-17c2-4b00-8c8f-a6b6948aaa0b"
+            }
+          ],
+          "ruleset_type": "wait_message",
+          "label": "color",
+          "y": 5,
+          "finished_key": null,
+          "response_type": "",
+          "operand": null,
+          "x": 5,
+          "config": {}
         }
       ]
     }
   ],
-  "rule_sets": [
-    {
-      "uuid": "bd531ace-911e-4722-8e53-6730d6122fe1",
-      "rules": [
-        {
-          "category": {
-            "base": "Orange"
-          },
-          "test": {
-            "test": {
-              "base": "orange"
-            },
-            "type": "contains"
-          },
-          "destination": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
-          "uuid": "1c75fd71-027b-40e8-a819-151a0f8140e6",
-          "destination_type": "A"
-        },
-        {
-          "category": {
-            "base": "Blue"
-          },
-          "test": {
-            "test": {
-              "base": "blue"
-            },
-            "type": "contains"
-          },
-          "destination": "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f",
-          "uuid": "40cc7c36-b7c8-4f05-ae82-25275607e5aa",
-          "destination_type": "A"
-        },
-        {
-          "category": {
-            "base": "Other"
-          },
-          "test": {
-            "type": "true"
-          },
-          "destination": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
-          "uuid": "93998b50-6580-4574-8f60-74654df7d243",
-          "destination_type": "A"
-        },
-        {
-          "category": {
-            "base": "Nothing"
-          },
-          "test": {
-            "type": "true"
-          },
-          "uuid": "a51ff58e-17c2-4b00-8c8f-a6b6948aaa0b"
-        }
-      ],
-      "ruleset_type": "wait_message",
-      "label": "color",
-      "y": 5,
-      "finished_key": null,
-      "response_type": "",
-      "operand": null,
-      "x": 5,
-      "config": {}
-    }
-  ]
+  "triggers": []
 }

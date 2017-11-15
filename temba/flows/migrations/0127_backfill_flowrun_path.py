@@ -12,6 +12,7 @@ from django.db import migrations
 from django.db.models import Prefetch
 from django.utils import timezone
 from temba.utils import chunk_list
+from temba.utils.management.commands.migrate_flows import migrate_flows
 
 # these are called out here because we can't reference the real FlowRun in this migration
 PATH_NODE_UUID = 'node_uuid'
@@ -21,8 +22,12 @@ PATH_MAX_STEPS = 100
 
 
 def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
+    # start by ensuring all flows are at a minimum version
+    if not migrate_flows('10.4'):
+        raise ValueError("Migration can't proceed because some flows couldn't be migrated")
+
     # get all flow action sets
-    action_sets = list(ActionSet.objects.all())
+    action_sets = list(ActionSet.objects.filter(flow__is_active=True))
     if not action_sets:
         return
 
@@ -33,7 +38,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
 
     if len(action_sets) != len(action_set_uuid_to_exit):
         raise ValueError(
-            "Found actionsets without exit_uuids, use ensure_current_version command to migrate these flows forward"
+            "Found actionsets without exit_uuids, use migrate_flows command to migrate these flows forward"
         )
 
     # has this migration been run before but didn't complete?
@@ -92,7 +97,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         time_remaining = ((len(run_ids) - num_updated) / updated_per_sec)
         finishes = timezone.now() + timedelta(seconds=time_remaining)
 
-        print("Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (num_updated, len(run_ids), updated_per_sec, finishes))
+        print(" > Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (num_updated, len(run_ids), updated_per_sec, finishes))
 
     print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
 

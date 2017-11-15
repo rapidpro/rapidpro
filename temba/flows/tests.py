@@ -35,7 +35,7 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
-from .flow_migrations import migrate_to_version_10_2
+from .flow_migrations import migrate_to_version_10_2, migrate_to_version_10_4
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowCategoryCount, FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
@@ -60,7 +60,7 @@ class FlowTest(TembaTest):
         self.contact2 = self.create_contact('Nic', '+250788383383')
         self.contact3 = self.create_contact('Norbert', '+250788123456')
 
-        self.flow = self.create_flow(name="Color Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
+        self.flow = self.get_flow('color')
 
         self.other_group = self.create_group("Other", [])
 
@@ -442,7 +442,10 @@ class FlowTest(TembaTest):
 
     def test_states(self):
         # set our flow
-        entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
+        color_prompt = ActionSet.objects.get(x=1, y=1)
+        color_ruleset = RuleSet.objects.get(label="color")
+        orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
 
         # how many people in the flow?
         self.assertEqual(self.flow.get_run_stats(),
@@ -484,18 +487,18 @@ class FlowTest(TembaTest):
         self.assertEqual(len(contact2_steps), 2)
 
         # check our steps for contact #1
-        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:d51ec25f-04e6-4349-a448-e7c4d93d4597")
-        self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
+        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:" + color_prompt.uuid)
+        self.assertEqual(contact1_steps[0].step_uuid, color_prompt.uuid)
         self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
         self.assertEqual(contact1_steps[0].contact, self.contact)
         self.assertTrue(contact1_steps[0].arrived_on)
         self.assertTrue(contact1_steps[0].left_on)
         self.assertEqual(set(contact1_steps[0].broadcasts.all()), {broadcast})
         self.assertEqual(set(contact1_steps[0].messages.all()), {contact1_msg})
-        self.assertEqual(contact1_steps[0].next_uuid, entry.destination)
+        self.assertEqual(contact1_steps[0].next_uuid, color_prompt.destination)
 
-        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:bd531ace-911e-4722-8e53-6730d6122fe1")
-        self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
+        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:" + color_ruleset.uuid)
+        self.assertEqual(contact1_steps[1].step_uuid, color_ruleset.uuid)
         self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
         self.assertEqual(contact1_steps[1].contact, self.contact)
         self.assertTrue(contact1_steps[1].arrived_on)
@@ -506,10 +509,10 @@ class FlowTest(TembaTest):
         # check equivalent "steps" in the path fields
         contact1_path = contact1_run.get_path()
         self.assertEqual(len(contact1_path), 2)
-        self.assertEqual(contact1_path[0]['node_uuid'], entry.uuid)
+        self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
         self.assertEqual(contact1_path[0]['arrived_on'], contact1_steps[0].arrived_on.isoformat())
-        self.assertNotIn('exit_uuid', contact1_path[0])
-        self.assertEqual(contact1_path[1]['node_uuid'], entry.destination)
+        self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
+        self.assertEqual(contact1_path[1]['node_uuid'], color_ruleset.uuid)
         self.assertEqual(contact1_path[1]['arrived_on'], contact1_steps[1].arrived_on.isoformat())
         self.assertNotIn('exit_uuid', contact1_path[1])
 
@@ -524,15 +527,15 @@ class FlowTest(TembaTest):
         test_message = self.create_msg(contact=test_contact, text='Hi')
 
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited']["d51ec25f-04e6-4349-a448-e7c4d93d4597:bd531ace-911e-4722-8e53-6730d6122fe1"])
-        self.assertEqual(2, activity['activity']["bd531ace-911e-4722-8e53-6730d6122fe1"])
+        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertEqual(activity['messages'], [])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited']["d51ec25f-04e6-4349-a448-e7c4d93d4597:bd531ace-911e-4722-8e53-6730d6122fe1"])
-        self.assertEqual(2, activity['activity']["bd531ace-911e-4722-8e53-6730d6122fe1"])
+        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertTrue(activity['messages'], [test_message.as_json()])
 
         # set the flow as inactive, shouldn't react to replies
@@ -574,16 +577,16 @@ class FlowTest(TembaTest):
         self.assertEqual(step.messages.all()[0].msg_type, 'F')
 
         # it should contain what rule matched and what came next
-        self.assertEqual("1c75fd71-027b-40e8-a819-151a0f8140e6", step.rule_uuid)
+        self.assertEqual(orange_rule.uuid, step.rule_uuid)
         self.assertEqual("Orange", step.rule_category)
         self.assertEqual("orange", step.rule_value)
         self.assertFalse(step.rule_decimal_value)
-        self.assertEqual("7d40faea-723b-473d-8999-59fb7d3c3ca2", step.next_uuid)
+        self.assertEqual(color_reply.uuid, step.next_uuid)
         self.assertTrue(incoming in step.messages.all())
 
         # we should also have a Value for this RuleSet
         value = Value.objects.get(run=step.run, ruleset__label="color")
-        self.assertEqual("1c75fd71-027b-40e8-a819-151a0f8140e6", value.rule_uuid)
+        self.assertEqual(orange_rule.uuid, value.rule_uuid)
         self.assertEqual("Orange", value.category)
         self.assertEqual("orange", value.string_value)
         self.assertEqual(None, value.decimal_value)
@@ -666,7 +669,7 @@ class FlowTest(TembaTest):
         self.assertEqual('color', color['label'])
         self.assertEqual('Orange', color['category']['base'])
         self.assertEqual('orange', color['value'])
-        self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", color['node'])
+        self.assertEqual(color_ruleset.uuid, color['node'])
         self.assertEqual(incoming.text, color['text'])
 
     def test_anon_export_results(self):
@@ -1249,31 +1252,28 @@ class FlowTest(TembaTest):
         # our flow should have the appropriate RuleSet and ActionSet objects
         self.assertEqual(4, ActionSet.objects.all().count())
 
-        entry = ActionSet.objects.get(uuid="d51ec25f-04e6-4349-a448-e7c4d93d4597")
+        entry = ActionSet.objects.get(x=1, y=1)
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
         self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
-        orange = ActionSet.objects.get(uuid="7d40faea-723b-473d-8999-59fb7d3c3ca2")
+        orange = ActionSet.objects.get(x=2, y=2)
         actions = orange.get_actions()
         self.assertEqual(1, len(actions))
         self.assertEqual(ReplyAction(actions[0].uuid, dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEqual(1, RuleSet.objects.all().count())
-        ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
+        ruleset = RuleSet.objects.get(label="color")
         self.assertEqual(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEqual(4, len(rules))
 
         # check ordering
-        self.assertEqual("7d40faea-723b-473d-8999-59fb7d3c3ca2", rules[0].destination)
-        self.assertEqual("1c75fd71-027b-40e8-a819-151a0f8140e6", rules[0].uuid)
-        self.assertEqual("c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", rules[1].destination)
-        self.assertEqual("40cc7c36-b7c8-4f05-ae82-25275607e5aa", rules[1].uuid)
-        self.assertEqual("1cb6d8da-3749-45b2-9382-3f756e3ca71f", rules[2].destination)
-        self.assertEqual("93998b50-6580-4574-8f60-74654df7d243", rules[2].uuid)
+        self.assertEqual(rules[0].category['base'], "Orange")
+        self.assertEqual(rules[1].category['base'], "Blue")
+        self.assertEqual(rules[2].category['base'], "Other")
 
         # check routing
         self.assertEqual(ContainsTest(test=dict(base="orange")).as_json(), rules[0].test.as_json())
@@ -1307,27 +1307,27 @@ class FlowTest(TembaTest):
 
         self.assertEqual(3, ActionSet.objects.all().count())
 
-        entry = ActionSet.objects.get(uuid="d51ec25f-04e6-4349-a448-e7c4d93d4597")
+        entry = ActionSet.objects.get(x=1, y=1)
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
         self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
-        orange = ActionSet.objects.get(uuid="7d40faea-723b-473d-8999-59fb7d3c3ca2")
+        orange = ActionSet.objects.get(x=2, y=2)
         actions = orange.get_actions()
         self.assertEqual(1, len(actions))
         self.assertEqual(ReplyAction(actions[0].uuid, dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEqual(1, RuleSet.objects.all().count())
-        ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
+        ruleset = RuleSet.objects.get(label="color")
         self.assertEqual(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEqual(3, len(rules))
 
         # check ordering
-        self.assertEqual("7d40faea-723b-473d-8999-59fb7d3c3ca2", rules[0].destination)
-        self.assertEqual("c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", rules[1].destination)
+        self.assertEqual(rules[0].category['base'], "Orange")
+        self.assertEqual(rules[1].category['base'], "Blue")
 
         # check routing
         self.assertEqual(ContainsTest(test=dict(base="orange")).as_json(), rules[0].test.as_json())
@@ -1339,13 +1339,13 @@ class FlowTest(TembaTest):
         self.flow.update(json_dict)
 
         # now check they are truncated to the max lengths
-        ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
+        ruleset = RuleSet.objects.get()
         self.assertEqual(64, len(ruleset.label))
         self.assertEqual(128, len(ruleset.operand))
 
     def test_expanding(self):
         # add actions for adding to a group and messaging a contact, we'll test how these expand
-        action_set = ActionSet.objects.get(uuid="1cb6d8da-3749-45b2-9382-3f756e3ca71f")
+        action_set = ActionSet.objects.get(x=4, y=4)
 
         actions = [AddToGroupAction(str(uuid4()), [self.other_group]).as_json(),
                    SendAction(str(uuid4()), "Outgoing Message", [self.other_group], [self.contact], []).as_json()]
@@ -1918,7 +1918,7 @@ class FlowTest(TembaTest):
         self.assertEqual(SendAction, Action.from_json(org, dict(type='send', msg=dict(base="hello world"), contacts=[], groups=[], variables=[])).__class__)
 
     def test_decimal_values(self):
-        rules = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
+        rules = RuleSet.objects.get(label="color")
 
         # update our rule to include decimal parsing
         rules.set_rules_dict([
@@ -1945,7 +1945,7 @@ class FlowTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="My answer is 15")
         self.assertTrue(Flow.find_and_handle(sms)[0])
 
-        step = FlowStep.objects.get(step_uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
+        step = FlowStep.objects.get(step_uuid=rules.uuid)
         self.assertEqual("> 10", step.rule_category)
         self.assertEqual("40cc7c36-b7c8-4f05-ae82-25275607e5aa", step.rule_uuid)
         self.assertEqual("15", step.rule_value)
@@ -1955,13 +1955,13 @@ class FlowTest(TembaTest):
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
         results = run.get_results()
         self.assertEqual("15", results['color']['value'])
-        self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
+        self.assertEqual(rules.uuid, results['color']['node_uuid'])
         self.assertEqual("> 10", results['color']['category'])
         self.assertEqual("color", results['color']['name'])
         self.assertIsNotNone(results['color']['created_on'])
 
         # and that the category counts have been updated
-        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid='bd531ace-911e-4722-8e53-6730d6122fe1', category_name='> 10',
+        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid=rules.uuid, category_name='> 10',
                                                               result_name='color', result_key='color', count=1).first())
 
     def test_location_entry_test(self):
@@ -2863,7 +2863,7 @@ class ActionTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = self.create_flow(name="Empty Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
+        self.flow = self.get_flow('color')
 
         self.other_group = self.create_group("Other", [])
 
@@ -3497,7 +3497,6 @@ class ActionTest(TembaTest):
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
 
     def test_start_flow_action(self):
-        self.flow.update(self.COLOR_FLOW_DEFINITION)
         self.flow.name = 'Parent'
         self.flow.save()
 
@@ -3805,7 +3804,7 @@ class ActionTest(TembaTest):
             'time': ['2015-10-27T14:07:30.000006Z'],
             'steps': ['[]'],
             'contact_name': ['Eric'],
-            'flow_name': ['Empty Flow'],
+            'flow_name': ['Color Flow'],
             'channel': ['-1']
         }, authorization='Token 12345', user_agent='RapidPro')
 
@@ -3837,7 +3836,7 @@ class ActionTest(TembaTest):
             'time': ['2015-10-27T14:07:30.000006Z'],
             'steps': ['[]'],
             'contact_name': ['Eric'],
-            'flow_name': ['Empty Flow'],
+            'flow_name': ['Color Flow'],
             'relayer': [str(msg.channel.id)]
         }, authorization='Token 12345', user_agent='RapidPro')
 
@@ -3866,7 +3865,7 @@ class FlowRunTest(TembaTest):
     def setUp(self):
         super(FlowRunTest, self).setUp()
 
-        self.flow = self.create_flow()
+        self.flow = self.get_flow('color')
         self.contact = self.create_contact("Ben Haggerty", "+250788123123")
 
     def test_field_normalization(self):
@@ -3940,7 +3939,6 @@ class FlowRunTest(TembaTest):
         self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
 
     def test_is_completed(self):
-        self.flow.update(self.COLOR_FLOW_DEFINITION)
         self.flow.start([], [self.contact])
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
@@ -4122,7 +4120,7 @@ class WebhookTest(TembaTest):
         self.assertAllRequestsMade()
 
     def test_webhook(self):
-        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        self.flow = self.get_flow('color')
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
 
         run = FlowRun.create(self.flow, self.contact.pk)
@@ -6866,6 +6864,31 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['base_language'], 'base')
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
+
+    def test_migrate_to_10_4(self):
+        definition = {
+            'action_sets': [
+                {
+                    "y": 0, "x": 100,
+                    "destination": "0ecf7914-05e0-4b71-8816-495d2c0921b5",
+                    "uuid": "a6676605-332a-4309-a8b8-79b33e73adcd",
+                    "actions": [
+                        {
+                            "type": "reply",
+                            "msg": {"base": "What is your favorite color?"}
+                        }
+                    ]
+                },
+            ]
+        }
+
+        definition = migrate_to_version_10_4(definition)
+
+        # make sure all of our action sets have an exit uuid and all of our actions have uuids set
+        for actionset in definition['action_sets']:
+            self.assertIsNotNone(actionset['exit_uuid'])
+            for action in actionset['actions']:
+                self.assertIsNotNone(action['uuid'])
 
     def test_migrate_to_10_3(self):
         favorites = self.get_flow('favorites')
