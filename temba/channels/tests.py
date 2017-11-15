@@ -8217,6 +8217,12 @@ class JasminTest(TembaTest):
             # assert we were properly encoded
             self.assertEqual(mock.call_args[1]['params']['content'], gsm7.encode('événement')[0])
 
+            # check DLR related parameters
+            self.assertEqual(mock.call_args[1]['params']['dlr'], 'yes')
+            self.assertEqual(mock.call_args[1]['params']['dlr-level'], '2')
+            self.assertEqual(mock.call_args[1]['params']['dlr-method'], 'POST')
+            self.assertRegex(mock.call_args[1]['params']['dlr-url'], '^https?://')
+
             self.clear_cache()
 
         with patch('requests.get') as mock:
