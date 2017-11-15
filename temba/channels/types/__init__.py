@@ -1,12 +1,13 @@
 from __future__ import unicode_literals
 
+from collections import OrderedDict
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from temba.channels.views import TYPE_UPDATE_FORM_CLASSES
 from ..models import Channel, ChannelType, SEND_FUNCTIONS
 
-TYPES = {}
+TYPES = OrderedDict({})
 
 
 def register_channel_type(type_class):
@@ -40,7 +41,7 @@ def reload_channel_types():
             schemes=type_settings.get('schemes'),
             max_length=type_settings.get('max_length'),
             max_tps=type_settings.get('max_tps'),
-            attachment_support=code in Channel.MEDIA_CHANNELS,
+            attachment_support=False,
             free_sending=code in Channel.FREE_SENDING_CHANNEL_TYPES,
             update_form=TYPE_UPDATE_FORM_CLASSES.get(code),
             send=SEND_FUNCTIONS.get(code),

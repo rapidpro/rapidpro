@@ -41,7 +41,7 @@ class TelegramTypeTest(TembaTest):
         self.assertEqual('Your authentication token is invalid, please check and try again',
                          response.context['form'].errors['auth_token'][0])
 
-        user = telegram.User(123, 'Rapid')
+        user = telegram.User(123, 'Rapid', True)
         user.last_name = 'Bot'
         user.username = 'rapidbot'
 
@@ -52,7 +52,9 @@ class TelegramTypeTest(TembaTest):
         response = self.client.post(url, {'auth_token': '184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'})
         channel = Channel.objects.get(address="rapidbot")
         self.assertEqual(channel.channel_type, 'TG')
-        self.assertEqual(channel.config_json(), {'auth_token': '184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'})
+        self.assertEqual(channel.config_json(), {
+            'auth_token': '184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8', 'callback_domain': channel.callback_domain
+        })
 
         self.assertRedirect(response, reverse('channels.channel_read', args=[channel.uuid]))
         self.assertEqual(302, response.status_code)

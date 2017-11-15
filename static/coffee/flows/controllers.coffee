@@ -393,6 +393,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId
+            exit_uuid: uuid()
             actions: [
               type: defaultActionSetType()
               msg: msg
@@ -462,7 +463,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     actionset =
       x: 100
       y: 0
-      uuid: uuid()
+      uuid: uuid(),
+      exit_uuid: uuid(),
       actions: [
         uuid: uuid()
         type: defaultActionSetType()
@@ -995,7 +997,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       _switchedFromRule: true
       x: ruleset.x
       y: ruleset.y
-      uuid: uuid()
+      uuid: uuid(),
+      exit_uuid: uuid(),
       actions: [ action ]
 
   else if options.nodeType == 'actions'

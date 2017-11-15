@@ -3,6 +3,7 @@ from __future__ import unicode_literals, absolute_import
 import phonenumbers
 import plivo
 import pycountry
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django import forms
@@ -41,7 +42,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if client:
             return None
         else:
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_plivo_connect'))
 
     def get_valid_client(self):
         auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
@@ -108,11 +109,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         plivo_uuid = generate_uuid()
-        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
+        callback_domain = org.get_brand_domain()
+        app_name = "%s/%s" % (callback_domain.lower(), plivo_uuid)
 
         client = plivo.RestAPI(auth_id, auth_token)
 
-        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
+        message_url = "https://" + callback_domain + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
         answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
 
         plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
@@ -126,7 +128,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
                         Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id}
+                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id,
+                        Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         plivo_number = phone_number.strip('+ ').replace(' ', '')
 

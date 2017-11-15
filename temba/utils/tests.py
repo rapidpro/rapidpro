@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import copy
 import datetime
 import json
 import pycountry
@@ -1546,6 +1547,15 @@ class MiddlewareTest(TembaTest):
     def test_branding(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['redirect'] = '/redirect'
+        with self.settings(BRANDING=branding):
+            self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
 
     def test_flow_simulation(self):
         Contact.set_simulation(True)

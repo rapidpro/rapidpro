@@ -697,9 +697,6 @@ class Msg(models.Model):
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
-    has_template_error = models.NullBooleanField(default=False, verbose_name=_("Has Template Error"),
-                                                 help_text=_("Whether data for variable substitution are missing"))
-
     msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
 

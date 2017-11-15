@@ -20,6 +20,13 @@ from urllib import urlencode
 class IndexView(SmartTemplateView):
     template_name = 'public/public_index.haml'
 
+    def pre_process(self, request, *args, **kwargs):
+        response = super(IndexView, self).pre_process(request, *args, **kwargs)
+        redirect = self.request.branding.get('redirect')
+        if redirect:
+            return HttpResponseRedirect(redirect)
+        return response
+
     def get_context_data(self, **kwargs):
         context = super(IndexView, self).get_context_data(**kwargs)
         context['thanks'] = 'thanks' in self.request.GET
@@ -139,6 +146,7 @@ class LeadCRUDL(SmartCRUDL):
 
 
 class Blog(RedirectView):
+    # whitelabels don't have blogs, so we don't use the brand domain here
     url = "http://blog." + settings.HOSTNAME
 
 
