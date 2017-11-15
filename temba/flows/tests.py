@@ -35,7 +35,7 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
-from .flow_migrations import migrate_to_version_10_2
+from .flow_migrations import migrate_to_version_10_2, migrate_to_version_10_4
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowCategoryCount, FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
@@ -6852,6 +6852,31 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['base_language'], 'base')
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
+
+    def test_migrate_to_10_4(self):
+        definition = {
+            'action_sets': [
+                {
+                    "y": 0, "x": 100,
+                    "destination": "0ecf7914-05e0-4b71-8816-495d2c0921b5",
+                    "uuid": "a6676605-332a-4309-a8b8-79b33e73adcd",
+                    "actions": [
+                        {
+                            "type": "reply",
+                            "msg": {"base": "What is your favorite color?"}
+                        }
+                    ]
+                },
+            ]
+        }
+
+        definition = migrate_to_version_10_4(definition)
+
+        # make sure all of our action sets have an exit uuid and all of our actions have uuids set
+        for actionset in definition['action_sets']:
+            self.assertIsNotNone(actionset['exit_uuid'])
+            for action in actionset['actions']:
+                self.assertIsNotNone(action['uuid'])
 
     def test_migrate_to_10_3(self):
         favorites = self.get_flow('favorites')

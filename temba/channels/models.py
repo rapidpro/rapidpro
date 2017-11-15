@@ -209,6 +209,7 @@ class Channel(TembaModel):
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
     CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
+    CONFIG_CALLBACK_DOMAIN = 'callback_domain'
     CONFIG_ACCOUNT_SID = 'account_sid'
     CONFIG_APPLICATION_SID = 'application_sid'
     CONFIG_NUMBER_SID = 'number_sid'
@@ -411,8 +412,9 @@ class Channel(TembaModel):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
 
     @classmethod
-    def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url, role=DEFAULT_ROLE):
+    def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
+                                           url, role=DEFAULT_ROLE, extra_config=None):
+
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -421,6 +423,9 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
+        if extra_config:
+            config.update(extra_config)
+
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
                               role=role)
 
@@ -576,6 +581,17 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    @property
+    def callback_domain(self):
+        """
+        Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
+        """
+        callback_domain = self.config_json().get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        if callback_domain is None:
+            callback_domain = self.org.get_brand_domain()
+
+        return callback_domain
+
     def get_ussd_delegate(self):
         return self.get_delegate(Channel.ROLE_USSD)
 
@@ -725,7 +741,7 @@ class Channel(TembaModel):
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
-                    config=self.config_json(), org_config=org_config)
+                    callback_domain=self.callback_domain, config=self.config_json(), org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -1233,7 +1249,7 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, channel_type, channel_uuid, sms_id):
+    def build_twilio_callback_url(cls, domain, channel_type, channel_uuid, sms_id):
         if channel_type == 'T':
             url = reverse('courier.t', args=[channel_uuid, 'status'])
         elif channel_type == 'TMS':
@@ -1241,7 +1257,7 @@ class Channel(TembaModel):
         elif channel_type == 'TW':
             url = reverse('courier.tw', args=[channel_uuid, 'status'])
 
-        url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
+        url = "https://" + domain + url + "?action=callback&id=%d" % sms_id
         return url
 
     def __str__(self):  # pragma: no cover

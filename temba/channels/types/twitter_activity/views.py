@@ -61,7 +61,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             'api_key': api_key,
             'api_secret': api_secret,
             'access_token': access_token,
-            'access_token_secret': access_token_secret
+            'access_token_secret': access_token_secret,
+            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name="@%s" % screen_name,

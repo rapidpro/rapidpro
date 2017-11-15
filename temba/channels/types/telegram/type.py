@@ -4,7 +4,6 @@ import requests
 import telegram
 import time
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
@@ -39,7 +38,7 @@ class TelegramType(ChannelType):
     def activate(self, channel):
         config = channel.config_json()
         bot = telegram.Bot(config['auth_token'])
-        bot.set_webhook("https://" + settings.TEMBA_HOST + reverse('courier.tg', args=[channel.uuid]))
+        bot.set_webhook("https://" + channel.callback_domain + reverse('courier.tg', args=[channel.uuid]))
 
     def deactivate(self, channel):
         config = channel.config_json()

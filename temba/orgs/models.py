@@ -290,6 +290,9 @@ class Org(SmartModel):
         from temba.middleware import BrandingMiddleware
         return BrandingMiddleware.get_branding_for_host(self.brand)
 
+    def get_brand_domain(self):
+        return self.get_branding()['domain']
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock
@@ -787,13 +790,13 @@ class Org(SmartModel):
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        temba_host = settings.TEMBA_HOST.lower()
+        domain = self.get_brand_domain()
 
-        app_name = "%s/%s" % (temba_host, nexmo_uuid)
+        app_name = "%s/%s" % (domain, nexmo_uuid)
 
-        answer_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
+        answer_url = "https://%s%s" % (domain, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
 
-        event_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
+        event_url = "https://%s%s" % (domain, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
 
         params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
                       event_url=event_url, event_method='POST')

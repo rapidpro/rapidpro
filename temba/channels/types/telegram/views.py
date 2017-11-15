@@ -40,8 +40,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         bot = telegram.Bot(auth_token)
         me = bot.get_me()
+        channel_config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type,
-                                     name=me.first_name, address=me.username, config={'auth_token': auth_token})
+                                     name=me.first_name, address=me.username, config=channel_config)
 
         return super(ClaimView, self).form_valid(form)

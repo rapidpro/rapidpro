@@ -1,6 +1,12 @@
-v3.0.256
+v3.0.258
+----------
+ * Set brand domain on channel creations, use for callbacks
+
+v3.0.257
 ----------
  * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
+ * Ensure actions have UUIDs in single message and join-group flows
+ * Flow migration command shouldn't blow up if a single flow fails
 
 v3.0.255
 ----------
