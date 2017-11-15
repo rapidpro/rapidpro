@@ -10,7 +10,8 @@ from __future__ import absolute_import, unicode_literals
 #     - a redis instance listening on localhost
 # -----------------------------------------------------------------------------------
 
-import warnings, copy
+import warnings
+import copy
 
 from .settings_common import *  # noqa
 
