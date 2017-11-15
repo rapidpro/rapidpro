@@ -37,6 +37,8 @@ class HighConnectionTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
+        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], self.org.get_brand_domain())
+
         self.assertEqual('FR', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data['number'], channel.address)

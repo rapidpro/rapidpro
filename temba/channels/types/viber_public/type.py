@@ -5,7 +5,6 @@ import requests
 import six
 import time
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import VIBER_SCHEME
@@ -37,7 +36,7 @@ class ViberPublicType(ChannelType):
 
     def activate(self, channel):
         auth_token = channel.config_json()['auth_token']
-        handler_url = "https://" + settings.TEMBA_HOST + reverse('courier.vp', args=[channel.uuid])
+        handler_url = "https://" + channel.callback_domain + reverse('courier.vp', args=[channel.uuid])
 
         requests.post('https://chatapi.viber.com/pa/set_webhook', json={
             'auth_token': auth_token,

@@ -5,7 +5,6 @@ import time
 import plivo
 import six
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
@@ -35,9 +34,6 @@ class PlivoType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
 
-    def is_available_to(self, user):
-        return False
-
     def deactivate(self, channel):
         config = channel.config_json()
         client = plivo.RestAPI(config[Channel.CONFIG_PLIVO_AUTH_ID],
@@ -49,8 +45,7 @@ class PlivoType(ChannelType):
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
 
         client = plivo.RestAPI(channel.config[Channel.CONFIG_PLIVO_AUTH_ID], channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler',
-                                                                       args=['status', channel.uuid])
+        status_url = "https://%s%s" % (channel.callback_domain, reverse('handlers.plivo_handler', args=['status', channel.uuid]))
 
         payload = {'src': channel.address.lstrip('+'),
                    'dst': msg.urn_path.lstrip('+'),

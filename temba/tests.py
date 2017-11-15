@@ -157,13 +157,6 @@ def add_testing_flag_to_context(*args):
 
 
 class TembaTest(SmartminTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TembaTest, cls).setUpClass()
-
-        with open('%s/test_flows/color.json' % settings.MEDIA_ROOT, 'r') as f:
-            cls.COLOR_FLOW_DEFINITION = json.load(f)
-
     def setUp(self):
         self.mock_server = mock_server
 

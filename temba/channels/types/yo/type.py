@@ -42,6 +42,9 @@ class YoType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Kampala"]
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
 
         # build our message dict

@@ -12,7 +12,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
 from twilio import TwilioRestException
 
-from temba.orgs.models import ACCOUNT_SID
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
 from ...models import Channel
@@ -47,10 +47,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
+                return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
             self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
         except TwilioRestException:
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
     def get_search_countries_tuple(self):
         return TWILIO_SEARCH_COUNTRIES
@@ -101,12 +101,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         channel_uuid = uuid4()
 
         # create new TwiML app
-        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['receive', channel_uuid])
-        new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
-        new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
+        callback_domain = org.get_brand_domain()
+        new_receive_url = "https://" + callback_domain + reverse('courier.t', args=[channel_uuid, 'receive'])
+        new_status_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        new_voice_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
-            friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel_uuid),
+            friendly_name="%s/%s" % (callback_domain.lower(), channel_uuid),
             sms_url=new_receive_url,
             sms_method="POST",
             voice_url=new_voice_url,
@@ -123,7 +124,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             if short_codes:
                 short_code = short_codes[0]
                 number_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                app_url = "https://" + callback_domain + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
                 client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
@@ -149,7 +150,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
             number_sid = twilio_phone.sid
 
-        config = {'application_sid': new_app.sid, 'number_sid': number_sid}
+        org_config = org.config_json()
+        config = {Channel.CONFIG_APPLICATION_SID: new_app.sid,
+                  Channel.CONFIG_NUMBER_SID: number_sid,
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN],
+                  Channel.CONFIG_CALLBACK_DOMAIN: callback_domain}
 
         channel = Channel.create(org, user, country, 'T', name=phone, address=phone_number, role=role,
                                  config=config, uuid=channel_uuid)

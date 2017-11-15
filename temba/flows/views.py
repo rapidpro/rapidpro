@@ -1421,8 +1421,7 @@ class FlowCRUDL(SmartCRUDL):
             new_message = json_dict.get('new_message', '')
             media = None
 
-            from temba.settings import TEMBA_HOST, STATIC_URL
-            media_url = 'http://%s%simages' % (TEMBA_HOST, STATIC_URL)
+            media_url = 'http://%s%simages' % (user.get_org().get_brand_domain(), settings.STATIC_URL)
 
             if 'new_photo' in json_dict:  # pragma: needs cover
                 media = '%s/png:%s/simulator_photo.png' % (Msg.MEDIA_IMAGE, media_url)

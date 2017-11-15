@@ -19,13 +19,19 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         self.login(self.admin)
 
+        claim_twilio_ms = reverse('channels.claim_twilio_messaging_service')
+
         # remove any existing channels
         self.org.channels.all().delete()
 
         # make sure twilio is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Twilio")
-        self.assertContains(response, reverse('orgs.org_twilio_connect'))
+
+        response = self.client.get(claim_twilio_ms)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(claim_twilio_ms, follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_twilio_connect'))
 
         twilio_config = dict()
         twilio_config[ACCOUNT_SID] = 'account-sid'
@@ -35,7 +41,6 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.org.config = json.dumps(twilio_config)
         self.org.save()
 
-        claim_twilio_ms = reverse('channels.claim_twilio_messaging_service')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_twilio_ms)
 
@@ -47,12 +52,12 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio_ms)
-            self.assertRedirects(response, reverse('channels.channel_claim'))
+            self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
             mock_get_twilio_client.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
 
             response = self.client.get(claim_twilio_ms)
-            self.assertRedirects(response, reverse('channels.channel_claim'))
+            self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
@@ -72,4 +77,8 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         channel = self.org.channels.get()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
-        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
+
+        channel_config = channel.config_json()
+        self.assertEqual(channel_config['messaging_service_sid'], 'MSG-SERVICE-SID')
+        self.assertTrue(channel_config['account_sid'])
+        self.assertTrue(channel_config['auth_token'])

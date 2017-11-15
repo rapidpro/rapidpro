@@ -335,12 +335,12 @@ class IVRTests(FlowFileTest):
 
         # we have a record action
         self.assertContains(response, '"action": "record"')
-        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (settings.TEMBA_HOST, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (self.channel.callback_domain, callback_url))
 
         # we have an input to redirect so we save the recording
         # hack to make the recording look synchronous for our flows
         self.assertContains(response, '"action": "input"')
-        self.assertContains(response, '"eventUrl": ["https://%s%s?save_media=1"]' % (settings.TEMBA_HOST, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s?save_media=1"]' % (self.channel.callback_domain, callback_url))
 
         # any request with has_event params return empty content response
         response = self.client.get("%s?has_event=1" % callback_url)
@@ -741,7 +741,7 @@ class IVRTests(FlowFileTest):
         # make sure we set submitOnHash to true nexmo
         self.assertContains(response, '"submitOnHash": true,')
 
-        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (settings.TEMBA_HOST, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (self.channel.callback_domain, callback_url))
 
     @patch('jwt.encode')
     @patch('requests.put')

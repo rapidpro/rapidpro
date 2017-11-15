@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
 from twilio import TwilioRestException
 
-from temba.orgs.models import ACCOUNT_SID
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from ...models import Channel
 from ...views import ClaimViewMixin, TWILIO_SUPPORTED_COUNTRIES
 
@@ -31,10 +31,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
+                return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
             self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
         except TwilioRestException:
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
     def get_context_data(self, **kwargs):
         context = super(ClaimView, self).get_context_data(**kwargs)
@@ -50,7 +50,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        config = dict(messaging_service_sid=data['messaging_service_sid'])
+        org_config = org.config_json()
+        config = {Channel.CONFIG_MESSAGING_SERVICE_SID: data['messaging_service_sid'],
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN],
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.create(org, user, data['country'], 'TMS',
                                      name=data['messaging_service_sid'], address=None, config=config)
