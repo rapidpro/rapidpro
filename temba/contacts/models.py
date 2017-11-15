@@ -2204,9 +2204,23 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        group = cls._create(org, user, name, query=query)
-        group.update_query(query)
-        return group
+        if cls.is_dynamic_query_allowed(search_query=query, org=org):
+            group = cls._create(org, user, name, query=query)
+            group.update_query(query)
+            return group
+        else:
+            raise ValueError('Can not update a dynamic query that is not allowed')
+
+    @classmethod
+    def is_dynamic_query_allowed(cls, search_query, org):
+        """
+        Check if dynamic query is allowed based on the search query properties
+        """
+        from temba.contacts.search import parse_query
+
+        parsed_query = parse_query(search_query)
+
+        return 'name' not in parsed_query.get_prop_map(org)
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2327,17 +2341,20 @@ class ContactGroup(TembaModel):
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        self.query = query
-        self.save(update_fields=('query',))
+        if self.is_dynamic_query_allowed(search_query=query, org=self.org):
+            self.query = query
+            self.save(update_fields=('query',))
 
-        self.query_fields.clear()
+            self.query_fields.clear()
 
-        for field in extract_fields(self.org, self.query):
-            self.query_fields.add(field)
+            for field in extract_fields(self.org, self.query):
+                self.query_fields.add(field)
 
-        members = list(self._get_dynamic_members())
-        self.contacts.clear()
-        self.contacts.add(*members)
+            members = list(self._get_dynamic_members())
+            self.contacts.clear()
+            self.contacts.add(*members)
+        else:
+            raise ValueError('Can not update a dynamic query that is not allowed')
 
     def _get_dynamic_members(self, base_set=None):
         """
