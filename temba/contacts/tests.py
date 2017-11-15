@@ -1064,9 +1064,15 @@ class ContactTest(TembaTest):
         self.assertEqual(parse_query('will'), ContactQuery(Condition('name', '~', 'will')))
         self.assertEqual(parse_query('1will2'), ContactQuery(Condition('name', '~', '1will2')))
 
+        self.assertEqual(parse_query('will').as_text(), 'name ~ "will"')
+        self.assertEqual(parse_query('1will2').as_text(), 'name ~ "1will2"')
+
         # implicit condition on tel if value is all tel chars
         self.assertEqual(parse_query('1234'), ContactQuery(Condition('tel', '~', '1234')))
         self.assertEqual(parse_query('+12-34'), ContactQuery(Condition('tel', '~', '+12-34')))
+
+        self.assertEqual(parse_query('1234').as_text(), 'tel ~ 1234')
+        self.assertEqual(parse_query('+12-34').as_text(), 'tel ~ "+12-34"')
 
         # boolean combinations of implicit conditions
         self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
@@ -1134,12 +1140,15 @@ class ContactTest(TembaTest):
         ))
 
         # implicit ANDing of conditions
-        self.assertEqual(parse_query('will felix name ~ "matt"'), ContactQuery(
+        query = parse_query('will felix name ~ "matt"')
+        self.assertEqual(query, ContactQuery(
             SinglePropCombination('name', BoolCombination.AND,
                                   Condition('name', '~', 'will'),
                                   Condition('name', '~', 'felix'),
                                   Condition('name', '~', 'matt'))
         ))
+        self.assertEqual(query.as_text(), 'name ~ "will" AND name ~ "felix" AND name ~ "matt"')
+
         self.assertEqual(parse_query('will felix name ~ "matt"', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.AND,
                             BoolCombination(BoolCombination.AND,
@@ -1160,7 +1169,8 @@ class ContactTest(TembaTest):
         ))
 
         # boolean combinations can themselves be combined
-        self.assertEqual(parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")'), ContactQuery(
+        query = parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")')
+        self.assertEqual(query, ContactQuery(
             BoolCombination(BoolCombination.OR,
                             BoolCombination(BoolCombination.AND,
                                             Condition('age', '<', '18'),
@@ -1169,6 +1179,7 @@ class ContactTest(TembaTest):
                                             Condition('age', '>', '18'),
                                             Condition('gender', '=', 'female')))
         ))
+        self.assertEqual(query.as_text(), '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
 
         self.assertEqual(str(parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
         self.assertEqual(str(parse_query('Age > 18 and Age < 30')), "AND[age](>18, <30)")

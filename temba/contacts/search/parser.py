@@ -76,6 +76,9 @@ class ContactQuery(object):
 
         return self.root.as_query(org, prop_map, base_set)
 
+    def as_text(self):
+        return self.root.as_text()
+
     def get_prop_map(self, org):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
@@ -121,6 +124,9 @@ class QueryNode(object):
         return self
 
     def as_query(self, org, prop_map, base_set):  # pragma: no cover
+        pass
+
+    def as_text(self):  # pragma: no cover
         pass
 
 
@@ -286,6 +292,17 @@ class Condition(QueryNode):
         except Exception:
             raise SearchException(_("%s isn't a valid number") % val)
 
+    def as_text(self):
+        try:
+            Decimal(self.value)
+            is_decimal = True
+        except Exception:
+            is_decimal = False
+
+        value = self.value if is_decimal else '"%s"' % self.value
+
+        return '%s %s %s' % (self.prop, self.comparator, value)
+
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
 
@@ -406,6 +423,17 @@ class BoolCombination(QueryNode):
 
     def as_query(self, org, prop_map, base_set):
         return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
+
+    def as_text(self):
+        op = ' OR ' if self.op == self.OR else ' AND '
+        children = []
+        for c in self.children:
+            if isinstance(c, BoolCombination):
+                children.append('(%s)' % c.as_text())
+            else:
+                children.append(c.as_text())
+
+        return op.join(children)
 
     def __eq__(self, other):
         return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
