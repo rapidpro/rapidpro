@@ -1,6 +1,7 @@
 from __future__ import print_function, unicode_literals
 
 import operator
+import regex
 import six
 
 from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
@@ -26,6 +27,8 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
+
+TEL_VALUE_REGEX = regex.compile(r'^[+\d\-]+$')
 
 
 class Concat(Func):
@@ -123,8 +126,6 @@ class QueryNode(object):
 
 @six.python_2_unicode_compatible
 class Condition(QueryNode):
-    IMPLICIT_PROP = '*'
-
     ATTR_OR_URN_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
 
     TEXT_LOOKUPS = {'=': 'iexact'}
@@ -158,10 +159,6 @@ class Condition(QueryNode):
         return [self.prop]
 
     def as_query(self, org, prop_map, base_set):
-        # a value without a prop implies query against name or URN, e.g. "bob"
-        if self.prop == self.IMPLICIT_PROP:
-            return self._build_implicit_prop_query(org, base_set)
-
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -173,24 +170,6 @@ class Condition(QueryNode):
                 return self._build_urn_query(org, prop_obj, base_set)
         else:
             return self._build_attr_query(prop_obj)
-
-    def _build_implicit_prop_query(self, org, base_set):
-        name_query = Q(name__icontains=self.value)
-
-        if org.is_anon:
-            try:
-                urn_query = Q(id=int(self.value))  # try id match for anon orgs
-            except ValueError:
-                urn_query = Q(id=-1)
-        else:
-            urns = ContactURN.objects.filter(org=org, path__icontains=self.value)
-
-            if base_set:
-                urns = urns.filter(contact__in=base_set)
-
-            urn_query = Q(id__in=urns.values('contact_id'))
-
-        return name_query | urn_query
 
     def _build_attr_query(self, attr):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
@@ -494,7 +473,11 @@ class ContactQLVisitor(ParseTreeVisitor):
         """
         expression : TEXT
         """
-        return Condition(Condition.IMPLICIT_PROP, '=', ctx.TEXT().getText())
+        value = ctx.TEXT().getText()
+        if TEL_VALUE_REGEX.match(value):
+            return Condition('tel', '~', value)
+        else:
+            return Condition('name', '~', value)
 
     def visitCondition(self, ctx):
         """

@@ -1060,25 +1060,30 @@ class ContactTest(TembaTest):
         self.assertIsNone(getattr(self.billy, '__field__nick'))
 
     def test_contact_search_parsing(self):
-        # implicit condition on name/URN/id
-        self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
+        # implicit condition on name
+        self.assertEqual(parse_query('will'), ContactQuery(Condition('name', '~', 'will')))
+        self.assertEqual(parse_query('1will2'), ContactQuery(Condition('name', '~', '1will2')))
+
+        # implicit condition on tel if value is all tel chars
+        self.assertEqual(parse_query('1234'), ContactQuery(Condition('tel', '~', '1234')))
+        self.assertEqual(parse_query('+12-34'), ContactQuery(Condition('tel', '~', '+12-34')))
 
         # boolean combinations of implicit conditions
         self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
-            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+            BoolCombination(BoolCombination.AND, Condition('name', '~', 'will'), Condition('name', '~', 'felix'))
         ))
         self.assertEqual(parse_query('will felix'), ContactQuery(
-            SinglePropCombination('*', BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+            SinglePropCombination('name', BoolCombination.AND, Condition('name', '~', 'will'), Condition('name', '~', 'felix'))
         ))
         self.assertEqual(parse_query('will and felix', optimize=False), ContactQuery(
-            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+            BoolCombination(BoolCombination.AND, Condition('name', '~', 'will'), Condition('name', '~', 'felix'))
         ))
         self.assertEqual(parse_query('will or felix or matt', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.OR,
                             BoolCombination(BoolCombination.OR,
-                                            Condition('*', '=', 'will'),
-                                            Condition('*', '=', 'felix')),
-                            Condition('*', '=', 'matt'))
+                                            Condition('name', '~', 'will'),
+                                            Condition('name', '~', 'felix')),
+                            Condition('name', '~', 'matt'))
         ))
 
         # property conditions
@@ -1094,44 +1099,52 @@ class ContactTest(TembaTest):
             BoolCombination(BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
         ))
         self.assertEqual(parse_query('name=will or name ~ "felix"'), ContactQuery(
-            SinglePropCombination('name', BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
+            SinglePropCombination('name', BoolCombination.OR, Condition('name', '=', 'will'),
+                                  Condition('name', '~', 'felix'))
         ))
 
         # mixture of simple and property conditions
         self.assertEqual(parse_query('will or name ~ "felix"'), ContactQuery(
-            BoolCombination(BoolCombination.OR, Condition('*', '=', 'will'), Condition('name', '~', 'felix'))
+            SinglePropCombination('name', BoolCombination.OR, Condition('name', '~', 'will'),
+                                  Condition('name', '~', 'felix'))
         ))
 
         # optimization will merge conditions combined with the same op
         self.assertEqual(parse_query('will or felix or matt'), ContactQuery(
-            SinglePropCombination('*', BoolCombination.OR, Condition('*', '=', 'will'),
-                                  Condition('*', '=', 'felix'), Condition('*', '=', 'matt'))
+            SinglePropCombination('name', BoolCombination.OR, Condition('name', '~', 'will'),
+                                  Condition('name', '~', 'felix'), Condition('name', '~', 'matt'))
         ))
 
         # but not conditions combined with different ops
         self.assertEqual(parse_query('will or felix and matt'), ContactQuery(
             BoolCombination(BoolCombination.OR,
-                            Condition('*', '=', 'will'),
-                            SinglePropCombination('*', BoolCombination.AND,
-                                                  Condition('*', '=', 'felix'),
-                                                  Condition('*', '=', 'matt')))
+                            Condition('name', '~', 'will'),
+                            SinglePropCombination('name', BoolCombination.AND,
+                                                  Condition('name', '~', 'felix'),
+                                                  Condition('name', '~', 'matt')))
         ))
 
         # optimization respects explicit precedence defined with parentheses
         self.assertEqual(parse_query('(will or felix) and matt'), ContactQuery(
             BoolCombination(BoolCombination.AND,
-                            SinglePropCombination('*', BoolCombination.OR,
-                                                  Condition('*', '=', 'will'),
-                                                  Condition('*', '=', 'felix')),
-                            Condition('*', '=', 'matt'))
+                            SinglePropCombination('name', BoolCombination.OR,
+                                                  Condition('name', '~', 'will'),
+                                                  Condition('name', '~', 'felix')),
+                            Condition('name', '~', 'matt'))
         ))
 
         # implicit ANDing of conditions
+        self.assertEqual(parse_query('will felix name ~ "matt"'), ContactQuery(
+            SinglePropCombination('name', BoolCombination.AND,
+                                  Condition('name', '~', 'will'),
+                                  Condition('name', '~', 'felix'),
+                                  Condition('name', '~', 'matt'))
+        ))
         self.assertEqual(parse_query('will felix name ~ "matt"', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.AND,
                             BoolCombination(BoolCombination.AND,
-                                            Condition('*', '=', 'will'),
-                                            Condition('*', '=', 'felix')),
+                                            Condition('name', '~', 'will'),
+                                            Condition('name', '~', 'felix')),
                             Condition('name', '~', 'matt'))
         ))
 
@@ -1139,11 +1152,11 @@ class ContactTest(TembaTest):
         self.assertEqual(parse_query('will and felix or matt amber', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.OR,
                             BoolCombination(BoolCombination.AND,
-                                            Condition('*', '=', 'will'),
-                                            Condition('*', '=', 'felix')),
+                                            Condition('name', '~', 'will'),
+                                            Condition('name', '~', 'felix')),
                             BoolCombination(BoolCombination.AND,
-                                            Condition('*', '=', 'matt'),
-                                            Condition('*', '=', 'amber')))
+                                            Condition('name', '~', 'matt'),
+                                            Condition('name', '~', 'amber')))
         ))
 
         # boolean combinations can themselves be combined
