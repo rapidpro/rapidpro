@@ -109,11 +109,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         plivo_uuid = generate_uuid()
-        app_name = "%s/%s" % (settings.HOSTNAME.lower(), plivo_uuid)
+        callback_domain = org.get_brand_domain()
+        app_name = "%s/%s" % (callback_domain.lower(), plivo_uuid)
 
         client = plivo.RestAPI(auth_id, auth_token)
 
-        message_url = "https://" + settings.HOSTNAME + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
+        message_url = "https://" + callback_domain + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
         answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
 
         plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
@@ -127,7 +128,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
                         Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id}
+                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id,
+                        Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         plivo_number = phone_number.strip('+ ').replace(' ', '')
 

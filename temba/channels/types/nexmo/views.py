@@ -126,9 +126,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
 
         # update the delivery URLs for it
-        from temba.settings import HOSTNAME
         try:
-            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (HOSTNAME, mo_path), app_id)
+            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (org.get_brand_domain(), mo_path), app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways

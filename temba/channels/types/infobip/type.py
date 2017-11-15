@@ -6,10 +6,9 @@ import requests
 import six
 import time
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from temba.channels.views import AuthenticatedExternalClaimView
+from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
 from temba.utils.http import HttpEvent, http_headers
@@ -27,7 +26,7 @@ class InfobipType(ChannelType):
     name = "Infobip"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.""")
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
     max_length = 1600
@@ -46,11 +45,8 @@ class InfobipType(ChannelType):
             'Authorization': 'Basic %s' % encoded_auth
         })
 
-        # if the channel config has specified and override hostname use that, otherwise use settings
-        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
-
         # the event url InfoBip will forward delivery reports to
-        status_url = 'https://%s%s' % (event_hostname, reverse('courier.ib', args=[channel.uuid, 'delivered']))
+        status_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.ib', args=[channel.uuid, 'delivered']))
 
         payload = {"messages": [
             {
