@@ -48,7 +48,7 @@ def use_format_date(apps, schema_editor):
                     print("actionset(%d) replaced:\n%s\nwith:\n%s" % (ac.id, orig, ac.actions))
                     changed = True
 
-                except:
+                except Exception:
                     import traceback
                     traceback.print_exc()
                     print("unable to parse actionset(%d): %s" % (ac.id, ac.actions))
@@ -89,7 +89,7 @@ def use_format_date(apps, schema_editor):
                         print("actionset(%d) replaced:\n%s\nwith:\n%s" % (ac.id, orig, ac.actions))
                         changed = True
 
-                    except:
+                    except Exception:
                         import traceback
                         traceback.print_exc()
                         print("unable to parse actionset(%d): %s" % (ac.id, ac.actions))
