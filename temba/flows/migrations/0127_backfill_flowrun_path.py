@@ -5,12 +5,11 @@ from __future__ import unicode_literals, print_function
 import json
 import time
 
-from array import array
 from datetime import timedelta
-from django.core.cache import cache
 from django.db import migrations
 from django.db.models import Prefetch
 from django.utils import timezone
+from django_redis import get_redis_connection
 from temba.utils import chunk_list
 from temba.utils.management.commands.migrate_flows import migrate_flows
 
@@ -20,8 +19,13 @@ PATH_ARRIVED_ON = 'arrived_on'
 PATH_EXIT_UUID = 'exit_uuid'
 PATH_MAX_STEPS = 100
 
+CACHE_KEY_HIGHPOINT = 'path_mig_highpoint'
+CACHE_KEY_MAX_RUN_ID = 'path_mig_max_run_id'
+
 
 def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
+    cache = get_redis_connection()
+
     # start by ensuring all flows are at a minimum version
     if not migrate_flows('10.4'):
         raise ValueError("Migration can't proceed because some flows couldn't be migrated")
@@ -42,29 +46,48 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         )
 
     # has this migration been run before but didn't complete?
-    highpoint = cache.get('path_mig_highpoint')
+    highpoint = cache.get(CACHE_KEY_HIGHPOINT)
+    if highpoint is None:
+        highpoint = 0
+    else:
+        highpoint = int(highpoint)
+
+    max_run_id = cache.get(CACHE_KEY_MAX_RUN_ID)
+    if max_run_id is None:
+        print("Getting if of last run which will need migrated...")
+        max_run = FlowRun.objects.filter(flow__is_active=True).order_by('-id').first()
+        if max_run:
+            max_run_id = max_run.id
+            cache.set(CACHE_KEY_MAX_RUN_ID, max_run_id, 60 * 60 * 24 * 7)
+    else:
+        max_run_id = int(max_run_id)
 
     # get all flow run ids we're going to migrate
     run_ids = FlowRun.objects.filter(flow__is_active=True).values_list('id', flat=True).order_by('id')
 
     if highpoint:
-        print("Resuming from previous highpoint at run #%d" % int(highpoint))
-        run_ids = run_ids.filter(id__gt=int(highpoint))
+        print("Resuming from previous highpoint at run #%d" % highpoint)
+        run_ids = run_ids.filter(id__gt=highpoint)
 
-    print("Fetching runs that need to be migrated (hold tight)...")
+    if max_run_id:
+        print("Migrating runs up to run #%d" % max_run_id)
+        run_ids = run_ids.filter(id__lte=max_run_id)
 
-    run_ids = array(str('l'), run_ids)
-
-    print("Found %d runs that need to be migrated" % len(run_ids))
+    remaining_estimate = max_run_id - highpoint
+    print("Estimated %d runs need to be migrated" % remaining_estimate)
 
     num_updated = 0
     num_trimmed = 0
-    start = time.time()
+    start = None
 
     # we want to prefetch steps with each flow run, in chronological order
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('arrived_on'))
 
-    for id_batch in chunk_list(run_ids, 1000):
+    for id_batch in chunk_list(run_ids.iterator(), 1000):
+        # first call is gonna take a while to complete the query on the db, so start timer after that
+        if start is None:
+            start = time.time()
+
         batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
 
         for run in batch:
@@ -88,16 +111,17 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
             run.path = json.dumps(path)
             run.save(update_fields=('path',))
 
-            cache.set('path_mig_highpoint', str(run.id), 60 * 60 * 24 * 7)
+            highpoint = run.id
+            cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
 
         num_updated += len(batch)
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
-        time_remaining = ((len(run_ids) - num_updated) / updated_per_sec)
+        time_remaining = ((max_run_id - highpoint) / updated_per_sec)
         finishes = timezone.now() + timedelta(seconds=time_remaining)
 
-        print(" > Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (num_updated, len(run_ids), updated_per_sec, finishes))
+        print(" > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes))
 
     print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
 
