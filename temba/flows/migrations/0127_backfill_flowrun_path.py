@@ -5,12 +5,11 @@ from __future__ import unicode_literals, print_function
 import json
 import time
 
-from array import array
 from datetime import timedelta
-from django.core.cache import cache
 from django.db import migrations
 from django.db.models import Prefetch
 from django.utils import timezone
+from django_redis import get_redis_connection
 from temba.utils import chunk_list
 from temba.utils.management.commands.migrate_flows import migrate_flows
 
@@ -42,6 +41,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         )
 
     # has this migration been run before but didn't complete?
+    cache = get_redis_connection()
     highpoint = cache.get('path_mig_highpoint')
 
     # get all flow run ids we're going to migrate
@@ -51,11 +51,15 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         print("Resuming from previous highpoint at run #%d" % int(highpoint))
         run_ids = run_ids.filter(id__gt=int(highpoint))
 
-    print("Fetching runs that need to be migrated (hold tight)...")
+    run_count = cache.get('path_mig_count')
+    if run_count is None:
+        print("Counting runs that need to be migrated...")
+        run_count = run_ids.count()
+        cache.set('path_mig_count', run_count, 60 * 60 * 24 * 7)
+    else:
+        run_count = int(run_count)
 
-    run_ids = array(str('l'), run_ids)
-
-    print("Found %d runs that need to be migrated" % len(run_ids))
+    print("Found %d runs that need to be migrated" % run_count)
 
     num_updated = 0
     num_trimmed = 0
@@ -64,7 +68,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     # we want to prefetch steps with each flow run, in chronological order
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('arrived_on'))
 
-    for id_batch in chunk_list(run_ids, 1000):
+    for id_batch in chunk_list(run_ids.iterator(), 1000):
         batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
 
         for run in batch:
@@ -94,10 +98,10 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
-        time_remaining = ((len(run_ids) - num_updated) / updated_per_sec)
+        time_remaining = ((run_count - num_updated) / updated_per_sec)
         finishes = timezone.now() + timedelta(seconds=time_remaining)
 
-        print(" > Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (num_updated, len(run_ids), updated_per_sec, finishes))
+        print(" > Updated %d runs of %d (%2.2f per sec) Est finish: %s" % (num_updated, run_count, updated_per_sec, finishes))
 
     print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
 
