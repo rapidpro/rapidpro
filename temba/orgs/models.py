@@ -146,14 +146,6 @@ ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
-class OrgEvent(Enum):
-    """
-    Represents an internal org event
-    """
-    topup_new = 16
-    topup_updated = 17
-
-
 class OrgLock(Enum):
     """
     Org-level lock types
@@ -309,22 +301,6 @@ class Org(SmartModel):
 
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
-
-    def update_caches(self, event, entity):
-        """
-        Update org-level caches in response to an event
-        """
-        r = get_redis_connection()
-
-        if event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
-            r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
-            r.delete(ORG_ACTIVE_TOPUP_KEY % self.pk)
-            r.delete(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk)
-            r.delete(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk)
-
-            for topup in self.topups.all():
-                r.delete(ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk))
 
     def clear_credit_cache(self):
         """
@@ -1521,7 +1497,7 @@ class Org(SmartModel):
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
 
-        # clear our credit cache so it gets re-evaluated for our new topup
+        # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
     def current_plan_start(self):
@@ -2213,7 +2189,7 @@ class TopUp(SmartModel):
         topup = TopUp.objects.create(org=org, price=price, credits=credits, expires_on=expires_on,
                                      stripe_charge=stripe_charge, created_by=user, modified_by=user)
 
-        org.update_caches(OrgEvent.topup_new, topup)
+        org.clear_credit_cache()
         return topup
 
     def get_ledger(self):  # pragma: needs cover

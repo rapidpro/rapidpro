@@ -919,9 +919,7 @@ class OrgTest(TembaTest):
 
     def test_topup_expiration(self):
 
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
-
-        contact = self.create_contact("Michael Shumaucker", "+250788123123")
+        contact = self.create_contact("Usain Bolt", "+250788123123")
         welcome_topup = TopUp.objects.get()
 
         # send some messages with a valid topup
@@ -936,8 +934,6 @@ class OrgTest(TembaTest):
 
         # we should have no credits remaining since we expired
         self.assertEqual(0, self.org.get_credits_remaining())
-
-        self.org.clear_credit_cache()
         self.create_inbound_msgs(contact, 5)
 
         # those messages are waiting to send
@@ -1126,7 +1122,7 @@ class OrgTest(TembaTest):
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
         gift_topup.save(update_fields=['expires_on'])
-        self.org.apply_topups()
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(3):
             self.assertEqual(0, self.org.get_credits_expiring_soon())
@@ -1141,7 +1137,7 @@ class OrgTest(TembaTest):
         # do not consider expired topup
         gift_topup.expires_on = yesterday
         gift_topup.save(update_fields=['expires_on'])
-        self.org.apply_topups()
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(3):
             self.assertEqual(0, self.org.get_credits_expiring_soon())
@@ -1154,7 +1150,7 @@ class OrgTest(TembaTest):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
-        self.org.apply_topups()
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(1):
             self.assertEqual(0, self.org.get_low_credits_threshold())
@@ -3081,6 +3077,7 @@ class StripeCreditsTest(TembaTest):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
+        self.assertTrue(1000, self.org.get_credits_total())
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
