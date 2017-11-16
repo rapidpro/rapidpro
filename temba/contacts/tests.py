@@ -204,10 +204,12 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'age', 21)
         self.mary.set_field(self.admin, 'gender', "female")
 
-        group = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
-                                            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
+        group = ContactGroup.create_dynamic(
+            self.org, self.admin, "Group two",
+            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+        )
 
-        self.assertEqual(group.query, '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
+        self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
 
@@ -449,7 +451,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
-        self.dynamic_group = self.create_group("Dynamic", query="joe")
+        self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
@@ -485,8 +487,8 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        self.client.post(url, dict(name="Frank", group_query="frank"))
-        group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
+        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
         self.create_secondary_org()
@@ -927,7 +929,7 @@ class ContactTest(TembaTest):
         no_gender = self.create_group("No gender", query='gender is ""')
         males = self.create_group("Male", query='gender is M or gender is Male')
         youth = self.create_group("Male", query='age > 18 or age < 30')
-        joes = self.create_group("Joes", query='Joe')
+        joes = self.create_group("Joes", query='twitter = "blow80"')
 
         self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
@@ -944,14 +946,17 @@ class ContactTest(TembaTest):
         self.assertEqual(set(males.contacts.all()), {self.joe})
         self.assertEqual(set(youth.contacts.all()), {self.joe})
 
+        # add joe's twitter account, dynamic group
+        self.joe.update_urns(self.admin, ['twitter:blow80'])
+
         self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, males, youth, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, has_twitter, testers, males, youth, joes})
 
         self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes, has_twitter})
 
         self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes, has_twitter})
 
         # blocking removes contact from all groups
         self.joe.block(self.user)
@@ -962,7 +967,7 @@ class ContactTest(TembaTest):
 
         # unblocking potentially puts contact back in dynamic groups
         self.joe.unblock(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes, has_twitter})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -972,7 +977,7 @@ class ContactTest(TembaTest):
 
         # and unstopping potentially puts contact back in dynamic groups
         self.joe.unstop(self.admin)
-        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes, has_twitter})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -2433,7 +2438,7 @@ class ContactTest(TembaTest):
 
         # try to push into a dynamic group
         self.login(self.admin)
-        group = self.create_group('Dynamo', query='dynamo')
+        group = self.create_group('Dynamo', query='tel = 325423')
 
         with self.assertRaises(ValueError):
             post_data = dict()
@@ -3750,7 +3755,7 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            joes_group = self.create_group("People called Joe", query='name has joe')
+            joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
             mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact("Mary", "+250783333333")
@@ -3800,10 +3805,8 @@ class ContactTest(TembaTest):
             self.assertEqual([self.joe], list(men_group.contacts.order_by('name')))
             self.assertEqual([self.frank, self.mary], list(women_group.contacts.order_by('name')))
 
-            # Mary's name changes
-            self.mary.name = "Mary Joe"
-            self.mary.save()
-            self.mary.handle_update(attrs=('name',))
+            # Mary changes her twitter handle
+            self.mary.update_urns(self.user, ['twitter:blow80'])
             self.assertEqual([self.joe, self.mary], list(joes_group.contacts.order_by('name')))
 
             # Mary should also have an event fire now

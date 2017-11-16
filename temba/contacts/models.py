@@ -2204,22 +2204,28 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        if cls.is_dynamic_query_allowed(search_query=query, org=org):
-            group = cls._create(org, user, name, query=query)
-            group.update_query(query)
+        parsed_query = cls.parse_dynamic_query(search_query=query)
+
+        if cls.is_dynamic_query_allowed(parsed_query=parsed_query, org=org):
+            group = cls._create(org, user, name, query=parsed_query.as_text())
+            group.update_query(parsed_query.as_text())
             return group
         else:
             raise ValueError('Can not update a dynamic query that is not allowed')
 
     @classmethod
-    def is_dynamic_query_allowed(cls, search_query, org):
+    def parse_dynamic_query(cls, search_query):
+        from temba.contacts.search import parse_query, SearchException
+        try:
+            return parse_query(search_query)
+        except SearchException as e:
+            raise ValueError(six.text_type(e))
+
+    @classmethod
+    def is_dynamic_query_allowed(cls, parsed_query, org):
         """
         Check if dynamic query is allowed based on the search query properties
         """
-        from temba.contacts.search import parse_query
-
-        parsed_query = parse_query(search_query)
-
         return 'name' not in parsed_query.get_prop_map(org)
 
     @classmethod
@@ -2341,8 +2347,10 @@ class ContactGroup(TembaModel):
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        if self.is_dynamic_query_allowed(search_query=query, org=self.org):
-            self.query = query
+        parsed_query = self.parse_dynamic_query(search_query=query)
+
+        if self.is_dynamic_query_allowed(parsed_query=parsed_query, org=self.org):
+            self.query = parsed_query.as_text()
             self.save(update_fields=('query',))
 
             self.query_fields.clear()
