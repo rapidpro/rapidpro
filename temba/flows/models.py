@@ -195,7 +195,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4"
     ]
 
     name = models.CharField(max_length=64,
@@ -280,21 +280,52 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
+        flow.version_number = '10.4'
+        flow.save(update_fields=('version_number',))
 
-        uuid = six.text_type(uuid4())
-        actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
-                   dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
+        entry_uuid = six.text_type(uuid4())
+        definition = {
+            'entry': entry_uuid,
+            'base_language': base_language,
+            'rule_sets': [],
+            'action_sets': [
+                {
+                    'x': 100, 'y': 0,
+                    'uuid': entry_uuid,
+                    'exit_uuid': str(uuid4()),
+                    'actions': [
+                        {
+                            'uuid': str(uuid4()),
+                            'type': 'add_group',
+                            'group': {'uuid': group.uuid, 'name': group.name}
+                        },
+                        {
+                            'uuid': str(uuid4()),
+                            'type': 'save',
+                            'field': 'name',
+                            'label': 'Contact Name',
+                            'value': '@(PROPER(REMOVE_FIRST_WORD(step.value)))'
+                        }
+                    ]
+                }
+            ]
+        }
 
         if response:
-            actions += [dict(type='reply', msg={base_language: response})]
+            definition['action_sets'][0]['actions'].append({
+                'uuid': str(uuid4()),
+                'type': 'reply',
+                'msg': {base_language: response}
+            })
 
         if start_flow:
-            actions += [dict(type='flow', flow=dict(uuid=start_flow.uuid, name=start_flow.name))]
+            definition['action_sets'][0]['actions'].append({
+                'uuid': str(uuid4()),
+                'type': 'flow',
+                'flow': {'uuid': start_flow.uuid, 'name': start_flow.name}
+            })
 
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
-        flow.update(dict(entry=uuid, base_language=base_language,
-                         rule_sets=[], action_sets=action_sets))
-
+        flow.update(FlowRevision.migrate_definition(definition, flow))
         return flow
 
     @classmethod
@@ -429,7 +460,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = FlowRun.objects.filter(connection=call, is_active=True).order_by('-created_on').first()
+        run = FlowRun.objects.filter(connection=call, is_active=True).select_related('org').order_by('-created_on').first()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -508,7 +539,7 @@ class Flow(TembaModel):
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
         if isinstance(destination, RuleSet):
             response = call.channel.generate_ivr_response()
-            callback = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[call.pk]))
+            callback = 'https://%s%s' % (run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
@@ -890,6 +921,17 @@ class Flow(TembaModel):
         return changed
 
     @classmethod
+    def get_versions_before(cls, version_number):
+        versions = []
+        version_str = six.text_type(version_number)
+        for ver in Flow.VERSIONS:
+            if version_str != ver:
+                versions.append(ver)
+            else:
+                break
+        return versions
+
+    @classmethod
     def get_versions_after(cls, version_number):
         versions = []
         version_str = six.text_type(version_number)
@@ -1205,11 +1247,27 @@ class Flow(TembaModel):
 
         self.flow_type = Flow.MESSAGE
         self.base_language = base_language
-        self.save(update_fields=('name', 'flow_type', 'base_language'))
+        self.version_number = '10.4'
+        self.save(update_fields=('name', 'flow_type', 'base_language', 'version_number'))
 
-        uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=translations)])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=base_language))
+        entry_uuid = str(uuid4())
+        definition = {
+            'entry': entry_uuid,
+            'base_language': base_language,
+            'rule_sets': [],
+            'action_sets': [
+                {
+                    'x': 100, 'y': 0,
+                    'uuid': entry_uuid,
+                    'exit_uuid': str(uuid4()),
+                    'actions': [
+                        {'uuid': str(uuid4()), 'type': 'reply', 'msg': translations}
+                    ]
+                }
+            ]
+        }
+
+        self.update(FlowRevision.migrate_definition(definition, self))
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -2191,12 +2249,14 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
-    def ensure_current_version(self):
+    def ensure_current_version(self, min_version=None):
         """
         Makes sure the flow is at the current version. If it isn't it will
         migrate the definition forward updating the flow accordingly.
         """
-        if Flow.is_before_version(self.version_number, get_current_export_version()):
+        to_version = min_version or get_current_export_version()
+
+        if Flow.is_before_version(self.version_number, to_version):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:
@@ -2955,7 +3015,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
-            callback = 'https://%s%s' % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[self.connection.pk]))
+            callback = 'https://%s%s' % (self.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[self.connection.pk]))
             self.voice_response.redirect(url=callback + '?resume=1')
         else:
             # if we have a parent to continue
@@ -5839,7 +5899,7 @@ class StartFlowAction(Action):
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
                                       restart_participants=True, extra=extra, parent_run=run)[0]
-            url = "https://%s%s" % (settings.HOSTNAME, reverse('ivr.ivrcall_handle', args=[new_run.connection.pk]))
+            url = "https://%s%s" % (new_run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[new_run.connection.pk]))
             run.voice_response.redirect(url)
         else:
             child_runs = self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,

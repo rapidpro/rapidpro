@@ -69,7 +69,7 @@ class TwilioType(ChannelType):
                 pass
 
     def send(self, channel, msg, text):
-        callback_url = Channel.build_twilio_callback_url(channel.channel_type, channel.uuid, msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.callback_domain, channel.channel_type, channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []

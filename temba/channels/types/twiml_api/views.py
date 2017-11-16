@@ -49,7 +49,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {Channel.CONFIG_SEND_URL: url,
                   ACCOUNT_SID: data.get('account_sid', None),
-                  ACCOUNT_TOKEN: data.get('account_token', None)}
+                  ACCOUNT_TOKEN: data.get('account_token', None),
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         is_short_code = len(number) <= 6
 

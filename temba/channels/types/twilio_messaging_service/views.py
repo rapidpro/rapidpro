@@ -53,7 +53,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         org_config = org.config_json()
         config = {Channel.CONFIG_MESSAGING_SERVICE_SID: data['messaging_service_sid'],
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
-                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
+                  Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN],
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.create(org, user, data['country'], 'TMS',
                                      name=data['messaging_service_sid'], address=None, config=config)
