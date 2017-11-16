@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
+from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction, ActionSet, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
@@ -652,6 +652,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': campaign2.uuid,
             'name': "Reminders #2",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign2.created_on)
         })
@@ -673,6 +674,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json(), {
             'uuid': campaign3.uuid,
             'name': "Reminders #3",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign3.created_on)
         })
@@ -1331,7 +1333,7 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow.start([], [contact1, contact2, contact3])
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
@@ -1634,14 +1636,17 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         registration = self.create_flow(name="Registration")
-        survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
+        color = self.get_flow('color')
+
+        # add a campaign message flow that should be filtered out
+        Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
-        survey.labels.add(reporting)
+        color.labels.add(reporting)
 
         # run joe through through a flow
-        survey.start([], [self.joe])
+        color.start([], [self.joe])
         self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
 
         # flow belong to other org
@@ -1656,14 +1661,14 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
             {
-                'uuid': survey.uuid,
-                'name': "Survey",
+                'uuid': color.uuid,
+                'name': "Color Flow",
                 'archived': False,
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(survey.created_on),
-                'modified_on': format_datetime(survey.modified_on)
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
             },
             {
                 'uuid': registration.uuid,
@@ -1678,16 +1683,16 @@ class APITest(TembaTest):
         ])
 
         # filter by UUID
-        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'uuid=%s' % color.uuid)
+        self.assertResultsByUUID(response, [color])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(registration.modified_on))
         self.assertResultsByUUID(response, [registration])
 
         # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
@@ -2133,8 +2138,12 @@ class APITest(TembaTest):
         self.frank.language = 'fre'
         self.frank.save()
 
-        flow1 = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
+
+        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
+        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
+        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
@@ -2181,8 +2190,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2197,16 +2206,16 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
+                    'node': color_ruleset.uuid,
+                    'time': format_datetime(self.joe.values.get(ruleset=color_ruleset).modified_on)
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),

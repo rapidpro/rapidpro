@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import six
+
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType

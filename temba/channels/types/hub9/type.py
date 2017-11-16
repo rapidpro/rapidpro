@@ -1,8 +1,8 @@
 from __future__ import unicode_literals, absolute_import
 
+import time
 import requests
 import six
-import time
 
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
@@ -38,6 +38,9 @@ class Hub9Type(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Asia/Jakarta"]
+
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
 
     def send(self, channel, msg, text):
 
