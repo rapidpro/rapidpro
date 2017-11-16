@@ -448,7 +448,7 @@ class ContactGroupCRUDLTest(TembaTest):
         super(ContactGroupCRUDLTest, self).setUp()
 
         self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234"])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
@@ -539,13 +539,16 @@ class ContactGroupCRUDLTest(TembaTest):
         # now try a dynamic group
         url = reverse('contacts.contactgroup_update', args=[self.dynamic_group.pk])
 
-        # update both name and query
-        self.client.post(url, dict(name='Frank', query='frank'))
+        # update both name and query, form should fail, because group can not be saved as a dynamic group
+        response = self.client.post(url, dict(name='Frank', query='frank'))
+        self.assertFormError(response, 'form', 'query', 'The search expression can not be saved as a dynamic query')
+
+        response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
         self.assertNoFormErrors(response)
 
         self.dynamic_group.refresh_from_db()
         self.assertEqual(self.dynamic_group.name, "Frank")
-        self.assertEqual(self.dynamic_group.query, "frank")
+        self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
         self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
 
     def test_delete(self):

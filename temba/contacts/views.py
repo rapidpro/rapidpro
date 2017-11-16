@@ -32,7 +32,7 @@ from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException
+from .search import SearchException, parse_query
 from .tasks import export_contacts_task
 
 
@@ -93,6 +93,16 @@ class ContactGroupForm(forms.ModelForm):
                                           "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
         return name
+
+    def clean_query(self):
+        try:
+            parsed_query = parse_query(text=self.cleaned_data['query'])
+            if parsed_query.can_be_dynamic_group():
+                return parsed_query.as_text()
+            else:
+                raise forms.ValidationError(_("The search expression can not be saved as a dynamic query"))
+        except SearchException as e:
+            raise forms.ValidationError(six.text_type(e))
 
     class Meta:
         fields = '__all__'
