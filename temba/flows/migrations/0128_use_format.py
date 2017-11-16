@@ -11,12 +11,18 @@ def use_format_date(apps, schema_editor):
     from temba.flows.models import RuleSet, ActionSet, Flow
     from temba.contacts.models import ContactField
 
-    # find all rulesets that create a date object
-    rulesets = RuleSet.objects.filter(flow__is_active=True, value_type__in=['D', 'S', 'I', 'W'])
+    # find all rulesets that are date or location
+    rulesets = RuleSet.objects.filter(flow__is_active=True, value_type__in=['D', 'S', 'I', 'W']).select_related('flow')
+
     for dr in rulesets:
+        # make sure or flow this flow is migrated forward
+        dr.flow.ensure_current_version()
+
         # determine our slug
         slug = Flow.label_to_slug(dr.label)
         changed = False
+
+        # dates will be wrapped in format_date, locations in format_location
         format_function = 'format_date' if dr.value_type == 'D' else 'format_location'
 
         # find plain references to this field in actionsets, we'll replace them with a format wrapper
@@ -51,12 +57,15 @@ def use_format_date(apps, schema_editor):
         if changed:
             dr.flow.update(dr.flow.as_json())
 
-    # for every contact field that is a date and has dependencies
+    # for every contact field that is a date or location and has dependencies
     for cf in ContactField.objects.filter(is_active=True, value_type__in=['D', 'S', 'I', 'W']).exclude(dependent_flows=None):
         format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
 
         # find plain references to this field in actionsets, we'll replace them with format_date
         for flow in cf.dependent_flows.all():
+            # make sure this flow is the current version
+            flow.ensure_current_version()
+
             changed = False
             for ac in ActionSet.objects.filter(flow=dr.flow, actions__icontains="@contact." + cf.key):
                 pattern = "@contact\\." + cf.key + "([^0-9a-zA-Z\\.]|\.[^0-9a-zA-Z\\.])"
