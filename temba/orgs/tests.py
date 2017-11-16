@@ -37,7 +37,7 @@ from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
 from uuid import uuid4
-from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, get_current_export_version
+from .models import Org, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, get_current_export_version
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
 from .models import WHITELISTED, SUSPENDED, RESTORED
@@ -917,6 +917,38 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+    def test_topup_expiration(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
+
+        contact = self.create_contact("Michael Shumaucker", "+250788123123")
+        welcome_topup = TopUp.objects.get()
+
+        # send some messages with a valid topup
+        self.create_inbound_msgs(contact, 10)
+        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
+        self.assertEqual(990, self.org.get_credits_remaining())
+
+        # now expire our topup and try sending more messages
+        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
+        welcome_topup.save(update_fields=('expires_on',))
+        self.org.clear_credit_cache()
+
+        # we should have no credits remaining since we expired
+        self.assertEqual(0, self.org.get_credits_remaining())
+
+        self.org.clear_credit_cache()
+        self.create_inbound_msgs(contact, 5)
+
+        # those messages are waiting to send
+        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
+
+        # so we should report -5 credits
+        self.assertEqual(-5, self.org.get_credits_remaining())
+
+        # our first 10 messages plus our 5 pending a topup
+        self.assertEqual(15, self.org.get_credits_used())
+
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
@@ -925,11 +957,7 @@ class OrgTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
-        def create_msgs(recipient, count):
-            for m in range(count):
-                self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
-
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
         with self.assertNumQueries(1):
             self.assertEqual(150, self.org.get_low_credits_threshold())
@@ -938,7 +966,7 @@ class OrgTest(TembaTest):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(990, self.org.get_credits_remaining())  # from db
 
         with self.assertNumQueries(0):
@@ -946,10 +974,11 @@ class OrgTest(TembaTest):
             self.assertEqual(10, self.org.get_credits_used())
             self.assertEqual(990, self.org.get_credits_remaining())
 
+        welcome_topup.refresh_from_db()
         self.assertEqual(10, welcome_topup.msgs.count())
-        self.assertEqual(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        self.assertEqual(10, welcome_topup.get_used())
 
-        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        # at this point we shouldn't have squashed any topup credits, so should have the same number as our used
         self.assertEqual(10, TopUpCredits.objects.all().count())
 
         # now squash
@@ -960,26 +989,29 @@ class OrgTest(TembaTest):
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
-        self.org.update_caches(OrgEvent.topup_updated, None)  # invalidates our credits remaining cache
+        self.org.clear_credit_cache()
 
         self.assertEqual(15, self.org.get_credits_total())
         self.assertEqual(5, self.org.get_credits_remaining())
 
         # create 10 more messages, only 5 of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        welcome_topup.refresh_from_db()
+        self.assertEqual(15, welcome_topup.msgs.count())
+        self.assertEqual(15, welcome_topup.get_used())
 
-        self.assertFalse(self.org._calculate_active_topup())
+        (topup, _) = self.org._calculate_active_topup()
+        self.assertFalse(topup)
 
-        with self.assertNumQueries(0):
+        # we generate queries for total and used when we are near a boundary
+        with self.assertNumQueries(4):
             self.assertEqual(15, self.org.get_credits_total())
             self.assertEqual(20, self.org.get_credits_used())
             self.assertEqual(-5, self.org.get_credits_remaining())
 
         # again create 10 more messages, none of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
         with self.assertNumQueries(0):
             self.assertEqual(15, self.org.get_credits_total())
@@ -991,7 +1023,6 @@ class OrgTest(TembaTest):
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # apply topups which will max out both and reduce debt to 5
         self.org.apply_topups()
@@ -1016,7 +1047,6 @@ class OrgTest(TembaTest):
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
@@ -1029,29 +1059,28 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEqual(100025, self.org.get_credits_total())
-        self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(99995, self.org.get_credits_remaining())
+        self.assertEqual(30, self.org.get_credits_used())
 
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertEqual(msg.topup, mega_topup)
-
         self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
         mega_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertIsNone(msg.topup)
 
         # check our totals
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(6):
             self.assertEqual(0, self.org.get_purchased_credits())
             self.assertEqual(31, self.org.get_credits_total())
             self.assertEqual(32, self.org.get_credits_used())
@@ -1065,7 +1094,6 @@ class OrgTest(TembaTest):
         next_week = timezone.now() + relativedelta(days=7)
         gift_topup.expires_on = next_week
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
         with self.assertNumQueries(3):
@@ -1083,7 +1111,6 @@ class OrgTest(TembaTest):
         five_week_ahead = timezone.now() + relativedelta(days=35)
         later_active_topup.expires_on = five_week_ahead
         later_active_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
         with self.assertNumQueries(3):
@@ -1099,7 +1126,6 @@ class OrgTest(TembaTest):
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
         with self.assertNumQueries(3):
@@ -1115,7 +1141,6 @@ class OrgTest(TembaTest):
         # do not consider expired topup
         gift_topup.expires_on = yesterday
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
         with self.assertNumQueries(3):
@@ -1129,7 +1154,6 @@ class OrgTest(TembaTest):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
         with self.assertNumQueries(1):
@@ -1140,13 +1164,13 @@ class OrgTest(TembaTest):
 
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
@@ -1765,7 +1789,7 @@ class OrgTest(TembaTest):
         # tiers enabled, but enough credits
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
         self.assertTrue(self.org.is_import_flows_tier())
         self.assertTrue(self.org.is_multi_user_tier())
@@ -1831,7 +1855,7 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
-        self.assertEqual(700, self.org._calculate_credits_used())
+        self.assertEqual(700, self.org._calculate_credits_used()[0])
 
         # now allocate across our remaining topups
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
@@ -1840,8 +1864,8 @@ class OrgTest(TembaTest):
         self.assertEqual(100, self.org.get_credits_remaining())
 
         # now clear our cache, we ought to have proper amount still
-        self.org._calculate_credit_caches()
-        sub_org._calculate_credit_caches()
+        self.org.clear_credit_cache()
+        sub_org.clear_credit_cache()
 
         self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(100, self.org.get_credits_remaining())
@@ -2601,7 +2625,7 @@ class BulkExportTest(TembaTest):
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old

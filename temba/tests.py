@@ -217,6 +217,10 @@ class TembaTest(SmartminTest):
         # reset our simulation to False
         Contact.set_simulation(False)
 
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+
     def get_verbosity(self):
         for s in reversed(inspect.stack()):
             options = s[0].f_locals.get('options')

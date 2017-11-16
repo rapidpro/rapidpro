@@ -326,21 +326,19 @@ class Org(SmartModel):
             for topup in self.topups.all():
                 r.delete(ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk))
 
-    def clear_caches(self, caches):
+    def clear_credit_cache(self):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
         """
-        if OrgCache.credits in caches:  # pragma: needs cover
-            r = get_redis_connection()
-
-            active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
-            return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
-                            ORG_CREDITS_USED_CACHE_KEY % self.pk,
-                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
-                            ORG_ACTIVE_TOPUP_KEY % self.pk,
-                            **active_topup_keys)
-        else:
-            return 0  # pragma: needs cover
+        r = get_redis_connection()
+        active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
+        return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
+                        ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk,
+                        ORG_CREDITS_USED_CACHE_KEY % self.pk,
+                        ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
+                        ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
+                        ORG_ACTIVE_TOPUP_KEY % self.pk,
+                        *active_topup_keys)
 
     def set_status(self, status):
         config = self.config_json()
@@ -1249,8 +1247,7 @@ class Org(SmartModel):
         """
         Get the number of credits expiring in less than a month.
         """
-        return get_cacheable_result(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_credits_expiring_soon)
+        return get_cacheable_result(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk, self._calculate_credits_expiring_soon)
 
     def _calculate_credits_expiring_soon(self):
         now = timezone.now()
@@ -1266,9 +1263,9 @@ class Org(SmartModel):
         more_valid_credits = more_valid_credits_qs.aggregate(Sum('credits')).get('credits__sum')
 
         if more_valid_credits or not expiring_topups_credits:
-            return 0
+            return 0, ORG_CREDITS_CACHE_TTL
 
-        return expiring_topups_credits - used_credits
+        return expiring_topups_credits - used_credits, ORG_CREDITS_CACHE_TTL
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1277,19 +1274,19 @@ class Org(SmartModel):
         """
         Get the credits number to consider as low threshold to this org
         """
-        return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+        return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
                                     self._calculate_low_credits_threshold)
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
-        return int(last_topup_credits * 0.15) if last_topup_credits else 0
+        return int(last_topup_credits * 0.15) if last_topup_credits else 0, ORG_CREDITS_CACHE_TTL
 
     def get_credits_total(self, force_dirty=False):
         """
         Gets the total number of credits purchased or assigned to this org
         """
-        return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+        return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
                                     self._calculate_credits_total, force_dirty=force_dirty)
 
     def get_purchased_credits(self):
@@ -1297,12 +1294,11 @@ class Org(SmartModel):
         Returns the total number of credits purchased
         :return:
         """
-        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_purchased_credits)
+        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, self._calculate_purchased_credits)
 
     def _calculate_purchased_credits(self):
         purchased_credits = self.topups.filter(is_active=True, price__gt=0).aggregate(Sum('credits')).get('credits__sum')
-        return purchased_credits if purchased_credits else 0
+        return purchased_credits if purchased_credits else 0, ORG_CREDITS_CACHE_TTL
 
     def _calculate_credits_total(self):
         active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
@@ -1315,32 +1311,36 @@ class Org(SmartModel):
 
         expired_credits = expired_credits if expired_credits else 0
 
-        return active_credits + expired_credits
+        return active_credits + expired_credits, self.get_credit_ttl()
 
     def get_credits_used(self):
         """
         Gets the number of credits used by this org
         """
-        return get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_credits_used)
+        return get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, self._calculate_credits_used)
 
     def _calculate_credits_used(self):
         used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
         used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
-        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
+        # if we don't have an active topup, add up pending messages too
+        if not self.get_active_topup_id():
+            test_contacts = self.org_contacts.filter(is_test=True).values_list('id', flat=True)
+            used_credits_sum += self.msgs.filter(topup=None).exclude(contact_id__in=test_contacts).count()
 
-        return used_credits_sum + unassigned_sum
+            # we don't cache in this case
+            return used_credits_sum, 0
+
+        return used_credits_sum, self.get_credit_ttl()
 
     def _calculate_credit_caches(self):
         """
         Calculates both our total as well as our active topup
         """
-        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_total, force_dirty=True)
-        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_used, force_dirty=True)
+        self.clear_credit_cache()
+        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, self._calculate_credits_total)
+        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, self._calculate_credits_used)
 
     def get_credits_remaining(self):
         """
@@ -1381,12 +1381,11 @@ class Org(SmartModel):
                         else:  # pragma: needs cover
                             break
 
-                    # recalculate our caches
-                    self._calculate_credit_caches()
-                    org._calculate_credit_caches()
-
-                    # apply topups to messages missing them
+                    # apply topups for our new org if there's unassigned messages
                     org.apply_topups()
+
+                    # the credit cache for our org should be invalidated too
+                    self.clear_credit_cache()
 
                 return True
 
@@ -1400,37 +1399,62 @@ class Org(SmartModel):
         Determines the active topup and returns that along with how many credits we were able
         to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
         """
-        total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
-        incrby_existing(total_used_key, amount)
-
         r = get_redis_connection()
-        active_topup_key = ORG_ACTIVE_TOPUP_KEY % self.pk
-        active_topup_pk = r.get(active_topup_key)
-        if active_topup_pk:
-            remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, int(active_topup_pk))
 
-            # decrement our active # of credits
-            remaining = r.decr(remaining_key, amount)
+        # we always consider this a credit 'used' since un-applied msgs are pending
+        # credit expenses for the next purchased topup
+        incrby_existing(ORG_CREDITS_USED_CACHE_KEY % self.id, amount)
 
-            # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 5000:
-                active_topup_pk = None
+        # if we have an active topup cache, we need to decrement the amount remaining
+        active_topup_id = self.get_active_topup_id()
+        if active_topup_id:
+
+            remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), amount)
+
+            # near the edge, clear out our cache and calculate from the db
+            if not remaining or int(remaining) < 100:
+                active_topup_id = None
+                self.clear_credit_cache()
 
         # calculate our active topup if we need to
-        if active_topup_pk is None:
-            active_topup = self._calculate_active_topup()
+        if not active_topup_id:
+            active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
-                active_topup_pk = active_topup.pk
-                r.set(active_topup_key, active_topup_pk, ORG_CREDITS_CACHE_TTL)
+                active_topup_id = active_topup.id
+                remaining = active_topup.get_remaining()
+                if amount > remaining:
+                    amount = remaining
+                r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), amount)
 
-                # can only reduce as much as we have available
-                if active_topup.get_remaining() < amount:
-                    amount = active_topup.get_remaining()
+        if active_topup_id:
+            return (active_topup_id, amount)
 
-                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
-                r.set(remaining_key, active_topup.get_remaining() - amount, ORG_CREDITS_CACHE_TTL)
+        return None, 0
 
-        return (active_topup_pk, amount)
+    def get_active_topup(self, force_dirty=False):
+        topup_id = self.get_active_topup_id(force_dirty=force_dirty)
+        if topup_id:
+            return TopUp.objects.get(id=topup_id)
+        return None
+
+    def get_active_topup_id(self, force_dirty=False):
+        return get_cacheable_result(ORG_ACTIVE_TOPUP_KEY % self.pk, self._calculate_active_topup, force_dirty=force_dirty)
+
+    def get_credit_ttl(self):
+        """
+        Credit TTL should be smallest of active topup expiration and ORG_CREDITS_CACHE_TTL
+        :return:
+        """
+        return self.get_topup_ttl(self.get_active_topup())
+
+    def get_topup_ttl(self, topup):
+        """
+        Gets how long metrics based on the given topup should live. Returns the shorter ttl of
+        either ORG_CREDITS_CACHE_TTL or time remaining on the expiration
+        """
+        if not topup:
+            return 0
+        return min((ORG_CREDITS_CACHE_TTL, (topup.expires_on - timezone.now()).total_seconds()))
 
     def _calculate_active_topup(self):
         """
@@ -1441,7 +1465,15 @@ class Org(SmartModel):
                                           .filter(credits__gt=0)\
                                           .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
 
-        return active_topups.first()
+        topup = active_topups.first()
+        if topup:
+            # initialize our active topup metrics
+            r = get_redis_connection()
+            ttl = self.get_topup_ttl(topup)
+            r.set(ORG_ACTIVE_TOPUP_REMAINING % (self.id, topup.id), topup.get_remaining(), ttl)
+            return topup.id, ttl
+
+        return 0, 0
 
     def apply_topups(self):
         """
@@ -1488,6 +1520,9 @@ class Org(SmartModel):
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
+
+        # clear our credit cache so it gets re-evaluated for our new topup
+        self.clear_credit_cache()
 
     def current_plan_start(self):
         today = timezone.now().date()
