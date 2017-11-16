@@ -29,11 +29,13 @@ install:
   - pip --version
   - pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
+
   # install flake8 on Python 3
   - export PATH=$HOME/.local/bin:$PATH
   - python3 --version
   - pip3 --version
   - pip3 install flake8 --user `whoami`
+
   # switch to Node 6 and install our node dependencies
   - nvm install 6
   - nvm use 6
@@ -47,10 +49,12 @@ before_script:
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
   - psql -U temba postgres -c "CREATE DATABASE temba;"
+
   # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
 script:
+  # any non-zero error code should be treated as an immediate failure
   - set -e
 
   # test PEP8 compliance on both Python 2 and 3
@@ -69,6 +73,8 @@ script:
     
   # run our Python tests
   - coverage run manage.py test --noinput --verbosity=2
+
+  - set +e
 
 after_success:
   - coveralls --rcfile .coveragerc_failcheck

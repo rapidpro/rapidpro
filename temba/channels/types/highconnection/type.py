@@ -1,16 +1,14 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import requests
 import six
-from django.conf import settings
+
 from django.urls import reverse
 from django.utils.http import urlencode
-
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.views import AuthenticatedExternalClaimView
+from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
 from temba.utils.http import HttpEvent, http_headers
@@ -30,7 +28,7 @@ class HighConnectionType(ChannelType):
 
     claim_blurb = _("""If you are based in France, you can purchase a number from High Connexion
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.""")
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
     max_length = 1500
@@ -41,6 +39,7 @@ class HighConnectionType(ChannelType):
         return org.timezone and six.text_type(org.timezone) in ["Europe/Paris"]
 
     def send(self, channel, msg, text):
+        callback_domain = channel.callback_domain
 
         payload = {
             'accountid': channel.config[Channel.CONFIG_USERNAME],
@@ -50,8 +49,8 @@ class HighConnectionType(ChannelType):
             'ret_id': msg.id,
             'datacoding': 8,
             'userdata': 'textit',
-            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
-            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
+            'ret_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
+            'ret_mo_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
         }
 
         # build our send URL

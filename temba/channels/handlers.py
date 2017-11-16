@@ -123,7 +123,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
+        url = "https://" + request.get_host() + "%s" % request.get_full_path()
 
         channel_uuid = kwargs.get('uuid')
         call_sid = self.get_param('CallSid')
@@ -150,15 +150,14 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             org = channel.org
 
-            if self.get_channel_type() == Channel.TYPE_TWILIO and not org.is_connected_to_twilio():
+            if self.get_channel_type() == 'T' and not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             client = self.get_client(channel=channel)
             validator = RequestValidator(client.auth[1])
             signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
-            base_url = settings.TEMBA_HOST
-            url = "https://%s%s" % (base_url, request.get_full_path())
+            url = "https://%s%s" % (request.get_host(), request.get_full_path())
 
             if validator.validate(url, request.POST, signature):
                 from temba.ivr.models import IVRCall
@@ -175,7 +174,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
-                                       Channel.TYPE_TWILIO)
+                                       'T')
                     call.save()
 
                     FlowRun.create(flow, contact.pk, session=session, connection=call)
@@ -208,7 +207,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 call = IVRCall.objects.filter(external_id=call_sid).first()
                 if call:
                     call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None),
-                                       Channel.TYPE_TWIML)
+                                       'TW')
                     call.save()
                     return HttpResponse("Call status updated")
             return HttpResponse("No call found")
@@ -259,7 +258,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             org = channel.org
 
-            if self.get_channel_type() == Channel.TYPE_TWILIO and not org.is_connected_to_twilio():
+            if self.get_channel_type() == 'T' and not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             client = self.get_client(channel=channel)
@@ -293,7 +292,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         return channel.get_ivr_client()
 
     def get_channel_type(self):
-        return Channel.TYPE_TWIML
+        return 'TW'
 
 
 class TwilioHandler(TwimlAPIHandler):
@@ -305,7 +304,7 @@ class TwilioHandler(TwimlAPIHandler):
     handler_name = 'handlers.twilio_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_TWILIO
+        return 'T'
 
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
@@ -324,12 +323,12 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.HOSTNAME + "%s" % request.get_full_path()
+        url = "https://" + request.get_host() + "%s" % request.get_full_path()
 
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TWILIO_MESSAGING_SERVICE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TMS').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -817,6 +816,10 @@ class InfobipHandler(BaseChannelHandler):
         except Exception as e:
             return make_response("Invalid JSON in POST body: %s" % str(e), status_code=400)
 
+        # ignore if the JSON does not have results key
+        if 'results' not in body:
+            return make_response('Missing "results" in payload', status_code=400)
+
         if action == 'receive':
 
             msgs = []
@@ -834,6 +837,9 @@ class InfobipHandler(BaseChannelHandler):
                     msg_date = iso8601.parse_date(receivedAt, default_timezone=None)
                 except iso8601.ParseError:
                     msg_date = None
+
+                if not text:
+                    continue
 
                 if channel.address.lstrip('+') == receiver.lstrip('+'):
                     urn = URN.from_tel(sender)
@@ -1985,7 +1991,7 @@ class ChikkaHandler(BaseChannelHandler):
         action = self.get_param('message_type').lower()
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_CHIKKA).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CK').exclude(org=None).first()
         if not channel:
             return HttpResponse("Error, channel not found for id: %s" % request_uuid, status=400)
 

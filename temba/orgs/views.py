@@ -625,7 +625,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_twilio'
+        success_url = '@channels.claim_twilio'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -637,17 +637,13 @@ class OrgCRUDL(SmartCRUDL):
             org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
             org = self.get_object()
+            domain = org.get_brand_domain()
 
             nexmo_client = org.get_nexmo_client()
             if not nexmo_client:
@@ -657,9 +653,8 @@ class OrgCRUDL(SmartCRUDL):
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             try:
-                from temba.settings import TEMBA_HOST
-                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
-                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+                nexmo_client.update_account('http://%s%s' % (domain, mo_path),
+                                            'http://%s%s' % (domain, dl_path))
 
                 return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
@@ -669,8 +664,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
 
-            from temba.settings import TEMBA_HOST
             org = self.get_object()
+            domain = org.get_brand_domain()
+
             config = org.config_json()
             context['nexmo_api_key'] = config[NEXMO_KEY]
             context['nexmo_api_secret'] = config[NEXMO_SECRET]
@@ -678,8 +674,8 @@ class OrgCRUDL(SmartCRUDL):
             nexmo_uuid = config.get(NEXMO_UUID, None)
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
-            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
-            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
+            context['mo_path'] = 'https://%s%s' % (domain, mo_path)
+            context['dl_path'] = 'https://%s%s' % (domain, dl_path)
 
             return context
 
@@ -791,12 +787,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 

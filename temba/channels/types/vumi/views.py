@@ -3,7 +3,6 @@ from __future__ import unicode_literals, absolute_import
 from uuid import uuid4
 
 from django import forms
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel

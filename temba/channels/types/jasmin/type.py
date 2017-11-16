@@ -1,14 +1,12 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import re
 import requests
 import six
-from django.conf import settings
+
 from django.urls import reverse
 from django.utils.http import urlencode
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.jasmin.views import ClaimView
@@ -38,17 +36,16 @@ class JasminType(ChannelType):
     attachment_support = False
 
     def send(self, channel, msg, text):
-
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
+        dlr_url = 'https://%s%s' % (channel.callback_domain, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
 
         # encode to GSM7
         encoded = gsm7.encode(text, 'replace')[0]
 
         # build our payload
         payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
-                   'username': channel.config[Channel.CONFIG_USERNAME],
-                   'password': channel.config[Channel.CONFIG_PASSWORD], 'dlr': dlr_url, 'dlr-level': '2',
+                   'username': channel.config[Channel.CONFIG_USERNAME], 'dlr': 'yes',
+                   'password': channel.config[Channel.CONFIG_PASSWORD], 'dlr-url': dlr_url, 'dlr-level': '2',
                    'dlr-method': 'POST', 'coding': '0', 'content': encoded}
 
         log_payload = payload.copy()
