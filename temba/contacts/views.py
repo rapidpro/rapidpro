@@ -32,7 +32,7 @@ from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException, parse_query
+from .search import SearchException
 from .tasks import export_contacts_task
 
 
@@ -126,10 +126,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         search_query = self.request.GET.get('search', None)
         if search_query:
             try:
-                qs = Contact.search(org, search_query, group)
-                # TODO: Contact.search is already parsing the search
-                # TODO: but I'm reluctant to change search method specification
-                self.parsed_search = parse_query(search_query)
+                qs, self.parsed_search = Contact.search(org, search_query, group)
             except SearchException as e:
                 self.search_error = six.text_type(e)
                 qs = Contact.objects.none()
@@ -169,7 +166,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         # replace search string with parsed search expression
         if self.parsed_search is not None:
             context['search'] = self.parsed_search.as_text()
-            context['save_dynamic_search'] = 'name' not in self.parsed_search.get_prop_map(self.org)
+            context['save_dynamic_search'] = self.parsed_search.can_be_dynamic_group()
 
         return context
 

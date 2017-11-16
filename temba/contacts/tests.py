@@ -1241,7 +1241,8 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'hasbirth', 'no')
 
         def q(query):
-            return Contact.search(self.org, query).count()
+            qs, _ = Contact.search(self.org, query)
+            return qs.count()
 
         # implicit property queries (name or URN path)
         self.assertEqual(q('trey'), 15)

@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -2204,29 +2204,12 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        parsed_query = cls.parse_dynamic_query(search_query=query)
-
-        if cls.is_dynamic_query_allowed(parsed_query=parsed_query, org=org):
-            group = cls._create(org, user, name, query=parsed_query.as_text())
-            group.update_query(parsed_query.as_text())
+        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
+        # we will rollback the database changes
+        with transaction.atomic():
+            group = cls._create(org, user, name, query=query)
+            group.update_query(query=query)
             return group
-        else:
-            raise ValueError('Can not update a dynamic query that is not allowed')
-
-    @classmethod
-    def parse_dynamic_query(cls, search_query):
-        from temba.contacts.search import parse_query, SearchException
-        try:
-            return parse_query(search_query)
-        except SearchException as e:
-            raise ValueError(six.text_type(e))
-
-    @classmethod
-    def is_dynamic_query_allowed(cls, parsed_query, org):
-        """
-        Check if dynamic query is allowed based on the search query properties
-        """
-        return 'name' not in parsed_query.get_prop_map(org)
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2342,14 +2325,14 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields
+        from .search import extract_fields, parse_query
 
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        parsed_query = self.parse_dynamic_query(search_query=query)
+        parsed_query = parse_query(text=query)
 
-        if self.is_dynamic_query_allowed(parsed_query=parsed_query, org=self.org):
+        if parsed_query.can_be_dynamic_group():
             self.query = parsed_query.as_text()
             self.save(update_fields=('query',))
 
@@ -2374,7 +2357,8 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            return Contact.search(self.org, self.query, base_set=base_set)
+            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
+            return qs
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
@@ -2538,7 +2522,7 @@ class ExportContactsTask(BaseExportTask):
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts = Contact.search(self.org, self.search, group)
+            contacts, _ = Contact.search(self.org, self.search, group)
         else:
             contacts = group.contacts.all()
 
