@@ -1219,29 +1219,15 @@ class Org(SmartModel):
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
 
-    def get_credits_expiring_soon(self):
+    def is_nearing_expiration(self):
         """
-        Get the number of credits expiring in less than a month.
+        Determines if the org is nearing expiration
         """
-        return get_cacheable_result(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk, self._calculate_credits_expiring_soon)
-
-    def _calculate_credits_expiring_soon(self):
-        now = timezone.now()
-        one_month_period = now + timedelta(days=30)
-        expiring_topups_qs = self.topups.filter(is_active=True,
-                                                expires_on__lte=one_month_period).exclude(expires_on__lte=now)
-
-        used_credits = TopUpCredits.objects.filter(topup__in=expiring_topups_qs).aggregate(Sum('used')).get('used__sum')
-
-        expiring_topups_credits = expiring_topups_qs.aggregate(Sum('credits')).get('credits__sum')
-
-        more_valid_credits_qs = self.topups.filter(is_active=True, expires_on__gt=one_month_period)
-        more_valid_credits = more_valid_credits_qs.aggregate(Sum('credits')).get('credits__sum')
-
-        if more_valid_credits or not expiring_topups_credits:
-            return 0, self.get_credit_ttl()
-
-        return expiring_topups_credits - used_credits, self.get_credit_ttl()
+        newest_topup = TopUp.objects.filter(org=self, is_active=True).order_by('-created_on').first()
+        if newest_topup:
+            if timezone.now() + timedelta(days=30) > newest_topup.expires_on:
+                return newest_topup.get_remaining() > 0
+        return False
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1422,7 +1408,7 @@ class Org(SmartModel):
         """
         if not topup:
             return 0
-        return min((ORG_CREDITS_CACHE_TTL, (topup.expires_on - timezone.now()).total_seconds()))
+        return min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds())))
 
     def _calculate_active_topup(self):
         """
@@ -2416,11 +2402,10 @@ class CreditAlert(SmartModel):
             # does this org have less than 0 messages?
             org_remaining_credits = org.get_credits_remaining()
             org_low_credits = org.has_low_credits()
-            org_credits_expiring = org.get_credits_expiring_soon()
 
             if org_remaining_credits <= 0:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            elif org_credits_expiring > 0:  # pragma: needs cover
+            elif org.is_nearing_expiration():  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

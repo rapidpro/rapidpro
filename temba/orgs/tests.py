@@ -955,7 +955,7 @@ class OrgTest(TembaTest):
 
         self.create_inbound_msgs(contact, 10)
 
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1092,31 +1092,31 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=['expires_on'])
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(99, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(4):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(99, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        # some cedits expires but more credits will remain active
+        # some credits expires but more credits will remain active
         later_active_topup = TopUp.create(self.admin, price=0, credits=200)
         five_week_ahead = timezone.now() + relativedelta(days=35)
         later_active_topup.expires_on = five_week_ahead
         later_active_topup.save(update_fields=['expires_on'])
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
-
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # no expiring credits
@@ -1124,14 +1124,14 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=['expires_on'])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
-
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
@@ -1139,20 +1139,20 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=['expires_on'])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
-
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             self.assertEqual(0, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -2918,8 +2918,8 @@ class CreditAlertTest(TembaTest):
 
                     mock_has_low_credits.return_value = False
 
-                    with patch('temba.orgs.models.Org.get_credits_expiring_soon') as mock_get_credits_exipiring_soon:
-                        mock_get_credits_exipiring_soon.return_value = 0
+                    with patch('temba.orgs.models.Org.is_nearing_expiration') as is_nearing_expiration:
+                        is_nearing_expiration.return_value = False
 
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
@@ -2928,7 +2928,7 @@ class CreditAlertTest(TembaTest):
                         # no alert since no expiring credits
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-                        mock_get_credits_exipiring_soon.return_value = 200
+                        is_nearing_expiration.return_value = True
 
                         CreditAlert.check_org_credits()
 
