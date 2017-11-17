@@ -26,6 +26,12 @@ def check_credits_task():  # pragma: needs cover
     CreditAlert.check_org_credits()
 
 
+@task(track_started=True, name='apply_topups_task')
+def apply_topups_task(org_id):
+    org = Org.objects.get(id=org_id)
+    org.apply_topups()
+
+
 @task(track_started=True, name='calculate_credit_caches')
 def calculate_credit_caches():  # pragma: needs cover
     """

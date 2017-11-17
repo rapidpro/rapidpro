@@ -1390,7 +1390,8 @@ class Org(SmartModel):
                     org._calculate_credit_caches()
 
                     # apply topups to messages missing them
-                    org.apply_topups()
+                    from .tasks import apply_topups_task
+                    apply_topups_task.delay(org.id)
 
                 return True
 
@@ -1456,7 +1457,8 @@ class Org(SmartModel):
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
-            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
+            test_contacts = self.contacts.filter(is_test=True).values_list('id', flat=True)
+            msg_uncredited = self.msgs.filter(topup=None, contact_id__in=test_contacts).order_by('created_on')
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
@@ -1617,7 +1619,8 @@ class Org(SmartModel):
             send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
-            self.apply_topups()
+            from .tasks import apply_topups_task
+            apply_topups_task.delay(self.org.id)
 
             return topup
 

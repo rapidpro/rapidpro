@@ -50,6 +50,7 @@ from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, 
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
 from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
+from .tasks import apply_topups_task
 
 
 def check_login(request):
@@ -1017,16 +1018,19 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
+        fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
+
         class OrgUpdateForm(forms.ModelForm):
-            viewers = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            parent = forms.ModelChoiceField(Org.objects.all(), required=False)
+            parent = forms.IntegerField(required=False)
+
+            def clean_parent(self):
+                parent = self.cleaned_data.get('parent')
+                if parent:
+                    return Org.objects.filter(pk=parent).first()
 
             class Meta:
                 model = Org
-                fields = '__all__'
+                fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
 
         form_class = OrgUpdateForm
 
@@ -2586,7 +2590,7 @@ class TopUpCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super(TopUpCRUDL.Create, self).post_save(obj)
-            obj.org.apply_topups()
+            apply_topups_task.delay(obj.org.id)
             return obj
 
     class Update(SmartUpdateView):
@@ -2598,7 +2602,7 @@ class TopUpCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super(TopUpCRUDL.Update, self).post_save(obj)
             obj.org.update_caches(OrgEvent.topup_updated, obj)
-            obj.org.apply_topups()
+            apply_topups_task.delay(obj.org.id)
             return obj
 
     class Manage(SmartListView):
