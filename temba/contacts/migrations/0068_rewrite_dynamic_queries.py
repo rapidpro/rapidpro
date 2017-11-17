@@ -36,9 +36,15 @@ def rewrite_dynamic_contactgroups(dynamic_groups_qs):
     """
     from ..search import parse_query
 
-    for dg in dynamic_groups_qs:
+    groups = dynamic_groups_qs.select_related('org')
+    if not groups:
+        return
+
+    print("Found %d dynamic groups to migrate..." % len(groups))
+
+    for dg in groups:
         try:
-            parsed_query = parse_query(dg.query)
+            parsed_query = parse_query(dg.query, as_anon=dg.org.is_anon)
 
             new_root_node = rewrite_query_node(parsed_query.root)
             if new_root_node is not None:
@@ -50,7 +56,8 @@ def rewrite_dynamic_contactgroups(dynamic_groups_qs):
         except ValueError:
             new_query = None
 
-        print('contactgroup.id=', dg.id, '\norig=>', dg.query, '\nnew=>', new_query, '\n')
+        print(" > Migrated group '%s' #%d ('%s' => '%s')" % (dg.name, dg.id, dg.query, new_query))
+
         dg.query = new_query
         dg.save(update_fields=('query',))
 

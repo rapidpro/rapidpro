@@ -61,8 +61,6 @@ class ContactQuery(object):
     PROP_SCHEME = 'S'
     PROP_FIELD = 'F'
 
-    SEARCHABLE_ATTRIBUTES = ('name',)
-
     SEARCHABLE_SCHEMES = ('tel', 'twitter')
 
     def __init__(self, root):
@@ -86,10 +84,14 @@ class ContactQuery(object):
         """
         prop_map = {p: None for p in set(self.root.get_prop_names())}
 
+        searchable_attrs = ['name']
+        if org.is_anon:
+            searchable_attrs.append('id')
+
         for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
 
-        for attr in self.SEARCHABLE_ATTRIBUTES:
+        for attr in searchable_attrs:
             if attr in prop_map.keys():
                 prop_map[attr] = (self.PROP_ATTRIBUTE, attr)
 
@@ -497,6 +499,9 @@ class SinglePropCombination(BoolCombination):
 
 class ContactQLVisitor(ParseTreeVisitor):
 
+    def __init__(self, as_anon):
+        self.as_anon = as_anon
+
     def visitParse(self, ctx):
         return self.visit(ctx.expression())
 
@@ -505,10 +510,17 @@ class ContactQLVisitor(ParseTreeVisitor):
         expression : TEXT
         """
         value = ctx.TEXT().getText()
-        if TEL_VALUE_REGEX.match(value):
+
+        if self.as_anon:
+            try:
+                value = int(value)
+                return Condition('id', '=', str(value))
+            except ValueError:
+                pass
+        elif TEL_VALUE_REGEX.match(value):
             return Condition('tel', '~', value)
-        else:
-            return Condition('name', '~', value)
+
+        return Condition('name', '~', value)
 
     def visitCondition(self, ctx):
         """
@@ -561,7 +573,7 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace('""', '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True):
+def parse_query(text, optimize=True, as_anon=False):
     from .gen.ContactQLLexer import ContactQLLexer
     from .gen.ContactQLParser import ContactQLParser
 
@@ -585,7 +597,7 @@ def parse_query(text, optimize=True):
 
         raise SearchException(message)
 
-    visitor = ContactQLVisitor()
+    visitor = ContactQLVisitor(as_anon)
 
     query = ContactQuery(visitor.visit(tree))
     return query.optimized() if optimize else query
@@ -595,7 +607,7 @@ def contact_search(org, text, base_queryset, base_set):
     """
     Performs the given contact query on the given base queryset
     """
-    parsed = parse_query(text)
+    parsed = parse_query(text, as_anon=org.is_anon)
     query = parsed.as_query(org, base_set)
 
     if base_set:
@@ -608,6 +620,6 @@ def extract_fields(org, text):
     """
     Extracts contact fields from the given text query
     """
-    parsed = parse_query(text)
+    parsed = parse_query(text, as_anon=org.is_anon)
     prop_map = parsed.get_prop_map(org)
     return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]

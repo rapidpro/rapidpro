@@ -71,14 +71,14 @@ class ContactGroupForm(forms.ModelForm):
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
+        self.org = user.get_org()
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
-        org = self.user.get_org()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group(org, name)
+        existing = ContactGroup.get_user_group(self.org, name)
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -86,7 +86,7 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        groups_count = ContactGroup.user_groups.filter(org=org).count()
+        groups_count = ContactGroup.user_groups.filter(org=self.org).count()
         if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
             raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
                                           "You must delete existing ones before you can "
@@ -96,7 +96,7 @@ class ContactGroupForm(forms.ModelForm):
 
     def clean_query(self):
         try:
-            parsed_query = parse_query(text=self.cleaned_data['query'])
+            parsed_query = parse_query(text=self.cleaned_data['query'], as_anon=self.org.is_anon)
             if parsed_query.can_be_dynamic_group():
                 return parsed_query.as_text()
             else:

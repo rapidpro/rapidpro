@@ -1088,6 +1088,9 @@ class ContactTest(TembaTest):
         # implicit condition on tel if value is all tel chars
         self.assertEqual(parse_query('1234'), ContactQuery(Condition('tel', '~', '1234')))
         self.assertEqual(parse_query('+12-34'), ContactQuery(Condition('tel', '~', '+12-34')))
+        self.assertEqual(parse_query('1234', as_anon=True), ContactQuery(Condition('id', '=', '1234')))
+        self.assertEqual(parse_query('+12-34', as_anon=True), ContactQuery(Condition('name', '~', '+12-34')))
+        self.assertEqual(parse_query('bob', as_anon=True), ContactQuery(Condition('name', '~', 'bob')))
 
         self.assertEqual(parse_query('1234').as_text(), 'tel ~ 1234')
         self.assertEqual(parse_query('+12-34').as_text(), 'tel ~ "+12-34"')
@@ -1330,8 +1333,8 @@ class ContactTest(TembaTest):
             self.assertEqual(q('twitter = ""'), 0)
 
             # anon orgs can search by id, with or without zero padding
-            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
-            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk))
+            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
+            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk)[0])
 
         # invalid queries
         self.assertRaises(SearchException, q, '((')
