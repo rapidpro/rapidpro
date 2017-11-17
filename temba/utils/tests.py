@@ -14,7 +14,6 @@ from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.test import override_settings, SimpleTestCase
@@ -418,19 +417,11 @@ class EmailTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
-        self.assertEqual(mail.outbox[0].subject, "Test Subject")
-        self.assertEqual(mail.outbox[0].body, "Test Body")
-        self.assertEqual(mail.outbox[0].recipients(), ['recipient@bar.com'])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body')
+        self.assertOutbox(0, settings.DEFAULT_FROM_EMAIL, 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertEqual(mail.outbox[1].from_email, 'no-reply@foo.com')
-        self.assertEqual(mail.outbox[1].subject, "Test Subject")
-        self.assertEqual(mail.outbox[1].body, "Test Body")
-        self.assertEqual(mail.outbox[1].recipients(), ["recipient@bar.com"])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body', from_email='no-reply@foo.com')
+        self.assertOutbox(1, 'no-reply@foo.com', 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
     def test_is_valid_address(self):
 
