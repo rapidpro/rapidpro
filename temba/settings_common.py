@@ -933,10 +933,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
     },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
-    },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
         'schedule': timedelta(seconds=300),

@@ -1239,9 +1239,9 @@ class Org(SmartModel):
         more_valid_credits = more_valid_credits_qs.aggregate(Sum('credits')).get('credits__sum')
 
         if more_valid_credits or not expiring_topups_credits:
-            return 0, ORG_CREDITS_CACHE_TTL
+            return 0, self.get_credit_ttl()
 
-        return expiring_topups_credits - used_credits, ORG_CREDITS_CACHE_TTL
+        return expiring_topups_credits - used_credits, self.get_credit_ttl()
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1256,7 +1256,7 @@ class Org(SmartModel):
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
-        return int(last_topup_credits * 0.15) if last_topup_credits else 0, ORG_CREDITS_CACHE_TTL
+        return int(last_topup_credits * 0.15) if last_topup_credits else 0, self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
@@ -1274,7 +1274,7 @@ class Org(SmartModel):
 
     def _calculate_purchased_credits(self):
         purchased_credits = self.topups.filter(is_active=True, price__gt=0).aggregate(Sum('credits')).get('credits__sum')
-        return purchased_credits if purchased_credits else 0, ORG_CREDITS_CACHE_TTL
+        return purchased_credits if purchased_credits else 0, self.get_credit_ttl()
 
     def _calculate_credits_total(self):
         active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
@@ -1309,14 +1309,6 @@ class Org(SmartModel):
             return used_credits_sum, 0
 
         return used_credits_sum, self.get_credit_ttl()
-
-    def _calculate_credit_caches(self):
-        """
-        Calculates both our total as well as our active topup
-        """
-        self.clear_credit_cache()
-        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, self._calculate_credits_total)
-        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, self._calculate_credits_used)
 
     def get_credits_remaining(self):
         """
