@@ -128,7 +128,7 @@ class Command(BaseCommand):
         gen_parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
         sim_parser = subparsers.add_parser('simulate', help='Simulates activity on an existing database')
-        sim_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=1)
+        sim_parser.add_argument('--org_id', type=int, action='store', dest='org_id', default=None)
         sim_parser.add_argument('--runs', type=int, action='store', dest='num_runs', default=500)
         sim_parser.add_argument('--flow', type=str, action='store', dest='flow_name', default=None)
 
@@ -138,7 +138,7 @@ class Command(BaseCommand):
         if command == self.COMMAND_GENERATE:
             self.handle_generate(kwargs['num_orgs'], kwargs['num_contacts'], kwargs['seed'])
         else:
-            self.handle_simulate(kwargs['num_runs'], kwargs['num_orgs'], kwargs['flow_name'])
+            self.handle_simulate(kwargs['num_runs'], kwargs['org_id'], kwargs['flow_name'])
 
         time_taken = time.time() - start
         self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -182,13 +182,16 @@ class Command(BaseCommand):
         self.create_flows(orgs)
         self.create_contacts(orgs, locations, num_contacts)
 
-    def handle_simulate(self, num_runs, num_orgs, flow_name):
+    def handle_simulate(self, num_runs, org_id, flow_name):
         """
         Prepares to resume simulating flow activity on an existing database
         """
         self._log("Resuming flow activity simulation on existing database...\n")
 
-        orgs = list(Org.objects.order_by('id')[:num_orgs])
+        orgs = Org.objects.order_by('id')
+        if org_id:
+            orgs = orgs.filter(id=org_id)
+
         if not orgs:
             raise CommandError("Can't simulate activity on an empty database")
 
