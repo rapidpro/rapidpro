@@ -224,6 +224,9 @@ class ContactGroupTest(TembaTest):
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
+        # can't create a dynamic group with name attribute
+        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, 'Jose', 'name = "Jose"')
+
         # can't call update_contacts on a dynamic group
         self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
 
@@ -542,6 +545,10 @@ class ContactGroupCRUDLTest(TembaTest):
         # update both name and query, form should fail, because group can not be saved as a dynamic group
         response = self.client.post(url, dict(name='Frank', query='frank'))
         self.assertFormError(response, 'form', 'query', 'The search expression can not be saved as a dynamic query')
+
+        # update both name and query, form should fail, because query is not parsable
+        response = self.client.post(url, dict(name='Frank', query='(!))!)'))
+        self.assertFormError(response, 'form', 'query', 'Search query contains an error at: !')
 
         response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
         self.assertNoFormErrors(response)
