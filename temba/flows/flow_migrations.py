@@ -8,7 +8,85 @@ import six
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
+from temba.contacts.models import ContactField
+from temba.flows.models import Flow
 from uuid import uuid4
+
+
+def migrate_export_to_version_11_0(json_flow, org, same_site=True):
+    """
+    Introduces the concept of format_location and format_date. This migration
+    wraps all references to rulesets or contact fields which are locations or dates and
+    wraps them appropriately
+    """
+    replacements = []
+
+    # get all contact fields that are date or location for this org
+    fields = (ContactField.objects
+              .filter(org=org, is_active=True, value_type__in=['D', 'S', 'I', 'W'])
+              .only('id', 'value_type', 'key'))
+
+    for cf in fields:
+        format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
+        replacements.append([
+            "@contact\\.%s([^0-9a-zA-Z\\.]|\.[^0-9a-zA-Z\\.])" % cf.key,
+            "@(%s(contact.%s))\\1" % (format_function, cf.key)
+        ])
+
+    for flow in json_flow.get('flows', []):
+
+        # figure out which rulesets are date or location
+        for rs in flow.get('rule_sets', []):
+            rs_type = None
+            for rule in rs.get('rules', []):
+                test = rule.get('test', {}).get('type')
+                if not test:
+                    continue
+                elif test == 'true':
+                    continue
+                elif not rs_type:
+                    rs_type = test
+                elif rs_type and test != rs_type:
+                    rs_type = 'none'
+
+            if rs_type in ['date', 'date_before', 'date_after', 'date_equal']:
+                format_function = 'format_date'
+
+            elif rs_type in ['state', 'district', 'ward']:
+                format_function = 'format_location'
+
+            else:
+                continue
+
+            key = Flow.label_to_slug(rs['label'])
+            replacements.append([
+                "@flow\\.%s([^0-9a-zA-Z\\.]|\.[^0-9a-zA-Z\\.])" % key,
+                "@(%s(flow.%s))\\1" % (format_function, key)
+            ])
+
+        # for every action in this flow, look for replies, sends or says that use these fields and wrap them
+        for actionset in flow.get('action_sets', []):
+            for action in actionset.get('actions', []):
+                if action['type'] in ['reply', 'send', 'say']:
+                    msg = action['msg']
+                    for lang, value in msg.items():
+                        for pattern, replacement in replacements:
+                            new_value = regex.sub(
+                                pattern,
+                                replacement,
+                                value,
+                                flags=regex.UNICODE | regex.MULTILINE
+                            )
+
+                            # if it changed, reassign it
+                            if new_value != value:
+                                msg[lang] = new_value
+
+    return json_flow
+
+
+def migrate_to_version_11_0(json_flow, flow):
+    return migrate_export_to_version_11_0(json_flow, flow.org)
 
 
 def migrate_to_version_10_4(json_flow, flow=None):

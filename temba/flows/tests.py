@@ -6865,6 +6865,29 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_11_0(self):
+        flow = self.get_flow("type_flow")
+        flow_json = flow.as_json()
+
+        for action in flow_json['action_sets']:
+            if action['y'] == 540:
+                self.assertEqual(
+                    "You said @(format_date(flow.date)) which was in category @flow.date.category Send number",
+                    action['actions'][0]['msg']['base']
+                )
+
+            elif action['y'] == 1084:
+                self.assertEqual(
+                    "You said @(format_location(flow.state)) which was in category @flow.state.category. Send district",
+                    action['actions'][0]['msg']['base']
+                )
+
+            elif action['y'] == 1460:
+                self.assertEqual(
+                    "You said @(format_location(flow.district)). Send ward",
+                    action['actions'][0]['msg']['base']
+                )
+
     def test_migrate_to_10_4(self):
         definition = {
             'action_sets': [

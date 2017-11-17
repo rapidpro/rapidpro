@@ -31,7 +31,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send date"
+                "base": "You said @flow.text. Send date"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -48,7 +48,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send number"
+                "base": "You said @flow.date which was in category @flow.date.category Send number"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -65,7 +65,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send state"
+                "base": "You said @flow.number. Send state"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -82,7 +82,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send district"
+                "base": "You said @flow.state which was in category @flow.state.category. Send district"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -99,7 +99,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send ward"
+                "base": "You said @flow.district. Send ward"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -114,6 +114,15 @@
           "destination": "498b1953-02f1-47dd-b9cb-1b51913e348f", 
           "uuid": "9769918c-8ca4-4ec5-8b5b-bf94cc6746a9", 
           "actions": [
+            {
+              "msg": {
+                "base": "You said @flow.ward."
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "5f8eb5aa-249b-4718-a502-8406dd0ae418"
+            },
             {
               "lang": "fre", 
               "type": "lang", 
