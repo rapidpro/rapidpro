@@ -1008,7 +1008,7 @@ class Flow(TembaModel):
         # order counts by their place on the flow
         result_list = []
         for active in actives:
-            key = ContactField.make_key(active['label'])
+            key = Flow.label_to_slug(active['label'])
             result = results.get(key)
             if result:
                 result_list.append(result)
