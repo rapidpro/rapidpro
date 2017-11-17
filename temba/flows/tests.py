@@ -2350,7 +2350,7 @@ class FlowTest(TembaTest):
         self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
 
         # can see results for a flow
-        response = self.client.get(reverse('flows.flow_results', args=[self.flow.id]))
+        response = self.client.get(reverse('flows.flow_results', args=[self.flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # check flow listing
@@ -4533,13 +4533,15 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_category_counts(self):
 
-        def assertCount(count_map, result_key, category_name, count):
-            categories = count_map[result_key]['categories']
+        def assertCount(counts, result_key, category_name, truth):
             found = False
-            for category in categories:
-                if category['name'] == category_name:
-                    found = True
-                    self.assertEqual(category['count'], count)
+            for count in counts['counts']:
+                if count['key'] == result_key:
+                    categories = count['categories']
+                    for category in categories:
+                        if category['name'] == category_name:
+                            found = True
+                            self.assertEqual(category['count'], truth)
             self.assertTrue(found)
 
         favorites = self.get_flow('favorites')
@@ -4549,11 +4551,13 @@ class FlowsTest(FlowFileTest):
             contact = self.create_contact('Contact %d' % i, '+120655530%d' % i)
             self.send_message(favorites, 'blue', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
+            self.send_message(favorites, 'russell', contact=contact)
 
         for i in range(0, 5):
             contact = self.create_contact('Contact %d' % i, '+120655531%d' % i)
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
+            self.send_message(favorites, 'earl', contact=contact)
 
         # test update flow values
         for i in range(0, 5):
@@ -4561,11 +4565,16 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, 'orange', contact=contact)
             self.send_message(favorites, 'green', contact=contact)
             self.send_message(favorites, 'skol', contact=contact)
+            self.send_message(favorites, 'bobby', contact=contact)
 
         counts = favorites.get_category_counts()
+
         assertCount(counts, 'color', 'Blue', 10)
         assertCount(counts, 'color', 'Red', 5)
         assertCount(counts, 'beer', 'Primus', 15)
+
+        # name shouldn't be included since it's open ended
+        self.assertNotIn('"name": "Name"', json.dumps(counts))
 
         # five oranges went back and became greens
         assertCount(counts, 'color', 'Other', 0)
@@ -4630,12 +4639,18 @@ class FlowsTest(FlowFileTest):
         self.send_message(favorites, 'skol', contact=kobe)
 
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_results', args=[favorites.pk]))
+        response = self.client.get(reverse('flows.flow_results', args=[favorites.uuid]))
 
         # the rulesets should be present as column headers
         self.assertContains(response, 'Beer')
         self.assertContains(response, 'Color')
         self.assertContains(response, 'Name')
+
+        # fetch counts endpoint, should have 2 color results (one is a test contact)
+        response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
+        counts = json.loads(response.content)['counts']
+        self.assertEqual("Color", counts[0]['name'])
+        self.assertEqual(2, counts[0]['total'])
 
         # test a search on our runs
         response = self.client.get('%s?q=pete' % reverse('flows.flow_run_table', args=[favorites.pk]))
@@ -4674,7 +4689,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
 
         # we have two active runs
-        self.assertContains(response, "{ name: 'Active', y: 2 }")
+        self.assertContains(response, "name: 'Active', y: 2")
         self.assertContains(response, "3 Responses")
 
         # now send another message
