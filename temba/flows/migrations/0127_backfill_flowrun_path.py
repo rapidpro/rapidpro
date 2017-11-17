@@ -4,6 +4,7 @@ from __future__ import unicode_literals, print_function
 
 import json
 import time
+import os
 
 from datetime import timedelta
 from django.db import migrations, transaction
@@ -45,12 +46,23 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
             "Found actionsets without exit_uuids, use migrate_flows command to migrate these flows forward"
         )
 
+    # are we running on just a partition of the runs?
+    partition = os.environ.get('PARTITION')
+    if partition is not None:
+        partition = int(partition)
+        if partition < 0 or partition > 3:
+            raise ValueError("Partition must be 0-3")
+
+        print("Migrating runs in partition %d" % partition)
+
     # has this migration been run before but didn't complete?
-    highpoint = cache.get(CACHE_KEY_HIGHPOINT)
+    highpoint = None
+    if partition is not None:
+        highpoint = cache.get(CACHE_KEY_HIGHPOINT + (':%d' % partition))
     if highpoint is None:
-        highpoint = 0
-    else:
-        highpoint = int(highpoint)
+        highpoint = cache.get(CACHE_KEY_HIGHPOINT)
+
+    highpoint = 0 if highpoint is None else int(highpoint)
 
     max_run_id = cache.get(CACHE_KEY_MAX_RUN_ID)
     if max_run_id is None:
@@ -89,7 +101,12 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
             start = time.time()
 
         with transaction.atomic():
-            batch = FlowRun.objects.filter(id__in=[r.id for r in run_batch]).order_by('id').prefetch_related(steps_prefetch)
+            if partition is not None:
+                run_ids = [r.id for r in run_batch if ((r.id + partition) % 4 == 0)]
+            else:
+                run_ids = [r.id for r in run_batch]
+
+            batch = FlowRun.objects.filter(id__in=run_ids).order_by('id').prefetch_related(steps_prefetch)
 
             for run in batch:
                 path = []
@@ -113,16 +130,24 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
                 run.save(update_fields=('path',))
 
                 highpoint = run.id
-                cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
+                if partition is not None:
+                    cache.set(CACHE_KEY_HIGHPOINT + (":%d" % partition), str(run.id), 60 * 60 * 24 * 7)
+                else:
+                    cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
 
         num_updated += len(batch)
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
-        time_remaining = ((max_run_id - highpoint) / updated_per_sec)
+        num_remaining = ((max_run_id - highpoint) / 4) if partition is not None else (max_run_id - highpoint)
+        time_remaining = num_remaining / updated_per_sec
         finishes = timezone.now() + timedelta(seconds=time_remaining)
+        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes)
 
-        print(" > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes))
+        if partition is not None:
+            status += ' [PARTITION %d]' % partition
+
+        print(status)
 
     print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
 
