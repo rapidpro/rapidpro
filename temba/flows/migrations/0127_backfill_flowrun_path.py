@@ -62,16 +62,16 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     else:
         max_run_id = int(max_run_id)
 
-    # get all flow run ids we're going to migrate
-    run_ids = FlowRun.objects.filter(flow__is_active=True).values_list('id', flat=True).order_by('id')
+    # get all flow runs we're going to migrate
+    runs = FlowRun.objects.filter(flow__is_active=True).only('id').order_by('id')
 
     if highpoint:
         print("Resuming from previous highpoint at run #%d" % highpoint)
-        run_ids = run_ids.filter(id__gt=highpoint)
+        runs = runs.filter(id__gt=highpoint)
 
     if max_run_id:
         print("Migrating runs up to run #%d" % max_run_id)
-        run_ids = run_ids.filter(id__lte=max_run_id)
+        runs = runs.filter(id__lte=max_run_id)
 
     remaining_estimate = max_run_id - highpoint
     print("Estimated %d runs need to be migrated" % remaining_estimate)
@@ -81,15 +81,15 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     start = None
 
     # we want to prefetch steps with each flow run, in chronological order
-    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('arrived_on'))
+    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('id'))
 
-    for id_batch in chunk_list(run_ids.iterator(), 1000):
+    for run_batch in chunk_list(runs.iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
 
         with transaction.atomic():
-            batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
+            batch = FlowRun.objects.filter(id__in=[r.id for r in run_batch]).order_by('id').prefetch_related(steps_prefetch)
 
             for run in batch:
                 path = []
