@@ -6,7 +6,7 @@ import json
 import time
 
 from datetime import timedelta
-from django.db import migrations
+from django.db import migrations, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -88,31 +88,32 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         if start is None:
             start = time.time()
 
-        batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
+        with transaction.atomic():
+            batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
 
-        for run in batch:
-            path = []
-            for step in run.steps.all():
-                step_dict = {PATH_NODE_UUID: step.step_uuid, PATH_ARRIVED_ON: step.arrived_on.isoformat()}
-                if step.step_type == 'R':
-                    step_dict[PATH_EXIT_UUID] = step.rule_uuid
-                else:
-                    exit_uuid = action_set_uuid_to_exit.get(step.step_uuid)
-                    if exit_uuid:
-                        step_dict[PATH_EXIT_UUID] = exit_uuid
+            for run in batch:
+                path = []
+                for step in run.steps.all():
+                    step_dict = {PATH_NODE_UUID: step.step_uuid, PATH_ARRIVED_ON: step.arrived_on.isoformat()}
+                    if step.step_type == 'R':
+                        step_dict[PATH_EXIT_UUID] = step.rule_uuid
+                    else:
+                        exit_uuid = action_set_uuid_to_exit.get(step.step_uuid)
+                        if exit_uuid:
+                            step_dict[PATH_EXIT_UUID] = exit_uuid
 
-                path.append(step_dict)
+                    path.append(step_dict)
 
-            # trim path if necessary
-            if len(path) > PATH_MAX_STEPS:
-                path = path[len(path) - PATH_MAX_STEPS:]
-                num_trimmed += 1
+                # trim path if necessary
+                if len(path) > PATH_MAX_STEPS:
+                    path = path[len(path) - PATH_MAX_STEPS:]
+                    num_trimmed += 1
 
-            run.path = json.dumps(path)
-            run.save(update_fields=('path',))
+                run.path = json.dumps(path)
+                run.save(update_fields=('path',))
 
-            highpoint = run.id
-            cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
+                highpoint = run.id
+                cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
 
         num_updated += len(batch)
         updated_per_sec = num_updated / (time.time() - start)
