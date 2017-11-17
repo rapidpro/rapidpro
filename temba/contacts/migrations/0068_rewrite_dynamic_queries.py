@@ -12,14 +12,14 @@ def rewrite_query_node(node):
         ch_list = []
 
         for ch in node.children:
-            if not(isinstance(ch, Condition)) or ch.prop != 'name':
+            if not(isinstance(ch, Condition)) or ch.prop != 'name' or ch.prop != 'id':
                 rw_q = rewrite_query_node(ch)
                 if rw_q is not None:
                     ch_list.append(rw_q)
         if len(ch_list) == 0:
             return None
         node.children = ch_list
-    elif isinstance(node, Condition) and node.prop == 'name':
+    elif isinstance(node, Condition) and (node.prop == 'name' or node.prop == 'id'):
         return None
 
     return node

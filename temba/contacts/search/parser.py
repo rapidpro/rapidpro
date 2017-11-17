@@ -106,7 +106,10 @@ class ContactQuery(object):
         return prop_map
 
     def can_be_dynamic_group(self):
-        return 'name' not in self.root.get_prop_names()
+        props_not_allowed = {'name', 'id'}
+        prop_names = set(self.root.get_prop_names())
+
+        return not(prop_names.intersection(props_not_allowed))
 
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
