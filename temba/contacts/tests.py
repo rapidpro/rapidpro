@@ -4129,7 +4129,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
                 ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -4137,9 +4137,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search within a specified group of contacts
-        # TODO: implicit search gets rewritten to 'name ~ "Hagg"'
-        # TODO: there is one EXTRA query ... is this significant ???
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
                 ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],

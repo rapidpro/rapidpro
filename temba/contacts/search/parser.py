@@ -80,13 +80,18 @@ class ContactQuery(object):
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
         and URN schemes.
         """
-        prop_map = {p: None for p in set(self.root.get_prop_names())}
 
-        searchable_attrs = ['name']
+        searchable_attrs = {'name'}
         if org.is_anon:
-            searchable_attrs.append('id')
+            searchable_attrs.update(['id'])
 
-        for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
+        all_props = set(self.root.get_prop_names())
+
+        attr_props = all_props.difference(searchable_attrs)
+
+        prop_map = {p: None for p in all_props}
+
+        for field in ContactField.objects.filter(org=org, key__in=attr_props, is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
 
         for attr in searchable_attrs:
