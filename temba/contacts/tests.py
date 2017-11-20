@@ -1106,13 +1106,13 @@ class ContactTest(TembaTest):
 
         # implicit condition on tel if value is all tel chars
         self.assertEqual(parse_query('1234'), ContactQuery(Condition('tel', '~', '1234')))
-        self.assertEqual(parse_query('+12-34'), ContactQuery(Condition('tel', '~', '+12-34')))
+        self.assertEqual(parse_query('+12-34'), ContactQuery(Condition('tel', '~', '1234')))
         self.assertEqual(parse_query('1234', as_anon=True), ContactQuery(Condition('id', '=', '1234')))
         self.assertEqual(parse_query('+12-34', as_anon=True), ContactQuery(Condition('name', '~', '+12-34')))
         self.assertEqual(parse_query('bob', as_anon=True), ContactQuery(Condition('name', '~', 'bob')))
 
         self.assertEqual(parse_query('1234').as_text(), 'tel ~ 1234')
-        self.assertEqual(parse_query('+12-34').as_text(), 'tel ~ "+12-34"')
+        self.assertEqual(parse_query('+12-34').as_text(), 'tel ~ 1234')
 
         # boolean combinations of implicit conditions
         self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(

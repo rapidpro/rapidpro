@@ -17,7 +17,7 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.test import override_settings, SimpleTestCase
+from django.test import override_settings, SimpleTestCase, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
@@ -29,6 +29,8 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+
+from temba.utils.phonenumber import normalize_phonenumber
 from . import format_decimal, str_to_datetime, str_to_time, date_to_utc_range
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime
@@ -1635,3 +1637,24 @@ class MakeTestDBTest(SimpleTestCase):
 
         # but simulate can
         call_command('test_db', 'simulate', num_runs=2)
+
+
+class PhoneNumberTest(TestCase):
+    def test_normalize_phonenumber(self):
+        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+1-234-567-8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+1 (234) 567-8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+12 34 567 8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber(' 234 567 8901'), '2345678901')
+
+        # these should not be parsed as numbers
+        self.assertIsNone(normalize_phonenumber('+12345678901 not a number'))
+        self.assertIsNone(normalize_phonenumber('AMAZONS'))
+        self.assertIsNone(normalize_phonenumber('name = "Jack"'))
+        self.assertIsNone(normalize_phonenumber('(social = "234-432-324")'))

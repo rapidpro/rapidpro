@@ -1,7 +1,6 @@
 from __future__ import print_function, unicode_literals
 
 import operator
-import regex
 import six
 
 from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
@@ -16,6 +15,7 @@ from django.utils.translation import gettext as _
 from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime, date_to_utc_range
+from temba.utils.phonenumber import normalize_phonenumber, TEL_VALUE_REGEX
 from temba.values.models import Value
 from temba.contacts.models import ContactField, ContactURN
 
@@ -27,8 +27,6 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
-
-TEL_VALUE_REGEX = regex.compile(r'^[+\d\-]+$')
 
 
 class Concat(Func):
@@ -580,7 +578,17 @@ def parse_query(text, optimize=True, as_anon=False):
     from .gen.ContactQLLexer import ContactQLLexer
     from .gen.ContactQLParser import ContactQLParser
 
-    stream = InputStream(text)
+    if as_anon is False:
+        # if the search query looks like a phone number, normalize it before parsing
+        normalized_phone_number = normalize_phonenumber(text)
+    else:
+        normalized_phone_number = None
+
+    if normalized_phone_number:
+        stream = InputStream(normalized_phone_number)
+    else:
+        stream = InputStream(text)
+
     lexer = ContactQLLexer(stream)
     tokens = CommonTokenStream(lexer)
     parser = ContactQLParser(tokens)
