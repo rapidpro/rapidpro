@@ -2020,24 +2020,28 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        check_channels_task()
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['from_email'] = 'support@mybrand.com'
+        with self.settings(BRANDING=branding):
+            check_channels_task()
 
-        # should have created one alert
-        alert = Alert.objects.get()
-        self.assertEqual(self.channel, alert.channel)
-        self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-        self.assertFalse(alert.ended_on)
+            # should have created one alert
+            alert = Alert.objects.get()
+            self.assertEqual(self.channel, alert.channel)
+            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
+            self.assertFalse(alert.ended_on)
 
-        self.assertTrue(len(mail.outbox) == 1)
-        template = 'channels/email/disconnected_alert.txt'
-        context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=self.channel.org.get_branding(),
-                       last_seen=self.channel.last_seen, sync=alert.sync_event)
+            self.assertTrue(len(mail.outbox) == 1)
+            template = 'channels/email/disconnected_alert.txt'
+            context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
+                           branding=self.channel.org.get_branding(),
+                           last_seen=self.channel.last_seen, sync=alert.sync_event)
 
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
+            text_template = loader.get_template(template)
+            text = text_template.render(context)
 
-        self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].from_email, 'support@mybrand.com')
 
         # call it again
         check_channels_task()
