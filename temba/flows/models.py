@@ -2309,7 +2309,8 @@ class Flow(TembaModel):
         try:
 
             # make sure the flow version hasn't changed out from under us
-            if json_dict.get(Flow.VERSION) != get_current_export_version():
+            current_version = get_current_export_version()
+            if json_dict.get(Flow.VERSION, current_version) != current_version:
                 return dict(status="flow_migrated")
 
             flow_user = get_flow_user(self.org)
