@@ -1,9 +1,5 @@
 -load humanize i18n compress temba
 
-// <script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
-// <script src="https://code.highcharts.com/highcharts.js"></script>
-// <script src="https://code.highcharts.com/modules/drilldown.js"></script>
-
 -compress css inline
   {% lessblock %}
     :plain
@@ -49,6 +45,9 @@
       }
   {% endlessblock %}
 
+-if not hod and not dow
+  -trans "No results yet"
+
 -if hod and dow
   #histogram_container
     %h4
@@ -70,18 +69,6 @@
     %h4
       -trans "Time of Day"
     #hod
-
-:javascript
-  $(document).ready(function(){
-    Highcharts.setOptions({
-      global: {
-        timezoneOffset: -1 * {{utcoffset}}
-      },
-      lang: {
-        thousandsSep: ','
-      }
-    });
-  });
 
 -if hod and dow
   :javascript
