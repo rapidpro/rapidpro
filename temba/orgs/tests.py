@@ -2376,7 +2376,7 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        response = self.client.post(url, dict(primary_lang='fra', languages='hat,arc'))
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -2391,17 +2391,17 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
-        self.assertContains(response, 'fre')
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic (700-300 BCE)')
+        self.assertContains(response, 'fra')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
         self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic (700-300 BCE) and Spanish')
 
         # one translation language
-        self.client.post(url, dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
         self.assertEqual(response.context['languages'], 'Haitian')
 
@@ -2412,36 +2412,35 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % url)
+        response = self.client.get('%s?search=fra' % url)
         results = response.json()['results']
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % url)
+        response = self.client.get('%s?initial=fra' % url)
         results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
-        self.assertEqual('French', languages.get_language_name('fre'))
-        self.assertEqual('Creoles and pidgins, English based', languages.get_language_name('cpe'))
+        self.assertEqual('French', languages.get_language_name('fra'))
+        self.assertEqual('Chinese Pidgin English', languages.get_language_name('cpi'))
 
         # should strip off anything after an open paren or semicolon
-        self.assertEqual('Official Aramaic', languages.get_language_name('arc'))
         self.assertEqual('Haitian', languages.get_language_name('hat'))
 
         # check that search returns results and in the proper order
         matches = languages.search_language_names('Fre')
-        self.assertEqual(4, len(matches))
-        self.assertEqual('Creoles and pidgins, French-based', matches[0]['text'])
-        self.assertEqual('French', matches[1]['text'])
-        self.assertEqual('French, Middle (ca.1400-1600)', matches[2]['text'])
-        self.assertEqual('French, Old (842-ca.1400)', matches[3]['text'])
+        self.assertEqual(13, len(matches))
+        self.assertEqual('Saint Lucian Creole French', matches[0]['text'])
+        self.assertEqual('Seselwa Creole French', matches[1]['text'])
+        self.assertEqual('French', matches[2]['text'])
+        self.assertEqual('Cajun French', matches[3]['text'])
 
         # try a language that doesn't exist
         self.assertEqual(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
-        text_translations = dict(eng="Hello", esp="Hola")
+        text_translations = dict(eng="Hello", spa="Hola")
 
         # null case
         self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
@@ -2450,10 +2449,10 @@ class LanguageTest(TembaTest):
         self.assertEqual(Language.get_localized_text(text_translations, ['eng'], "Hi"), "Hello")
 
         # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre'], "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra'], "Hi"), "Hi")
 
         # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre', 'esp'], "Hi"), "Hola")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra', 'spa'], "Hi"), "Hola")
 
 
 class BulkExportTest(TembaTest):
