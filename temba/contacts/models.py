@@ -2345,7 +2345,7 @@ class ContactGroup(TembaModel):
             self.contacts.clear()
             self.contacts.add(*members)
         else:
-            raise ValueError('Can not update a dynamic query that is not allowed')
+            raise ValueError('Cannot update a dynamic query that is not allowed')
 
     def _get_dynamic_members(self, base_set=None):
         """

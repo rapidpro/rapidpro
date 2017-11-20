@@ -12,14 +12,14 @@ def rewrite_query_node(node):
         ch_list = []
 
         for ch in node.children:
-            if not(isinstance(ch, Condition)) or ch.prop != 'name' or ch.prop != 'id':
+            if not (isinstance(ch, Condition)) or ch.prop not in ('name', 'id'):
                 rw_q = rewrite_query_node(ch)
                 if rw_q is not None:
                     ch_list.append(rw_q)
         if len(ch_list) == 0:
             return None
         node.children = ch_list
-    elif isinstance(node, Condition) and (node.prop == 'name' or node.prop == 'id'):
+    elif isinstance(node, Condition) and node.prop in ('name', 'id'):
         return None
 
     return node
@@ -64,13 +64,13 @@ def rewrite_dynamic_contactgroups(dynamic_groups_qs):
 
 def apply_manual():
     from temba.contacts.models import ContactGroup
-    rewrite_dynamic_contactgroups(dynamic_groups_qs=ContactGroup.user_groups.exclude(query__isnull=True))
+    rewrite_dynamic_contactgroups(ContactGroup.user_groups.exclude(query__isnull=True))
 
 
 def apply_as_migration(apps, schema_editor):
     ContactGroup = apps.get_model('contacts', 'ContactGroup')
     dg_qs = ContactGroup.all_groups.exclude(query__isnull=True).filter(group_type='U', is_active=True)
-    rewrite_dynamic_contactgroups(dynamic_groups_qs=dg_qs)
+    rewrite_dynamic_contactgroups(dg_qs)
 
 
 class Migration(migrations.Migration):

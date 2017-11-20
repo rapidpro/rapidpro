@@ -100,7 +100,9 @@ class ContactGroupForm(forms.ModelForm):
             if parsed_query.can_be_dynamic_group():
                 return parsed_query.as_text()
             else:
-                raise forms.ValidationError(_("The search expression can not be saved as a dynamic query"))
+                raise forms.ValidationError(
+                    _("You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>.")
+                )
         except SearchException as e:
             raise forms.ValidationError(six.text_type(e))
 

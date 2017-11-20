@@ -547,14 +547,20 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # update both name and query, form should fail, because group can not be saved as a dynamic group
         response = self.client.post(url, dict(name='Frank', query='frank'))
-        self.assertFormError(response, 'form', 'query', 'The search expression can not be saved as a dynamic query')
+        self.assertFormError(
+            response, 'form', 'query',
+            'You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>.'
+        )
 
         # update both name and query, form should fail, because query is not parsable
         response = self.client.post(url, dict(name='Frank', query='(!))!)'))
         self.assertFormError(response, 'form', 'query', 'Search query contains an error at: !')
 
         response = self.client.post(url, dict(name='Frank', query='id = 123'))
-        self.assertFormError(response, 'form', 'query', 'The search expression can not be saved as a dynamic query')
+        self.assertFormError(
+            response, 'form', 'query',
+            'You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>.'
+        )
 
         response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
         self.assertNoFormErrors(response)
