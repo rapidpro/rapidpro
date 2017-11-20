@@ -2307,6 +2307,11 @@ class Flow(TembaModel):
             raise FlowException("Found invalid cycle: %s" % cycle)
 
         try:
+
+            # make sure the flow version hasn't changed out from under us
+            if json_dict.get(Flow.VERSION) != get_current_export_version():
+                return dict(status="flow_migrated")
+
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:

@@ -4531,6 +4531,15 @@ class FlowsTest(FlowFileTest):
         response = flow.update(flow_json, self.admin)
         self.assertEqual(response.get('status'), 'unsaved')
 
+        # we should also fail if we try saving an old spec version from the editor
+        flow.refresh_from_db()
+        flow_json = flow.as_json()
+
+        with patch('temba.flows.models.get_current_export_version') as mock_version:
+            mock_version.return_value = '1.234'
+            response = flow.update(flow_json, self.admin)
+            self.assertEqual(response.get('status'), 'flow_migrated')
+
     def test_flow_category_counts(self):
 
         def assertCount(counts, result_key, category_name, truth):
