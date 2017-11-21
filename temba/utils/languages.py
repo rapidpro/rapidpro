@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pycountry
 
 iso_codes = {}
+migration_lang_cache = {}
 
 
 def get_language_name(iso_code):
@@ -70,28 +71,35 @@ def iso6392_to_iso6393(iso_code, country_code=None):
     import iso639
     iso_code = iso_code.lower().strip()
 
-    # build our key
-    override_key = '%s:%s' % (country_code, iso_code) if country_code else 'XX:%s' % iso_code
-    override = MIGRATION_OVERRIDES.get(override_key)
+    cache_key = '{}:{}'.format(iso_code, 'XX' if country_code is None else country_code)
 
-    if override:
-        return override
+    if cache_key not in migration_lang_cache:
 
-    else:
-        # first try looking up by part 2 bibliographic (which is what we use when available)
-        try:
-            lang = iso639.languages.get(part2b=iso_code)
-        except KeyError:
-            lang = None
+        # build our key
+        override_key = '%s:%s' % (country_code, iso_code) if country_code else 'XX:%s' % iso_code
+        override = MIGRATION_OVERRIDES.get(override_key)
 
-        # if not found, back down to typographical
-        if lang is None:
+        if override:
+            return override
+
+        else:
+            # first try looking up by part 2 bibliographic (which is what we use when available)
             try:
-                lang = iso639.languages.get(part2t=iso_code)
+                lang = iso639.languages.get(part2b=iso_code)
             except KeyError:
-                pass
+                lang = None
 
-        if lang and lang.part3:
-            return lang.part3
+            # if not found, back down to typographical
+            if lang is None:
+                try:
+                    lang = iso639.languages.get(part2t=iso_code)
+                except KeyError:
+                    pass
+
+            if lang and lang.part3:
+                migration_lang_cache[cache_key] = lang.part3
+                return lang.part3
+    else:
+        return migration_lang_cache[cache_key]
 
     raise ValueError("unable to determine iso639-3 code: %s (%s)" % (iso_code, country_code))
