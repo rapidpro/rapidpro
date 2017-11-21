@@ -41,6 +41,9 @@ def search_language_names(query):
     return matches
 
 
+# As iso639-2 languages can be broad, not all iso639-2 languages have direct translations to iso639-3. This table
+# maps country and iso639-2 codes to a specific iso639-3 language code. It isn't inclusive but covers the cases
+# we know about at the time of our 639-2 -> 639-3 migration.
 MIGRATION_OVERRIDES = {
     'NG:cpe': 'pcm',
     'LI:cpe': 'lir',
