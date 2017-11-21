@@ -2309,8 +2309,7 @@ class Flow(TembaModel):
         try:
 
             # make sure the flow version hasn't changed out from under us
-            current_version = get_current_export_version()
-            if json_dict.get(Flow.VERSION, current_version) != current_version:
+            if json_dict.get(Flow.VERSION) != get_current_export_version():
                 return dict(status="flow_migrated")
 
             flow_user = get_flow_user(self.org)
@@ -4017,6 +4016,7 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
+                        json_flow[Flow.VERSION] = version
                     flows.append(json_flow)
                 exported_json['flows'] = flows
 
@@ -4038,6 +4038,7 @@ class FlowRevision(SmartModel):
 
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break

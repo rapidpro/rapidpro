@@ -1,0 +1,74 @@
+{
+  "campaigns": [], 
+  "version": "10.4", 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "73de0931-2af4-46b0-9f45-aa0446e0a696", 
+          "exit_uuid": "1a9f4c90-c1da-442d-8c22-085a88541365", 
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "actions": [
+            {
+              "type": "flow", 
+              "flow": {
+                "name": "Second Flow", 
+                "uuid": "668db0e9-5a21-4ea6-8ccf-113e08e71d4c"
+              }, 
+              "uuid": "6d457e64-042a-4e65-8a84-29893b20ac11"
+            }
+          ]
+        }
+      ], 
+      "version": "10.4", 
+      "flow_type": "F", 
+      "entry": "73de0931-2af4-46b0-9f45-aa0446e0a696", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "dd2c376d-4d33-43e9-8cc2-84995b2281d7", 
+        "name": "First Flow", 
+        "saved_on": "2017-11-21T15:58:04.190439Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "bc47a4a7-6411-404d-9547-8865c63b0b1a", 
+          "exit_uuid": "11452f8b-c6a3-4bf1-a69d-9ed3994c6cfd", 
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "actions": [
+            {
+              "type": "flow", 
+              "flow": {
+                "name": "First Flow", 
+                "uuid": "dd2c376d-4d33-43e9-8cc2-84995b2281d7"
+              }, 
+              "uuid": "2962f638-6971-4f8f-af81-96e242be591b"
+            }
+          ]
+        }
+      ], 
+      "version": "10.4", 
+      "flow_type": "F", 
+      "entry": "bc47a4a7-6411-404d-9547-8865c63b0b1a", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "668db0e9-5a21-4ea6-8ccf-113e08e71d4c", 
+        "name": "Second Flow", 
+        "saved_on": "2017-11-21T15:58:13.387818Z"
+      }
+    }
+  ], 
+  "triggers": []
+}
