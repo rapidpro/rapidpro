@@ -4,9 +4,10 @@ from __future__ import unicode_literals, print_function
 
 import json
 import time
+import os
 
 from datetime import timedelta
-from django.db import migrations
+from django.db import migrations, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -45,12 +46,23 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
             "Found actionsets without exit_uuids, use migrate_flows command to migrate these flows forward"
         )
 
+    # are we running on just a partition of the runs?
+    partition = os.environ.get('PARTITION')
+    if partition is not None:
+        partition = int(partition)
+        if partition < 0 or partition > 3:
+            raise ValueError("Partition must be 0-3")
+
+        print("Migrating runs in partition %d" % partition)
+
     # has this migration been run before but didn't complete?
-    highpoint = cache.get(CACHE_KEY_HIGHPOINT)
+    highpoint = None
+    if partition is not None:
+        highpoint = cache.get(CACHE_KEY_HIGHPOINT + (':%d' % partition))
     if highpoint is None:
-        highpoint = 0
-    else:
-        highpoint = int(highpoint)
+        highpoint = cache.get(CACHE_KEY_HIGHPOINT)
+
+    highpoint = 0 if highpoint is None else int(highpoint)
 
     max_run_id = cache.get(CACHE_KEY_MAX_RUN_ID)
     if max_run_id is None:
@@ -62,16 +74,16 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     else:
         max_run_id = int(max_run_id)
 
-    # get all flow run ids we're going to migrate
-    run_ids = FlowRun.objects.filter(flow__is_active=True).values_list('id', flat=True).order_by('id')
+    # get all flow runs we're going to migrate
+    runs = FlowRun.objects.filter(flow__is_active=True).only('id').order_by('id')
 
     if highpoint:
         print("Resuming from previous highpoint at run #%d" % highpoint)
-        run_ids = run_ids.filter(id__gt=highpoint)
+        runs = runs.filter(id__gt=highpoint)
 
     if max_run_id:
         print("Migrating runs up to run #%d" % max_run_id)
-        run_ids = run_ids.filter(id__lte=max_run_id)
+        runs = runs.filter(id__lte=max_run_id)
 
     remaining_estimate = max_run_id - highpoint
     print("Estimated %d runs need to be migrated" % remaining_estimate)
@@ -81,47 +93,61 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     start = None
 
     # we want to prefetch steps with each flow run, in chronological order
-    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('arrived_on'))
+    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('id'))
 
-    for id_batch in chunk_list(run_ids.iterator(), 1000):
+    for run_batch in chunk_list(runs.iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
 
-        batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related(steps_prefetch)
+        with transaction.atomic():
+            if partition is not None:
+                run_ids = [r.id for r in run_batch if ((r.id + partition) % 4 == 0)]
+            else:
+                run_ids = [r.id for r in run_batch]
 
-        for run in batch:
-            path = []
-            for step in run.steps.all():
-                step_dict = {PATH_NODE_UUID: step.step_uuid, PATH_ARRIVED_ON: step.arrived_on.isoformat()}
-                if step.step_type == 'R':
-                    step_dict[PATH_EXIT_UUID] = step.rule_uuid
+            batch = FlowRun.objects.filter(id__in=run_ids).order_by('id').prefetch_related(steps_prefetch)
+
+            for run in batch:
+                path = []
+                for step in run.steps.all():
+                    step_dict = {PATH_NODE_UUID: step.step_uuid, PATH_ARRIVED_ON: step.arrived_on.isoformat()}
+                    if step.step_type == 'R':
+                        step_dict[PATH_EXIT_UUID] = step.rule_uuid
+                    else:
+                        exit_uuid = action_set_uuid_to_exit.get(step.step_uuid)
+                        if exit_uuid:
+                            step_dict[PATH_EXIT_UUID] = exit_uuid
+
+                    path.append(step_dict)
+
+                # trim path if necessary
+                if len(path) > PATH_MAX_STEPS:
+                    path = path[len(path) - PATH_MAX_STEPS:]
+                    num_trimmed += 1
+
+                run.path = json.dumps(path)
+                run.save(update_fields=('path',))
+
+                highpoint = run.id
+                if partition is not None:
+                    cache.set(CACHE_KEY_HIGHPOINT + (":%d" % partition), str(run.id), 60 * 60 * 24 * 7)
                 else:
-                    exit_uuid = action_set_uuid_to_exit.get(step.step_uuid)
-                    if exit_uuid:
-                        step_dict[PATH_EXIT_UUID] = exit_uuid
-
-                path.append(step_dict)
-
-            # trim path if necessary
-            if len(path) > PATH_MAX_STEPS:
-                path = path[len(path) - PATH_MAX_STEPS:]
-                num_trimmed += 1
-
-            run.path = json.dumps(path)
-            run.save(update_fields=('path',))
-
-            highpoint = run.id
-            cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
+                    cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
 
         num_updated += len(batch)
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
-        time_remaining = ((max_run_id - highpoint) / updated_per_sec)
+        num_remaining = ((max_run_id - highpoint) / 4) if partition is not None else (max_run_id - highpoint)
+        time_remaining = num_remaining / updated_per_sec
         finishes = timezone.now() + timedelta(seconds=time_remaining)
+        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes)
 
-        print(" > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes))
+        if partition is not None:
+            status += ' [PARTITION %d]' % partition
+
+        print(status)
 
     print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
 
