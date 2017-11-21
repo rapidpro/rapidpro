@@ -285,6 +285,7 @@ class Flow(TembaModel):
 
         entry_uuid = six.text_type(uuid4())
         definition = {
+            'version': flow.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -1274,6 +1275,7 @@ class Flow(TembaModel):
 
         entry_uuid = str(uuid4())
         definition = {
+            'version': self.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
