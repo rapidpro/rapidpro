@@ -31,8 +31,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from email.utils import parseaddr
 from functools import cmp_to_key
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
-from smartmin.views import SmartModelFormView, SmartModelActionView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView
+from smartmin.views import SmartTemplateView, SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
@@ -43,8 +43,7 @@ from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, \
-    ACCOUNT_TOKEN
+from .models import Org, OrgCache, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, ACCOUNT_TOKEN
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
@@ -2597,7 +2596,6 @@ class TopUpCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super(TopUpCRUDL.Update, self).post_save(obj)
-            obj.org.update_caches(OrgEvent.topup_updated, obj)
             obj.org.apply_topups()
             return obj
 
