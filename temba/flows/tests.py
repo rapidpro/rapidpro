@@ -1222,18 +1222,23 @@ class FlowTest(TembaTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_optimization_reply_action(self):
+        self.flow.version_number = '10.4'
+        self.flow.save(update_fields=('version_number',))
 
-        self.flow.update({"base_language": "base",
-                          "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                          "rule_sets": [],
-                          "action_sets": [{"y": 0, "x": 100,
-                                           "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                                           "actions": [{"type": "api", "webhook": "http://localhost:49999/coupon",
-                                                        "webhook_header": [{
-                                                            "name": "Authorization", "value": "Token 12345"
-                                                        }]},
-                                                       {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
-                          "metadata": {"notes": []}})
+        json_flow = FlowRevision.migrate_definition({
+            "base_language": "base",
+            "version": self.flow.version_number,
+            "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a",
+            "rule_sets": [],
+            "action_sets": [{"y": 0, "x": 100,
+                             "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
+                             "actions": [
+                                 {"type": "api", "webhook": "http://localhost:49999/coupon",
+                                  "webhook_header": [{"name": "Authorization", "value": "Token 12345"}]},
+                                 {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
+            "metadata": {"notes": []}}, self.flow)
+
+        self.flow.update(json_flow)
 
         self.mockRequest('POST', '/coupon', '{"coupon": "NEXUS4"}')
         self.flow.start([], [self.contact])
