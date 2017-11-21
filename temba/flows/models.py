@@ -943,12 +943,6 @@ class Flow(TembaModel):
                 break
         return versions
 
-    def get_newer_versions(self):
-        """
-        Finds all versions that are newer than our current version
-        """
-        return Flow.get_versions_after(self.version_number)
-
     def build_flow_context(self, contact, contact_context=None):
         """
         Get a flow context built on the last run for the contact in the given flow
