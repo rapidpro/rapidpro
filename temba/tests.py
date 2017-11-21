@@ -17,6 +17,7 @@ from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
@@ -457,6 +458,14 @@ class TembaTest(SmartminTest):
 
     def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
         return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
+
+    def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
+        self.assertEqual(len(mail.outbox), outbox_index + 1)
+        email = mail.outbox[outbox_index]
+        self.assertEqual(email.from_email, from_email)
+        self.assertEqual(email.subject, subject)
+        self.assertEqual(email.body, body)
+        self.assertEqual(email.recipients(), recipients)
 
     def assertMockedRequest(self, mock_request, data=None, **headers):
         if not mock_request.requested:

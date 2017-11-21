@@ -1,3 +1,9 @@
+v3.0.259
+----------
+ * Improve performance and restartability of run.path backfill migration
+ * Update to latest smartmin
+ * Use run.results for run results page
+
 v3.0.258
 ----------
  * Set brand domain on channel creations, use for callbacks

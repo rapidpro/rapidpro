@@ -734,7 +734,8 @@ class Org(SmartModel):
                                    smtp_host, smtp_port, smtp_username, smtp_password,
                                    use_tls)
         else:
-            send_simple_email(recipients, subject, body, from_email=settings.FLOW_FROM_EMAIL)
+            from_email = self.get_branding().get('flow_email', settings.FLOW_FROM_EMAIL)
+            send_simple_email(recipients, subject, body, from_email=from_email)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer

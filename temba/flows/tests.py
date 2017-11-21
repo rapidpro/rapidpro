@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
+import copy
 import datetime
 import json
 import os
@@ -12,7 +13,6 @@ import time
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db.models import Prefetch
 from django.test.utils import override_settings
@@ -2350,7 +2350,7 @@ class FlowTest(TembaTest):
         self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
 
         # can see results for a flow
-        response = self.client.get(reverse('flows.flow_results', args=[self.flow.id]))
+        response = self.client.get(reverse('flows.flow_results', args=[self.flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # check flow listing
@@ -3269,11 +3269,7 @@ class ActionTest(TembaTest):
         action = EmailAction.from_json(self.org, action_json)
 
         self.execute_action(action, run, msg)
-
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, "Subject")
-        self.assertEqual(mail.outbox[0].body, "Body")
-        self.assertEqual(mail.outbox[0].recipients(), ["steve@apple.com"])
+        self.assertOutbox(0, 'no-reply@temba.io', 'Subject', 'Body', ['steve@apple.com'])
 
         try:
             EmailAction(str(uuid4()), [], "Subject", "Body")
@@ -3290,11 +3286,7 @@ class ActionTest(TembaTest):
         action = EmailAction.from_json(self.org, action_json)
 
         self.execute_action(action, run, msg)
-
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertEqual(mail.outbox[1].subject, "Eric added in subject")
-        self.assertEqual(mail.outbox[1].body, "Eric uses phone 0788 382 382")
-        self.assertEqual(mail.outbox[1].recipients(), ["eric@nyaruka.com"])  # invalid emails are ignored
+        self.assertOutbox(1, 'no-reply@temba.io', 'Eric added in subject', 'Eric uses phone 0788 382 382', ['eric@nyaruka.com'])
 
         # check simulator reports invalid addresses
         test_contact = Contact.get_test_contact(self.user)
@@ -3312,21 +3304,20 @@ class ActionTest(TembaTest):
         test = EmailAction(str(uuid4()), ["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo")
         self.execute_action(test, run, msg)
 
-        self.assertEqual(len(mail.outbox), 3)
-        self.assertEqual(mail.outbox[2].subject, 'Allo allo message')
-        self.assertEqual(mail.outbox[2].body, 'Email notification for allo allo')
-        self.assertEqual(mail.outbox[2].recipients(), ["steve@apple.com"])
+        self.assertOutbox(2, 'no-reply@temba.io', 'Allo allo message', 'Email notification for allo allo', ["steve@apple.com"])
 
+        # now try with a custom from address
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['flow_email'] = 'no-reply@mybrand.com'
+        with self.settings(BRANDING=branding):
+            self.execute_action(action, run, msg)
+            self.assertOutbox(3, 'no-reply@mybrand.com', 'Eric added in subject', 'Eric uses phone 0788 382 382', ['eric@nyaruka.com'])
+
+        # same thing, but with a custom smtp server
         self.org.add_smtp_config('support@example.com', 'smtp.example.com', 'support@example.com', 'secret', '465', 'T', self.admin)
-
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
         self.execute_action(action, run, msg)
-
-        self.assertEqual(len(mail.outbox), 4)
-        self.assertEqual(mail.outbox[3].from_email, 'support@example.com')
-        self.assertEqual(mail.outbox[3].subject, 'Subject')
-        self.assertEqual(mail.outbox[3].body, 'Body')
-        self.assertEqual(mail.outbox[3].recipients(), ["steve@apple.com"])
+        self.assertOutbox(4, 'support@example.com', 'Subject', 'Body', ["steve@apple.com"])
 
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
@@ -4542,13 +4533,15 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_category_counts(self):
 
-        def assertCount(count_map, result_key, category_name, count):
-            categories = count_map[result_key]['categories']
+        def assertCount(counts, result_key, category_name, truth):
             found = False
-            for category in categories:
-                if category['name'] == category_name:
-                    found = True
-                    self.assertEqual(category['count'], count)
+            for count in counts['counts']:
+                if count['key'] == result_key:
+                    categories = count['categories']
+                    for category in categories:
+                        if category['name'] == category_name:
+                            found = True
+                            self.assertEqual(category['count'], truth)
             self.assertTrue(found)
 
         favorites = self.get_flow('favorites')
@@ -4558,11 +4551,13 @@ class FlowsTest(FlowFileTest):
             contact = self.create_contact('Contact %d' % i, '+120655530%d' % i)
             self.send_message(favorites, 'blue', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
+            self.send_message(favorites, 'russell', contact=contact)
 
         for i in range(0, 5):
             contact = self.create_contact('Contact %d' % i, '+120655531%d' % i)
             self.send_message(favorites, 'red', contact=contact)
             self.send_message(favorites, 'primus', contact=contact)
+            self.send_message(favorites, 'earl', contact=contact)
 
         # test update flow values
         for i in range(0, 5):
@@ -4570,11 +4565,16 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, 'orange', contact=contact)
             self.send_message(favorites, 'green', contact=contact)
             self.send_message(favorites, 'skol', contact=contact)
+            self.send_message(favorites, 'bobby', contact=contact)
 
         counts = favorites.get_category_counts()
+
         assertCount(counts, 'color', 'Blue', 10)
         assertCount(counts, 'color', 'Red', 5)
         assertCount(counts, 'beer', 'Primus', 15)
+
+        # name shouldn't be included since it's open ended
+        self.assertNotIn('"name": "Name"', json.dumps(counts))
 
         # five oranges went back and became greens
         assertCount(counts, 'color', 'Other', 0)
@@ -4639,12 +4639,18 @@ class FlowsTest(FlowFileTest):
         self.send_message(favorites, 'skol', contact=kobe)
 
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_results', args=[favorites.pk]))
+        response = self.client.get(reverse('flows.flow_results', args=[favorites.uuid]))
 
         # the rulesets should be present as column headers
         self.assertContains(response, 'Beer')
         self.assertContains(response, 'Color')
         self.assertContains(response, 'Name')
+
+        # fetch counts endpoint, should have 2 color results (one is a test contact)
+        response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
+        counts = json.loads(response.content)['counts']
+        self.assertEqual("Color", counts[0]['name'])
+        self.assertEqual(2, counts[0]['total'])
 
         # test a search on our runs
         response = self.client.get('%s?q=pete' % reverse('flows.flow_run_table', args=[favorites.pk]))
@@ -4683,7 +4689,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
 
         # we have two active runs
-        self.assertContains(response, "{ name: 'Active', y: 2 }")
+        self.assertContains(response, "name: 'Active', y: 2")
         self.assertContains(response, "3 Responses")
 
         # now send another message

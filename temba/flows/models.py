@@ -1012,7 +1012,7 @@ class Flow(TembaModel):
 
     def get_category_counts(self, deleted_nodes=True):
 
-        actives = self.rule_sets.all().values('uuid', 'label')
+        actives = self.rule_sets.all().values('uuid', 'label').order_by('y', 'x')
 
         uuids = [active['uuid'] for active in actives]
         keys = [Flow.label_to_slug(active['label']) for active in actives]
@@ -1028,14 +1028,36 @@ class Flow(TembaModel):
 
         results = {}
         for count in counts:
-            result = results.get(count['result_key'], {})
+            key = count['result_key']
+            result = results.get(key, {})
             if 'name' not in result:
+                if count['category_name'] == 'All Responses':
+                    continue
+                result['key'] = key
                 result['name'] = count['result_name']
                 result['categories'] = [dict(name=count['category_name'], count=count['count'])]
+                result['total'] = count['count']
             else:
                 result['categories'].append(dict(name=count['category_name'], count=count['count']))
+                result['total'] += count['count']
             results[count['result_key']] = result
-        return results
+
+        for k, v in six.iteritems(results):
+            for cat in results[k]['categories']:
+                if (results[k]['total']):
+                    cat['pct'] = float(cat['count']) / float(results[k]['total'])
+                else:
+                    cat['pct'] = 0
+
+        # order counts by their place on the flow
+        result_list = []
+        for active in actives:
+            key = Flow.label_to_slug(active['label'])
+            result = results.get(key)
+            if result:
+                result_list.append(result)
+
+        return dict(counts=result_list)
 
     def delete_results(self):
         """

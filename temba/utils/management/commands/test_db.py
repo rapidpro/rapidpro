@@ -87,6 +87,8 @@ FLOWS = (
     {'name': "Favorites", 'file': "favorites.json", 'templates': (
         ["blue", "mutzig", "bob"],
         ["orange", "green", "primus", "jeb"],
+        ["red", "skol", "rowan"],
+        ["red", "turbo", "nic"]
     )},
     {'name': "SMS Form", 'file': "sms_form.json", 'templates': (["22 F Seattle"], ["35 M MIAMI"])},
     {'name': "Pick a Number", 'file': "pick_a_number.json", 'templates': (["1"], ["4"], ["5"], ["7"], ["8"])}
@@ -126,7 +128,9 @@ class Command(BaseCommand):
         gen_parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
         sim_parser = subparsers.add_parser('simulate', help='Simulates activity on an existing database')
+        sim_parser.add_argument('--org_id', type=int, action='store', dest='org_id', default=None)
         sim_parser.add_argument('--runs', type=int, action='store', dest='num_runs', default=500)
+        sim_parser.add_argument('--flow', type=str, action='store', dest='flow_name', default=None)
 
     def handle(self, command, *args, **kwargs):
         start = time.time()
@@ -134,7 +138,7 @@ class Command(BaseCommand):
         if command == self.COMMAND_GENERATE:
             self.handle_generate(kwargs['num_orgs'], kwargs['num_contacts'], kwargs['seed'])
         else:
-            self.handle_simulate(kwargs['num_runs'])
+            self.handle_simulate(kwargs['num_runs'], kwargs['org_id'], kwargs['flow_name'])
 
         time_taken = time.time() - start
         self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -178,13 +182,16 @@ class Command(BaseCommand):
         self.create_flows(orgs)
         self.create_contacts(orgs, locations, num_contacts)
 
-    def handle_simulate(self, num_runs):
+    def handle_simulate(self, num_runs, org_id, flow_name):
         """
         Prepares to resume simulating flow activity on an existing database
         """
         self._log("Resuming flow activity simulation on existing database...\n")
 
-        orgs = list(Org.objects.order_by('id'))
+        orgs = Org.objects.order_by('id')
+        if org_id:
+            orgs = orgs.filter(id=org_id)
+
         if not orgs:
             raise CommandError("Can't simulate activity on an empty database")
 
@@ -198,7 +205,12 @@ class Command(BaseCommand):
         self._log("Preparing existing orgs... ")
 
         for org in orgs:
-            flows = list(org.flows.order_by('id'))
+            flows = org.flows.order_by('id')
+
+            if flow_name:
+                flows = flows.filter(name=flow_name)
+            flows = list(flows)
+
             for flow in flows:
                 flow.input_templates = inputs_by_flow_name[flow.name]
 
@@ -640,8 +652,7 @@ class Command(BaseCommand):
     def random_choice(self, seq, bias=1.0):
         if not seq:
             raise ValueError("Can't select random item from empty sequence")
-
-        return seq[int(math.pow(self.random.random(), bias) * len(seq))]
+        return seq[min(int(math.pow(self.random.random(), bias) * len(seq)), len(seq) - 1)]
 
     def weighted_choice(self, seq, weights):
         r = self.random.random() * sum(weights)
