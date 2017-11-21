@@ -1,6 +1,8 @@
 from __future__ import print_function, unicode_literals
 
 import operator
+
+import regex
 import six
 
 from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
@@ -15,7 +17,6 @@ from django.utils.translation import gettext as _
 from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime, date_to_utc_range
-from temba.utils.phonenumber import normalize_phonenumber, TEL_VALUE_REGEX
 from temba.values.models import Value
 from temba.contacts.models import ContactField, ContactURN
 
@@ -27,6 +28,9 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
+
+TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]*$')
+CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]*')
 
 
 class Concat(Func):
@@ -639,3 +643,14 @@ def extract_fields(org, text):
     parsed = parse_query(text, as_anon=org.is_anon)
     prop_map = parsed.get_prop_map(org)
     return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]
+
+
+def normalize_phonenumber(text):
+    """
+    Normalizes phone number - removes
+    """
+
+    if TEL_VALUE_REGEX.match(text):
+        return CLEAN_SPECIAL_CHARS_REGEX.sub('', text)
+    else:
+        return None

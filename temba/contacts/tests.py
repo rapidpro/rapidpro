@@ -11,6 +11,7 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db.models import Value as DbValue
 from django.db.models.functions import Substr, Concat
+from django.test import TestCase
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
@@ -20,6 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.search import normalize_phonenumber
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -4496,3 +4498,24 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("telegram:abcdef"))
         self.assertTrue(URN.validate("facebook:12345678901234567"))
         self.assertFalse(URN.validate("facebook:abcdef"))
+
+
+class PhoneNumberTest(TestCase):
+    def test_normalize_phonenumber(self):
+        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+1-234-567-8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+1 (234) 567-8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber('+12 34 567 8901'), '12345678901')
+
+        self.assertEqual(normalize_phonenumber(' 234 567 8901'), '2345678901')
+
+        # these should not be parsed as numbers
+        self.assertIsNone(normalize_phonenumber('+12345678901 not a number'))
+        self.assertIsNone(normalize_phonenumber('AMAZONS'))
+        self.assertIsNone(normalize_phonenumber('name = "Jack"'))
+        self.assertIsNone(normalize_phonenumber('(social = "234-432-324")'))
