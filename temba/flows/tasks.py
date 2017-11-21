@@ -11,7 +11,7 @@ from temba.utils import datetime_to_epoch
 from temba.utils.cache import QueueRecord
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
-from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage
+from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage, FlowCategoryCount
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
 logger = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ def prune_recentmessages():
 def squash_flowruncounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
+    FlowCategoryCount.squash()
 
 
 @task(track_started=True, name="delete_flow_results_task")

@@ -4087,7 +4087,11 @@ class FlowCategoryCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
         WITH removed as (
-            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+          DELETE FROM %(table)s WHERE "id" IN (
+            SELECT "id" FROM %(table)s
+              WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s
+              LIMIT 10000
+          ) RETURNING "count"
         )
         INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
         VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);

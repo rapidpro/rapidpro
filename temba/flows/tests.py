@@ -4625,7 +4625,9 @@ class FlowsTest(FlowFileTest):
         assertCount(counts, 'beer', 'Turbo King', 3)
 
         # make sure it still works after ze squashings
+        self.assertEqual(76, FlowCategoryCount.objects.all().count())
         FlowCategoryCount.squash()
+        self.assertEqual(9, FlowCategoryCount.objects.all().count())
         counts = favorites.get_category_counts()
         assertCount(counts, 'beer', 'Turbo King', 3)
 
