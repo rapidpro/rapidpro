@@ -14,7 +14,6 @@ def get_country_code(country_name):
     if country_name in country_code_cache:
         return country_code_cache[country_name]
     else:
-        # TODO: this will blow up if pycountry does not contain the country specifed by name
         country_code = pycountry.countries.get(name=country_name).alpha_2
         country_code_cache[country_name] = country_code
         return country_code
@@ -24,9 +23,13 @@ def migrate_language(contact_qs):
     with transaction.atomic():
         # if we define exact fields that are used it improves the execution speed
         # the execution was 'blocked' by Python while it was loading 30+ fields from db relations
+        # and two of those fields are large binary blobs - geometry
         for contact in contact_qs.only('org__country__name', 'language').iterator():
-            country_name = contact.org.country.name
-            country_code = get_country_code(country_name)
+            try:
+                country_name = contact.org.country.name
+                country_code = get_country_code(country_name)
+            except AttributeError:
+                country_code = None
 
             new_language = iso6392_to_iso6393(contact.language, country_code=country_code)
 

@@ -95,6 +95,12 @@ def iso6392_to_iso6393(iso_code, country_code=None):
                     lang = iso639.languages.get(part2t=iso_code)
                 except KeyError:
                     pass
+            # if not found, maybe it's already a 639-3 code
+            if lang is None:
+                try:
+                    lang = iso639.languages.get(part3=iso_code)
+                except KeyError:
+                    pass
 
             if lang and lang.part3:
                 migration_lang_cache[cache_key] = lang.part3

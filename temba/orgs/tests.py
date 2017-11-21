@@ -2472,6 +2472,9 @@ class LanguageTest(TembaTest):
         for lang in org_languages:
             self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
 
+        # test if language is already iso-639-3
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+
 
 class BulkExportTest(TembaTest):
 
