@@ -2962,7 +2962,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
-        node = last_step.get_step()
+        node = last_step.get_node()
 
         # only continue if we are at a ruleset with a timeout
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
@@ -3258,7 +3258,7 @@ class FlowStep(models.Model):
             if prev_step.step_type == cls.TYPE_RULE_SET:
                 exit_uuid = prev_step.rule_uuid
             else:
-                prev_node = prev_step.get_step()
+                prev_node = prev_step.get_node()
                 if prev_node:
                     exit_uuid = prev_node.exit_uuid
 
@@ -3429,9 +3429,9 @@ class FlowStep(models.Model):
             # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
-    def get_step(self):
+    def get_node(self):
         """
-        Returns either the RuleSet or ActionSet associated with this FlowStep
+        Returns the node (i.e. a RuleSet or ActionSet) associated with this step
         """
         if self.step_type == FlowStep.TYPE_RULE_SET:
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
