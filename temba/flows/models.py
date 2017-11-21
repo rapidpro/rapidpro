@@ -4031,7 +4031,7 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = get_current_export_version()
 
-        for version in flow.get_newer_versions():
+        for version in Flow.get_versions_after(json_flow.get(Flow.VERSION)):
             version_slug = version.replace(".", "_")
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
@@ -4054,6 +4054,10 @@ class FlowRevision(SmartModel):
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
+
+        # make sure old revisions migrate properly
+        if Flow.VERSION not in definition:
+            definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != get_current_export_version():
