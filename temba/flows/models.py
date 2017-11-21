@@ -4056,8 +4056,7 @@ class FlowRevision(SmartModel):
                               revision=self.revision, uuid=self.flow.uuid)
 
         # make sure old revisions migrate properly
-        if Flow.VERSION not in definition:
-            definition[Flow.VERSION] = self.spec_version
+        definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != get_current_export_version():
