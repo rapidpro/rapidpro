@@ -1495,7 +1495,7 @@ class Msg(models.Model):
 
         # costs 1 credit to send a message
         if not topup_id and not contact.is_test:
-            (topup_id, amount) = org.decrement_credit()
+            (topup_id, _) = org.decrement_credit()
 
         if response_to:
             msg_type = response_to.msg_type
