@@ -285,6 +285,7 @@ class Flow(TembaModel):
 
         entry_uuid = six.text_type(uuid4())
         definition = {
+            'version': flow.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -1274,6 +1275,7 @@ class Flow(TembaModel):
 
         entry_uuid = str(uuid4())
         definition = {
+            'version': self.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -2307,6 +2309,11 @@ class Flow(TembaModel):
             raise FlowException("Found invalid cycle: %s" % cycle)
 
         try:
+
+            # make sure the flow version hasn't changed out from under us
+            if json_dict.get(Flow.VERSION) != get_current_export_version():
+                return dict(status="flow_migrated")
+
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:
@@ -2533,9 +2540,6 @@ class Flow(TembaModel):
             elif entry in existing_rulesets:
                 self.entry_uuid = entry
                 self.entry_type = Flow.RULES_ENTRY
-            else:
-                self.entry_uuid = None
-                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -4011,6 +4015,7 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
+                        json_flow[Flow.VERSION] = version
                     flows.append(json_flow)
                 exported_json['flows'] = flows
 
@@ -4032,6 +4037,7 @@ class FlowRevision(SmartModel):
 
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break
