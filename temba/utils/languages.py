@@ -39,3 +39,56 @@ def search_language_names(query):
         if query in lang.name.lower():
             matches.append(dict(id=lang.alpha_3, text=lang.name))
     return matches
+
+
+MIGRATION_OVERRIDES = {
+    'NG:cpe': 'pcm',
+    'LI:cpe': 'lir',
+    'NI:cpe': 'bzk',
+
+    'XX:mkh': 'khm',
+    'XX:cpe': 'pcm',
+    'XX:art': 'epo',
+    'XX:cpf': 'gcr',
+    'XX:phi': 'fil',
+    'XX:smi': 'smj',
+    'XX:afa': 'ara',
+    'XX:aus': 'rop',
+    'XX:cpp': 'kea',
+    'XX:him': 'xnr',
+    'XX:kar': 'blk',
+}
+
+
+def iso6392_to_iso6393(iso_code, country_code=None):
+    """
+    Given an iso639-2 code and an optional country code, returns the appropriate 639-3 code to use.
+    """
+    import iso639
+    iso_code = iso_code.lower().strip()
+
+    # build our key
+    override_key = '%s:%s' % (country_code, iso_code) if country_code else 'XX:%s' % iso_code
+    override = MIGRATION_OVERRIDES.get(override_key)
+
+    if override:
+        return override
+
+    else:
+        # first try looking up by part 2 bibliographic (which is what we use when available)
+        try:
+            lang = iso639.languages.get(part2b=iso_code)
+        except KeyError:
+            lang = None
+
+        # if not found, back down to typographical
+        if lang is None:
+            try:
+                lang = iso639.languages.get(part2t=iso_code)
+            except KeyError:
+                pass
+
+        if lang and lang.part3:
+            return lang.part3
+
+    raise ValueError("unable to determine iso639-3 code: %s (%s)" % (iso_code, country_code))
