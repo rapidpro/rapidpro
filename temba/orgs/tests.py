@@ -376,6 +376,9 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
+        parent = Org.objects.create(name="Parent", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                    brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
+
         # change to the trial plan
         post_data = {
             'name': 'Temba',
@@ -389,7 +392,7 @@ class OrgTest(TembaTest):
             'date_format': 'D',
             'webhook': None,
             'webhook_events': 0,
-            'parent': '',
+            'parent': parent.id,
             'viewers': [self.user.id],
             'editors': [self.editor.id],
             'administrators': [self.admin.id],
@@ -405,6 +408,7 @@ class OrgTest(TembaTest):
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
+        self.assertEqual(parent, self.org.parent)
 
         # white list
         post_data['status'] = WHITELISTED
