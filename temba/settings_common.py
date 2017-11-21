@@ -441,6 +441,7 @@ PERMISSIONS = {
                    'archived',
                    'broadcast',
                    'campaign',
+                   'category_counts',
                    'completion',
                    'copy',
                    'editor',
@@ -812,6 +813,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
+        'flows.flow_category_counts',
         'flows.flow_export',
         'flows.flow_export_results',
         'flows.flow_filter',
@@ -932,10 +934,6 @@ CELERYBEAT_SCHEDULE = {
     "trim-webhook-event": {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
-    },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
