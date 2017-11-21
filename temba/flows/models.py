@@ -3242,13 +3242,25 @@ class FlowStep(models.Model):
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
     @classmethod
-    def from_json(cls, json_obj, flow, run, previous_rule=None):
-
+    def from_json(cls, json_obj, flow, run):
+        """
+        Creates a new flow step from the given Surveyor step JSON
+        """
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
         # find the previous step
-        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
+
+        # figure out which exit was taken by that step
+        exit_uuid = None
+        if prev_step:
+            if prev_step.step_type == cls.TYPE_RULE_SET:
+                exit_uuid = prev_step.rule_uuid
+            else:
+                prev_node = prev_step.get_step()
+                if prev_node:
+                    exit_uuid = prev_node.exit_uuid
 
         # generate the messages for this step
         msgs = []
@@ -3287,8 +3299,7 @@ class FlowStep(models.Model):
                 context = flow.build_expressions_context(run.contact, last_incoming)
                 msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on,
-                             exit_uuid=previous_rule)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=exit_uuid)
 
         # if a rule was picked on this ruleset
         if node.is_ruleset() and json_obj['rule']:
