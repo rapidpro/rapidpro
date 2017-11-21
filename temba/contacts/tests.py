@@ -551,7 +551,7 @@ class ContactGroupCRUDLTest(TembaTest):
         response = self.client.post(url, dict(name='Frank', query='frank'))
         self.assertFormError(
             response, 'form', 'query',
-            'You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>.'
+            'You cannot create a dynamic group based on "name" or "id".'
         )
 
         # update both name and query, form should fail, because query is not parsable
@@ -561,7 +561,7 @@ class ContactGroupCRUDLTest(TembaTest):
         response = self.client.post(url, dict(name='Frank', query='id = 123'))
         self.assertFormError(
             response, 'form', 'query',
-            'You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>.'
+            'You cannot create a dynamic group based on "name" or "id".'
         )
 
         response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
