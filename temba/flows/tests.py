@@ -7235,6 +7235,22 @@ class FlowMigrationTest(FlowFileTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    def test_migrate_revisions(self):
+        flow = self.get_flow('favorites_v4')
+        rev = flow.revisions.all().first()
+        json_flow = rev.get_definition_json()
+
+        # remove our flow version from the flow
+        del json_flow[Flow.VERSION]
+        rev.definition = json.dumps(json_flow)
+        rev.spec_version = '10'
+        rev.save()
+
+        self.assertEqual('success', flow.update(rev.get_definition_json())['status'])
+        flow.refresh_from_db()
+        self.assertEqual(2, flow.revisions.all().count())
+        self.assertEqual(get_current_export_version(), flow.version_number)
+
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
         self.assertEqual(3, self.org.flows.filter(name__icontains='Sample Flow').count())
