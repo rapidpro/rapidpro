@@ -1,3 +1,8 @@
+v3.0.261
+----------
+ * Migrate revisions forward with rev version
+ * Limit scope of squashing so we can recover from giant unsquashed numbers
+
 v3.0.260
 ----------
  * Make tests go through migration
