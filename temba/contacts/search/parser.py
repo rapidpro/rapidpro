@@ -29,8 +29,8 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
 
-TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]*$')
-CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]*')
+TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$')
+CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+')
 
 
 class Concat(Func):
@@ -588,13 +588,13 @@ def parse_query(text, optimize=True, as_anon=False):
     from .gen.ContactQLParser import ContactQLParser
 
     if as_anon is False:
-        # if the search query looks like a phone number, normalize it before parsing
-        normalized_phone_number = normalize_phonenumber(text)
+        # if the search query looks like a phone number, clean it before parsing
+        cleaned_phonenumber = is_it_a_phonenumber(text)
     else:
-        normalized_phone_number = None
+        cleaned_phonenumber = None
 
-    if normalized_phone_number:
-        stream = InputStream(normalized_phone_number)
+    if cleaned_phonenumber:
+        stream = InputStream(cleaned_phonenumber)
     else:
         stream = InputStream(text)
 
@@ -645,9 +645,9 @@ def extract_fields(org, text):
     return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]
 
 
-def normalize_phonenumber(text):
+def is_it_a_phonenumber(text):
     """
-    Normalizes phone number - removes
+    Checks if query looks like a phone number and strips special characters
     """
 
     if TEL_VALUE_REGEX.match(text):

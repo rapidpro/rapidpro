@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import normalize_phonenumber
+from temba.contacts.search import is_it_a_phonenumber
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -4502,21 +4502,22 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-    def test_normalize_phonenumber(self):
-        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+    def test_is_it_a_phonenumber(self):
+        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
 
-        self.assertEqual(normalize_phonenumber('+1-234-567-8901'), '12345678901')
+        self.assertEqual(is_it_a_phonenumber('+1-234-567-8901'), '12345678901')
 
-        self.assertEqual(normalize_phonenumber('+1 (234) 567-8901'), '12345678901')
+        self.assertEqual(is_it_a_phonenumber('+1 (234) 567-8901'), '12345678901')
 
-        self.assertEqual(normalize_phonenumber('+12345678901'), '12345678901')
+        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
 
-        self.assertEqual(normalize_phonenumber('+12 34 567 8901'), '12345678901')
+        self.assertEqual(is_it_a_phonenumber('+12 34 567 8901'), '12345678901')
 
-        self.assertEqual(normalize_phonenumber(' 234 567 8901'), '2345678901')
+        self.assertEqual(is_it_a_phonenumber(' 234 567 8901'), '2345678901')
 
         # these should not be parsed as numbers
-        self.assertIsNone(normalize_phonenumber('+12345678901 not a number'))
-        self.assertIsNone(normalize_phonenumber('AMAZONS'))
-        self.assertIsNone(normalize_phonenumber('name = "Jack"'))
-        self.assertIsNone(normalize_phonenumber('(social = "234-432-324")'))
+        self.assertIsNone(is_it_a_phonenumber('+12345678901 not a number'))
+        self.assertIsNone(is_it_a_phonenumber(''))
+        self.assertIsNone(is_it_a_phonenumber('AMAZONS'))
+        self.assertIsNone(is_it_a_phonenumber('name = "Jack"'))
+        self.assertIsNone(is_it_a_phonenumber('(social = "234-432-324")'))
