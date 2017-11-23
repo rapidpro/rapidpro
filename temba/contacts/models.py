@@ -27,11 +27,11 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
-
 
 logger = logging.getLogger(__name__)
 
@@ -514,12 +514,7 @@ class Contact(TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        user_groups = getattr(self, "_user_groups", None)
-        if not user_groups:
-            user_groups = self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
-            self._user_groups = user_groups
-
-        return self._user_groups
+        return get_cacheable_attr(self, '_user_groups', lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED))
 
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
@@ -803,6 +798,9 @@ class Contact(TembaModel):
             EventFire.update_events_for_contact_field(self, field.key)
 
         if group or dynamic_group_change:
+            # delete any cached groups
+            delattr(self, '_user_groups')
+
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
@@ -1560,6 +1558,16 @@ class Contact(TembaModel):
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
+
+    def get_send_channel(self, contact_urn):
+        cache = getattr(self, "_send_channels", {})
+        channel = cache.get(contact_urn.id)
+        if not channel:
+            channel = self.org.get_send_channel(contact_urn=contact_urn)
+            cache[contact_urn.id] = channel
+            self._send_channels = cache
+
+        return channel
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
