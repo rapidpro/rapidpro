@@ -1835,15 +1835,22 @@ class Flow(TembaModel):
 
         # build a map of contact to flow run
         run_map = dict()
-        for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now):
+        for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now).select_related('contact'):
+            run.org = self.org
+            run.flow = self
+            run.contact.org = self.org
+
             run_map[run.contact_id] = run
             if run.contact.is_test:
                 ActionLog.create(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
 
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
-        FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
-                                                                                     modified_on=timezone.now())
+
+        # if we have more than one run, update the others to the same expiration
+        if len(run_map) > 1:
+            FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
+                                                                                         modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1875,9 +1882,13 @@ class Flow(TembaModel):
         (entry_actions, entry_rules) = (None, None)
         if self.entry_type == Flow.ACTIONS_ENTRY:
             entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+            if entry_actions:
+                entry_actions.flow = self
 
         elif self.entry_type == Flow.RULES_ENTRY:
             entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+            if entry_rules:
+                entry_rules.flow = self
 
         runs = []
         msgs = []

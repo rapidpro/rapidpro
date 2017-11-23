@@ -514,7 +514,12 @@ class Contact(TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        user_groups = getattr(self, "_user_groups", None)
+        if not user_groups:
+            user_groups = self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+            self._user_groups = user_groups
+
+        return self._user_groups
 
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
