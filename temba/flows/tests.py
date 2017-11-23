@@ -8182,6 +8182,16 @@ class AndroidChildStatus(FlowFileTest):
         self.assertEqual(msgs[1].text, "Child Msg 2")
 
 
+class QueryTest(FlowFileTest):
+
+    def test_num_queries(self):
+        self.get_flow('query_test')
+        flow = Flow.objects.get(name="Query Test")
+
+        with self.assertNumQueries(25):
+            flow.start([], [self.contact])
+
+
 class FlowChannelSelectionTest(FlowFileTest):
 
     def setUp(self):
