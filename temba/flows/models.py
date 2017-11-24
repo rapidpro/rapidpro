@@ -35,7 +35,7 @@ from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
+from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
@@ -484,14 +484,9 @@ class Flow(TembaModel):
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
-        # if we handled it, increment our unread count
-        if handled:
-
-            if not call.contact.is_test:
-                run.flow.increment_unread_responses()
-
-            if msg.id:
-                Msg.mark_handled(msg)
+        # if we handled it, mark it so
+        if handled and msg.id:
+            Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -625,10 +620,6 @@ class Flow(TembaModel):
                                                       continue_parent=continue_parent)
 
             if handled:
-                # increment our unread count if this isn't the simulator
-                if not msg.contact.is_test:
-                    flow.increment_unread_responses()
-
                 return True, msgs
 
         return False, []
@@ -1205,30 +1196,6 @@ class Flow(TembaModel):
             'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
         }
 
-    def get_and_clear_unread_responses(self):
-        """
-        Gets the number of new responses since the last clearing for this flow.
-        """
-        r = get_redis_connection()
-
-        # get the number of new responses
-        new_responses = r.hget(UNREAD_FLOW_RESPONSES, self.id)
-
-        # then clear them
-        r.hdel(UNREAD_FLOW_RESPONSES, self.id)
-
-        return 0 if new_responses is None else int(new_responses)
-
-    def increment_unread_responses(self):
-        """
-        Increments the number of new responses for this flow.
-        """
-        r = get_redis_connection()
-        r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
-
-        # increment our global count as well
-        self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
-
     def get_columns(self):
         node_order = []
         for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
@@ -1508,11 +1475,6 @@ class Flow(TembaModel):
             if flow_start:
                 flow_start.update_status()
             return []
-
-        # single contact starting from a trigger? increment our unread count
-        if start_msg and contact_count == 1:
-            if Contact.objects.filter(pk=all_contact_ids[0], org=self.org, is_test=False).first():
-                self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,

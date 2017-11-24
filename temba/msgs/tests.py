@@ -305,13 +305,6 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.text, "Yes, 3.")
         self.assertEqual(six.text_type(msg), "Yes, 3.")
 
-        # assert there are 3 unread msgs for this org
-        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
-
-        # second go shouldn't hit DB
-        with self.assertNumQueries(0):
-            self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
-
         # Can't send incoming messages
         with self.assertRaises(Exception):
             msg.send()
@@ -334,8 +327,6 @@ class MsgTest(TembaTest):
         # hit the inbox page, that should reset our unread count
         self.login(self.admin)
         self.client.get(reverse('msgs.msg_inbox'))
-
-        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
         # test that invalid chars are stripped from message text
         msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")

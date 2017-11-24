@@ -116,9 +116,9 @@ def process_message_task(msg_event):
 
             if contact_msg:
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = Msg.objects.filter(id=msg_event['id']).order_by().select_related('org', 'contact', 'contact_urn', 'channel').first()
 
-                if msg:
+                if msg and msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
 
     # backwards compatibility for events without contact ids, we handle the message directly
