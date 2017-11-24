@@ -105,6 +105,7 @@ class InboxView(OrgPermsMixin, SmartListView):
     paginate_by = 100
     actions = ()
     allow_export = False
+    show_channel_logs = False
 
     def derive_label(self):
         return self.system_label
@@ -165,6 +166,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['actions'] = self.actions
         context['current_label'] = label
         context['export_url'] = self.derive_export_url()
+        context['show_channel_logs'] = self.show_channel_logs
         return context
 
     def get_gear_links(self):
@@ -622,6 +624,7 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_OUTBOX
         actions = ()
         allow_export = True
+        show_channel_logs = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
@@ -633,6 +636,7 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_SENT
         actions = ()
         allow_export = True
+        show_channel_logs = True
 
         def get_queryset(self, **kwargs):  # pragma: needs cover
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
@@ -645,6 +649,7 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_FAILED
         actions = ['resend']
         allow_export = True
+        show_channel_logs = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
