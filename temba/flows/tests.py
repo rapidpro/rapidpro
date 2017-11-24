@@ -4305,8 +4305,9 @@ class WebhookTest(TembaTest):
         webhook_flow.start([], [self.contact])
 
         # should have two messages of failures
-        self.assertEqual("That was a success.", Msg.objects.filter(contact=self.contact).last().text)
-        self.assertEqual("The second succeeded.", Msg.objects.filter(contact=self.contact).first().text)
+        msgs = self.contact.msgs.order_by('id')
+        self.assertEqual(msgs[0].text, "That was a success.")
+        self.assertEqual(msgs[1].text, "The second succeeded.")
 
         # but we should have created a webhook event regardless
         self.assertTrue(WebHookEvent.objects.filter(resthook__slug='new-registration'))
@@ -4327,11 +4328,13 @@ class WebhookTest(TembaTest):
         # start over, have our first webhook fail, check that routing still works with failure
         webhook_flow.start([], [self.contact], restart_participants=True)
 
+        msgs = self.contact.msgs.order_by('id')
+
         # first should be a success because we had at least one success
-        self.assertEqual("That was a success.", Msg.objects.filter(contact=self.contact).last().text)
+        self.assertEqual(msgs[0].text, "That was a success.")
 
         # second, both failed so should be a failure
-        self.assertEqual("The second failed.", Msg.objects.filter(contact=self.contact).first().text)
+        self.assertEqual(msgs[1].text, "The second failed.")
 
         # we should also have unsubscribed from one of our endpoints
         self.assertTrue(resthook.subscribers.filter(is_active=False, target_url='http://localhost:49999/foo'))
@@ -5654,10 +5657,12 @@ class FlowsTest(FlowFileTest):
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(1, self.contact.msgs.all().count())
-        self.assertEqual('Hey', self.contact.msgs.all()[0].text)
-        self.assertEqual(["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg")],
-                         self.contact.msgs.all()[0].attachments)
+
+        msg = self.contact.msgs.get()
+        self.assertEqual(msg.text, 'Hey')
+        self.assertEqual(msg.attachments, [
+            "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg")
+        ])
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
@@ -5666,8 +5671,7 @@ class FlowsTest(FlowFileTest):
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(1, self.contact.msgs.all().count())
-        self.assertEqual('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
+        self.assertEqual(self.contact.msgs.get().text, 'Hi Ben Haggerty, what is your phone number?')
 
         self.assertEqual("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
@@ -6374,16 +6378,17 @@ class FlowsTest(FlowFileTest):
         # this will evaluate requires_step() to make sure it handles localized flows
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(1, self.contact.msgs.all().count())
-        self.assertEqual('You are not in the enrolled group.', self.contact.msgs.all()[0].text)
+        self.assertEqual(self.contact.msgs.get().text, 'You are not in the enrolled group.')
 
         enrolled_group = ContactGroup.create_static(self.org, self.user, "Enrolled")
         enrolled_group.update_contacts(self.user, [self.contact], True)
 
         runs_started = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs_started))
-        self.assertEqual(2, self.contact.msgs.all().count())
-        self.assertEqual('You are in the enrolled group.', self.contact.msgs.all().order_by('-pk')[0].text)
+
+        msgs = self.contact.msgs.order_by('id')
+        self.assertEqual(len(msgs), 2)
+        self.assertEqual(msgs[1].text, 'You are in the enrolled group.')
 
     def test_translations(self):
 
@@ -6570,8 +6575,7 @@ class FlowsTest(FlowFileTest):
 
             runs = flow.start_msg_flow([self.contact.id])
             self.assertEqual(1, len(runs))
-            self.assertEqual(1, self.contact.msgs.all().count())
-            self.assertEqual('Message complete', self.contact.msgs.all()[0].text)
+            self.assertEqual(self.contact.msgs.get().text, 'Message complete')
 
             airtime_event.status = AirtimeTransfer.FAILED
             airtime_event.save()
@@ -6580,8 +6584,10 @@ class FlowsTest(FlowFileTest):
 
             runs = flow.start_msg_flow([self.contact.id])
             self.assertEqual(1, len(runs))
-            self.assertEqual(2, self.contact.msgs.all().count())
-            self.assertEqual('Message failed', self.contact.msgs.all()[0].text)
+
+            msgs = self.contact.msgs.order_by('id')
+            self.assertEqual(len(msgs), 2)
+            self.assertEqual(msgs[1].text, 'Message failed')
 
     @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
     def test_airtime_trigger_event(self, mock_post_transferto):
@@ -6598,8 +6604,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('airtime')
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(1, self.contact.msgs.all().count())
-        self.assertEqual('Message complete', self.contact.msgs.all()[0].text)
+        self.assertEqual(self.contact.msgs.get().text, 'Message complete')
 
         self.assertEqual(1, AirtimeTransfer.objects.all().count())
         airtime = AirtimeTransfer.objects.all().first()
@@ -6617,8 +6622,8 @@ class FlowsTest(FlowFileTest):
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(2, self.contact.msgs.all().count())
-        self.assertEqual('Message failed', self.contact.msgs.all()[0].text)
+        msgs = self.contact.msgs.order_by('id')
+        self.assertEqual(msgs[1].text, 'Message failed')
 
         self.assertEqual(2, AirtimeTransfer.objects.all().count())
         airtime = AirtimeTransfer.objects.all().last()
@@ -6670,8 +6675,9 @@ class FlowsTest(FlowFileTest):
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        self.assertEqual(3, self.contact.msgs.all().count())
-        self.assertEqual('Message failed', self.contact.msgs.all()[0].text)
+
+        msgs = self.contact.msgs.order_by('id')
+        self.assertEqual(msgs[2].text, 'Message failed')
 
         self.assertEqual(4, AirtimeTransfer.objects.all().count())
         airtime = AirtimeTransfer.objects.all().last()
