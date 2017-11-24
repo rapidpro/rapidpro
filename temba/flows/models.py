@@ -1356,8 +1356,13 @@ class Flow(TembaModel):
 
         # if we have parent or child contexts, add them in too
         if run:
+            run.contact = contact
+
             if run.parent:
                 run.parent.flow.org = self.org
+                if run.parent.contact_id == run.contact_id:
+                    run.parent.contact = run.contact
+
                 run.parent.contact.org = self.org
                 context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
 
@@ -1365,7 +1370,7 @@ class Flow(TembaModel):
             child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
             if child_run:
                 child_run.flow.org = self.org
-                child_run.contact.org = self.org
+                child_run.contact = run.contact
                 context['child'] = child_run.flow.build_flow_context(child_run.contact)
 
         if contact:
@@ -2906,7 +2911,7 @@ class FlowRun(models.Model):
         TODO: Replace with Session.responded when it exists
         """
         current_run = self
-        while current_run and current_run.contact == self.contact:
+        while current_run and current_run.contact_id == self.contact_id:
             if current_run.responded:
                 return True
             current_run = current_run.parent
@@ -3624,6 +3629,7 @@ class RuleSet(models.Model):
         if msg:
             orig_text = msg.text
 
+        msg.contact = run.contact
         context = run.flow.build_expressions_context(run.contact, msg)
 
         if resume_after_timeout:
