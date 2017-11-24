@@ -14,7 +14,7 @@ from django.db import connection
 from celery.worker.autoscale import Autoscaler
 from celery.five import monotonic
 
-AUTOSCALE_RUN_EVERY_SEC = os.environ.get('AUTOSCALE_RUN_EVERY_SEC', 5)
+from temba.utils import analytics
 
 AUTOSCALE_MAX_CPU_USAGE = os.environ.get('AUTOSCALE_MAX_CPU_USAGE', 75)
 AUTOSCALE_MAX_USED_MEMORY = os.environ.get('AUTOSCALE_MAX_USED_MEMORY', 75)
@@ -54,6 +54,7 @@ class SuperAutoscaler(Autoscaler):
     def _maybe_scale(self, req=None):
         if self.should_run():
             self.collect_stats()
+            analytics.gauge('temba.celery_active_workers', self.processes)
 
             self._debug(
                 '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
@@ -70,6 +71,8 @@ class SuperAutoscaler(Autoscaler):
                 n = min((max_target_procs - self.processes), AUTOSCALE_MAX_WORKER_INC_BY)
                 self._debug('SCALE_UP => %s + %s = %s' % (self.processes, n, self.processes + n))
                 self.scale_up(n)
+
+                analytics.gauge('temba.celery_worker_scale_up', n)
                 return True
 
             min_target_procs = max(self.min_concurrency, max_target_procs)
@@ -77,6 +80,8 @@ class SuperAutoscaler(Autoscaler):
                 n = min((self.processes - min_target_procs), AUTOSCALE_MAX_WORKER_DEC_BY)
                 self._debug('SCALE_DOWN => %s - %s = %s' % (self.processes, n, self.processes - n))
                 self.scale_down(n)
+
+                analytics.gauge('temba.celery_worker_scale_down', n)
                 return True
 
     def collect_stats(self):
@@ -168,7 +173,7 @@ class SuperAutoscaler(Autoscaler):
     def should_run(self):
         current_time = monotonic()
 
-        if current_time - self.last_call > AUTOSCALE_RUN_EVERY_SEC:
+        if current_time - self.last_call > self.keepalive:
             self.last_call = current_time
             return True
         else:
