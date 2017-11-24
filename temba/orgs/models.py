@@ -438,6 +438,10 @@ class Org(SmartModel):
         else:
             return channel
 
+    @cached_property
+    def active_channels(self):
+        return [c for c in self.channels.filter(is_active=True)]
+
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
@@ -468,7 +472,7 @@ class Org(SmartModel):
 
                 channels = []
                 if country_code:
-                    for c in self.channels.all():
+                    for c in self.active_channels:
                         if c.country == country_code:
                             channels.append(c)
 
