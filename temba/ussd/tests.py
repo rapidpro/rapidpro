@@ -121,7 +121,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(msgs[1].text, u'1')
 
         # second step sent out the next message and waits for response
-        msgs = flow.get_steps().first().messages.order_by('id')
+        msgs = flow.get_steps().last().messages.order_by('id')
         self.assertEqual(len(msgs), 1)
         self.assertEqual(msgs[0].direction, OUTGOING)
         self.assertEqual(msgs[0].text, u'Thank you!')
