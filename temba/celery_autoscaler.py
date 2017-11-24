@@ -45,7 +45,7 @@ class SuperAutoscaler(Autoscaler):
     def _maybe_scale(self, req=None):
         if self.should_run():
             self.collect_stats()
-            analytics.gauge('temba.celery_active_workers', self.processes)
+            analytics.gauge('temba.celery_active_workers_%s' % (self.bound_queues,), self.processes)
 
             self._debug(
                 '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
@@ -63,7 +63,7 @@ class SuperAutoscaler(Autoscaler):
                 self._debug('SCALE_UP => %s + %s = %s' % (self.processes, n, self.processes + n))
                 self.scale_up(n)
 
-                analytics.gauge('temba.celery_worker_scale_up', n)
+                analytics.gauge('temba.celery_worker_scale_up_%s' % (self.bound_queues,), n)
                 return True
 
             min_target_procs = max(self.min_concurrency, max_target_procs)
@@ -72,13 +72,18 @@ class SuperAutoscaler(Autoscaler):
                 self._debug('SCALE_DOWN => %s - %s = %s' % (self.processes, n, self.processes - n))
                 self.scale_down(n)
 
-                analytics.gauge('temba.celery_worker_scale_down', n)
+                analytics.gauge('temba.celery_worker_scale_down_%s' % (self.bound_queues,), n)
                 return True
 
     def collect_stats(self):
         self.max_cpu_bound_workers = self._check_cpu_usage()
         self.max_memory_bound_workers = self._check_used_memory()
         self.max_db_bound_workers = self._check_query_execution_time()
+
+        self.bound_queues = '_'.join(sorted([q.name for q in self.worker.consumer.task_consumer.queues]))
+
+        if self.bound_queues == '':
+            raise ValueError('Celery worker has no bound queues')
 
     def _check_cpu_usage(self):
         cpu_usage_data = subprocess.check_output(['grep', '-w', 'cpu', '/proc/stat']).split(' ')
@@ -97,9 +102,9 @@ class SuperAutoscaler(Autoscaler):
             max_cpu_bound_workers = int(
                 ((settings.AUTOSCALE_MAX_CPU_USAGE - cpu_usage) / cpu_usage_per_proc) + self.processes
             )
-            target_cpu_bound_workers = min(max_cpu_bound_workers, self.max_concurrency)
+            target_cpu_bound_workers = min(max_cpu_bound_workers or 1, self.max_concurrency)
         else:
-            target_cpu_bound_workers = self.min_concurrency
+            target_cpu_bound_workers = 1
             cpu_usage_per_proc = -1
 
         self._debug(
@@ -118,9 +123,9 @@ class SuperAutoscaler(Autoscaler):
             max_mem_bound_workers = int(
                 ((settings.AUTOSCALE_MAX_USED_MEMORY - used_memory) / mem_usage_per_proc) + self.processes
             )
-            target_mem_bound_workers = min(max_mem_bound_workers, self.max_concurrency)
+            target_mem_bound_workers = min(max_mem_bound_workers or 1, self.max_concurrency)
         else:
-            target_mem_bound_workers = self.min_concurrency
+            target_mem_bound_workers = 1
             mem_usage_per_proc = -1
 
         self._debug(
@@ -152,7 +157,7 @@ class SuperAutoscaler(Autoscaler):
             # if we are not limited by the db, scale to max_concurrency
             target_db_bound_workers = self.max_concurrency
         else:
-            target_db_bound_workers = self.min_concurrency
+            target_db_bound_workers = 1
 
         self._debug(
             '_db => %s %s %s' % (
