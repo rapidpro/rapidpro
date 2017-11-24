@@ -29,6 +29,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -1512,6 +1513,10 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
+
+    @cached_property
+    def language_codes(self):
+        return {l.iso_code for l in self.languages.all()}
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
