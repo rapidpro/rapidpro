@@ -1,3 +1,17 @@
+v3.0.261
+----------
+ * Migrate revisions forward with rev version
+ * Limit scope of squashing so we can recover from giant unsquashed numbers
+
+v3.0.260
+----------
+ * Make tests go through migration
+ * Set version number of system created flows
+ * Block saving old versions over new versions
+ * Perform apply_topups as a task, tweak org update form
+ * Updates to credit caches to consider expiration
+ * Tweak credit expiration email
+
 v3.0.259
 ----------
  * Improve performance and restartability of run.path backfill migration

@@ -35,7 +35,7 @@ from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, get_current_export_version
+from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
@@ -285,6 +285,7 @@ class Flow(TembaModel):
 
         entry_uuid = six.text_type(uuid4())
         definition = {
+            'version': flow.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -516,14 +517,9 @@ class Flow(TembaModel):
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
-        # if we handled it, increment our unread count
-        if handled:
-
-            if not call.contact.is_test:
-                run.flow.increment_unread_responses()
-
-            if msg.id:
-                Msg.mark_handled(msg)
+        # if we handled it, mark it so
+        if handled and msg.id:
+            Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -657,10 +653,6 @@ class Flow(TembaModel):
                                                       continue_parent=continue_parent)
 
             if handled:
-                # increment our unread count if this isn't the simulator
-                if not msg.contact.is_test:
-                    flow.increment_unread_responses()
-
                 return True, msgs
 
         return False, []
@@ -941,12 +933,6 @@ class Flow(TembaModel):
             else:
                 break
         return versions
-
-    def get_newer_versions(self):
-        """
-        Finds all versions that are newer than our current version
-        """
-        return Flow.get_versions_after(self.version_number)
 
     def build_flow_context(self, contact, contact_context=None):
         """
@@ -1274,6 +1260,7 @@ class Flow(TembaModel):
 
         entry_uuid = str(uuid4())
         definition = {
+            'version': self.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -1306,30 +1293,6 @@ class Flow(TembaModel):
             'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
             'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
         }
-
-    def get_and_clear_unread_responses(self):
-        """
-        Gets the number of new responses since the last clearing for this flow.
-        """
-        r = get_redis_connection()
-
-        # get the number of new responses
-        new_responses = r.hget(UNREAD_FLOW_RESPONSES, self.id)
-
-        # then clear them
-        r.hdel(UNREAD_FLOW_RESPONSES, self.id)
-
-        return 0 if new_responses is None else int(new_responses)
-
-    def increment_unread_responses(self):
-        """
-        Increments the number of new responses for this flow.
-        """
-        r = get_redis_connection()
-        r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
-
-        # increment our global count as well
-        self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
     def get_columns(self):
         node_order = []
@@ -1610,11 +1573,6 @@ class Flow(TembaModel):
             if flow_start:
                 flow_start.update_status()
             return []
-
-        # single contact starting from a trigger? increment our unread count
-        if start_msg and contact_count == 1:
-            if Contact.objects.filter(pk=all_contact_ids[0], org=self.org, is_test=False).first():
-                self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
@@ -2307,6 +2265,11 @@ class Flow(TembaModel):
             raise FlowException("Found invalid cycle: %s" % cycle)
 
         try:
+
+            # make sure the flow version hasn't changed out from under us
+            if json_dict.get(Flow.VERSION) != get_current_export_version():
+                return dict(status="flow_migrated")
+
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:
@@ -2533,9 +2496,6 @@ class Flow(TembaModel):
             elif entry in existing_rulesets:
                 self.entry_uuid = entry
                 self.entry_type = Flow.RULES_ENTRY
-            else:
-                self.entry_uuid = None
-                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -4022,6 +3982,7 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
+                        json_flow[Flow.VERSION] = version
                     flows.append(json_flow)
                 exported_json['flows'] = flows
 
@@ -4037,12 +3998,13 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = get_current_export_version()
 
-        for version in flow.get_newer_versions():
+        for version in Flow.get_versions_after(json_flow.get(Flow.VERSION)):
             version_slug = version.replace(".", "_")
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break
@@ -4059,6 +4021,9 @@ class FlowRevision(SmartModel):
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
+
+        # make sure old revisions migrate properly
+        definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != get_current_export_version():
@@ -4092,7 +4057,11 @@ class FlowCategoryCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
         WITH removed as (
-            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+          DELETE FROM %(table)s WHERE "id" IN (
+            SELECT "id" FROM %(table)s
+              WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s
+              LIMIT 10000
+          ) RETURNING "count"
         )
         INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
         VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);

@@ -144,7 +144,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
-                'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
                 'temba.orgs.context_processors.settings_includer',
@@ -934,10 +933,6 @@ CELERYBEAT_SCHEDULE = {
     "trim-webhook-event": {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
-    },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
