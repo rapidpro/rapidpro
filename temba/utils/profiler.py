@@ -27,24 +27,45 @@ class QueryTracker(object):  # pragma: no cover
             if idx < len(stack):
                 print(stack[idx], end='')
 
-    def __init__(self, sort_queries=True, stack_count=3, assert_less_queries=None):
+    def __init__(self, sort_queries=True, stack_count=3, assert_less_queries=None, query=None):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
         self.num_queries = assert_less_queries
+        self.query = query
 
     def __enter__(self):
 
         self.old_wrapper = django.db.backends.utils.CursorWrapper
         self.old_debug_wrapper = django.db.backends.utils.CursorDebugWrapper
+
         queries = []
         self.queries = queries
 
+        query = self.query
+
         class CursorTrackerWrapper(CursorWrapper):  # pragma: no cover
+
+            def valid_stack(self, item):
+                file_name = item[0]
+
+                if 'temba' not in file_name:
+                    return False
+
+                if 'temba/utils/profiler' in file_name:
+                    return False
+
+                if 'flows/tests' in file_name:
+                    return False
+
+                return True
+
             def execute(self, sql, params=None):
                 results = super(CursorTrackerWrapper, self).execute(sql, params)
                 sql = self.db.ops.last_executed_query(self.cursor, sql, params)
-                stack = reversed(
-                    [s for s in traceback.extract_stack() if 'temba' in s[0] and 'temba/utils/profiler' not in s[0]])
+                if query and query not in sql:
+                    return results
+
+                stack = reversed([s for s in traceback.extract_stack() if self.valid_stack(s)])
                 stack = traceback.format_list(stack)
                 queries.append((sql, stack))
                 return results
@@ -56,6 +77,9 @@ class QueryTracker(object):  # pragma: no cover
         django.db.backends.utils.CursorDebugWrapper = CursorTrackerWrapper
 
     def __exit__(self, exc_type, exc_val, exc_t):
+        django.db.backends.utils.CursorWrapper = self.old_wrapper
+        django.db.backends.utils.CursorDebugWrapper = self.old_debug_wrapper
+
         if self.sort_queries:
             self.queries.sort()
             last = None
@@ -81,9 +105,6 @@ class QueryTracker(object):  # pragma: no cover
 
         if self.num_queries and len(self.queries) >= self.num_queries:
             raise AssertionError("Executed %d queries (expected < %d)" % (len(self.queries), self.num_queries))
-
-        django.db.backends.utils.CursorWrapper = self.old_wrapper
-        django.db.backends.utils.CursorDebugWrapper = self.old_debug_wrapper
 
     def __str__(self):
         return self.__class__

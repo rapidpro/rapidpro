@@ -804,6 +804,7 @@ class Flow(TembaModel):
                 if not resume_parent_run:
                     flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
+                    flow.org = run.org
                     message_context = run.flow.build_expressions_context(run.contact, msg)
 
                     # our extra will be the current flow variables
@@ -962,6 +963,7 @@ class Flow(TembaModel):
 
             # if we don't have a contact context, build one
             if not contact_context:
+                contact.org = self.org
                 flow_context['contact'] = contact.build_expressions_context()
 
         return flow_context
@@ -1355,11 +1357,15 @@ class Flow(TembaModel):
         # if we have parent or child contexts, add them in too
         if run:
             if run.parent:
+                run.parent.flow.org = self.org
+                run.parent.contact.org = self.org
                 context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
 
             # see if we spawned any children and add them too
             child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
             if child_run:
+                child_run.flow.org = self.org
+                child_run.contact.org = self.org
                 context['child'] = child_run.flow.build_flow_context(child_run.contact)
 
         if contact:
@@ -1771,7 +1777,7 @@ class Flow(TembaModel):
 
         simulation = False
         if len(batch_contact_ids) == 1:
-            if Contact.objects.filter(pk=batch_contact_ids[0], org=self.org, is_test=True).first():
+            if Contact.objects.filter(pk=batch_contact_ids[0], org_id=self.org_id, is_test=True).first():
                 simulation = True
 
         # these fields are the initial state for our flow run
@@ -1794,9 +1800,8 @@ class Flow(TembaModel):
         # build a map of contact to flow run
         run_map = dict()
         for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now).select_related('contact'):
-            run.org = self.org
             run.flow = self
-            run.contact.org = self.org
+            run.org = self.org
 
             run_map[run.contact_id] = run
             if run.contact.is_test:
@@ -2753,7 +2758,7 @@ class FlowRun(models.Model):
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
-        args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
+        args = dict(org_id=flow.org_id, flow=flow, contact_id=contact_id, start=start,
                     session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
@@ -3866,6 +3871,7 @@ class ActionSet(models.Model):
         actions = self.get_actions()
         msgs = []
 
+        run.contact.org = run.org
         context = run.flow.build_expressions_context(run.contact, msg)
 
         seen_other_action = False
@@ -5273,6 +5279,7 @@ class AddToGroupAction(Action):
                                 ActionLog.error(run, _("%s is a dynamic group which we can't remove contacts from") % group.name)
                         continue
 
+                    group.org = run.org
                     group.update_contacts(user, [contact], add)
                     if run.contact.is_test:
                         if add:
