@@ -3,15 +3,90 @@ from __future__ import print_function, unicode_literals
 import logging
 import six
 import time
+import django
 
 from django.conf import settings
 from django.db import connection, reset_queries
+from django.db.backends.utils import CursorWrapper
 from temba.utils.text import truncate
 from timeit import default_timer
+import traceback
+import textwrap
+
 
 MAX_QUERIES_PRINT = 16
 
 logger = logging.getLogger(__name__)
+
+
+@six.python_2_unicode_compatible
+class QueryTracker(object):  # pragma: no cover
+
+    def print_stack(self, stack):
+        for idx in range(0, self.stack_count):
+            if idx < len(stack):
+                print(stack[idx], end='')
+
+    def __init__(self, sort_queries=True, stack_count=3, assert_less_queries=None):
+        self.sort_queries = sort_queries
+        self.stack_count = stack_count
+        self.num_queries = assert_less_queries
+
+    def __enter__(self):
+
+        self.old_wrapper = django.db.backends.utils.CursorWrapper
+        self.old_debug_wrapper = django.db.backends.utils.CursorDebugWrapper
+        queries = []
+        self.queries = queries
+
+        class CursorTrackerWrapper(CursorWrapper):  # pragma: no cover
+            def execute(self, sql, params=None):
+                results = super(CursorTrackerWrapper, self).execute(sql, params)
+                sql = self.db.ops.last_executed_query(self.cursor, sql, params)
+                stack = reversed(
+                    [s for s in traceback.extract_stack() if 'temba' in s[0] and 'temba/utils/profiler' not in s[0]])
+                stack = traceback.format_list(stack)
+                queries.append((sql, stack))
+                return results
+
+            def executemany(self, sql, param_list):
+                return super(CursorTrackerWrapper, self).executemany(sql, param_list)
+
+        django.db.backends.utils.CursorWrapper = CursorTrackerWrapper
+        django.db.backends.utils.CursorDebugWrapper = CursorTrackerWrapper
+
+    def __exit__(self, exc_type, exc_val, exc_t):
+        if self.sort_queries:
+            self.queries.sort()
+            last = None
+            for query in self.queries:
+                (sql, stack) = query
+                if (last != sql):
+                    print('\n')
+                    print('=' * 100)
+                    for line in textwrap.wrap(sql, 100):
+                        print(line)
+                    print('=' * 100)
+                    self.print_stack(stack)
+                else:
+                    print('  ' + '-' * 96)
+                    self.print_stack(stack)
+                last = sql
+        else:
+            for query in self.queries:
+                (sql, stack) = query
+                for line in textwrap.wrap(sql, 100):
+                    print(line)
+                print(stack, end='')
+
+        if self.num_queries and len(self.queries) >= self.num_queries:
+            raise AssertionError("Executed %d queries (expected < %d)" % (len(self.queries), self.num_queries))
+
+        django.db.backends.utils.CursorWrapper = self.old_wrapper
+        django.db.backends.utils.CursorDebugWrapper = self.old_debug_wrapper
+
+    def __str__(self):
+        return self.__class__
 
 
 @six.python_2_unicode_compatible
