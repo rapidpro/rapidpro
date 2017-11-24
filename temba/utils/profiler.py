@@ -27,10 +27,11 @@ class QueryTracker(object):  # pragma: no cover
             if idx < len(stack):
                 print(stack[idx], end='')
 
-    def __init__(self, sort_queries=True, stack_count=3, assert_less_queries=None, query=None):
+    def __init__(self, sort_queries=True, skip_unique_queries=True, assert_less_queries=None, query=None, stack_count=3):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
         self.num_queries = assert_less_queries
+        self.skip_unique_queries = skip_unique_queries
         self.query = query
 
     def __enter__(self):
@@ -83,9 +84,15 @@ class QueryTracker(object):  # pragma: no cover
         if self.sort_queries:
             self.queries.sort()
             last = None
-            for query in self.queries:
+            for idx, query in enumerate(self.queries):
                 (sql, stack) = query
+
                 if (last != sql):
+                    if self.skip_unique_queries:
+                        if sql not in [s[0] for s in self.queries[idx + 1:]]:
+                            last = sql
+                            continue
+
                     print('\n')
                     print('=' * 100)
                     for line in textwrap.wrap(sql, 100):
