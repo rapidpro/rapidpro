@@ -510,6 +510,13 @@ class Contact(TembaModel):
         return "%010d" % self.id
 
     @property
+    def user_groups(self):
+        """
+        Define Contact.user_groups to only refer to user groups
+        """
+        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+
+    @property
     def active_user_groups(self):
         """
         Define Contact.user_groups to only refer to user groups
