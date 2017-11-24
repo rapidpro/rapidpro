@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals, print_function, division
 
-import os
 import subprocess
 from datetime import datetime
 import tempfile
@@ -15,14 +14,6 @@ from celery.worker.autoscale import Autoscaler
 from celery.five import monotonic
 
 from temba.utils import analytics
-
-AUTOSCALE_MAX_CPU_USAGE = os.environ.get('AUTOSCALE_MAX_CPU_USAGE', 75)
-AUTOSCALE_MAX_USED_MEMORY = os.environ.get('AUTOSCALE_MAX_USED_MEMORY', 75)
-
-AUTOSCALE_MAX_WORKER_INC_BY = os.environ.get('AUTOSCALE_MAX_WORKER_INC_BY', 4)
-AUTOSCALE_MAX_WORKER_DEC_BY = os.environ.get('AUTOSCALE_MAX_WORKER_DEC_BY', 4)
-
-AUTOSCALE_DB_QUERY_EXECUTION_MS = os.environ.get('AUTOSCALE_DB_QUERY_EXECUTION_MS', 10)
 
 
 class SuperAutoscaler(Autoscaler):
@@ -68,7 +59,7 @@ class SuperAutoscaler(Autoscaler):
                 self.max_db_bound_workers
             )
             if max_target_procs > self.processes:
-                n = min((max_target_procs - self.processes), AUTOSCALE_MAX_WORKER_INC_BY)
+                n = min((max_target_procs - self.processes), settings.AUTOSCALE_MAX_WORKER_INC_BY)
                 self._debug('SCALE_UP => %s + %s = %s' % (self.processes, n, self.processes + n))
                 self.scale_up(n)
 
@@ -77,7 +68,7 @@ class SuperAutoscaler(Autoscaler):
 
             min_target_procs = max(self.min_concurrency, max_target_procs)
             if min_target_procs < self.processes:
-                n = min((self.processes - min_target_procs), AUTOSCALE_MAX_WORKER_DEC_BY)
+                n = min((self.processes - min_target_procs), settings.AUTOSCALE_MAX_WORKER_DEC_BY)
                 self._debug('SCALE_DOWN => %s - %s = %s' % (self.processes, n, self.processes - n))
                 self.scale_down(n)
 
@@ -104,7 +95,7 @@ class SuperAutoscaler(Autoscaler):
         if self.processes > 0:
             cpu_usage_per_proc = cpu_usage / self.processes
             max_cpu_bound_workers = int(
-                ((AUTOSCALE_MAX_CPU_USAGE - cpu_usage) / cpu_usage_per_proc) + self.processes
+                ((settings.AUTOSCALE_MAX_CPU_USAGE - cpu_usage) / cpu_usage_per_proc) + self.processes
             )
             target_cpu_bound_workers = min(max_cpu_bound_workers, self.max_concurrency)
         else:
@@ -113,7 +104,7 @@ class SuperAutoscaler(Autoscaler):
 
         self._debug(
             '_cpu => %s %s %s %s' % (
-                AUTOSCALE_MAX_CPU_USAGE, cpu_usage, cpu_usage_per_proc, target_cpu_bound_workers
+                settings.AUTOSCALE_MAX_CPU_USAGE, cpu_usage, cpu_usage_per_proc, target_cpu_bound_workers
             )
         )
 
@@ -125,7 +116,7 @@ class SuperAutoscaler(Autoscaler):
         if self.processes > 0:
             mem_usage_per_proc = (used_memory - self.initial_memory_usage) / self.processes
             max_mem_bound_workers = int(
-                ((AUTOSCALE_MAX_USED_MEMORY - used_memory) / mem_usage_per_proc) + self.processes
+                ((settings.AUTOSCALE_MAX_USED_MEMORY - used_memory) / mem_usage_per_proc) + self.processes
             )
             target_mem_bound_workers = min(max_mem_bound_workers, self.max_concurrency)
         else:
@@ -134,7 +125,7 @@ class SuperAutoscaler(Autoscaler):
 
         self._debug(
             '_mem => %s %s %s %s' % (
-                AUTOSCALE_MAX_CPU_USAGE, used_memory, mem_usage_per_proc, target_mem_bound_workers
+                settings.AUTOSCALE_MAX_CPU_USAGE, used_memory, mem_usage_per_proc, target_mem_bound_workers
             )
         )
 
@@ -152,12 +143,12 @@ class SuperAutoscaler(Autoscaler):
     def _check_query_execution_time(self):
         with connection.cursor() as cursor:
             start_time = monotonic()
-            cursor.execute('SELECT id FROM orgs_org ORDER BY id LIMIT 1')
+            cursor.execute(settings.AUTOSCALE_DB_PERFORMANCE_QUERY)
             cursor.fetchone()
 
             total_time = (monotonic() - start_time) * 1000.0
 
-        if total_time < AUTOSCALE_DB_QUERY_EXECUTION_MS:
+        if total_time < settings.AUTOSCALE_DB_QUERY_EXECUTION_MS:
             # if we are not limited by the db, scale to max_concurrency
             target_db_bound_workers = self.max_concurrency
         else:
@@ -165,7 +156,7 @@ class SuperAutoscaler(Autoscaler):
 
         self._debug(
             '_db => %s %s %s' % (
-                AUTOSCALE_DB_QUERY_EXECUTION_MS, total_time, target_db_bound_workers
+                settings.AUTOSCALE_DB_QUERY_EXECUTION_MS, total_time, target_db_bound_workers
             )
         )
         return target_db_bound_workers
