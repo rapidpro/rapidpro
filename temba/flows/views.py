@@ -1225,7 +1225,6 @@ class FlowCRUDL(SmartCRUDL):
                 context['histogram'] = histogram
 
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
-                context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
                 context['min_date'] = min_date
 
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
@@ -1333,6 +1332,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
             context['categories'] = flow.get_category_counts()['counts']
+            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):

@@ -31,7 +31,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
@@ -217,6 +217,10 @@ class TembaTest(SmartminTest):
 
         # reset our simulation to False
         Contact.set_simulation(False)
+
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
 
     def get_verbosity(self):
         for s in reversed(inspect.stack()):
@@ -410,7 +414,13 @@ class TembaTest(SmartminTest):
                 ],
                 "rule_sets": [],
             }
-        flow.update(definition)
+
+        flow.version_number = definition['version']
+        flow.save()
+
+        json_flow = FlowRevision.migrate_definition(definition, flow)
+        flow.update(json_flow)
+
         return flow
 
     def update_destination(self, flow, source, destination):

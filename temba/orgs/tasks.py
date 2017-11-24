@@ -1,12 +1,8 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
-import time
-
 from celery.task import task
-from datetime import timedelta
-from django.utils import timezone
 from temba.utils.queues import nonoverlapping_task
-from .models import CreditAlert, Invitation, Org, TopUpCredits
+from .models import CreditAlert, Invitation, TopUpCredits, Org
 
 
 @task(track_started=True, name='send_invitation_email_task')
@@ -26,20 +22,10 @@ def check_credits_task():  # pragma: needs cover
     CreditAlert.check_org_credits()
 
 
-@task(track_started=True, name='calculate_credit_caches')
-def calculate_credit_caches():  # pragma: needs cover
-    """
-    Repopulates the active topup and total credits for each organization
-    that received messages in the past week.
-    """
-    # get all orgs that have sent a message in the past week
-    last_week = timezone.now() - timedelta(days=7)
-
-    # for every org that has sent a message in the past week
-    for org in Org.objects.filter(msgs__created_on__gte=last_week).distinct('pk'):
-        start = time.time()
-        org._calculate_credit_caches()
-        print(" -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start))
+@task(track_started=True, name='apply_topups_task')
+def apply_topups_task(org_id):
+    org = Org.objects.get(id=org_id)
+    org.apply_topups()
 
 
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key='squash_topupcredits')

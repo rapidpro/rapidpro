@@ -339,24 +339,24 @@ class CacheTest(TembaTest):
         self.create_contact("Bob", number="1234")
 
         def calculate():
-            return Contact.objects.all().count()
+            return Contact.objects.all().count(), 60
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from cache
 
         self.create_contact("Jim", number="2345")
 
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # not updated
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # not updated
 
         get_redis_connection().delete('test_contact_count')  # delete from cache for force re-fetch from db
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from cache
 
     def test_get_cacheable_attr(self):
         def calculate():
