@@ -4305,7 +4305,7 @@ class WebhookTest(TembaTest):
         webhook_flow.start([], [self.contact])
 
         # should have two messages of failures
-        msgs = self.contact.msgs.order_by('id')
+        msgs = list(self.contact.msgs.order_by('id'))
         self.assertEqual(msgs[0].text, "That was a success.")
         self.assertEqual(msgs[1].text, "The second succeeded.")
 
@@ -4328,7 +4328,7 @@ class WebhookTest(TembaTest):
         # start over, have our first webhook fail, check that routing still works with failure
         webhook_flow.start([], [self.contact], restart_participants=True)
 
-        msgs = self.contact.msgs.order_by('id')
+        msgs = list(self.contact.msgs.order_by('id'))
 
         # first should be a success because we had at least one success
         self.assertEqual(msgs[0].text, "That was a success.")
@@ -6386,7 +6386,7 @@ class FlowsTest(FlowFileTest):
         runs_started = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs_started))
 
-        msgs = self.contact.msgs.order_by('id')
+        msgs = list(self.contact.msgs.order_by('id'))
         self.assertEqual(len(msgs), 2)
         self.assertEqual(msgs[1].text, 'You are in the enrolled group.')
 
@@ -6585,7 +6585,7 @@ class FlowsTest(FlowFileTest):
             runs = flow.start_msg_flow([self.contact.id])
             self.assertEqual(1, len(runs))
 
-            msgs = self.contact.msgs.order_by('id')
+            msgs = list(self.contact.msgs.order_by('id'))
             self.assertEqual(len(msgs), 2)
             self.assertEqual(msgs[1].text, 'Message failed')
 
@@ -6622,7 +6622,7 @@ class FlowsTest(FlowFileTest):
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
-        msgs = self.contact.msgs.order_by('id')
+        msgs = list(self.contact.msgs.order_by('id'))
         self.assertEqual(msgs[1].text, 'Message failed')
 
         self.assertEqual(2, AirtimeTransfer.objects.all().count())
@@ -6676,7 +6676,7 @@ class FlowsTest(FlowFileTest):
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
 
-        msgs = self.contact.msgs.order_by('id')
+        msgs = list(self.contact.msgs.order_by('id'))
         self.assertEqual(msgs[2].text, 'Message failed')
 
         self.assertEqual(4, AirtimeTransfer.objects.all().count())
@@ -6958,7 +6958,7 @@ class FlowMigrationTest(FlowFileTest):
         run, = webhook_flow.start([], [self.contact])
 
         # assert the code we received was right
-        msg = Msg.objects.filter(direction='O', contact=self.contact).first()
+        msg = Msg.objects.filter(direction='O', contact=self.contact).order_by('id').last()
         self.assertEqual(msg.text, "Great, your code is ABABUUDDLRS. Enter your name")
 
         self.mockRequest('GET', '/success', "Success")
@@ -6974,7 +6974,7 @@ class FlowMigrationTest(FlowFileTest):
         webhook_flow.start([], [self.contact], restart_participants=True)
 
         # assert the code we received was right
-        msg = Msg.objects.filter(direction='O', contact=self.contact).first()
+        msg = Msg.objects.filter(direction='O', contact=self.contact).order_by('id').last()
         self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
 
         # check all our mocked requests were made
@@ -7334,12 +7334,10 @@ class ChannelSplitTest(FlowFileTest):
         flow.start([], [self.contact])
 
         # check the message sent to them
-        msg = self.contact.msgs.last()
-        self.assertEqual("Your channel is +12065551212", msg.text)
-
-        # check the split
-        msg = self.contact.msgs.first()
-        self.assertEqual("206 Channel", msg.text)
+        msgs = list(self.contact.msgs.order_by('id'))
+        self.assertEqual(len(msgs), 2)
+        self.assertEqual(msgs[0].text, "Your channel is +12065551212")
+        self.assertEqual(msgs[1].text, "206 Channel")
 
     def test_no_urn_channel_split(self):
         flow = self.get_flow('channel_split')

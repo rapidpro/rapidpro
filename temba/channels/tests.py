@@ -8725,7 +8725,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+        self.assertEqual("What is your favorite color?", contact1.msgs.order_by('id').last().text)
 
         # check if catchall trigger starts a different flow
         referral = """
@@ -8746,7 +8746,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("Pick a number between 1-10.", contact1.msgs.all().first().text)
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by('id').last().text)
 
         # check referral params in postback
         postback = """
