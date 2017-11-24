@@ -1518,6 +1518,14 @@ class Org(SmartModel):
     def language_codes(self):
         return {l.iso_code for l in self.languages.all()}
 
+    @cached_property
+    def active_contact_fields(self):
+        from temba.contacts.models import ContactField
+        fields = ContactField.objects.filter(org=self, is_active=True)
+        for field in fields:
+            field.org = self
+        return fields
+
     def add_credits(self, bundle, token, user):
         # look up our bundle
         bundle_map = get_bundle_map(self.get_bundles())

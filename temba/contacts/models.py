@@ -510,7 +510,7 @@ class Contact(TembaModel):
         return "%010d" % self.id
 
     @property
-    def user_groups(self):
+    def active_user_groups(self):
         """
         Define Contact.user_groups to only refer to user groups
         """
@@ -1626,7 +1626,7 @@ class Contact(TembaModel):
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
             'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            'groups': ",".join([_.name for _ in self.user_groups.all()]),
+            'groups': ",".join([_.name for _ in self.active_user_groups]),
             'uuid': self.uuid
         }
 
@@ -1649,7 +1649,7 @@ class Contact(TembaModel):
         contact_values = {v.contact_field.key: v for v in field_values}
 
         # add all active fields to our context
-        for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
+        for field in org.active_contact_fields:
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
             context[field.key] = field_value if field_value is not None else ''
 
