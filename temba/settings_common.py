@@ -995,6 +995,9 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
+# TODO: uncomment to use SuperAutoscaler
+# CELERYD_AUTOSCALER='temba.celery_autoscaler:SuperAutoscaler'
+
 IS_PROD = False
 HOSTNAME = "localhost"
 
