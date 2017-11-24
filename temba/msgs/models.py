@@ -1677,9 +1677,6 @@ class Msg(models.Model):
             changed.append(msg.pk)
         return changed
 
-    class Meta:
-        ordering = ['-created_on', '-pk']
-
 
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
              'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \

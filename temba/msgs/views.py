@@ -128,7 +128,7 @@ class InboxView(OrgPermsMixin, SmartListView):
             last_90 = timezone.now() - timedelta(days=90)
             queryset = queryset.filter(created_on__gte=last_90)
 
-        return queryset
+        return queryset.order_by('-created_on', '-id')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -592,7 +592,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Inbox, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels').select_related('contact')
+            return qs.prefetch_related('labels').select_related('contact')
 
     class Flow(MsgActionMixin, InboxView):
         title = _("Flow Messages")
@@ -603,7 +603,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
     class Archived(MsgActionMixin, InboxView):
         title = _("Archived")
@@ -614,7 +614,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Archived, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
     class Outbox(MsgActionMixin, InboxView):
         title = _("Outbox Messages")
@@ -625,7 +625,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
     class Sent(MsgActionMixin, InboxView):
         title = _("Sent Messages")
@@ -636,7 +636,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):  # pragma: needs cover
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
     class Failed(MsgActionMixin, InboxView):
         title = _("Failed Outgoing Messages")
@@ -648,7 +648,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
     class Filter(MsgActionMixin, InboxView):
         template_name = 'msgs/msg_filter.haml'
@@ -688,7 +688,7 @@ class MsgCRUDL(SmartCRUDL):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
             qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
 
 class BaseLabelForm(forms.ModelForm):

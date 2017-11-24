@@ -115,7 +115,7 @@ def start_msg_flow_batch_task():
 
         broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
         started_flows = [] if not task_obj['started_flows'] else task_obj['started_flows']
-        start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(id=task_obj['start_msg']).order_by().first()
+        start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(id=task_obj['start_msg']).first()
         extra = task_obj['extra']
         flow_start = None if not task_obj['flow_start'] else FlowStart.objects.filter(pk=task_obj['flow_start']).first()
         contacts = task_obj['contacts']
