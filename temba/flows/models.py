@@ -4152,11 +4152,11 @@ class FlowPathRecentMessage(models.Model):
         cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuid, limit=PRUNE_TO):
+    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid=to_uuid).order_by('-created_on')
+        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
         if limit:
             recent = recent[:limit]
 
