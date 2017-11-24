@@ -22,6 +22,7 @@ from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
 from django.db.models import Q, Count, QuerySet, Sum, Max
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
 from django_redis import get_redis_connection
@@ -805,7 +806,7 @@ class Flow(TembaModel):
                     flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
                     flow.org = run.org
-                    message_context = run.flow.build_expressions_context(run.contact, msg)
+                    message_context = run.flow.build_expressions_context(run.contact, msg, run=run)
 
                     # our extra will be the current flow variables
                     extra = message_context.get('extra', {})
@@ -935,7 +936,7 @@ class Flow(TembaModel):
                 break
         return versions
 
-    def build_flow_context(self, contact, contact_context=None):
+    def build_flow_context(self, contact, contact_context=None, run=None):
         """
         Get a flow context built on the last run for the contact in the given flow
         """
@@ -952,7 +953,7 @@ class Flow(TembaModel):
         flow_context = {}
         values = []
         if contact:
-            results = self.get_results(contact, only_last_run=True)
+            results = self.get_results(contact, only_last_run=True, run=run)
             if results and results[0]:
                 for value in results[0]['values']:
                     field = Flow.label_to_slug(value['label'])
@@ -1318,7 +1319,7 @@ class Flow(TembaModel):
 
         return (rulesets, rule_categories)
 
-    def build_expressions_context(self, contact, msg):
+    def build_expressions_context(self, contact, msg, run=None):
         contact_context = contact.build_expressions_context() if contact else dict()
 
         # our default value
@@ -1346,11 +1347,13 @@ class Flow(TembaModel):
                 if channel:
                     channel_context = channel.build_expressions_context()
 
-        run = self.runs.filter(contact=contact).order_by('-created_on').first()
+        if not run:
+            run = self.runs.filter(contact=contact).order_by('-created_on').first()
+
         run_context = run.field_dict() if run else {}
 
         # our current flow context
-        flow_context = self.build_flow_context(contact, contact_context)
+        flow_context = self.build_flow_context(contact, contact_context, run=run)
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
 
@@ -1367,8 +1370,8 @@ class Flow(TembaModel):
                 context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
 
             # see if we spawned any children and add them too
-            child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
-            if child_run:
+            child_run = run.child
+            if run.child:
                 child_run.flow.org = self.org
                 child_run.contact = run.contact
                 context['child'] = child_run.flow.build_flow_context(child_run.contact)
@@ -2759,6 +2762,15 @@ class FlowRun(models.Model):
     path = models.TextField(null=True,
                             help_text=_("The path taken during this flow run in JSON format"))
 
+    @cached_property
+    def child(self):
+        child = FlowRun.objects.filter(parent=self).order_by('-created_on').select_related('flow').first()
+        if child:
+            child.org = self.org
+            child.flow.org = self.org
+            child.contact = self.contact
+        return child
+
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
@@ -3630,7 +3642,7 @@ class RuleSet(models.Model):
             orig_text = msg.text
 
         msg.contact = run.contact
-        context = run.flow.build_expressions_context(run.contact, msg)
+        context = run.flow.build_expressions_context(run.contact, msg, run=run)
 
         if resume_after_timeout:
             for rule in self.get_rules():
@@ -3878,7 +3890,7 @@ class ActionSet(models.Model):
         msgs = []
 
         run.contact.org = run.org
-        context = run.flow.build_expressions_context(run.contact, msg)
+        context = run.flow.build_expressions_context(run.contact, msg, run=run)
 
         seen_other_action = False
         for a, action in enumerate(actions):
@@ -5722,7 +5734,7 @@ class VariableContactAction(Action):
         return variables
 
     def build_groups_and_contacts(self, run, msg):
-        expressions_context = run.flow.build_expressions_context(run.contact, msg)
+        expressions_context = run.flow.build_expressions_context(run.contact, msg, run=run)
         contacts = list(self.contacts)
         groups = list(self.groups)
 
