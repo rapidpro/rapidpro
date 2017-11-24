@@ -457,7 +457,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(70):
+        with self.assertNumQueries(60):
             response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 5)
@@ -534,7 +534,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(56):
+        with self.assertNumQueries(54):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
@@ -620,7 +620,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(41):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
