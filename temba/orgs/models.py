@@ -439,7 +439,7 @@ class Org(SmartModel):
             return channel
 
     @cached_property
-    def active_channels(self):
+    def cached_channels(self):
         return [c for c in self.channels.filter(is_active=True)]
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
@@ -472,13 +472,13 @@ class Org(SmartModel):
 
                 channels = []
                 if country_code:
-                    for c in self.active_channels:
+                    for c in self.cached_channels:
                         if c.country == country_code:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
+                    channels = [c for c in self.cached_channels if TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []

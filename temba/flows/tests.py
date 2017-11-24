@@ -119,29 +119,15 @@ class FlowTest(TembaTest):
         contact3 = self.create_contact('George', '+250788382234')
         self.flow.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(13):
-            runs = FlowRun.objects.filter(flow=self.flow)
-            for run_elt in runs:
-                self.flow.get_results(contact=run_elt.contact, run=run_elt)
-
-        # still perform ruleset lookup 7 queries because flow and flow__org select_related
         with self.assertNumQueries(7):
-            steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
-            rulesets_prefetch = Prefetch('flow__rule_sets',
-                                         queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
-                                         to_attr='ruleset_prefetch')
-
-            # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-            runs = FlowRun.objects.filter(flow=self.flow).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
-                                                                           'steps__messages', 'contact')
+            runs = FlowRun.objects.filter(flow=self.flow)
             for run_elt in runs:
                 self.flow.get_results(contact=run_elt.contact, run=run_elt)
 
         flow2 = self.get_flow('no_ruleset_flow')
         flow2.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(7):
             runs = FlowRun.objects.filter(flow=flow2)
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)

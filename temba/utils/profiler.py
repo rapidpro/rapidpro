@@ -84,6 +84,7 @@ class QueryTracker(object):  # pragma: no cover
         if self.sort_queries:
             self.queries.sort()
             last = None
+            count = 0
             for idx, query in enumerate(self.queries):
                 (sql, stack) = query
 
@@ -92,7 +93,10 @@ class QueryTracker(object):  # pragma: no cover
                         if sql not in [s[0] for s in self.queries[idx + 1:]]:
                             last = sql
                             continue
+                    if count:
+                        print("\n%d QUERIES" % count)
 
+                    count = 1
                     print('\n')
                     print('=' * 100)
                     for line in textwrap.wrap(sql, 100):
@@ -100,6 +104,7 @@ class QueryTracker(object):  # pragma: no cover
                     print('=' * 100)
                     self.print_stack(stack)
                 else:
+                    count += 1
                     print('  ' + '-' * 96)
                     self.print_stack(stack)
                 last = sql

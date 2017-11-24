@@ -17,6 +17,7 @@ from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
@@ -698,6 +699,9 @@ class Contact(TembaModel):
 
     def set_field(self, user, key, value, label=None, importing=False):
         from temba.values.models import Value
+
+        # remove our cached field values
+        del self.cached_field_values
 
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
@@ -1622,6 +1626,15 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
+    @cached_property
+    def cached_field_values(self):
+        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
+        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
+
+        # get all the values for this contact
+        contact_values = {v.contact_field.key: v for v in field_values}
+        return contact_values
+
     def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
@@ -1649,11 +1662,7 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
-        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
-
-        # get all the values for this contact
-        contact_values = {v.contact_field.key: v for v in field_values}
+        contact_values = self.cached_field_values
 
         # add all active fields to our context
         for field in org.active_contact_fields:
