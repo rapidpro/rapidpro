@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import json
-
 import nexmo
 import pytz
 import six
@@ -39,7 +38,7 @@ from temba.utils import languages, dict_to_struct
 from uuid import uuid4
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
+from .models import TopUpCredits
 from .models import WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
 
@@ -2944,81 +2943,6 @@ class CreditAlertTest(TembaTest):
                         self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
                         self.assertEqual(6, len(mail.outbox))
-
-
-class UnreadCountTest(FlowFileTest):
-
-    def test_unread_count_test(self):
-        flow = self.get_flow('favorites')
-
-        # create a trigger for 'favs'
-        Trigger.objects.create(org=self.org, flow=flow, keyword='favs', created_by=self.admin, modified_by=self.admin)
-
-        # start our flow by firing an incoming message
-        contact = self.create_contact('Anakin Skywalker', '+12067791212')
-        msg = self.create_msg(contact=contact, text="favs")
-
-        # process it
-        Msg.process_message(msg)
-
-        # our flow unread count should have gone up
-        self.assertEqual(1, flow.get_and_clear_unread_responses())
-
-        # cleared by the first call
-        self.assertEqual(0, flow.get_and_clear_unread_responses())
-
-        # at this point our flow should have started.. go to our trigger list page to see if our context is correct
-        self.login(self.admin)
-        trigger_list = reverse('triggers.trigger_list')
-        response = self.client.get(trigger_list)
-
-        self.assertEqual(0, response.context['msgs_unread_count'])
-        self.assertEqual(1, response.context['flows_unread_count'])
-
-        # answer another question in the flow
-        msg = self.create_msg(contact=contact, text="red")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEqual(0, response.context['msgs_unread_count'])
-        self.assertEqual(2, response.context['flows_unread_count'])
-
-        # finish the flow and send a message outside it
-        msg = self.create_msg(contact=contact, text="primus")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="nic")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="Hello?")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEqual(4, response.context['flows_unread_count'])
-        self.assertEqual(1, response.context['msgs_unread_count'])
-
-        # visit the msg pane
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEqual(4, response.context['flows_unread_count'])
-        self.assertEqual(0, response.context['msgs_unread_count'])
-
-        # now the flow list pane
-        response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(0, response.context['flows_unread_count'])
-        self.assertEqual(0, response.context['msgs_unread_count'])
-
-        # make sure a test contact doesn't update our counts
-        test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
-
-        msg = self.create_msg(contact=test_contact, text="favs")
-        Msg.process_message(msg)
-
-        # assert our counts weren't updated
-        self.assertEqual(0, self.org.get_unread_msg_count(UNREAD_INBOX_MSGS))
-        self.assertEqual(0, self.org.get_unread_msg_count(UNREAD_FLOW_MSGS))
-
-        # wasn't counted for the individual flow
-        self.assertEqual(0, flow.get_and_clear_unread_responses())
 
 
 class EmailContextProcessorsTest(SmartminTest):
