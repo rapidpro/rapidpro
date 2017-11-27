@@ -1060,7 +1060,7 @@ class Msg(models.Model):
                     attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg",
-                    metadata=self.metadata or {})
+                    metadata=json.loads(self.metadata) if self.metadata else {})
 
     def simulator_json(self):
         msg_json = self.as_json()
@@ -1289,7 +1289,7 @@ class Msg(models.Model):
 
         if self.metadata:
             metadata = json.loads(self.metadata)
-            data['quick_replies'] = metadata.get('quick_replies', None)
+            data['metadata'] = metadata.get('quick_replies', None)
 
         return data
 

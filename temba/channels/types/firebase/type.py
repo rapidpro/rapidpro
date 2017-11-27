@@ -57,7 +57,7 @@ class FirebaseCloudMessagingType(ChannelType):
             }
             data['content_available'] = True
 
-        quick_replies = msg.quick_replies if hasattr(msg, 'quick_replies') else {}
+        quick_replies = msg.metadata if hasattr(msg, 'metadata') else {}
 
         if quick_replies:
             data['data']['quick_replies'] = quick_replies
