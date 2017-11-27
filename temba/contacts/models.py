@@ -700,10 +700,6 @@ class Contact(TembaModel):
     def set_field(self, user, key, value, label=None, importing=False):
         from temba.values.models import Value
 
-        # remove our cached field values
-        if 'cached_field_values' in self.__dict__:
-            del self.__dict__['cached_field_values']
-
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
 
@@ -780,6 +776,10 @@ class Contact(TembaModel):
         if has_changed:
             self.modified_by = user
             self.save(update_fields=('modified_by', 'modified_on'))
+
+            # remove our cached field values
+            if 'cached_field_values' in self.__dict__:
+                del self.__dict__['cached_field_values']
 
             # update any groups or campaigns for this contact if not importing
             if not importing:
