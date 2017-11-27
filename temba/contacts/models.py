@@ -806,7 +806,8 @@ class Contact(TembaModel):
 
         if group or dynamic_group_change:
             # delete any cached groups
-            delattr(self, '_user_groups')
+            if hasattr(self, '_user_groups'):
+                delattr(self, '_user_groups')
 
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
