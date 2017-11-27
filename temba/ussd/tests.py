@@ -113,17 +113,18 @@ class USSDSessionTest(TembaTest):
 
         # lets check the steps and incoming and outgoing messages
         # first step has 1 outgoing and the answer
-        self.assertEqual(flow.get_steps().first().messages.count(), 2)
-        self.assertEqual(flow.get_steps().first().messages.last().direction, OUTGOING)
-        self.assertEqual(flow.get_steps().first().messages.last().text, u'What would you like to read about?')
-
-        self.assertEqual(flow.get_steps().first().messages.first().direction, INCOMING)
-        self.assertEqual(flow.get_steps().first().messages.first().text, u'1')
+        msgs = flow.get_steps().first().messages.order_by('id')
+        self.assertEqual(len(msgs), 2)
+        self.assertEqual(msgs[0].direction, OUTGOING)
+        self.assertEqual(msgs[0].text, u'What would you like to read about?')
+        self.assertEqual(msgs[1].direction, INCOMING)
+        self.assertEqual(msgs[1].text, u'1')
 
         # second step sent out the next message and waits for response
-        self.assertEqual(flow.get_steps().last().messages.count(), 1)
-        self.assertEqual(flow.get_steps().last().messages.first().direction, OUTGOING)
-        self.assertEqual(flow.get_steps().last().messages.first().text, u'Thank you!')
+        msgs = flow.get_steps().last().messages.order_by('id')
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0].direction, OUTGOING)
+        self.assertEqual(msgs[0].text, u'Thank you!')
 
     def test_expiration(self):
         # start off a PUSH session
@@ -777,7 +778,7 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(run.session, session)
         self.assertEqual(run.connection, connection)
 
-        msg = Msg.objects.all().first()
+        msg = Msg.objects.order_by('id').last()
         self.assertEqual("Please enter a phone number", msg.text)
 
         from_addr = "+250788383383"
@@ -788,7 +789,7 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
 
-        msg = Msg.objects.all().order_by('-created_on').first()
+        msg = Msg.objects.order_by('id').last()
 
         # We should get the final message
         self.assertEqual("Thank you", msg.text)

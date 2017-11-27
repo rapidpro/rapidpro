@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum, Max
+from django.db.models import Q, Count, QuerySet, Sum, Max, Prefetch
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -4152,11 +4152,11 @@ class FlowPathRecentMessage(models.Model):
         cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuid, limit=PRUNE_TO):
+    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid=to_uuid).order_by('-created_on')
+        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
         if limit:
             recent = recent[:limit]
 
@@ -4537,10 +4537,13 @@ class ExportFlowResultsTask(BaseExportTask):
         for run_step in ChunkIterator(FlowStep, step_ids,
                                       order_by=['contact', 'run', 'arrived_on', 'pk'],
                                       select_related=['run', 'contact'],
-                                      prefetch_related=['messages__contact_urn',
-                                                        'messages__channel',
-                                                        'broadcasts',
-                                                        'contact__all_groups'],
+                                      prefetch_related=[
+                                          Prefetch('messages', queryset=Msg.objects.order_by('-id')),
+                                          'messages__contact_urn',
+                                          'messages__channel',
+                                          'broadcasts',
+                                          'contact__all_groups'
+                                      ],
                                       contact_fields=contact_fields):
 
             processed_steps += 1
