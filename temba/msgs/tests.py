@@ -479,16 +479,16 @@ class MsgTest(TembaTest):
 
         # test labeling a messages
         self.do_msg_action(inbox_url, [msg1, msg2], 'label', label1)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1, msg2})
 
         # test removing a label
         self.do_msg_action(inbox_url, [msg2], 'label', label1, label_add=False)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
 
         # label more messages
         self.do_msg_action(inbox_url, [msg1, msg2, msg3], 'label', label3)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
-        self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
+        self.assertEqual(set(label3.msgs.all()), {msg1, msg2, msg3})
 
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
