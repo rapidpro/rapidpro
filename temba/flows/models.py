@@ -1305,12 +1305,12 @@ class Flow(TembaModel):
 
         return node_order
 
-    def build_ruleset_caches(self, ruleset_list=None):
+    @cached_property
+    def cached_rulesets(self):
         rulesets = dict()
         rule_categories = dict()
 
-        if ruleset_list is None:
-            ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
+        ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
 
         for ruleset in ruleset_list:
             rulesets[ruleset.uuid] = ruleset
@@ -1381,15 +1381,9 @@ class Flow(TembaModel):
 
         return context
 
-    def get_results(self, contact=None, filter_ruleset=None, only_last_run=True, run=None):
-        if filter_ruleset:  # pragma: needs cover
-            ruleset_list = [filter_ruleset]
-        elif run and hasattr(run.flow, 'ruleset_prefetch'):
-            ruleset_list = run.flow.ruleset_prefetch
-        else:
-            ruleset_list = None
+    def get_results(self, contact=None, only_last_run=True, run=None):
 
-        (rulesets, rule_categories) = self.build_ruleset_caches(ruleset_list)
+        (rulesets, rule_categories) = self.cached_rulesets
 
         # for each of the contacts that participated
         results = []
@@ -1416,10 +1410,6 @@ class Flow(TembaModel):
 
             # filter our steps to only the runs we care about
             flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
-
-            # and the ruleset we care about
-            if filter_ruleset:  # pragma: needs cover
-                flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
             flow_steps = flow_steps.order_by('arrived_on', 'pk')
             flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
