@@ -37,7 +37,7 @@
               .modal-quick-reply{ng-repeat:"response in translation.fromQuickReplies", class:""}
                 .quick-reply-title.center-translate
                   .translate-from{ng-show:"translation.fromQuickReplies"}
-                    -trans "[[ response[language.from] ]]"
+                    [[ response[language.from] ]]
                   %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response[language.to]", ng-required:"true"}
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}

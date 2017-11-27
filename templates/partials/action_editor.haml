@@ -51,14 +51,6 @@
     -webkit-transition: none;
   }
 
-  .icon-button-quick-reply {
-    font-size: 18px;
-    margin-top: 4px;
-    margin-left: 2px;
-    transition: none;
-    -webkit-transition: none;
-  }
-
 
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
@@ -106,7 +98,7 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-        .icon-button-quick-reply.cursor-pointer{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+        .icon-button-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
 
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header
@@ -118,7 +110,7 @@
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply[base_language]", ng-required:"true"}
 
           .icon.icon-close{ng-click:"removeQuickReply(quickReplies, $index);"}
-        %a.add-reply{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"quickReplies.length == 11"}
+        %a.add-reply{href:"javascript:;", ng-click:"addNewQuickReply()", ng-hide:"quickReplies.length == 11"}
           -trans "Add reply"
 
     %span{ng-if:'config.type == "end_ussd"'}
