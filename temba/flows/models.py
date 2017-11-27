@@ -5545,8 +5545,9 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run) \
-                if self.quick_replies else []
+            quick_replies = []
+            if self.quick_replies:
+                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
 
             attachments = None
             if self.media:
