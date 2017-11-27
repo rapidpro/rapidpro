@@ -2351,9 +2351,6 @@ class Flow(TembaModel):
 
             for existing in existing_rulesets.values():
                 if existing.uuid not in seen:
-                    # clean up any values on this ruleset
-                    Value.objects.filter(ruleset=existing, org=self.org).delete()
-
                     del existing_rulesets[existing.uuid]
                     existing.delete()
 
