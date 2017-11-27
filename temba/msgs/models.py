@@ -1430,19 +1430,6 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def get_outgoing_metadata(cls, quick_replies, expressions_context, contact, org, channel):
-        for counter, reply in enumerate(quick_replies):
-            (text, errors) = Msg.evaluate_template(reply, expressions_context, org=org)
-            if text:
-                if contact.is_test:
-                    quick_replies[counter] = text
-                else:
-                    channel_type = Channel.get_type_from_code(channel.channel_type)
-                    quick_replies[counter] = text[:channel_type.quick_reply_text_size]
-
-        return quick_replies
-
-    @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None):
@@ -1554,7 +1541,14 @@ class Msg(models.Model):
 
         metadata = None
         if quick_replies:
-            quick_replies = Msg.get_outgoing_metadata(quick_replies, expressions_context, contact, org, channel)
+            for counter, reply in enumerate(quick_replies):
+                (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
+                if value:
+                    if contact.is_test:
+                        quick_replies[counter] = value
+                    else:
+                        channel_type = Channel.get_type_from_code(channel.channel_type)
+                        quick_replies[counter] = value[:channel_type.quick_reply_text_size]
             metadata = json.dumps(dict(quick_replies=quick_replies))
 
         msg_args = dict(contact=contact,
