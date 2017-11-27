@@ -701,7 +701,8 @@ class Contact(TembaModel):
         from temba.values.models import Value
 
         # remove our cached field values
-        del self.cached_field_values
+        if 'cached_field_values' in self.__dict__:
+            del self.__dict__['cached_field_values']
 
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
