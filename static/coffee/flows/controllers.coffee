@@ -1899,12 +1899,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       addQuickReply[$scope.base_language] = ''
       $scope.quickReplies.push(addQuickReply)
 
-  $scope.removeQuickReply = (item, index) ->
-    item.splice(index, 1)
+  $scope.removeQuickReply = (index) ->
+    $scope.quickReplies.splice(index, 1)
 
-    if item.length == 0
+    if $scope.quickReplies.length == 0
       $scope.showQuickReplyButton = true
-      $scope.quickReplies = []
       $scope.action.quick_replies = []
 
   $scope.actionset = actionset
