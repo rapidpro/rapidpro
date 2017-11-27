@@ -10614,7 +10614,8 @@ class FcmTest(TembaTest):
                     'title': 'FCM Channel',
                     'message': 'Hello, world!',
                     'message_id': msg.id,
-                    'quick_replies': ["Yes", "No"]
+                    'quick_replies': [{"payload": "Yes", "title": "Yes"},
+                                      {"payload": "No", "title": "No"}]
                 },
                 'content_available': True,
                 'to': '123456abcdef',
