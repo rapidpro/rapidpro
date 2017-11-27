@@ -1,3 +1,12 @@
+v3.0.262
+----------
+ * Use string comparison to optimize temba_update_flowcategorycount
+ * Allow path counts to be read by node or exit
+ * SuperAutoscaler
+ * Fix inbox views so we don't look up channel logs for views that don't have them
+ * Add management command for analyzing webhook calls
+ * Change recent message fetching to work with either node UUID or exit UUID
+
 v3.0.261
 ----------
  * Migrate revisions forward with rev version
