@@ -1543,11 +1543,7 @@ class Msg(models.Model):
             for counter, reply in enumerate(quick_replies):
                 (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
                 if value:
-                    if contact.is_test:
-                        quick_replies[counter] = value
-                    else:
-                        channel_type = Channel.get_type_from_code(channel.channel_type)
-                        quick_replies[counter] = value[:channel_type.quick_reply_text_size]
+                    quick_replies[counter] = value
             metadata = json.dumps(dict(quick_replies=quick_replies))
 
         msg_args = dict(contact=contact,

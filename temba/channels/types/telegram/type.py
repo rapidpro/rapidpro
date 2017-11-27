@@ -54,7 +54,7 @@ class TelegramType(ChannelType):
         metadata = msg.metadata if hasattr(msg, 'metadata') else {}
         quick_replies = metadata.get('quick_replies', [])
         formatted_replies = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True,
-                                            keyboard=[[dict(text=item)] for item in quick_replies]))
+                                            keyboard=[[dict(text=item[:self.quick_reply_text_size])] for item in quick_replies]))
 
         if quick_replies:
             post_body['reply_markup'] = formatted_replies

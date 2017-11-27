@@ -63,7 +63,7 @@ class TwitterType(ChannelType):
             else:
                 metadata = msg.metadata if hasattr(msg, 'metadata') else {}
                 quick_replies = metadata.get('quick_replies', [])
-                formatted_replies = [dict(label=item) for item in quick_replies]
+                formatted_replies = [dict(label=item[:self.quick_reply_text_size]) for item in quick_replies]
 
                 if quick_replies:
                     params = {

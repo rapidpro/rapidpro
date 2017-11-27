@@ -61,8 +61,8 @@ class ViberPublicType(ChannelType):
 
         metadata = msg.metadata if hasattr(msg, 'metadata') else {}
         quick_replies = metadata.get('quick_replies', [])
-        formatted_replies = [dict(Text=item, ActionBody=item, ActionType='reply',
-                                  TextSize='regular') for item in quick_replies]
+        formatted_replies = [dict(Text=item[:self.quick_reply_text_size], ActionBody=item[:self.quick_reply_text_size],
+                                  ActionType='reply', TextSize='regular') for item in quick_replies]
 
         if quick_replies:
             payload['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=formatted_replies)
