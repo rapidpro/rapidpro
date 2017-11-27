@@ -1288,8 +1288,7 @@ class Msg(models.Model):
                              is_org_connected_to_chatbase=True))
 
         if self.metadata:
-            metadata = json.loads(self.metadata)
-            data['metadata'] = metadata.get('quick_replies', None)
+            data['metadata'] = json.loads(self.metadata)
 
         return data
 

@@ -61,7 +61,8 @@ class TwitterType(ChannelType):
 
             # this is a new twitterid URN, our path is our user id
             else:
-                quick_replies = msg.metadata if hasattr(msg, 'metadata') else {}
+                metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+                quick_replies = metadata.get('quick_replies', [])
                 formatted_replies = [dict(label=item) for item in quick_replies]
 
                 if quick_replies:

@@ -51,7 +51,8 @@ class TelegramType(ChannelType):
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = {'chat_id': msg.urn_path, 'text': text}
 
-        quick_replies = msg.metadata if hasattr(msg, 'metadata') else {}
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
         formatted_replies = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True,
                                             keyboard=[[dict(text=item)] for item in quick_replies]))
 
