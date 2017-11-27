@@ -7208,9 +7208,6 @@ class TwitterTest(TembaTest):
                 self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
                 self.clear_cache()
 
-        finally:
-            settings.SEND_MESSAGES = False
-
 
 class MageHandlerTest(TembaTest):
 
