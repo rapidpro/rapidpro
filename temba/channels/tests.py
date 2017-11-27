@@ -7149,64 +7149,63 @@ class TwitterTest(TembaTest):
         quick_replies = ['Yes', 'No']
         msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
 
-        try:
-            with patch('requests.sessions.Session.post') as mock:
-                response_dict = {
-                    "event": {
-                        "created_timestamp": "1504717797522",
-                        "message_create": {
-                            "message_data": {
-                                "text": "Hello, choose\u200b an option, please.",
-                                "quick_reply": {
-                                    "type": "options",
-                                    "options": [{
-                                        "label": "Yes"
-                                    }, {
-                                        "label": "No"
-                                    }]
-                                },
-                                "entities": {
-                                    "symbols": [],
-                                    "user_mentions": [],
-                                    "hashtags": [],
-                                    "urls": []
-                                }
+        with patch('requests.sessions.Session.post') as mock:
+            response_dict = {
+                "event": {
+                    "created_timestamp": "1504717797522",
+                    "message_create": {
+                        "message_data": {
+                            "text": "Hello, choose\u200b an option, please.",
+                            "quick_reply": {
+                                "type": "options",
+                                "options": [{
+                                    "label": "Yes"
+                                }, {
+                                    "label": "No"
+                                }]
                             },
-                            "sender_id": "000000",
-                            "target": {
-                                "recipient_id": "10002"
+                            "entities": {
+                                "symbols": [],
+                                "user_mentions": [],
+                                "hashtags": [],
+                                "urls": []
                             }
                         },
-                        "type": "message_create",
-                        "id": "000000000000000000"
-                    }
+                        "sender_id": "000000",
+                        "target": {
+                            "recipient_id": "10002"
+                        }
+                    },
+                    "type": "message_create",
+                    "id": "000000000000000000"
                 }
-                mock.return_value = MockResponse(200, json.dumps(response_dict))
+            }
+            mock.return_value = MockResponse(200, json.dumps(response_dict))
 
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                mock.assert_called_with('https://api.twitter.com/1.1/direct_messages/events/new.json',
-                                        files=None,
-                                        data=json.dumps(dict(event=dict(message_create=dict(message_data=dict(
-                                            text='Hello, world!',
-                                            quick_reply=dict(
-                                                type='options',
-                                                options=[dict(label='Yes'), dict(label='No')]
-                                            )),
-                                            target=dict(recipient_id='10002')),
-                                            type='message_create')
-                                        )))
+            mock.assert_called_with('https://api.twitter.com/1.1/direct_messages/events/new.json',
+                                    files=None,
+                                    data=json.dumps(dict(event=dict(message_create=dict(message_data=dict(
+                                        text='Hello, world!',
+                                        quick_reply=dict(
+                                            type='options',
+                                            options=[dict(label='Yes'), dict(label='No')]
+                                        )),
+                                        target=dict(recipient_id='10002')),
+                                        type='message_create')
+                                    )))
 
-                msg.refresh_from_db()
-                self.assertEqual(msg.status, WIRED)
-                self.assertTrue(msg.sent_on)
-                self.assertEqual(msg.external_id, "000000000000000000")
-                self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
-                data_args = json.loads(mock.call_args[1]['data'])
-                message_data = data_args['event']['message_create']['message_data']
-                self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
-                self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
-                self.clear_cache()
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "000000000000000000")
+            self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
+            data_args = json.loads(mock.call_args[1]['data'])
+            message_data = data_args['event']['message_create']['message_data']
+            self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
+            self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
+            self.clear_cache()
 
 
 class MageHandlerTest(TembaTest):
