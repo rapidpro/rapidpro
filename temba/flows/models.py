@@ -953,7 +953,7 @@ class Flow(TembaModel):
         flow_context = {}
         values = []
         if contact:
-            results = self.get_results(contact, only_last_run=True, run=run)
+            results = self.get_results(contact, only_last_run=True)
             if results and results[0]:
                 for value in results[0]['values']:
                     field = Flow.label_to_slug(value['label'])
