@@ -17,7 +17,6 @@ from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
-from django.utils.functional import cached_property
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
@@ -518,7 +517,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     @property
-    def active_user_groups(self):
+    def cached_user_groups(self):
         """
         Define Contact.user_groups to only refer to user groups
         """
@@ -776,10 +775,6 @@ class Contact(TembaModel):
         if has_changed:
             self.modified_by = user
             self.save(update_fields=('modified_by', 'modified_on'))
-
-            # remove our cached field values
-            if 'cached_field_values' in self.__dict__:
-                del self.__dict__['cached_field_values']
 
             # update any groups or campaigns for this contact if not importing
             if not importing:
@@ -1572,11 +1567,7 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
 
-    def clear_send_channels(self):
-        if hasattr(self, '_send_channels'):
-            delattr(self, '_send_channels')
-
-    def get_send_channel(self, contact_urn):
+    def cached_send_channel(self, contact_urn):
         cache = getattr(self, '_send_channels', {})
         channel = cache.get(contact_urn.id)
         if not channel:
@@ -1585,6 +1576,12 @@ class Contact(TembaModel):
             self._send_channels = cache
 
         return channel
+
+    def initialize_cache(self):
+        if getattr(self, '__cache_initialized', False):
+            return
+
+        Contact.bulk_cache_initialize(self.org, [self])
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
@@ -1632,19 +1629,16 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
-    @cached_property
-    def cached_field_values(self):
-        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
-        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
-
-        # get all the values for this contact
-        contact_values = {v.contact_field.key: v for v in field_values}
-        return contact_values
+        # set the cache initialize as correct
+        for contact in contacts:
+            setattr(contact, '__cache_initialized', True)
 
     def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
         """
+        self.initialize_cache()
+
         org = self.org
         context = {
             '__default__': self.get_display(),
@@ -1652,7 +1646,7 @@ class Contact(TembaModel):
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
             'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            'groups': ",".join([_.name for _ in self.active_user_groups]),
+            'groups': ",".join([_.name for _ in self.cached_user_groups]),
             'uuid': self.uuid
         }
 
@@ -1668,11 +1662,9 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        contact_values = self.cached_field_values
-
         # add all active fields to our context
         for field in org.cached_contact_fields:
-            field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
+            field_value = Contact.get_field_display_for_value(field, self.get_field(field.key))
             context[field.key] = field_value if field_value is not None else ''
 
         return context
