@@ -9,7 +9,7 @@ from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactGroup, ContactField, Contact
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
@@ -471,7 +471,8 @@ class EventFire(Model):
         Starts a batch of event fires that are for events which use the same flow
         """
         fired = timezone.now()
-        flow.start([], [f.contact for f in fires], restart_participants=True)
+        start = FlowStart.create(flow, flow.created_by, contacts=[f.contact for f in fires])
+        start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
