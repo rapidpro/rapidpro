@@ -232,6 +232,7 @@ class FlowTest(TembaTest):
 
         # flow language used regardless of whether it's an org language
         self.flow.base_language = 'eng'
+        self.flow.save(update_fields=['base_language'])
         self.flow.org.set_languages(self.admin, ['eng'], 'eng')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
