@@ -1667,7 +1667,7 @@ class Contact(TembaModel):
         contact_values = self.cached_field_values
 
         # add all active fields to our context
-        for field in org.active_contact_fields:
+        for field in org.cached_contact_fields:
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
             context[field.key] = field_value if field_value is not None else ''
 
