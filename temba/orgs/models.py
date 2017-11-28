@@ -1530,14 +1530,6 @@ class Org(SmartModel):
         return get_brand_bundles(self.get_branding())
 
     @cached_property
-    def cached_language_codes(self):
-        return {l.iso_code for l in self.languages.all()}
-
-    def clear_cached_language_codes(self):
-        if 'cached_language_codes' in self.__dict__:
-            del self.__dict__['cached_language_codes']
-
-    @cached_property
     def cached_contact_fields(self):
         from temba.contacts.models import ContactField
         fields = ContactField.objects.filter(org=self, is_active=True)

@@ -225,40 +225,32 @@ class FlowTest(TembaTest):
 
     def test_get_localized_text(self):
 
-        text_translations = dict(eng="Hello", esp="Hola", fre="Salut")
+        text_translations = dict(eng="Hello", spa="Hola", fre="Salut")
 
         # use default when flow, contact and org don't have language set
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
 
         # flow language used regardless of whether it's an org language
         self.flow.base_language = 'eng'
-        self.flow.save(update_fields=('base_language',))
-        self.flow.org.clear_cached_language_codes()
+        self.flow.org.set_languages(self.admin, ['eng'], 'eng')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
-        Language.create(self.org, self.admin, "English", 'eng')
-        esp = Language.create(self.org, self.admin, "Spanish", 'esp')
-        self.flow.org.clear_cached_language_codes()
-
         # flow language now valid org language
+        self.flow.org.set_languages(self.admin, ['eng', 'spa'], 'eng')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
         # org primary language overrides flow language
-        self.flow.org.primary_language = esp
-        self.flow.org.save(update_fields=('primary_language',))
-        self.flow.org.clear_cached_language_codes()
+        self.flow.org.set_languages(self.admin, ['eng', 'spa'], 'spa')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = 'fre'
 
         self.contact.save(update_fields=('language',))
-        self.flow.org.clear_cached_language_codes()
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # does override if it is
-        Language.create(self.org, self.admin, "French", 'fre')
-        self.flow.org.clear_cached_language_codes()
+        self.flow.org.set_languages(self.admin, ['eng', 'spa', 'fre'], 'spa')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
@@ -6383,11 +6375,7 @@ class FlowsTest(FlowFileTest):
         favorites = self.get_flow('favorites')
 
         # create a new language on the org
-        language = Language.create(self.org, favorites.created_by, "English", 'eng')
-
-        # set it as our primary language
-        self.org.primary_language = language
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng'], 'eng')
 
         # everything should work as normal with our flow
         self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
@@ -6410,16 +6398,15 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED"))
 
         # now let's add a second language
-        Language.create(self.org, favorites.created_by, "Klingon", 'kli')
-        favorites.org.clear_cached_language_codes()
+        self.org.set_languages(self.admin, ['eng', 'tlh'], 'eng')
 
         # update our initial message
         initial_message = json_dict['action_sets'][0]['actions'][0]
-        initial_message['msg']['kli'] = 'Kikshtik derklop?'
+        initial_message['msg']['tlh'] = 'Kikshtik derklop?'
         json_dict['action_sets'][0]['actions'][0] = initial_message
 
         # and the first response
-        reply['msg']['kli'] = 'Katishklick Shnik @flow.color.category Errrrrrrrklop'
+        reply['msg']['tlh'] = 'Katishklick Shnik @flow.color.category Errrrrrrrklop'
         json_dict['action_sets'][1]['actions'][0] = reply
 
         # save the changes
@@ -6432,7 +6419,7 @@ class FlowsTest(FlowFileTest):
 
         # now set our contact's preferred language to klingon
         FlowRun.objects.all().delete()
-        self.contact.language = 'kli'
+        self.contact.language = 'tlh'
         self.contact.save()
 
         self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
@@ -6442,8 +6429,8 @@ class FlowsTest(FlowFileTest):
         json_dict = favorites.as_json()
         rule = json_dict['rule_sets'][0]['rules'][0]
         self.assertTrue(isinstance(rule['test']['test'], dict))
-        rule['test']['test']['kli'] = 'klerk'
-        rule['category']['kli'] = 'Klerkistikloperopikshtop'
+        rule['test']['test']['tlh'] = 'klerk'
+        rule['category']['tlh'] = 'Klerkistikloperopikshtop'
         json_dict['rule_sets'][0]['rules'][0] = rule
         self.assertEqual('success', favorites.update(json_dict, self.admin)['status'])
 
@@ -6470,7 +6457,7 @@ class FlowsTest(FlowFileTest):
 
         # boolean values in our language dict shouldn't blow up
         json_dict['action_sets'][0]['actions'][0]['msg']['updated'] = True
-        json_dict['action_sets'][0]['actions'][0]['msg']['kli'] = 'Bleck'
+        json_dict['action_sets'][0]['actions'][0]['msg']['tlh'] = 'Bleck'
 
         # boolean values in our rule dict shouldn't blow up
         rule = json_dict['rule_sets'][0]['rules'][0]
@@ -6481,7 +6468,7 @@ class FlowsTest(FlowFileTest):
 
         favorites = Flow.objects.get(pk=favorites.pk)
         json_dict = favorites.as_json()
-        action = self.assertEqual('Bleck', json_dict['action_sets'][0]['actions'][0]['msg']['kli'])
+        action = self.assertEqual('Bleck', json_dict['action_sets'][0]['actions'][0]['msg']['tlh'])
 
         # test that simulation takes language into account
         self.login(self.admin)
@@ -6490,7 +6477,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
-        simulate_url = "%s?lang=kli" % reverse('flows.flow_simulate', args=[favorites.pk])
+        simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
