@@ -1250,15 +1250,13 @@ class FlowCRUDL(SmartCRUDL):
         Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
         """
 
-        def get_paginate_by(self):
-            return 50
+        paginate_by = 50
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
             org = self.derive_org()
 
-            paginate_by = self.get_paginate_by()
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
@@ -1286,9 +1284,9 @@ class FlowCRUDL(SmartCRUDL):
                 runs = runs.filter(modified_on__lte=modified_on).exclude(id__gte=id)
 
             # we grab one more than our page to denote whether there's more to get
-            runs = list(runs.order_by('-modified_on')[:paginate_by + 1])
-            context['more'] = len(runs) > paginate_by
-            runs = runs[:paginate_by]
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by + 1])
+            context['more'] = len(runs) > self.paginate_by
+            runs = runs[:self.paginate_by]
 
             # populate ruleset values
             for run in runs:
@@ -1299,7 +1297,7 @@ class FlowCRUDL(SmartCRUDL):
                     run.value_list.append(results.get(key, None))
 
             context['runs'] = runs
-            context['paginate_by'] = paginate_by
+            context['paginate_by'] = self.paginate_by
             return context
 
     class CategoryCounts(OrgObjPermsMixin, SmartReadView):

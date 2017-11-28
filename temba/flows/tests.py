@@ -4645,8 +4645,7 @@ class FlowsTest(FlowFileTest):
     def test_flow_results(self):
         favorites = self.get_flow('favorites')
 
-        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
-            page.return_value = 1
+        with patch('temba.flows.views.FlowCRUDL.RunTable.paginate_by', 1):
 
             pete = self.create_contact('Pete', '+12065553027')
             self.send_message(favorites, 'blue', contact=pete)
@@ -4749,8 +4748,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(7, len(response.context['dow']))
 
         # delete a run
-        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
-            page.return_value = 100
+        with patch('temba.flows.views.FlowCRUDL.RunTable.paginate_by', 100):
             response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
             self.assertEqual(len(response.context['runs']), 2)
 
@@ -4801,8 +4799,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
                                                       {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
 
-        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
-            page.return_value = 1
+        with patch('temba.flows.views.FlowCRUDL.RunTable.paginate_by', 1):
 
             # create one empty run
             FlowRun.objects.create(org=favorites.org, flow=favorites, contact=pete, responded=True)
