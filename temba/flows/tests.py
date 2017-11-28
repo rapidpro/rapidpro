@@ -4809,6 +4809,13 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(response.context['runs']), 1)
             self.assertEqual(200, response.status_code)
 
+        # make sure we show results for flows with only expression splits
+        RuleSet.objects.filter(flow=favorites).update(ruleset_type=RuleSet.TYPE_EXPRESSION)
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+
+        self.assertEqual(24, len(response.context['hod']))
+        self.assertEqual(7, len(response.context['dow']))
+
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')
 

@@ -1165,7 +1165,7 @@ class FlowCRUDL(SmartCRUDL):
 
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
-            rulesets = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT))
+            rulesets = list(flow.rule_sets.all())
 
             from_uuids = []
             for ruleset in rulesets:
