@@ -765,3 +765,25 @@ describe 'Controllers:', ->
 
         for rule_test in rule_tests
           expect(scope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
+
+          
+     it 'should generate json quick replies to send', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+    
+      json_quick_reply = ['Yes', 'No']
+
+      editAction actionset, action, (scope) ->
+        scope.quickReplies = []
+        scope.action.quick_replies = {}
+        scope.addNewQuickReply()
+        scope.quickReplies[0] = 'Yes'
+        scope.quickReplies[1] = 'No'
+        scope.formData.msg = "test"
+        scope.saveMessage('test', type='reply')
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      expect(JSON.stringify(action.quick_replies)).toBe(JSON.stringify(json_quick_reply))

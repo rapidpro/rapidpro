@@ -55,6 +55,14 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {'message': {'text': text}}
 
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(title=item[:self.quick_reply_text_size], payload=item[:self.quick_reply_text_size],
+                                  content_type='text') for item in quick_replies]
+
+        if quick_replies:
+            payload['message']['quick_replies'] = formatted_replies
+
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
             payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
