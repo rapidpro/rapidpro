@@ -27,7 +27,7 @@ class QueryTracker(object):  # pragma: no cover
             if idx < len(stack):
                 print(stack[idx], end='')
 
-    def __init__(self, sort_queries=True, skip_unique_queries=True, assert_less_queries=None, query=None, stack_count=3):
+    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_less_queries=None, query=None, stack_count=3):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
         self.num_queries = assert_less_queries
@@ -81,41 +81,41 @@ class QueryTracker(object):  # pragma: no cover
         django.db.backends.utils.CursorWrapper = self.old_wrapper
         django.db.backends.utils.CursorDebugWrapper = self.old_debug_wrapper
 
-        if self.sort_queries:
-            self.queries.sort()
-            last = None
-            count = 0
-            for idx, query in enumerate(self.queries):
-                (sql, stack) = query
+        if self.num_queries and len(self.queries) >= self.num_queries:
+            if self.sort_queries:
+                self.queries.sort()
+                last = None
+                count = 0
+                for idx, query in enumerate(self.queries):
+                    (sql, stack) = query
 
-                if (last != sql):
-                    if self.skip_unique_queries:
-                        if sql not in [s[0] for s in self.queries[idx + 1:]]:
-                            last = sql
-                            continue
-                    if count:
-                        print("\n%d QUERIES" % count)
+                    if (last != sql):
+                        if self.skip_unique_queries:
+                            if sql not in [s[0] for s in self.queries[idx + 1:]]:
+                                last = sql
+                                continue
+                        if count:
+                            print("\n%d QUERIES" % count)
 
-                    count = 1
-                    print('\n')
-                    print('=' * 100)
+                        count = 1
+                        print('\n')
+                        print('=' * 100)
+                        for line in textwrap.wrap(sql, 100):
+                            print(line)
+                        print('=' * 100)
+                        self.print_stack(stack)
+                    else:
+                        count += 1
+                        print('  ' + '-' * 96)
+                        self.print_stack(stack)
+                    last = sql
+            else:
+                for query in self.queries:
+                    (sql, stack) = query
                     for line in textwrap.wrap(sql, 100):
                         print(line)
-                    print('=' * 100)
-                    self.print_stack(stack)
-                else:
-                    count += 1
-                    print('  ' + '-' * 96)
-                    self.print_stack(stack)
-                last = sql
-        else:
-            for query in self.queries:
-                (sql, stack) = query
-                for line in textwrap.wrap(sql, 100):
-                    print(line)
-                print(stack, end='')
+                    print(stack, end='')
 
-        if self.num_queries and len(self.queries) >= self.num_queries:
             raise AssertionError("Executed %d queries (expected < %d)" % (len(self.queries), self.num_queries))
 
     def __str__(self):
