@@ -1,3 +1,8 @@
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
 v3.0.263
 ----------
  * Start campaigns in separate task
