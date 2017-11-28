@@ -440,7 +440,11 @@ class Org(SmartModel):
 
     @cached_property
     def cached_channels(self):
-        return [c for c in self.channels.filter(is_active=True)]
+        channels = [c for c in self.channels.filter(is_active=True)]
+        for ch in channels:
+            ch.org = self
+
+        return channels
 
     def clear_cached_channels(self):
         if 'cached_channels' in self.__dict__:
