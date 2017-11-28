@@ -6410,6 +6410,7 @@ class FlowsTest(FlowFileTest):
 
         # now let's add a second language
         Language.create(self.org, favorites.created_by, "Klingon", 'kli')
+        favorites.org.clear_cached_language_codes()
 
         # update our initial message
         initial_message = json_dict['action_sets'][0]['actions'][0]
