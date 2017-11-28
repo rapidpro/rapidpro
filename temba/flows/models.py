@@ -1142,7 +1142,7 @@ class Flow(TembaModel):
         :param default_text: What to use if all else fails
         :return: the localized text
         """
-        org_languages = self.org.language_codes
+        org_languages = self.org.cached_language_codes
 
         # We return according to the following precedence:
         #   1) Contact's language (if it's a valid org language)
