@@ -17,15 +17,16 @@ from django.utils import timezone
 from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
+from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction, ActionSet, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from uuid import uuid4
 from urllib import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
@@ -328,19 +329,19 @@ class APITest(TembaTest):
         url = reverse('api.v2.explorer')
 
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as non-org user
         self.login(self.non_org_user)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as administrator
         self.login(self.admin)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):
@@ -593,7 +594,7 @@ class APITest(TembaTest):
 
         # create new broadcast with all fields
         response = self.postJSON(url, None, {
-            'text': "Hello",
+            'text': "Hi @contact",
             'urns': ["twitter:franky"],
             'contacts': [self.joe.uuid, self.frank.uuid],
             'groups': [reporters.uuid],
@@ -601,11 +602,14 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello"})
+        self.assertEqual(broadcast.text, {'base': "Hi @contact"})
         self.assertEqual(set(broadcast.urns.values_list('identity', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
+
+        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
+        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
 
         # create new broadcast with translations
         response = self.postJSON(url, None, {
@@ -648,6 +652,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': campaign2.uuid,
             'name': "Reminders #2",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign2.created_on)
         })
@@ -669,6 +674,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json(), {
             'uuid': campaign3.uuid,
             'name': "Reminders #3",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign3.created_on)
         })
@@ -705,6 +711,11 @@ class APITest(TembaTest):
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+
+        # create our contact and set a registration date
+        contact = self.create_contact("Joe", "+12065551515")
+        reporters.contacts.add(contact)
+        contact.set_field(self.admin, "registration", timezone.now())
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign1, registration,
@@ -836,6 +847,9 @@ class APITest(TembaTest):
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, flow)
 
+        # make sure some event fires were created for the contact
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
+
         # update the message event to be a flow event
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
             'campaign': campaign1.uuid,
@@ -903,6 +917,9 @@ class APITest(TembaTest):
 
         event1.refresh_from_db()
         self.assertFalse(event1.is_active)
+
+        # should no longer have any events
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
     def test_channels(self):
         url = reverse('api.v2.channels')
@@ -1316,7 +1333,7 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow.start([], [contact1, contact2, contact3])
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
@@ -1541,6 +1558,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=xx' % (flow.uuid, campaign.uuid))
         self.assertResponseError(response, None, 'dependencies must be one of none, flows, all')
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_fields(self):
         url = reverse('api.v2.fields')
 
@@ -1602,20 +1620,33 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'key=not_ours', {'label': "Something", 'value_type': 'text'})
         self.assert404(response)
 
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "This org has 10 contact fields and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
+
     def test_flows(self):
         url = reverse('api.v2.flows')
 
         self.assertEndpointAccess(url)
 
         registration = self.create_flow(name="Registration")
-        survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
+        color = self.get_flow('color')
+
+        # add a campaign message flow that should be filtered out
+        Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
-        survey.labels.add(reporting)
+        color.labels.add(reporting)
 
         # run joe through through a flow
-        survey.start([], [self.joe])
+        color.start([], [self.joe])
         self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
 
         # flow belong to other org
@@ -1630,14 +1661,14 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
             {
-                'uuid': survey.uuid,
-                'name': "Survey",
+                'uuid': color.uuid,
+                'name': "Color Flow",
                 'archived': False,
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(survey.created_on),
-                'modified_on': format_datetime(survey.modified_on)
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
             },
             {
                 'uuid': registration.uuid,
@@ -1652,17 +1683,18 @@ class APITest(TembaTest):
         ])
 
         # filter by UUID
-        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'uuid=%s' % color.uuid)
+        self.assertResultsByUUID(response, [color])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(registration.modified_on))
         self.assertResultsByUUID(response, [registration])
 
         # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color])
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse('api.v2.groups')
 
@@ -1752,6 +1784,29 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=%s' % spammers.uuid)
         self.assert404(response)
 
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertEqual(response.status_code, 201)
+
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "This org has 10 groups and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
+
+        group1 = ContactGroup.user_groups.filter(org=self.org, name='group1').first()
+        response = self.deleteJSON(url, 'uuid=%s' % group1.uuid)
+        self.assertEqual(response.status_code, 204)
+
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
         url = reverse('api.v2.labels')
 
@@ -1839,6 +1894,17 @@ class APITest(TembaTest):
         # try to delete a label in another org
         response = self.deleteJSON(url, 'uuid=%s' % spam.uuid)
         self.assert404(response)
+
+        Label.all_objects.all().delete()
+
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        response = self.postJSON(url, None, {'name': "Interesting"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "This org has 10 labels and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones."
+                                 )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
@@ -2072,8 +2138,12 @@ class APITest(TembaTest):
         self.frank.language = 'fre'
         self.frank.save()
 
-        flow1 = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
+
+        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
+        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
+        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
@@ -2120,8 +2190,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2136,16 +2206,16 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
+                    'node': color_ruleset.uuid,
+                    'time': format_datetime(self.joe.values.get(ruleset=color_ruleset).modified_on)
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
@@ -2476,7 +2546,8 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
+                                                       dict(base="Hi @extra.first_name @extra.last_name, "
                                                                  "what's your favorite color?")).as_json()])
         first_action.save()
 

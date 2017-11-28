@@ -8,9 +8,9 @@ import time
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import LINE_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from .views import ClaimView
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from ...models import Channel, ChannelType, SendException
 
 
 class LineType(ChannelType):
@@ -39,8 +39,10 @@ class LineType(ChannelType):
         data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
 
         start = time.time()
-        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer %s' % channel_access_token
+        })
         send_url = 'https://api.line.me/v2/bot/message/push'
 
         event = HttpEvent('POST', send_url, data)

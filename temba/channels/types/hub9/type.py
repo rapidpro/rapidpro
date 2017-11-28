@@ -1,18 +1,16 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import requests
 import six
+
 from django.utils.http import urlencode
-
 from django.utils.translation import ugettext_lazy as _
-
 from temba.channels.types.dartmedia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
@@ -41,6 +39,9 @@ class Hub9Type(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Asia/Jakarta"]
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
 
         # http://175.103.48.29:28078/testing/smsmt.php?
@@ -68,7 +69,7 @@ class Hub9Type(ChannelType):
         start = time.time()
 
         try:
-            response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
+            response = requests.get(send_url, headers=http_headers(), timeout=15)
             event.status_code = response.status_code
             event.response_body = response.text
             if not response:  # pragma: no cover

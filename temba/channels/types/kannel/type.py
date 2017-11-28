@@ -5,7 +5,6 @@ import time
 import phonenumbers
 import requests
 import six
-from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlencode
 
@@ -27,7 +26,7 @@ class KannelType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Kannel"
-    icon = "icon-channel-kannel",
+    icon = "icon-channel-kannel"
 
     claim_blurb = _("""Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
                        the steps necessary to get your SMSC connection working in a few minutes.""")
@@ -40,7 +39,7 @@ class KannelType(ChannelType):
 
     def send(self, channel, msg, text):
         # build our callback dlr url, kannel will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('courier.kn', args=[channel.uuid, 'status']), msg.id)
+        dlr_url = 'https://%s%s?id=%d&status=%%d' % (channel.callback_domain, reverse('courier.kn', args=[channel.uuid, 'status']), msg.id)
         dlr_mask = 31
 
         # build our payload

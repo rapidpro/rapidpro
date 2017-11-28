@@ -2,24 +2,20 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
+import requests
 
 from datetime import timedelta
-
-import requests
-from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
-
-
 from django.utils.translation import ugettext_lazy as _
+from six import text_type
 
-
-from temba.channels.models import ChannelType, Channel, SendException, TEMBA_HEADERS
+from temba.channels.models import ChannelType, Channel, SendException
 from temba.channels.types.junebug.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import Msg, WIRED
 from temba.ussd.models import USSDSession
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 
 
 class JunebugType(ChannelType):
@@ -43,10 +39,12 @@ class JunebugType(ChannelType):
         connection = None
 
         # if the channel config has specified and override hostname use that, otherwise use settings
-        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+        callback_domain = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, None)
+        if not callback_domain:
+            callback_domain = channel.callback_domain
 
         # the event url Junebug will relay events to
-        event_url = 'http://%s%s' % (event_hostname, reverse('courier.jn', args=[channel.uuid, 'event']))
+        event_url = 'http://%s%s' % (callback_domain, reverse('courier.jn', args=[channel.uuid, 'event']))
 
         is_ussd = Channel.get_type_from_code(channel.channel_type).category == ChannelType.Category.USSD
 
@@ -79,8 +77,7 @@ class JunebugType(ChannelType):
         start = time.time()
 
         event = HttpEvent('POST', log_url, json.dumps(payload))
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json'})
 
         try:
             response = requests.post(
@@ -93,7 +90,7 @@ class JunebugType(ChannelType):
             event.response_body = response.text
 
         except Exception as e:
-            raise SendException(unicode(e), event=event, start=start)
+            raise SendException(text_type(e), event=event, start=start)
 
         if not (200 <= response.status_code < 300):
             raise SendException("Received a non 200 response %d from Junebug" % response.status_code,
@@ -107,7 +104,7 @@ class JunebugType(ChannelType):
         try:
             message_id = data['result']['message_id']
             Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
-        except KeyError, e:
+        except KeyError as e:
             raise SendException("Unable to read external message_id: %r" % (e,),
                                 event=HttpEvent('POST', log_url,
                                                 request_body=json.dumps(json.dumps(payload)),

@@ -83,7 +83,7 @@ class APITest(TembaTest):
         return self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
     def assertResultCount(self, response, count):
-        self.assertEquals(count, response.json()['count'])
+        self.assertEqual(count, response.json()['count'])
 
     def assertJSONArrayContains(self, response, key, value):
         if 'results' in response.json():
@@ -121,7 +121,7 @@ class APITest(TembaTest):
         return
 
     def assertResponseError(self, response, field, message, status_code=400):
-        self.assertEquals(status_code, response.status_code)
+        self.assertEqual(status_code, response.status_code)
 
         body = response.json()
         self.assertTrue(message, field in body)
@@ -130,7 +130,7 @@ class APITest(TembaTest):
 
     def assert403(self, url):
         response = self.fetchHTML(url)
-        self.assertEquals(403, response.status_code)
+        self.assertEqual(403, response.status_code)
 
     def test_redirection(self):
         self.login(self.admin)
@@ -340,12 +340,12 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # create our test flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow_ruleset1 = RuleSet.objects.get(flow=flow)
 
         # this time, a 200
         response = self.fetchJSON(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # should contain our single flow in the response
         self.assertEqual(response.json()['results'][0], dict(flow=flow.pk,
@@ -391,22 +391,22 @@ class APITest(TembaTest):
         self.create_flow()
 
         response = self.fetchJSON(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 3)
 
         response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (flow.uuid, flow2.uuid))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 2)
 
         response = self.fetchJSON(url, "flow=%d&flow=%d" % (flow.pk, flow2.pk))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 2)
 
         label2 = FlowLabel.create_unique("Surveys", self.org)
         label2.toggle_label([flow2], add=True)
 
         response = self.fetchJSON(url, "label=Polls&label=Surveys")
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 2)
 
     def test_api_flow_definition(self):
@@ -417,20 +417,20 @@ class APITest(TembaTest):
         flow = self.get_flow('pick_a_number')
 
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(1, response.json()['metadata']['revision'])
-        self.assertEquals("Pick a Number", response.json()['metadata']['name'])
-        self.assertEquals("F", response.json()['flow_type'])
+        self.assertEqual(1, response.json()['metadata']['revision'])
+        self.assertEqual("Pick a Number", response.json()['metadata']['name'])
+        self.assertEqual("F", response.json()['flow_type'])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(2, response.json()['metadata']['revision'])
+        self.assertEqual(2, response.json()['metadata']['revision'])
 
     def test_api_steps_empty(self):
         url = reverse('api.v1.steps')
         self.login(self.surveyor)
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # remove our entry node
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
@@ -590,7 +590,11 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
+        color_prompt = ActionSet.objects.get(x=1, y=1)
+        color_ruleset = RuleSet.objects.get(label="color")
+        orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
 
         # add an update action
         definition = flow.as_json()
@@ -613,7 +617,7 @@ class APITest(TembaTest):
                     submitted_by=self.surveyor.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
-                        dict(node='d51ec25f-04e6-4349-a448-e7c4d93d4597',
+                        dict(node=color_prompt.uuid,
                              arrived_on='2015-08-25T11:09:30.088Z',
                              actions=[
                                  dict(type="reply", msg="What is your favorite color?")
@@ -640,7 +644,7 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].step_uuid, "d51ec25f-04e6-4349-a448-e7c4d93d4597")
+        self.assertEqual(steps[0].step_uuid, color_prompt.uuid)
         self.assertEqual(steps[0].step_type, 'A')
         self.assertEqual(steps[0].rule_uuid, None)
         self.assertEqual(steps[0].rule_category, None)
@@ -663,7 +667,7 @@ class APITest(TembaTest):
                          {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
-        self.assertEqual(flow.get_activity(), ({'d51ec25f-04e6-4349-a448-e7c4d93d4597': 1}, {}))
+        self.assertEqual(flow.get_activity(), ({color_prompt.uuid: 1}, {}))
 
         data = dict(flow=flow.uuid,
                     revision=2,
@@ -671,13 +675,13 @@ class APITest(TembaTest):
                     started='2015-08-25T11:09:29.088Z',
                     submitted_by=self.surveyor.username,
                     steps=[
-                        dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                        dict(node=color_ruleset.uuid,
                              arrived_on='2015-08-25T11:11:30.088Z',
-                             rule=dict(uuid='1c75fd71-027b-40e8-a819-151a0f8140e6',
+                             rule=dict(uuid=orange_rule.uuid,
                                        value="orange",
                                        category="Orange",
                                        text="I like orange")),
-                        dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                        dict(node=color_reply.uuid,
                              arrived_on='2015-08-25T11:13:30.088Z',
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
@@ -708,15 +712,15 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].next_uuid, 'bd531ace-911e-4722-8e53-6730d6122fe1')
+        self.assertEqual(steps[0].next_uuid, color_ruleset.uuid)
 
-        self.assertEqual(steps[1].step_uuid, 'bd531ace-911e-4722-8e53-6730d6122fe1')
+        self.assertEqual(steps[1].step_uuid, color_ruleset.uuid)
         self.assertEqual(steps[1].step_type, 'R')
-        self.assertEqual(steps[1].rule_uuid, '1c75fd71-027b-40e8-a819-151a0f8140e6')
+        self.assertEqual(steps[1].rule_uuid, orange_rule.uuid)
         self.assertEqual(steps[1].rule_category, 'Orange')
         self.assertEqual(steps[1].rule_value, "orange")
         self.assertEqual(steps[1].rule_decimal_value, None)
-        self.assertEqual(steps[1].next_uuid, '7d40faea-723b-473d-8999-59fb7d3c3ca2')
+        self.assertEqual(steps[1].next_uuid, color_reply.uuid)
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
@@ -725,8 +729,8 @@ class APITest(TembaTest):
         value = Value.objects.get(org=self.org)
         self.assertEqual(value.contact, self.joe)
         self.assertEqual(value.run, run)
-        self.assertEqual(value.ruleset, RuleSet.objects.get(uuid='bd531ace-911e-4722-8e53-6730d6122fe1'))
-        self.assertEqual(value.rule_uuid, '1c75fd71-027b-40e8-a819-151a0f8140e6')
+        self.assertEqual(value.ruleset, RuleSet.objects.get(label="color"))
+        self.assertEqual(value.rule_uuid, orange_rule.uuid)
         self.assertEqual(value.string_value, 'orange')
         self.assertEqual(value.decimal_value, None)
         self.assertEqual(value.datetime_value, None)
@@ -739,7 +743,7 @@ class APITest(TembaTest):
         self.assertEqual(step1_msgs[0].contact_urn, None)
         self.assertEqual(step1_msgs[0].text, "I like orange")
 
-        self.assertEqual(steps[2].step_uuid, '7d40faea-723b-473d-8999-59fb7d3c3ca2')
+        self.assertEqual(steps[2].step_uuid, color_reply.uuid)
         self.assertEqual(steps[2].step_type, 'A')
         self.assertEqual(steps[2].rule_uuid, None)
         self.assertEqual(steps[2].rule_category, None)
@@ -764,9 +768,9 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {'7d40faea-723b-473d-8999-59fb7d3c3ca2:' + new_node_uuid: 1,
-                                                '1c75fd71-027b-40e8-a819-151a0f8140e6:7d40faea-723b-473d-8999-59fb7d3c3ca2': 1,
-                                                'd51ec25f-04e6-4349-a448-e7c4d93d4597:bd531ace-911e-4722-8e53-6730d6122fe1': 1}))
+                                               {color_reply.uuid + ':' + new_node_uuid: 1,
+                                                orange_rule.uuid + ':' + color_reply.uuid: 1,
+                                                color_prompt.uuid + ':' + color_ruleset.uuid: 1}))
 
         # now lets remove our last action set
         definition['action_sets'].pop()
@@ -792,19 +796,19 @@ class APITest(TembaTest):
             # this version doesn't have our node
             data['revision'] = 3
             response = self.postJSON(url, data)
-            self.assertEquals(400, response.status_code)
+            self.assertEqual(400, response.status_code)
             self.assertResponseError(response, 'non_field_errors', "No such node with UUID %s in flow 'Color Flow'" % new_node_uuid)
 
             # this version doesn't exist
             data['revision'] = 12
             response = self.postJSON(url, data)
-            self.assertEquals(400, response.status_code)
+            self.assertEqual(400, response.status_code)
             self.assertResponseError(response, 'non_field_errors', "Invalid revision: 12")
 
             # this one exists and has our node
             data['revision'] = 2
             response = self.postJSON(url, data)
-            self.assertEquals(201, response.status_code)
+            self.assertEqual(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
             # submitted_by is optional
@@ -814,7 +818,7 @@ class APITest(TembaTest):
             del data['revision']
             data['version'] = 2
             response = self.postJSON(url, data)
-            self.assertEquals(201, response.status_code)
+            self.assertEqual(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
             # rule uuid not existing we should find the actual matching rule
@@ -824,13 +828,13 @@ class APITest(TembaTest):
                         started='2015-08-25T11:09:29.088Z',
                         submitted_by=self.admin.username,
                         steps=[
-                            dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                            dict(node=color_ruleset.uuid,
                                  arrived_on='2015-08-25T11:11:30.088Z',
                                  rule=dict(uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
                                            value="orange",
                                            category="Orange",
                                            text="I like orange")),
-                            dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                            dict(node=color_reply.uuid,
                                  arrived_on='2015-08-25T11:13:30.088Z',
                                  actions=[
                                      dict(type="reply", msg="I love orange too!")
@@ -845,7 +849,7 @@ class APITest(TembaTest):
                         completed=True)
 
             response = self.postJSON(url, data)
-            self.assertEquals(201, response.status_code)
+            self.assertEqual(201, response.status_code)
 
             with patch('temba.flows.models.RuleSet.find_matching_rule') as mock_find_matching_rule:
                 mock_find_matching_rule.return_value = None, None
@@ -879,11 +883,11 @@ class APITest(TembaTest):
 
         # Invalid data
         response = self.postJSON(url, ['tel:+250788123123'])
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
 
         # add a contact using deprecated phone field
         response = self.postJSON(url, dict(name='Snoop Dog', phone='+250788123123'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # should be one contact now
         contact = Contact.objects.get()
@@ -892,9 +896,9 @@ class APITest(TembaTest):
         self.assertContains(response, contact.uuid, status_code=201)
 
         # and that the contact fields were properly set
-        self.assertEquals("+250788123123", contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals("Snoop Dog", contact.name)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual("+250788123123", contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual("Snoop Dog", contact.name)
+        self.assertEqual(self.org, contact.org)
 
         Contact.objects.all().delete()
 
@@ -903,42 +907,42 @@ class APITest(TembaTest):
 
         contact = Contact.objects.get()
 
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         self.assertContains(response, contact.uuid, status_code=201)
 
-        self.assertEquals("+250788123456", contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals("snoop", contact.get_urn(TWITTER_SCHEME).path)
-        self.assertEquals("Snoop Dog", contact.name)
-        self.assertEquals(None, contact.language)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual("+250788123456", contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual("snoop", contact.get_urn(TWITTER_SCHEME).path)
+        self.assertEqual("Snoop Dog", contact.name)
+        self.assertEqual(None, contact.language)
+        self.assertEqual(self.org, contact.org)
 
         # try to update the language to something longer than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
 
         # try to update the language to something shorter than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='X'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'language', "Ensure this field has at least 3 characters.")
 
         # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        self.assertEquals('eng', contact.language)
+        self.assertEqual('eng', contact.language)
 
         # update the contact using deprecated phone field
         response = self.postJSON(url, dict(name='Eminem', phone='+250788123456'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        self.assertEquals("+250788123456", contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals("snoop", contact.get_urn(TWITTER_SCHEME).path)
-        self.assertEquals("Eminem", contact.name)
-        self.assertEquals('eng', contact.language)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual("+250788123456", contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual("snoop", contact.get_urn(TWITTER_SCHEME).path)
+        self.assertEqual("Eminem", contact.name)
+        self.assertEqual('eng', contact.language)
+        self.assertEqual(self.org, contact.org)
 
         # try to update with an unparseable phone number
         response = self.postJSON(url, dict(name='Eminem', phone='nope'))
@@ -954,31 +958,31 @@ class APITest(TembaTest):
 
         # clearing the contact name is allowed
         response = self.postJSON(url, dict(name="", uuid=contact.uuid))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         contact = Contact.objects.get()
         self.assertIsNone(contact.name)
 
         # update the contact using uuid, URNs will remain the same
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        self.assertEquals("+250788123456", contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals("snoop", contact.get_urn(TWITTER_SCHEME).path)
-        self.assertEquals("Mathers", contact.name)
-        self.assertEquals('eng', contact.language)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual("+250788123456", contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual("snoop", contact.get_urn(TWITTER_SCHEME).path)
+        self.assertEqual("Mathers", contact.name)
+        self.assertEqual('eng', contact.language)
+        self.assertEqual(self.org, contact.org)
 
         # update the contact using uuid, this time change the urns to just the phone number
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid, urns=['tel:+250788123456']))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        self.assertEquals("+250788123456", contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual("+250788123456", contact.get_urn(TEL_SCHEME).path)
         self.assertFalse(contact.get_urn(TWITTER_SCHEME))
-        self.assertEquals("Mathers", contact.name)
-        self.assertEquals('eng', contact.language)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual("Mathers", contact.name)
+        self.assertEqual('eng', contact.language)
+        self.assertEqual(self.org, contact.org)
 
         # try to update a contact using an invalid UUID
         response = self.postJSON(url, dict(name="Mathers", uuid='nope', urns=['tel:+250788123456']))
@@ -991,10 +995,10 @@ class APITest(TembaTest):
         with AnonymousOrg(self.org):
             # anon orgs can update contacts by uuid
             response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid))
-            self.assertEquals(201, response.status_code)
+            self.assertEqual(201, response.status_code)
 
             contact = Contact.objects.get()
-            self.assertEquals("Anon", contact.name)
+            self.assertEqual("Anon", contact.name)
 
             # but can't update phone
             response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid, phone='+250788123456'))
@@ -1006,20 +1010,20 @@ class APITest(TembaTest):
 
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        self.assertEquals(None, contact.language)
+        self.assertEqual(None, contact.language)
 
         # update the contact using urns field, matching on one URN, adding another
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel:+250788123456', 'twitter:drdre'], language='eng'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
         contact_urns = [six.text_type(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
-        self.assertEquals(["tel:+250788123456", "twitter:drdre"], contact_urns)
-        self.assertEquals("Dr Dre", contact.name)
-        self.assertEquals(self.org, contact.org)
+        self.assertEqual(["tel:+250788123456", "twitter:drdre"], contact_urns)
+        self.assertEqual("Dr Dre", contact.name)
+        self.assertEqual(self.org, contact.org)
 
         # try to update the contact with and un-parseable urn
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
@@ -1036,29 +1040,29 @@ class APITest(TembaTest):
         # add contact to a new group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Music Artists"]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
-        self.assertEquals(201, response.status_code)
-        self.assertEquals("Music Artists", artists.name)
+        self.assertEqual(201, response.status_code)
+        self.assertEqual("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())
         self.assertEqual(1, artists.get_member_count())  # check trigger-based count
 
         # remove contact from a group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         self.assertEqual(0, artists.contacts.count())
         self.assertEqual(0, artists.get_member_count())
 
         # add contact to a existing group by UUID
         response = self.postJSON(url, dict(phone='+250788123456', group_uuids=[artists.uuid]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
-        self.assertEquals(201, response.status_code)
-        self.assertEquals("Music Artists", artists.name)
+        self.assertEqual(201, response.status_code)
+        self.assertEqual("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())
         self.assertEqual(1, artists.get_member_count())
 
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
 
         # specifying invalid group_uuid should return error
         response = self.postJSON(url, dict(phone='+250788123456', group_uuids=['nope']))
@@ -1075,42 +1079,42 @@ class APITest(TembaTest):
 
         # try updating with a reserved word field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         self.assertIsNotNone(contact.get_field('real_name'))
-        self.assertEquals("Andy", contact.get_field_display("real_name"))
+        self.assertEqual("Andy", contact.get_field_display("real_name"))
 
         # create field and try again
         ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         contact = Contact.objects.get()
         self.assertContains(response, "Andy", status_code=201)
-        self.assertEquals("Andy", contact.get_field_display("real_name"))
+        self.assertEqual("Andy", contact.get_field_display("real_name"))
 
         # update field via label (deprecated but allowed)
         response = self.postJSON(url, dict(phone='+250788123456', fields={"Real Name": "Andre"}))
         contact = Contact.objects.get()
         self.assertContains(response, "Andre", status_code=201)
-        self.assertEquals("Andre", contact.get_field_display("real_name"))
+        self.assertEqual("Andre", contact.get_field_display("real_name"))
 
         # try when contact field have same key and label
         state = ContactField.get_or_create(self.org, self.user, 'state', "state", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "IL"}))
         self.assertContains(response, "IL", status_code=201)
         contact = Contact.objects.get()
-        self.assertEquals("IL", contact.get_field_display("state"))
-        self.assertEquals("Andre", contact.get_field_display("real_name"))
+        self.assertEqual("IL", contact.get_field_display("state"))
+        self.assertEqual("Andre", contact.get_field_display("real_name"))
 
         # try when contact field is not active
         state.is_active = False
         state.save()
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "VA"}))
         self.assertEqual(response.status_code, 201)
-        self.assertEquals("VA", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
+        self.assertEqual("VA", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
 
         drdre = Contact.objects.get()
 
@@ -1134,7 +1138,7 @@ class APITest(TembaTest):
         # fetch all with blank query
         self.clear_cache()
         response = self.fetchJSON(url, "")
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         resp_json = response.json()
         self.assertEqual(len(resp_json['results']), 2)
@@ -1234,11 +1238,11 @@ class APITest(TembaTest):
         # check fetching deleted contacts
         drdre.release(self.user)
         response = self.fetchJSON(url, "deleted=true")
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.json()['results']), 1)
 
         resp_json = response.json()
-        self.assertEquals(resp_json['results'][0]['uuid'], drdre.uuid)
+        self.assertEqual(resp_json['results'][0]['uuid'], drdre.uuid)
         self.assertIsNone(resp_json['results'][0]['name'])
         self.assertFalse(resp_json['results'][0]['urns'])
         self.assertFalse(resp_json['results'][0]['fields'])
@@ -1250,21 +1254,21 @@ class APITest(TembaTest):
         # add a naked contact
         response = self.postJSON(url, dict())
         self.assertIsNotNone(response.json()['uuid'])
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # create a contact with an email urn
         response = self.postJSON(url, dict(name='Snoop Dogg', urns=['mailto:snoop@foshizzle.com']))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # lookup that contact from an urn
         contact = Contact.from_urn(self.org, "mailto:snoop@foshizzle.com")
-        self.assertEquals('Snoop', contact.first_name(self.org))
+        self.assertEqual('Snoop', contact.first_name(self.org))
 
         # find it via the api
         response = self.fetchJSON(url, 'urns=%s' % (urlquote_plus("mailto:snoop@foshizzle.com")))
         self.assertResultCount(response, 1)
         results = response.json()['results']
-        self.assertEquals('Snoop Dogg', results[0]['name'])
+        self.assertEqual('Snoop Dogg', results[0]['name'])
 
         # add two existing contacts
         self.create_contact("Zinedine", number="+250788111222")
@@ -1318,6 +1322,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'page=2&test=e')
         self.assertResultCount(response, 303)
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_api_fields(self):
         url = reverse('api.v1.contactfields')
 
@@ -1341,60 +1346,70 @@ class APITest(TembaTest):
 
         # add a field
         response = self.postJSON(url, dict(label='Real Age', value_type='T'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # should be one field now
         field = ContactField.objects.get()
-        self.assertEquals('Real Age', field.label)
-        self.assertEquals('T', field.value_type)
-        self.assertEquals('real_age', field.key)
-        self.assertEquals(self.org, field.org)
+        self.assertEqual('Real Age', field.label)
+        self.assertEqual('T', field.value_type)
+        self.assertEqual('real_age', field.key)
+        self.assertEqual(self.org, field.org)
 
         # update that field to change value type
         response = self.postJSON(url, dict(key='real_age', label='Actual Age', value_type='N'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         field = ContactField.objects.get()
-        self.assertEquals('Actual Age', field.label)
-        self.assertEquals('N', field.value_type)
-        self.assertEquals('real_age', field.key)
-        self.assertEquals(self.org, field.org)
+        self.assertEqual('Actual Age', field.label)
+        self.assertEqual('N', field.value_type)
+        self.assertEqual('real_age', field.key)
+        self.assertEqual(self.org, field.org)
 
         # update with invalid value type
         response = self.postJSON(url, dict(key='real_age', value_type='X'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'value_type', "Invalid field value type")
 
         # update without label
         response = self.postJSON(url, dict(key='real_age', value_type='N'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'label', "This field is required.")
 
         # update without value type
         response = self.postJSON(url, dict(key='real_age', label='Actual Age'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'value_type', "This field is required.")
 
         # create with invalid label
         response = self.postJSON(url, dict(label='!@#', value_type='T'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'label', "Field can only contain letters, numbers and hypens")
 
         # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'non_field_errors', "Generated key for 'Name' is invalid or a reserved name")
 
         # create with key specified
         response = self.postJSON(url, dict(key='real_age_2', label="Actual Age 2", value_type='N'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
         field = ContactField.objects.get(key='real_age_2')
         self.assertEqual(field.label, "Actual Age 2")
         self.assertEqual(field.value_type, 'N')
 
         # create with invalid key specified
         response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
         self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
+
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.postJSON(url, dict(label='Real Age', value_type='T'))
+        self.assertResponseError(response, 'non_field_errors',
+                                 "This org has 10 contact fields and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
 
     def test_api_authenticate(self):
         url = reverse('api.v1.authenticate')

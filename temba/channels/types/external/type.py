@@ -6,9 +6,9 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from .views import ClaimView
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from ...models import Channel, ChannelType, SendException
 
 
 class ExternalType(ChannelType):
@@ -45,9 +45,8 @@ class ExternalType(ChannelType):
 
         method = channel.config.get(Channel.CONFIG_SEND_METHOD, 'POST')
 
-        headers = TEMBA_HEADERS.copy()
         content_type = channel.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-        headers['Content-Type'] = Channel.CONTENT_TYPES[content_type]
+        headers = http_headers(extra={'Content-Type': Channel.CONTENT_TYPES[content_type]})
 
         event = HttpEvent(method, url)
 

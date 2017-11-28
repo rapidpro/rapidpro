@@ -789,4 +789,6 @@
 .icon-chatbase:before {
   content: "\e902";
 }
-
+.icon-button-quick-reply:before {
+  content: "\e903";
+}

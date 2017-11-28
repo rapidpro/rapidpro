@@ -26,13 +26,13 @@ class JioChatTypeTest(TembaTest):
 
         channel = Channel.objects.get(channel_type='JC')
 
-        self.assertEquals(channel.config_json(), {'jiochat_app_id': post_data['app_id'], 'jiochat_app_secret': post_data['app_secret']})
+        self.assertEqual(channel.config_json(), {'jiochat_app_id': post_data['app_id'], 'jiochat_app_secret': post_data['app_secret']})
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.jc', args=[channel.uuid]))
         self.assertContains(response, channel.secret)

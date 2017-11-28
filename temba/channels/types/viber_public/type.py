@@ -5,14 +5,13 @@ import requests
 import six
 import time
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import VIBER_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from .views import ClaimView
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from ...models import Channel, ChannelType, SendException
 
 
 class ViberPublicType(ChannelType):
@@ -34,10 +33,11 @@ class ViberPublicType(ChannelType):
     max_length = 7000
     attachment_support = False
     free_sending = True
+    quick_reply_text_size = 36
 
     def activate(self, channel):
         auth_token = channel.config_json()['auth_token']
-        handler_url = "https://" + settings.TEMBA_HOST + reverse('courier.vp', args=[channel.uuid])
+        handler_url = "https://" + channel.callback_domain + reverse('courier.vp', args=[channel.uuid])
 
         requests.post('https://chatapi.viber.com/pa/set_webhook', json={
             'auth_token': auth_token,
@@ -59,12 +59,17 @@ class ViberPublicType(ChannelType):
             'tracking_data': msg.id
         }
 
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(Text=item[:self.quick_reply_text_size], ActionBody=item[:self.quick_reply_text_size],
+                                  ActionType='reply', TextSize='regular') for item in quick_replies]
+
+        if quick_replies:
+            payload['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=formatted_replies)
+
         event = HttpEvent('POST', url, json.dumps(payload))
-
         start = time.time()
-
-        headers = {'Accept': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Accept': 'application/json'})
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=5)

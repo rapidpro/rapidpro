@@ -19,7 +19,7 @@ class JunebugTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.get(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         post_data = {
             "country": "ZA",
@@ -33,6 +33,6 @@ class JunebugTypeTest(TembaTest):
         response = self.client.post(url, post_data)
 
         channel = Channel.objects.get()
-        self.assertEquals(channel.channel_type, 'JNU')
-        self.assertEquals(channel.role, Channel.ROLE_USSD)
+        self.assertEqual(channel.channel_type, 'JNU')
+        self.assertEqual(channel.role, Channel.ROLE_USSD)
         self.assertEqual(channel.secret, "secret-word")

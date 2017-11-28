@@ -10,6 +10,10 @@ class KannelTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
+        # override the ORG brand
+        self.org.brand = 'custom-brand.io'
+        self.org.save()
+
         self.login(self.admin)
 
         url = reverse('channels.claim_kannel')
@@ -32,23 +36,24 @@ class KannelTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEquals('RW', channel.country)
+        self.assertEqual('RW', channel.country)
         self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(False, channel.config_json()['verify_ssl'])
-        self.assertEquals(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
+        self.assertEqual(post_data['number'], channel.address)
+        self.assertEqual(post_data['url'], channel.config_json()['send_url'])
+        self.assertEqual(False, channel.config_json()['verify_ssl'])
+        self.assertEqual(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
 
         # make sure we generated a username and password
         self.assertTrue(channel.config_json()['username'])
         self.assertTrue(channel.config_json()['password'])
-        self.assertEquals('KN', channel.channel_type)
+        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], "custom-brand.io")
+        self.assertEqual('KN', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # our configuration page should list our receive URL
-        self.assertContains(response, reverse('courier.kn', args=[channel.uuid, 'receive']))
+        self.assertContains(response, "https://custom-brand.io" + reverse('courier.kn', args=[channel.uuid, 'receive']))

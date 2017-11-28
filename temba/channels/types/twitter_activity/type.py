@@ -2,7 +2,6 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
@@ -10,6 +9,7 @@ from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from .tasks import resolve_twitter_ids
 from ...models import Channel, ChannelType
+from ...views import UpdateTwitterForm
 
 
 class TwitterActivityType(ChannelType):
@@ -26,6 +26,8 @@ class TwitterActivityType(ChannelType):
     Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
     claim_view = ClaimView
 
+    update_form = UpdateTwitterForm
+
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
@@ -41,7 +43,7 @@ class TwitterActivityType(ChannelType):
         config = channel.config_json()
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
 
-        callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('courier.twt', args=[channel.uuid]))
+        callback_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.twt', args=[channel.uuid]))
         webhook = client.register_webhook(callback_url)
         client.subscribe_to_webhook(webhook['id'])
 

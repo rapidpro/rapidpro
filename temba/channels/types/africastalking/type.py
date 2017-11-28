@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.africastalking.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class AfricasTalkingType(ChannelType):
@@ -38,6 +38,9 @@ class AfricasTalkingType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Nairobi", "Africa/Kampala", "Africa/Lilongwe"]
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
 
         payload = dict(username=channel.config['username'],
@@ -48,13 +51,9 @@ class AfricasTalkingType(ChannelType):
         if not channel.config.get('is_shared', False):
             payload['from'] = channel.address
 
-        headers = dict(Accept='application/json', apikey=channel.config['api_key'])
-        headers.update(TEMBA_HEADERS)
-
+        headers = http_headers(dict(Accept='application/json', apikey=channel.config['api_key']))
         api_url = "https://api.africastalking.com/version1/messaging"
-
         event = HttpEvent('POST', api_url, urlencode(payload))
-
         start = time.time()
 
         try:
