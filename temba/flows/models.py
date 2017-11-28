@@ -1370,8 +1370,8 @@ class Flow(TembaModel):
                 context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
 
             # see if we spawned any children and add them too
-            child_run = run.child
-            if run.child:
+            child_run = run.cached_child
+            if child_run:
                 child_run.flow.org = self.org
                 child_run.contact = run.contact
                 context['child'] = child_run.flow.build_flow_context(child_run.contact)
@@ -1792,6 +1792,7 @@ class Flow(TembaModel):
         for contact_id in batch_contact_ids:
             run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
+
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
 
@@ -2753,13 +2754,17 @@ class FlowRun(models.Model):
                             help_text=_("The path taken during this flow run in JSON format"))
 
     @cached_property
-    def child(self):
+    def cached_child(self):
         child = FlowRun.objects.filter(parent=self).order_by('-created_on').select_related('flow').first()
         if child:
             child.org = self.org
             child.flow.org = self.org
             child.contact = self.contact
         return child
+    
+    def clear_cached_child(self):
+        if 'cached_child' in self.__dict__:
+            del self.__dict__['cached_child']
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
@@ -2770,6 +2775,9 @@ class FlowRun(models.Model):
 
         if created_on:
             args['created_on'] = created_on
+
+        if parent:
+            parent.clear_cached_child()
 
         if db_insert:
             return FlowRun.objects.create(**args)
