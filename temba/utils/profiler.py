@@ -27,10 +27,10 @@ class QueryTracker(object):  # pragma: no cover
             if idx < len(stack):
                 print(stack[idx], end='')
 
-    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_less_queries=None, query=None, stack_count=3):
+    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_query_count=None, query=None, stack_count=3):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
-        self.num_queries = assert_less_queries
+        self.num_queries = assert_query_count
         self.skip_unique_queries = skip_unique_queries
         self.query = query
 
@@ -81,7 +81,7 @@ class QueryTracker(object):  # pragma: no cover
         django.db.backends.utils.CursorWrapper = self.old_wrapper
         django.db.backends.utils.CursorDebugWrapper = self.old_debug_wrapper
 
-        if self.num_queries and len(self.queries) >= self.num_queries:
+        if self.num_queries and len(self.queries) != self.num_queries:
             if self.sort_queries:
                 self.queries.sort()
                 last = None
@@ -116,7 +116,10 @@ class QueryTracker(object):  # pragma: no cover
                         print(line)
                     print(stack, end='')
 
-            raise AssertionError("Executed %d queries (expected < %d)" % (len(self.queries), self.num_queries))
+            if count:
+                print("\n%d QUERIES" % count)
+
+            raise AssertionError("Executed %d queries (expected %d)" % (len(self.queries), self.num_queries))
 
     def __str__(self):
         return self.__class__
