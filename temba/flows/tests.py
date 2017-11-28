@@ -8211,7 +8211,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_less_queries=205, stack_count=10):
+        with QueryTracker(assert_less_queries=210, stack_count=10):
             flow.start([], [self.contact])
 
 
