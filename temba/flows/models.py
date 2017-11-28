@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum, Max
+from django.db.models import Q, Count, QuerySet, Sum, Max, Prefetch
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -1952,7 +1952,7 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentMessage.record_step(previous_step)
+                FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2953,7 +2953,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
-        node = last_step.get_step()
+        node = last_step.get_node()
 
         # only continue if we are at a ruleset with a timeout
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
@@ -3233,13 +3233,25 @@ class FlowStep(models.Model):
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
     @classmethod
-    def from_json(cls, json_obj, flow, run, previous_rule=None):
-
+    def from_json(cls, json_obj, flow, run):
+        """
+        Creates a new flow step from the given Surveyor step JSON
+        """
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
         # find the previous step
-        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
+
+        # figure out which exit was taken by that step
+        exit_uuid = None
+        if prev_step:
+            if prev_step.step_type == cls.TYPE_RULE_SET:
+                exit_uuid = prev_step.rule_uuid
+            else:
+                prev_node = prev_step.get_node()
+                if prev_node:
+                    exit_uuid = prev_node.exit_uuid
 
         # generate the messages for this step
         msgs = []
@@ -3278,8 +3290,7 @@ class FlowStep(models.Model):
                 context = flow.build_expressions_context(run.contact, last_incoming)
                 msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on,
-                             exit_uuid=previous_rule)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=exit_uuid)
 
         # if a rule was picked on this ruleset
         if node.is_ruleset() and json_obj['rule']:
@@ -3409,9 +3420,9 @@ class FlowStep(models.Model):
             # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
-    def get_step(self):
+    def get_node(self):
         """
-        Returns either the RuleSet or ActionSet associated with this FlowStep
+        Returns the node (i.e. a RuleSet or ActionSet) associated with this step
         """
         if self.step_type == FlowStep.TYPE_RULE_SET:
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
@@ -4167,22 +4178,18 @@ class FlowPathRecentMessage(models.Model):
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
-    def record_step(cls, step):
-        from_uuid = step.rule_uuid or step.step_uuid
-        to_uuid = step.next_uuid
-
+    def record(cls, exit_uuid, to_uuid, run, msgs):
         objs = []
-        for msg in step.messages.all():
-            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text, created_on=msg.created_on))
+        for msg in msgs:
+            objs.append(cls(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
+    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
         if limit:
             recent = recent[:limit]
 
@@ -4563,10 +4570,13 @@ class ExportFlowResultsTask(BaseExportTask):
         for run_step in ChunkIterator(FlowStep, step_ids,
                                       order_by=['contact', 'run', 'arrived_on', 'pk'],
                                       select_related=['run', 'contact'],
-                                      prefetch_related=['messages__contact_urn',
-                                                        'messages__channel',
-                                                        'broadcasts',
-                                                        'contact__all_groups'],
+                                      prefetch_related=[
+                                          Prefetch('messages', queryset=Msg.objects.order_by('-id')),
+                                          'messages__contact_urn',
+                                          'messages__channel',
+                                          'broadcasts',
+                                          'contact__all_groups'
+                                      ],
                                       contact_fields=contact_fields):
 
             processed_steps += 1

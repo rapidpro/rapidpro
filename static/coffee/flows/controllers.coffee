@@ -830,7 +830,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if hovered.action_set
         action_set = hovered.action_set
         action_set._showMessages = true
-        Flow.fetchRecentMessages(action_set.uuid, action_set.destination).then (response) ->
+
+        # TODO migrate all recent message records to use exit and stop including node UUID
+
+        Flow.fetchRecentMessages([action_set.exit_uuid, action_set.uuid], action_set.destination).then (response) ->
           action_set._messages = response.data
 
       if hovered.category
@@ -843,11 +846,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         ruleset._showMessages = true
         category._showMessages = true
 
-        # use all rules as the source so we see all matched messages for the path
-        categoryFrom = category.sources.join()
-        categoryTo = category.target
-
-        Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
+        # get all recent messages for all rules that make up this category
+        Flow.fetchRecentMessages(category.sources, category.target).then (response) ->
           category._messages = response.data
     , 500
 
