@@ -200,7 +200,7 @@
                           {{object.created_on|gmail_time}}
 
                         .log-icon
-                          -if not user_org.is_anon or perms.contacts.contact_break_anon
+                          -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
                             {% channel_log_link object %}
 
                     -empty

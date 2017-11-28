@@ -1,14 +1,14 @@
 from __future__ import unicode_literals, absolute_import
 
 import phonenumbers
-from django import forms
 
+from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin, AuthenticatedExternalClaimView
+from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin, AuthenticatedExternalCallbackClaimView
 
 
-class ClaimView(AuthenticatedExternalClaimView):
+class ClaimView(AuthenticatedExternalCallbackClaimView):
     class JasminForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                     help_text=_("The country this phone number is used in"))

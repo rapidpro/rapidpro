@@ -44,6 +44,9 @@ EMAIL_USE_TLS = True
 # their own SMTP server.
 FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
+# HTTP Headers using for outgoing requests to other services
+OUTGOING_REQUEST_HEADERS = {'User-agent': 'RapidPro'}
+
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
@@ -437,6 +440,7 @@ PERMISSIONS = {
                    'archived',
                    'broadcast',
                    'campaign',
+                   'category_counts',
                    'completion',
                    'copy',
                    'editor',
@@ -808,6 +812,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
+        'flows.flow_category_counts',
         'flows.flow_export',
         'flows.flow_export_results',
         'flows.flow_filter',
@@ -928,10 +933,6 @@ CELERYBEAT_SCHEDULE = {
     "trim-webhook-event": {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
-    },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
@@ -1076,7 +1077,7 @@ for brand in BRANDING.values():
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
-MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
+MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
 
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
@@ -1119,10 +1120,15 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.twilio.TwilioType',
+    'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
+    'temba.channels.types.nexmo.NexmoType',
     'temba.channels.types.africastalking.AfricasTalkingType',
     'temba.channels.types.blackmyna.BlackmynaType',
+    'temba.channels.types.chikka.ChikkaType',
     'temba.channels.types.clickatell.ClickatellType',
     'temba.channels.types.dartmedia.DartMediaType',
+    'temba.channels.types.dmark.DMarkType',
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
@@ -1139,16 +1145,18 @@ CHANNEL_TYPES = [
     'temba.channels.types.m3tech.M3TechType',
     'temba.channels.types.macrokiosk.MacrokioskType',
     'temba.channels.types.mblox.MbloxType',
-    'temba.channels.types.nexmo.NexmoType',
     'temba.channels.types.plivo.PlivoType',
     'temba.channels.types.redrabbit.RedRabbitType',
     'temba.channels.types.shaqodoon.ShaqodoonType',
     'temba.channels.types.smscentral.SMSCentralType',
     'temba.channels.types.start.StartType',
     'temba.channels.types.telegram.TelegramType',
+    'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
     'temba.channels.types.viber_public.ViberPublicType',
+    'temba.channels.types.vumi.VumiType',
+    'temba.channels.types.vumi_ussd.VumiUSSDType',
     'temba.channels.types.yo.YoType',
     'temba.channels.types.zenvia.ZenviaType',
 ]
@@ -1197,7 +1205,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set()
+COURIER_CHANNELS = set(['DK'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

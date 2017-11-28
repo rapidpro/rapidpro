@@ -2,9 +2,9 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import copy
 import datetime
 import json
-
 import pycountry
 import pytz
 import six
@@ -14,7 +14,6 @@ from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.test import override_settings, SimpleTestCase
@@ -40,6 +39,7 @@ from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
+from .http import http_headers
 from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
@@ -235,6 +235,13 @@ class InitTest(TembaTest):
     def test_replace_non_characters(self):
         self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
 
+    def test_http_headers(self):
+        headers = http_headers(extra={'Foo': "Bar"})
+        headers['Token'] = "123456"
+
+        self.assertEqual(headers, {'User-agent': 'RapidPro', 'Foo': "Bar", 'Token': "123456"})
+        self.assertEqual(http_headers(), {'User-agent': 'RapidPro'})  # check changes don't leak
+
 
 class TimezonesTest(TembaTest):
     def test_field(self):
@@ -332,24 +339,24 @@ class CacheTest(TembaTest):
         self.create_contact("Bob", number="1234")
 
         def calculate():
-            return Contact.objects.all().count()
+            return Contact.objects.all().count(), 60
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from cache
 
         self.create_contact("Jim", number="2345")
 
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # not updated
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # not updated
 
         get_redis_connection().delete('test_contact_count')  # delete from cache for force re-fetch from db
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from cache
 
     def test_get_cacheable_attr(self):
         def calculate():
@@ -410,19 +417,11 @@ class EmailTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
-        self.assertEqual(mail.outbox[0].subject, "Test Subject")
-        self.assertEqual(mail.outbox[0].body, "Test Body")
-        self.assertEqual(mail.outbox[0].recipients(), ['recipient@bar.com'])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body')
+        self.assertOutbox(0, settings.DEFAULT_FROM_EMAIL, 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertEqual(mail.outbox[1].from_email, 'no-reply@foo.com')
-        self.assertEqual(mail.outbox[1].subject, "Test Subject")
-        self.assertEqual(mail.outbox[1].body, "Test Body")
-        self.assertEqual(mail.outbox[1].recipients(), ["recipient@bar.com"])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body', from_email='no-reply@foo.com')
+        self.assertOutbox(1, 'no-reply@foo.com', 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
     def test_is_valid_address(self):
 
@@ -1539,6 +1538,15 @@ class MiddlewareTest(TembaTest):
     def test_branding(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['redirect'] = '/redirect'
+        with self.settings(BRANDING=branding):
+            self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
 
     def test_flow_simulation(self):
         Contact.set_simulation(True)

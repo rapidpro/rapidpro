@@ -13,7 +13,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import get_current_export_version
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -648,7 +648,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        definition = FlowRevision.migrate_definition(definition, self.flow_obj, CURRENT_EXPORT_VERSION)
+        definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
 
         for step in steps:
             node_obj = None
@@ -696,12 +696,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not run:
             run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
 
-        step_objs = []
-        previous_rule = None
-        for step in steps:
-            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule)
-            previous_rule = step_obj.rule_uuid
-            step_objs.append(step_obj)
+        step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
 
         if completed:
             final_step = step_objs[len(step_objs) - 1] if step_objs else None
@@ -842,5 +837,5 @@ class MsgCreateSerializer(WriteSerializer):
                                      recipients=contacts, channel=channel)
 
         # send it
-        broadcast.send()
+        broadcast.send(expressions_context={})
         return broadcast

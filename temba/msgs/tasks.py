@@ -123,8 +123,8 @@ def process_message_task(msg_event):
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
-        if msg:
+        msg = Msg.objects.filter(id=msg_event['id']).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg and msg.status == PENDING:
             # grab our contact lock and handle this message
             key = 'pcm_%d' % msg.contact_id
             with r.lock(key, timeout=120):
@@ -132,12 +132,15 @@ def process_message_task(msg_event):
 
 
 @task(track_started=True, name='send_broadcast')
-def send_broadcast_task(broadcast_id):
+def send_broadcast_task(broadcast_id, **kwargs):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
+
     high_priority = (broadcast.recipient_count == 1)
-    broadcast.send(high_priority=high_priority)
+    expressions_context = {} if kwargs.get('with_expressions', True) else None
+
+    broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
 
 
 @task(track_started=True, name='send_to_flow_node')
@@ -161,7 +164,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    broadcast.send()
+    broadcast.send(expressions_context={})
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))
@@ -433,6 +436,6 @@ def clear_old_msg_external_ids():
     msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
-        Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
+        Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))

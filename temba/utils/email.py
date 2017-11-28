@@ -99,7 +99,9 @@ def send_template_email(recipients, subject, template, context, branding):
     :param context: dictionary of context variables
     :param branding: branding of the host
     """
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
+
+    # brands are allowed to give us a from address
+    from_email = branding.get('from_email', getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io'))
     recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     html_template = loader.get_template(template + ".html")

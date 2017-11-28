@@ -389,7 +389,9 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        response = self.client.get(reverse('msgs.msg_outbox'))
+        with self.assertNumQueries(43):
+            response = self.client.get(reverse('msgs.msg_outbox'))
+
         self.assertContains(response, "Outbox (1)")
         self.assertEqual(set(response.context_data['object_list']), {msg1})
 
@@ -400,7 +402,8 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2))
 
-        response = self.client.get(reverse('msgs.msg_outbox'))
+        with self.assertNumQueries(38):
+            response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
         self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
@@ -454,7 +457,8 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        response = self.fetch_protected(inbox_url, self.admin)
+        with self.assertNumQueries(60):
+            response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 5)
         self.assertEqual(response.context['folders'][0]['url'], '/msg/inbox/')
@@ -475,16 +479,16 @@ class MsgTest(TembaTest):
 
         # test labeling a messages
         self.do_msg_action(inbox_url, [msg1, msg2], 'label', label1)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1, msg2})
 
         # test removing a label
         self.do_msg_action(inbox_url, [msg2], 'label', label1, label_add=False)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
 
         # label more messages
         self.do_msg_action(inbox_url, [msg1, msg2, msg3], 'label', label3)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
-        self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
+        self.assertEqual(set(label3.msgs.all()), {msg1, msg2, msg3})
 
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
@@ -530,7 +534,8 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        response = self.fetch_protected(archive_url, self.admin)
+        with self.assertNumQueries(54):
+            response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
         self.assertEqual(response.context['actions'], ['restore', 'label', 'delete'])
@@ -605,6 +610,8 @@ class MsgTest(TembaTest):
         url = reverse('msgs.msg_flow')
 
         msg1 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 1", msg_type='F')
+        msg2 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 2", msg_type='F')
+        msg3 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 3", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -612,9 +619,11 @@ class MsgTest(TembaTest):
 
         # org viewer can
         self.login(self.admin)
-        response = self.client.get(url)
 
-        self.assertEqual(set(response.context['object_list']), {msg1})
+        with self.assertNumQueries(41):
+            response = self.client.get(url)
+
+        self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
         self.assertEqual(response.context['actions'], ['label'])
 
     def test_failed(self):
@@ -646,8 +655,9 @@ class MsgTest(TembaTest):
         response = self.client.get(failed_url)
         self.assertEqual(302, response.status_code)
 
-        # visit inbox page as an administrator
-        response = self.fetch_protected(failed_url, self.admin)
+        # visit failed page as an administrator
+        with self.assertNumQueries(61):
+            response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 3)
         self.assertEqual(response.context['actions'], ['resend'])
@@ -1189,7 +1199,7 @@ class BroadcastTest(TembaTest):
 
         def substitute(s, context):
             context['contact'] = self.joe.build_expressions_context()
-            return Msg.substitute_variables(s, context)
+            return Msg.evaluate_template(s, context)
 
         self.assertEqual(("Hello World", []), substitute("Hello World", dict()))
         self.assertEqual(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
@@ -1310,24 +1320,24 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, "team", "Amavubi")
         self.kevin.set_field(self.user, "team", "Junior")
 
-        self.broadcast = Broadcast.create(self.org, self.user,
-                                          "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
-                                          [self.joe_and_frank, self.kevin])
-        self.broadcast.send(trigger_send=False)
+        broadcast1 = Broadcast.create(self.org, self.user,
+                                      "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
+                                      [self.joe_and_frank, self.kevin])
+        broadcast1.send(trigger_send=False, expressions_context={})
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEqual(Msg.objects.all().count(), 3)
 
-        sms_to_joe = Msg.objects.get(contact=self.joe)
-        sms_to_frank = Msg.objects.get(contact=self.frank)
-        sms_to_kevin = Msg.objects.get(contact=self.kevin)
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast1).text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast1).text, 'Hi Frank Blow, You live in Remera and your team is .')
+        self.assertEqual(self.kevin.msgs.get(broadcast=broadcast1).text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
 
-        self.assertEqual(sms_to_joe.text, 'Hi Joe Blow, You live in Kacyiru and your team is Amavubi.')
-        self.assertFalse(sms_to_joe.has_template_error)
-        self.assertEqual(sms_to_frank.text, 'Hi Frank Blow, You live in Remera and your team is .')
-        self.assertFalse(sms_to_frank.has_template_error)
-        self.assertEqual(sms_to_kevin.text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
-        self.assertFalse(sms_to_kevin.has_template_error)
+        # if we don't provide a context then substitution isn't performed
+        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin])
+        broadcast2.send(trigger_send=False)
+
+        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
+        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
     def test_purge(self):
         today = timezone.now().date()
@@ -1871,7 +1881,7 @@ class ConsoleTest(TembaTest):
         self.john = self.create_contact("John Doe", "0788123123")
 
         # create a flow and set "color" as its trigger
-        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        self.flow = self.get_flow('color')
         Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
 
     def assertEchoed(self, needle, clear=True):

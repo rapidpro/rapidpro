@@ -1,19 +1,17 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-
 import requests
 import six
 
 from django.utils.translation import ugettext_lazy as _
-
 from xml.sax.saxutils import quoteattr, escape
 
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class StartType(ChannelType):
@@ -59,8 +57,7 @@ class StartType(ChannelType):
 
         start = time.time()
         try:
-            headers = {'Content-Type': 'application/xml; charset=utf8'}
-            headers.update(TEMBA_HEADERS)
+            headers = http_headers(extra={'Content-Type': 'application/xml; charset=utf8'})
 
             response = requests.post(url,
                                      data=post_body,

@@ -809,7 +809,7 @@ class TriggerTest(TembaTest):
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         contact = self.create_contact("Ali", "250788739305")
 
@@ -1156,7 +1156,7 @@ class TriggerTest(TembaTest):
         self.assertContains(response, 'USSD mobile initiated flow')
 
         channel = Channel.add_config_external_channel(self.org, self.user,
-                                                      "HU", 1234, Channel.TYPE_VUMI_USSD,
+                                                      "HU", 1234, 'VMU',
                                                       dict(account_key="11111",
                                                            access_token=str(uuid4()),
                                                            transport_name="ussd_transport",

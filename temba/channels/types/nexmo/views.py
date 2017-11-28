@@ -43,7 +43,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if client:
             return None
         else:  # pragma: needs cover
-            return HttpResponseRedirect(reverse('channels.channel_claim'))
+            return HttpResponseRedirect(reverse('orgs.org_nexmo_connect'))
 
     def is_valid_country(self, country_code):
         return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
@@ -126,9 +126,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
 
         # update the delivery URLs for it
-        from temba.settings import TEMBA_HOST
         try:
-            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
+            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (org.get_brand_domain(), mo_path), app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways

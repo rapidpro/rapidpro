@@ -32,7 +32,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         name = response_json['uri']
         address = response_json['id']
-        config = {'auth_token': auth_token}
+        config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type,
                                      name=name, address=address, config=config)
