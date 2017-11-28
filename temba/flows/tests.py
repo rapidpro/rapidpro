@@ -5064,7 +5064,7 @@ class FlowsTest(FlowFileTest):
         color_blue_uuid = rules[-4].uuid
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
-        msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
+        msg_to_color_step = '%s:%s' % (other_action.exit_uuid, color.uuid)
         cyan_to_nothing = '%s:None' % (color_cyan_uuid)
         blue_to_beer = '%s:%s' % (color_blue_uuid, beer_question.uuid)
 
