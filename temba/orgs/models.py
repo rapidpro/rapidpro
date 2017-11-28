@@ -1519,7 +1519,7 @@ class Org(SmartModel):
         return get_brand_bundles(self.get_branding())
 
     @cached_property
-    def language_codes(self):
+    def cached_language_codes(self):
         return {l.iso_code for l in self.languages.all()}
 
     @cached_property
@@ -1529,6 +1529,10 @@ class Org(SmartModel):
         for field in fields:
             field.org = self
         return fields
+
+    def clear_cached_language_codes(self):
+        if 'cached_language_codes' in self.__dict__:
+            del self.__dict__['cached_language_codes']
 
     def add_credits(self, bundle, token, user):
         # look up our bundle

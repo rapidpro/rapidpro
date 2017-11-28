@@ -233,10 +233,12 @@ class FlowTest(TembaTest):
         # flow language used regardless of whether it's an org language
         self.flow.base_language = 'eng'
         self.flow.save(update_fields=('base_language',))
+        self.flow.org.clear_cached_language_codes()
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
         Language.create(self.org, self.admin, "English", 'eng')
         esp = Language.create(self.org, self.admin, "Spanish", 'esp')
+        self.flow.org.clear_cached_language_codes()
 
         # flow language now valid org language
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
@@ -244,15 +246,19 @@ class FlowTest(TembaTest):
         # org primary language overrides flow language
         self.flow.org.primary_language = esp
         self.flow.org.save(update_fields=('primary_language',))
+        self.flow.org.clear_cached_language_codes()
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = 'fre'
+
         self.contact.save(update_fields=('language',))
+        self.flow.org.clear_cached_language_codes()
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # does override if it is
         Language.create(self.org, self.admin, "French", 'fre')
+        self.flow.org.clear_cached_language_codes()
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
