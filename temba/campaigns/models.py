@@ -471,8 +471,13 @@ class EventFire(Model):
         Starts a batch of event fires that are for events which use the same flow
         """
         fired = timezone.now()
-        start = FlowStart.create(flow, flow.created_by, contacts=[f.contact for f in fires])
-        start.async_start()
+        contacts = [f.contact for f in fires]
+
+        if len(contacts) == 1:
+            flow.start([], contacts, restart_participants=True)
+        else:
+            start = FlowStart.create(flow, flow.created_by, contacts=contacts)
+            start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
