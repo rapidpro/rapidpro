@@ -518,7 +518,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     @property
-    def active_user_groups(self):
+    def cached_user_groups(self):
         """
         Define Contact.user_groups to only refer to user groups
         """
@@ -1652,7 +1652,7 @@ class Contact(TembaModel):
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
             'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            'groups': ",".join([_.name for _ in self.active_user_groups]),
+            'groups': ",".join([_.name for _ in self.cached_user_groups]),
             'uuid': self.uuid
         }
 
