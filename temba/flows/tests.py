@@ -119,29 +119,15 @@ class FlowTest(TembaTest):
         contact3 = self.create_contact('George', '+250788382234')
         self.flow.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(13):
-            runs = FlowRun.objects.filter(flow=self.flow)
-            for run_elt in runs:
-                self.flow.get_results(contact=run_elt.contact, run=run_elt)
-
-        # still perform ruleset lookup 7 queries because flow and flow__org select_related
         with self.assertNumQueries(7):
-            steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
-            rulesets_prefetch = Prefetch('flow__rule_sets',
-                                         queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
-                                         to_attr='ruleset_prefetch')
-
-            # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-            runs = FlowRun.objects.filter(flow=self.flow).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
-                                                                           'steps__messages', 'contact')
+            runs = FlowRun.objects.filter(flow=self.flow)
             for run_elt in runs:
                 self.flow.get_results(contact=run_elt.contact, run=run_elt)
 
         flow2 = self.get_flow('no_ruleset_flow')
         flow2.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(7):
             runs = FlowRun.objects.filter(flow=flow2)
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)
@@ -239,34 +225,33 @@ class FlowTest(TembaTest):
 
     def test_get_localized_text(self):
 
-        text_translations = dict(eng="Hello", esp="Hola", fre="Salut")
+        text_translations = dict(eng="Hello", spa="Hola", fre="Salut")
 
         # use default when flow, contact and org don't have language set
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
 
         # flow language used regardless of whether it's an org language
         self.flow.base_language = 'eng'
-        self.flow.save(update_fields=('base_language',))
+        self.flow.save(update_fields=['base_language'])
+        self.flow.org.set_languages(self.admin, ['eng'], 'eng')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
-        Language.create(self.org, self.admin, "English", 'eng')
-        esp = Language.create(self.org, self.admin, "Spanish", 'esp')
-
         # flow language now valid org language
+        self.flow.org.set_languages(self.admin, ['eng', 'spa'], 'eng')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
         # org primary language overrides flow language
-        self.flow.org.primary_language = esp
-        self.flow.org.save(update_fields=('primary_language',))
+        self.flow.org.set_languages(self.admin, ['eng', 'spa'], 'spa')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = 'fre'
+
         self.contact.save(update_fields=('language',))
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # does override if it is
-        Language.create(self.org, self.admin, "French", 'fre')
+        self.flow.org.set_languages(self.admin, ['eng', 'spa', 'fre'], 'spa')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
@@ -4832,6 +4817,7 @@ class FlowsTest(FlowFileTest):
 
         # create twitter channel
         Channel.create(self.org, self.user, None, 'TT')
+        flow.org.clear_cached_schemes()
 
         flow.start(groups=[], contacts=[contact], restart_participants=True)
 
@@ -6401,11 +6387,7 @@ class FlowsTest(FlowFileTest):
         favorites = self.get_flow('favorites')
 
         # create a new language on the org
-        language = Language.create(self.org, favorites.created_by, "English", 'eng')
-
-        # set it as our primary language
-        self.org.primary_language = language
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng'], 'eng')
 
         # everything should work as normal with our flow
         self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
@@ -6428,15 +6410,15 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED"))
 
         # now let's add a second language
-        Language.create(self.org, favorites.created_by, "Klingon", 'kli')
+        self.org.set_languages(self.admin, ['eng', 'tlh'], 'eng')
 
         # update our initial message
         initial_message = json_dict['action_sets'][0]['actions'][0]
-        initial_message['msg']['kli'] = 'Kikshtik derklop?'
+        initial_message['msg']['tlh'] = 'Kikshtik derklop?'
         json_dict['action_sets'][0]['actions'][0] = initial_message
 
         # and the first response
-        reply['msg']['kli'] = 'Katishklick Shnik @flow.color.category Errrrrrrrklop'
+        reply['msg']['tlh'] = 'Katishklick Shnik @flow.color.category Errrrrrrrklop'
         json_dict['action_sets'][1]['actions'][0] = reply
 
         # save the changes
@@ -6449,7 +6431,7 @@ class FlowsTest(FlowFileTest):
 
         # now set our contact's preferred language to klingon
         FlowRun.objects.all().delete()
-        self.contact.language = 'kli'
+        self.contact.language = 'tlh'
         self.contact.save()
 
         self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
@@ -6459,8 +6441,8 @@ class FlowsTest(FlowFileTest):
         json_dict = favorites.as_json()
         rule = json_dict['rule_sets'][0]['rules'][0]
         self.assertTrue(isinstance(rule['test']['test'], dict))
-        rule['test']['test']['kli'] = 'klerk'
-        rule['category']['kli'] = 'Klerkistikloperopikshtop'
+        rule['test']['test']['tlh'] = 'klerk'
+        rule['category']['tlh'] = 'Klerkistikloperopikshtop'
         json_dict['rule_sets'][0]['rules'][0] = rule
         self.assertEqual('success', favorites.update(json_dict, self.admin)['status'])
 
@@ -6487,7 +6469,7 @@ class FlowsTest(FlowFileTest):
 
         # boolean values in our language dict shouldn't blow up
         json_dict['action_sets'][0]['actions'][0]['msg']['updated'] = True
-        json_dict['action_sets'][0]['actions'][0]['msg']['kli'] = 'Bleck'
+        json_dict['action_sets'][0]['actions'][0]['msg']['tlh'] = 'Bleck'
 
         # boolean values in our rule dict shouldn't blow up
         rule = json_dict['rule_sets'][0]['rules'][0]
@@ -6498,7 +6480,7 @@ class FlowsTest(FlowFileTest):
 
         favorites = Flow.objects.get(pk=favorites.pk)
         json_dict = favorites.as_json()
-        action = self.assertEqual('Bleck', json_dict['action_sets'][0]['actions'][0]['msg']['kli'])
+        action = self.assertEqual('Bleck', json_dict['action_sets'][0]['actions'][0]['msg']['tlh'])
 
         # test that simulation takes language into account
         self.login(self.admin)
@@ -6507,7 +6489,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
-        simulate_url = "%s?lang=kli" % reverse('flows.flow_simulate', args=[favorites.pk])
+        simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
@@ -8217,6 +8199,18 @@ class AndroidChildStatus(FlowFileTest):
         msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
         self.assertEqual(msgs[0].text, "Child Msg 1")
         self.assertEqual(msgs[1].text, "Child Msg 2")
+
+
+class QueryTest(FlowFileTest):
+
+    def test_num_queries(self):
+
+        self.get_flow('query_test')
+        flow = Flow.objects.filter(name="Query Test").first()
+
+        from temba.utils.profiler import QueryTracker
+        with QueryTracker(assert_query_count=228, stack_count=10, skip_unique_queries=True):
+            flow.start([], [self.contact])
 
 
 class FlowChannelSelectionTest(FlowFileTest):
