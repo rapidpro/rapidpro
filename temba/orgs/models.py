@@ -442,6 +442,10 @@ class Org(SmartModel):
     def cached_channels(self):
         return [c for c in self.channels.filter(is_active=True)]
 
+    def clear_cached_channels(self):
+        if 'cached_channels' in self.__dict__:
+            del self.__dict__['cached_channels']
+
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
