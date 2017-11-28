@@ -1572,8 +1572,12 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
 
+    def clear_send_channels(self):
+        if hasattr(self, '_send_channels'):
+            delattr(self, '_send_channels')
+
     def get_send_channel(self, contact_urn):
-        cache = getattr(self, "_send_channels", {})
+        cache = getattr(self, '_send_channels', {})
         channel = cache.get(contact_urn.id)
         if not channel:
             channel = self.org.get_send_channel(contact_urn=contact_urn)
