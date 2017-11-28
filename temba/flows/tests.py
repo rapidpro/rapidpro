@@ -4644,159 +4644,173 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_results(self):
         favorites = self.get_flow('favorites')
-        FlowCRUDL.RunTable.paginate_by = 1
 
-        pete = self.create_contact('Pete', '+12065553027')
-        self.send_message(favorites, 'blue', contact=pete)
+        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
+            page.return_value = 1
 
-        jimmy = self.create_contact('Jimmy', '+12065553026')
-        self.send_message(favorites, 'red', contact=jimmy)
-        self.send_message(favorites, 'turbo', contact=jimmy)
+            pete = self.create_contact('Pete', '+12065553027')
+            self.send_message(favorites, 'blue', contact=pete)
 
-        kobe = Contact.get_test_contact(self.admin)
-        self.send_message(favorites, 'green', contact=kobe)
-        self.send_message(favorites, 'skol', contact=kobe)
+            jimmy = self.create_contact('Jimmy', '+12065553026')
+            self.send_message(favorites, 'red', contact=jimmy)
+            self.send_message(favorites, 'turbo', contact=jimmy)
 
-        self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_results', args=[favorites.uuid]))
+            kobe = Contact.get_test_contact(self.admin)
+            self.send_message(favorites, 'green', contact=kobe)
+            self.send_message(favorites, 'skol', contact=kobe)
 
-        # the rulesets should be present as column headers
-        self.assertContains(response, 'Beer')
-        self.assertContains(response, 'Color')
-        self.assertContains(response, 'Name')
+            self.login(self.admin)
+            response = self.client.get(reverse('flows.flow_results', args=[favorites.uuid]))
 
-        # fetch counts endpoint, should have 2 color results (one is a test contact)
-        response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
-        counts = json.loads(response.content)['counts']
-        self.assertEqual("Color", counts[0]['name'])
-        self.assertEqual(2, counts[0]['total'])
+            # the rulesets should be present as column headers
+            self.assertContains(response, 'Beer')
+            self.assertContains(response, 'Color')
+            self.assertContains(response, 'Name')
 
-        # test a search on our runs
-        response = self.client.get('%s?q=pete' % reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 1)
-        self.assertContains(response, 'Pete')
-        self.assertNotContains(response, 'Jimmy')
+            # fetch counts endpoint, should have 2 color results (one is a test contact)
+            response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
+            counts = json.loads(response.content)['counts']
+            self.assertEqual("Color", counts[0]['name'])
+            self.assertEqual(2, counts[0]['total'])
 
-        response = self.client.get('%s?q=555-3026' % reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 1)
-        self.assertContains(response, 'Jimmy')
-        self.assertNotContains(response, 'Pete')
+            # test a search on our runs
+            response = self.client.get('%s?q=pete' % reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
+            self.assertContains(response, 'Pete')
+            self.assertNotContains(response, 'Jimmy')
 
-        # fetch our intercooler rows for the run table
-        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 1)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Jimmy')
-        self.assertContains(response, 'red')
-        self.assertContains(response, 'Red')
-        self.assertContains(response, 'turbo')
-        self.assertContains(response, 'Turbo King')
-        self.assertNotContains(response, 'skol')
+            response = self.client.get('%s?q=555-3026' % reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
+            self.assertContains(response, 'Jimmy')
+            self.assertNotContains(response, 'Pete')
 
-        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
-        response = self.client.get(next_link)
-        self.assertEqual(200, response.status_code)
+            # fetch our intercooler rows for the run table
+            response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
+            self.assertEqual(200, response.status_code)
+            self.assertContains(response, 'Jimmy')
+            self.assertContains(response, 'red')
+            self.assertContains(response, 'Red')
+            self.assertContains(response, 'turbo')
+            self.assertContains(response, 'Turbo King')
+            self.assertNotContains(response, 'skol')
 
-        # one more row to add
-        self.assertEqual(1, len(response.context['runs']))
-        self.assertNotContains(response, "ic-append-from")
+            # one more row to add
+            self.assertEqual(1, len(response.context['runs']))
+            # self.assertNotContains(response, "ic-append-from")
 
-        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
-        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+            response = self.client.get(next_link)
+            self.assertEqual(200, response.status_code)
 
-        # and some charts
-        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+            FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
+            FlowCRUDL.ActivityChart.PERIOD_MIN = 0
 
-        # we have two active runs
-        self.assertContains(response, "name: 'Active', y: 2")
-        self.assertContains(response, "3 Responses")
+            # and some charts
+            response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
 
-        # now send another message
-        self.send_message(favorites, 'primus', contact=pete)
-        self.send_message(favorites, 'Pete', contact=pete)
+            # we have two active runs
+            self.assertContains(response, "name: 'Active', y: 2")
+            self.assertContains(response, "3 Responses")
 
-        # now only one active, one completed, and 5 total responses
-        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
-        self.assertContains(response, "name: 'Active', y: 1")
-        self.assertContains(response, "name: 'Completed', y: 1")
-        self.assertContains(response, "5 Responses")
+            # now send another message
+            self.send_message(favorites, 'primus', contact=pete)
+            self.send_message(favorites, 'Pete', contact=pete)
 
-        # they all happened on the same day
-        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
-        points = response.context['histogram']
-        self.assertEqual(1, len(points))
+            # now only one active, one completed, and 5 total responses
+            response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+            self.assertContains(response, "name: 'Active', y: 1")
+            self.assertContains(response, "name: 'Completed', y: 1")
+            self.assertContains(response, "5 Responses")
 
-        # put one of our counts way in the past so we get a different histogram scale
-        count = FlowPathCount.objects.filter(flow=favorites).order_by('id')[1]
-        count.period = count.period - timedelta(days=25)
-        count.save()
-        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
-        points = response.context['histogram']
-        self.assertTrue(timedelta(days=24) < (points[1]['bucket'] - points[0]['bucket']))
+            # they all happened on the same day
+            response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+            points = response.context['histogram']
+            self.assertEqual(1, len(points))
 
-        # pick another scale
-        count.period = count.period - timedelta(days=600)
-        count.save()
-        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+            # put one of our counts way in the past so we get a different histogram scale
+            count = FlowPathCount.objects.filter(flow=favorites).order_by('id')[1]
+            count.period = count.period - timedelta(days=25)
+            count.save()
+            response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+            points = response.context['histogram']
+            self.assertTrue(timedelta(days=24) < (points[1]['bucket'] - points[0]['bucket']))
 
-        # this should give us a more compressed histogram
-        points = response.context['histogram']
-        self.assertTrue(timedelta(days=620) < (points[1]['bucket'] - points[0]['bucket']))
+            # pick another scale
+            count.period = count.period - timedelta(days=600)
+            count.save()
+            response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
 
-        self.assertEqual(24, len(response.context['hod']))
-        self.assertEqual(7, len(response.context['dow']))
+            # this should give us a more compressed histogram
+            points = response.context['histogram']
+            self.assertTrue(timedelta(days=620) < (points[1]['bucket'] - points[0]['bucket']))
+
+            self.assertEqual(24, len(response.context['hod']))
+            self.assertEqual(7, len(response.context['dow']))
 
         # delete a run
-        FlowCRUDL.RunTable.paginate_by = 100
-        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 2)
+        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
+            page.return_value = 100
+            response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 2)
 
-        rulesets = favorites.rule_sets.all().order_by('-y')
-        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
-        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
-        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+            rulesets = favorites.rule_sets.all().order_by('-y')
+            results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+            results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+            results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
 
-        self.assertEqual(results0['set'], 1)
-        self.assertEqual(results0['unset'], 1)
-        self.assertEqual(len(results0['categories']), 1)
-        self.assertEqual(results0['categories'], [{'count': 1, 'label': u'pete'}])
+            self.assertEqual(results0['set'], 1)
+            self.assertEqual(results0['unset'], 1)
+            self.assertEqual(len(results0['categories']), 1)
+            self.assertEqual(results0['categories'], [{'count': 1, 'label': u'pete'}])
 
-        self.assertEqual(results1['set'], 2)
-        self.assertEqual(results1['unset'], 0)
-        self.assertEqual(len(results1['categories']), 4)
-        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 1, 'label': u'Primus'},
-                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+            self.assertEqual(results1['set'], 2)
+            self.assertEqual(results1['unset'], 0)
+            self.assertEqual(len(results1['categories']), 4)
+            self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 1, 'label': u'Primus'},
+                                                      {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
 
-        self.assertEqual(results2['set'], 2)
-        self.assertEqual(results2['unset'], 0)
-        self.assertEqual(len(results2['categories']), 4)
-        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
-                                                  {'count': 1, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
+            self.assertEqual(results2['set'], 2)
+            self.assertEqual(results2['unset'], 0)
+            self.assertEqual(len(results2['categories']), 4)
+            self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                      {'count': 1, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
 
-        self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
-        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 1)
+            self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
+            response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
 
-        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
-        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
-        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+            results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+            results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+            results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
 
-        self.assertEqual(results0['set'], 0)
-        self.assertEqual(results0['unset'], 1)
-        self.assertEqual(len(results0['categories']), 0)
-        self.assertEqual(results0['categories'], [])
+            self.assertEqual(results0['set'], 0)
+            self.assertEqual(results0['unset'], 1)
+            self.assertEqual(len(results0['categories']), 0)
+            self.assertEqual(results0['categories'], [])
 
-        self.assertEqual(results1['set'], 1)
-        self.assertEqual(results1['unset'], 0)
-        self.assertEqual(len(results1['categories']), 4)
-        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 0, 'label': u'Primus'},
-                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+            self.assertEqual(results1['set'], 1)
+            self.assertEqual(results1['unset'], 0)
+            self.assertEqual(len(results1['categories']), 4)
+            self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 0, 'label': u'Primus'},
+                                                      {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
 
-        self.assertEqual(results2['set'], 1)
-        self.assertEqual(results2['unset'], 0)
-        self.assertEqual(len(results2['categories']), 4)
-        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
-                                                  {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
+            self.assertEqual(results2['set'], 1)
+            self.assertEqual(results2['unset'], 0)
+            self.assertEqual(len(results2['categories']), 4)
+            self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                      {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
+
+        with patch('temba.flows.views.FlowCRUDL.RunTable.get_paginate_by') as page:
+            page.return_value = 1
+
+            # create one empty run
+            FlowRun.objects.create(org=favorites.org, flow=favorites, contact=pete, responded=True)
+
+            # fetch our intercooler rows for the run table
+            response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
+            self.assertEqual(200, response.status_code)
 
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')
