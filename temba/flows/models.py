@@ -1627,7 +1627,7 @@ class Flow(TembaModel):
                 connection.parent = parent_run.connection
                 connection.save()
             else:
-                entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+                entry_rule = RuleSet.objects.filter(flow=self, uuid=self.entry_uuid).first()
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
@@ -1846,7 +1846,7 @@ class Flow(TembaModel):
                 entry_actions.flow = self
 
         elif self.entry_type == Flow.RULES_ENTRY:
-            entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+            entry_rules = RuleSet.objects.filter(flow=self, uuid=self.entry_uuid).first()
             if entry_rules:
                 entry_rules.flow = self
 
@@ -2482,14 +2482,12 @@ class Flow(TembaModel):
 
             for existing in existing_rulesets.values():
                 if existing.uuid not in seen:
-                    # clean up any values on this ruleset
-                    Value.objects.filter(ruleset=existing, org=self.org).delete()
 
                     del existing_rulesets[existing.uuid]
 
                     # instead of deleting it, make it a phantom ruleset until we do away with values_value
                     existing.flow = None
-                    existing.uuid = uuid4()
+                    existing.uuid = str(uuid4())
                     existing.save(update_fields=('flow', 'uuid'))
 
             # make sure all destinations are present though
@@ -2900,7 +2898,7 @@ class FlowRun(models.Model):
                 return
 
             ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
-                                             flow__org=step.run.org).first()
+                                             flow__org=step.run.org).exclude(flow=None).first()
             if ruleset:
                 # use the last incoming message on this step
                 msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
