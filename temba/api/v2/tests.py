@@ -2087,13 +2087,28 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json(), {
             'name': "Temba",
             'country': "RW",
-            'languages': ["eng", "fre"],
+            'languages': ["eng", "fra"],
+            'primary_language': "eng",
+            'timezone': "Africa/Kigali",
+            'date_style': "day_first",
+            'credits': {'used': 0, 'remaining': 1000},
+            'anon': False
+        })
+
+        # try to set languages which do not exist in iso639-3
+        self.org.set_languages(self.admin, ['fre', '123', 'eng'], 'eng')
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json(), {
+            'name': "Temba",
+            'country': "RW",
+            'languages': ['eng'],
             'primary_language': "eng",
             'timezone': "Africa/Kigali",
             'date_style': "day_first",

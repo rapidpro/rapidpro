@@ -617,10 +617,10 @@ class ContactTest(TembaTest):
         self.assertEqual(len(contact.name), 128)
 
         # create a contact with name, phone number and language
-        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fre')
+        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fra')
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
-        self.assertEqual(joe.language, 'fre')
+        self.assertEqual(joe.language, 'fra')
 
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
@@ -2571,6 +2571,18 @@ class ContactTest(TembaTest):
         self.assertEqual(contact.name, "Bob")
         self.assertEqual([six.text_type(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
+
+    def test_create_instance_with_language(self):
+        contact = Contact.create_instance(dict(
+            org=self.org, created_by=self.admin, name="Bob", phone="+250788111111", language="fra"
+        ))
+        self.assertEqual(contact.language, 'fra')
+
+        # language is not defined in iso639-3
+        contact = Contact.create_instance(dict(
+            org=self.org, created_by=self.admin, name="Mob", phone="+250788111112", language="123"
+        ))
+        self.assertIsNone(contact.language)
 
     def do_import(self, user, filename):
 

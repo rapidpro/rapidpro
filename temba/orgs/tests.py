@@ -87,12 +87,12 @@ class OrgTest(TembaTest):
     def test_languages(self):
         self.assertEqual(self.org.get_language_codes(), set())
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
         self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fra'})
 
         self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
         self.org.refresh_from_db()
