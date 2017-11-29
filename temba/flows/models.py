@@ -977,7 +977,7 @@ class Flow(TembaModel):
         Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import delete_flow_results_task
+        from .tasks import deactivate_flow_runs_task
 
         self.is_active = False
         self.save()
@@ -996,8 +996,8 @@ class Flow(TembaModel):
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
 
-        # delete our results in the background
-        on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
+        # deactivate our runs in the background
+        on_transaction_commit(lambda: deactivate_flow_runs_task.delay(self.id))
 
     def get_category_counts(self, deleted_nodes=True):
 
@@ -1048,22 +1048,22 @@ class Flow(TembaModel):
 
         return dict(counts=result_list)
 
-    def delete_results(self):
+    def deactivate_runs(self):
         """
-        Removes all flow runs, values and steps for a flow.
+        Removes all flow runs, values and steps for a flow. For now, intentionally leave our values
+        and steps since those are not long for this world.
         """
 
-        # any outstanding active runs should interrupted
         FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 
-        # in chunks of 1000, remove any values or flowsteps associated with these runs
-        # we keep Runs around for auditing purposes
-        for chunk in chunk_list(run_ids, 1000):
-            Value.objects.filter(run__in=chunk).delete()
-            FlowStep.objects.filter(run__in=chunk).delete()
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        for id_batch in chunk_list(run_ids, 1000):
+            now = timezone.now()
+            runs = FlowRun.objects.filter(id__in=id_batch)
+            runs.update(is_active=False, exited_on=now, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED, modified_on=now)
 
         # clear all our cached stats
         self.clear_props_cache()
@@ -2488,7 +2488,8 @@ class Flow(TembaModel):
                     Value.objects.filter(ruleset=existing, org=self.org).delete()
 
                     del existing_rulesets[existing.uuid]
-                    existing.delete()
+                    existing.flow = None
+                    existing.save(update_fields=('flow',))
 
             # make sure all destinations are present though
             for destination in destinations:
@@ -3491,7 +3492,7 @@ class RuleSet(models.Model):
 
     uuid = models.CharField(max_length=36, unique=True)
 
-    flow = models.ForeignKey(Flow, related_name='rule_sets')
+    flow = models.ForeignKey(Flow, related_name='rule_sets', null=True, blank=True)
 
     label = models.CharField(max_length=64, null=True, blank=True,
                              help_text=_("The label for this field"))
