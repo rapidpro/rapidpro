@@ -69,7 +69,14 @@ def iso6392_to_iso6393(iso_code, country_code=None):
     Given an iso639-2 code and an optional country code, returns the appropriate 639-3 code to use.
     """
     import iso639
+
+    if iso_code is None:
+        return None
+
     iso_code = iso_code.lower().strip()
+
+    if iso_code == '':
+        raise ValueError('iso_code must not be empty')
 
     cache_key = '{}:{}'.format(iso_code, 'XX' if country_code is None else country_code)
 
@@ -95,7 +102,7 @@ def iso6392_to_iso6393(iso_code, country_code=None):
                     lang = iso639.languages.get(part2t=iso_code)
                 except KeyError:
                     pass
-            # if not found, maybe it's already a 639-3 code
+            # if not found, maybe it's already a iso639-3 code
             if lang is None:
                 try:
                     lang = iso639.languages.get(part3=iso_code)

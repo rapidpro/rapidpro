@@ -26,6 +26,7 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
+from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -1145,6 +1146,12 @@ class Contact(TembaModel):
         language = field_dict.get(Contact.LANGUAGE)
         if language is not None and len(language) != 3:
             language = None  # ignore anything that's not a 3-letter code
+        else:
+            try:
+                # convert every language to the iso639-3
+                language = iso6392_to_iso6393(language, org.get_country_code())
+            except ValueError:
+                language = None
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)

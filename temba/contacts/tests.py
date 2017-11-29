@@ -2346,7 +2346,7 @@ class ContactTest(TembaTest):
 
         # update our language to something not on the org
         self.joe.refresh_from_db()
-        self.joe.language = 'fre'
+        self.joe.language = 'fra'
         self.joe.save()
 
         # add some languages to our org, but not french
@@ -3384,7 +3384,8 @@ class ContactTest(TembaTest):
         self.do_import(self.user, 'sample_contacts_with_language.xls')
 
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
-        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
+        # language is correctly migrated from iso639-2 to iso639-3, 'fre' -> 'fra'
+        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fra')  # created with language
         self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
 
     def test_import_sequential_numbers(self):

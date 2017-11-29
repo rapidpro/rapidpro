@@ -2495,6 +2495,13 @@ class LanguageTest(TembaTest):
 
         # test if language is already iso-639-3
         self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+        # test code path when language is in cache
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+
+        # test behavior with unknown values
+        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='')
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='123')
 
 
 class BulkExportTest(TembaTest):
