@@ -5720,10 +5720,6 @@ class FlowsTest(FlowFileTest):
         # but they should all be inactive
         self.assertEqual(flow.runs.filter(is_active=True).count(), 0)
 
-        # just no steps or values
-        self.assertEqual(Value.objects.all().count(), 0)
-        self.assertEqual(FlowStep.objects.all().count(), 0)
-
         # our campaign event should no longer be active
         event1.refresh_from_db()
         self.assertFalse(event1.is_active)
