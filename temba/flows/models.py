@@ -2486,8 +2486,11 @@ class Flow(TembaModel):
                     Value.objects.filter(ruleset=existing, org=self.org).delete()
 
                     del existing_rulesets[existing.uuid]
+
+                    # instead of deleting it, make it a phantom ruleset until we do away with values_value
                     existing.flow = None
-                    existing.save(update_fields=('flow',))
+                    existing.uuid = uuid4()
+                    existing.save(update_fields=('flow', 'uuid'))
 
             # make sure all destinations are present though
             for destination in destinations:
