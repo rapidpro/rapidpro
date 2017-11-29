@@ -288,6 +288,15 @@
         modal.setRedirectOnSuccess(true);
         modal.show();
       });
+
+      Highcharts.setOptions({
+        global: {
+          timezoneOffset: -1 * {{utcoffset}}
+        },
+        lang: {
+          thousandsSep: ','
+        }
+      })
     });
 
     Highcharts.setOptions({
@@ -469,28 +478,30 @@
 
       $.get("/flow/category_counts/{{object.uuid}}", function(data) {
 
-        // determine chart sizes
-        var lastBigChart = -1;
-        for (var i=0; i<data.counts.length; i++) {
-          data.counts[i]['size'] = 'medium';
-          if (data.counts[i].categories.length > 5) {
-            data.counts[i]['size'] = 'large';
-            updatePreviousCharts(lastBigChart + 1, i, data.counts);
-            lastBigChart = i;
+        if (data.counts) {
+          // determine chart sizes
+          var lastBigChart = -1;
+          for (var i=0; i<data.counts.length; i++) {
+            data.counts[i]['size'] = 'medium';
+            if (data.counts[i].categories.length > 5) {
+              data.counts[i]['size'] = 'large';
+              updatePreviousCharts(lastBigChart + 1, i, data.counts);
+              lastBigChart = i;
+            }
           }
-        }
 
-        // if we didn't end on a big chart, update our
-        if (lastBigChart != data.counts.length - 1) {
-          updatePreviousCharts(lastBigChart + 1, i, data.counts);
-        }
+          // if we didn't end on a big chart, update our
+          if (lastBigChart != data.counts.length - 1) {
+            updatePreviousCharts(lastBigChart + 1, i, data.counts);
+          }
 
-        if (chartLayoutChanged(data.counts)) {
-          resetCharts();
-        }
+          if (chartLayoutChanged(data.counts)) {
+            resetCharts();
+          }
 
-        for (var chartData of data.counts) {
-          updateChart(chartData);
+          for (var chartData of data.counts) {
+            updateChart(chartData);
+          }
         }
       });
 
@@ -510,9 +521,11 @@
     %li.active
       %a{href: '#overview', data-toggle:'tab'}
         Overview
+
     %li
       %a{href: '#analytics', data-toggle:'tab'}
         Analytics
+
     %li
       %a{href: '#runs', data-toggle:'tab'}
         Runs

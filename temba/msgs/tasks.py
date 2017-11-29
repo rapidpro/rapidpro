@@ -116,15 +116,15 @@ def process_message_task(msg_event):
 
             if contact_msg:
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = Msg.objects.filter(id=msg_event['id']).order_by().select_related('org', 'contact', 'contact_urn', 'channel').first()
 
-                if msg:
+                if msg and msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
-        if msg:
+        msg = Msg.objects.filter(id=msg_event['id']).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg and msg.status == PENDING:
             # grab our contact lock and handle this message
             key = 'pcm_%d' % msg.contact_id
             with r.lock(key, timeout=120):
@@ -436,6 +436,6 @@ def clear_old_msg_external_ids():
     msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
-        Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
+        Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))

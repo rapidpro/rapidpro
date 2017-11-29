@@ -31,7 +31,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
@@ -218,6 +218,10 @@ class TembaTest(SmartminTest):
         # reset our simulation to False
         Contact.set_simulation(False)
 
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+
     def get_verbosity(self):
         for s in reversed(inspect.stack()):
             options = s[0].f_locals.get('options')
@@ -299,9 +303,13 @@ class TembaTest(SmartminTest):
         self.import_file(filename, substitutions=substitutions)
 
         if last_flow:
-            return Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow.org = self.org
+            return flow
 
-        return Flow.objects.all().order_by('-created_on').first()
+        flow = Flow.objects.all().order_by('-created_on').first()
+        flow.org = self.org
+        return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
@@ -410,7 +418,13 @@ class TembaTest(SmartminTest):
                 ],
                 "rule_sets": [],
             }
-        flow.update(definition)
+
+        flow.version_number = definition['version']
+        flow.save()
+
+        json_flow = FlowRevision.migrate_definition(definition, flow)
+        flow.update(json_flow)
+
         return flow
 
     def update_destination(self, flow, source, destination):

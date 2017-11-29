@@ -380,22 +380,18 @@ class FlowCRUDL(SmartCRUDL):
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
-            org = self.get_object_org()
+            flow = self.get_object()
 
-            step_uuid = request.GET.get('step')
-            next_uuid = request.GET.get('destination')
-            rule_uuids = request.GET.get('rule')
+            exit_uuids = request.GET.get('exits', '').split(',')
+            to_uuid = request.GET.get('to')
 
             recent_messages = []
 
-            if (step_uuid or rule_uuids) and next_uuid:
-                from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
-                to_uuids = [next_uuid]
-
-                recent = FlowPathRecentMessage.get_recent(from_uuids, to_uuids)
+            if exit_uuids and to_uuid:
+                recent = FlowPathRecentMessage.get_recent(exit_uuids, to_uuid)
 
                 for msg in recent:
-                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
+                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=flow.org.timezone), text=msg.text))
 
             return JsonResponse(recent_messages, safe=False)
 
@@ -412,7 +408,7 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 revisions = []
                 for revision in flow.revisions.all().order_by('-created_on')[:25]:
-                    # validate the flow defintion before presenting it to the user
+                    # validate the flow definition before presenting it to the user
                     try:
                         FlowRevision.validate_flow_definition(revision.get_definition_json())
                         revisions.append(revision.as_json())
@@ -1169,7 +1165,7 @@ class FlowCRUDL(SmartCRUDL):
 
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
-            rulesets = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT))
+            rulesets = list(flow.rule_sets.all())
 
             from_uuids = []
             for ruleset in rulesets:
@@ -1225,7 +1221,6 @@ class FlowCRUDL(SmartCRUDL):
                 context['histogram'] = histogram
 
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
-                context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
                 context['min_date'] = min_date
 
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
@@ -1291,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-                results = json.loads(run.results)
+                results = run.get_results()
                 run.value_list = []
                 for ruleset in context['rulesets']:
                     key = Flow.label_to_slug(ruleset.label)
@@ -1333,6 +1328,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
             context['categories'] = flow.get_category_counts()['counts']
+            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):
