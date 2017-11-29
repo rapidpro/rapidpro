@@ -936,36 +936,6 @@ class Flow(TembaModel):
                 break
         return versions
 
-    def build_flow_context(self, run, contact_context=None):
-        """
-        Get a flow context for the given run in this flow
-        """
-        # wrapper around our result, lets us do a nice representation of both @flow.foo and @flow.foo.text
-        def value_wrapper(res):
-            return dict(__default__=res[FlowRun.RESULT_VALUE],
-                        text=res[FlowRun.RESULT_INPUT],
-                        time=res[FlowRun.RESULT_CREATED_ON],
-                        category=res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
-                        value=res[FlowRun.RESULT_VALUE])
-
-        flow_context = {}
-        values = []
-
-        for key, result in six.iteritems(run.get_results()):
-            flow_context[key] = value_wrapper(result)
-            values.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
-
-        flow_context['__default__'] = "\n".join(values)
-
-        # if we don't have a contact context, build one
-        if not contact_context:
-            run.contact.org = self.org
-            contact_context = run.contact.build_expressions_context()
-
-        flow_context['contact'] = contact_context
-
-        return flow_context
-
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
@@ -1334,10 +1304,11 @@ class Flow(TembaModel):
             run = self.runs.filter(contact=contact).order_by('-created_on').first()
 
         if run:
+            run.org = self.org
             run.contact = contact
 
             run_context = run.field_dict()
-            flow_context = self.build_flow_context(run, contact_context)
+            flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
             flow_context = {}
@@ -1353,15 +1324,15 @@ class Flow(TembaModel):
                 if run.parent.contact_id == run.contact_id:
                     run.parent.contact = run.contact
 
-                run.parent.contact.org = self.org
-                context['parent'] = run.parent.flow.build_flow_context(run.parent)
+                run.parent.org = self.org
+                context['parent'] = run.parent.build_expressions_context()
 
             # see if we spawned any children and add them too
             child_run = run.cached_child
             if child_run:
-                child_run.flow.org = self.org
+                child_run.org = self.org
                 child_run.contact = run.contact
-                context['child'] = child_run.flow.build_flow_context(child_run)
+                context['child'] = child_run.build_expressions_context()
 
         if contact:
             context['contact'] = contact_context
@@ -2674,6 +2645,36 @@ class FlowRun(models.Model):
             return FlowRun.objects.create(**args)
         else:
             return FlowRun(**args)
+
+    def build_expressions_context(self, contact_context=None):
+        """
+        Get a flow context for the given run in this flow
+        """
+        # wrapper around our result, lets us do a nice representation of both @flow.foo and @flow.foo.text
+        def value_wrapper(res):
+            return dict(__default__=res[FlowRun.RESULT_VALUE],
+                        text=res[FlowRun.RESULT_INPUT],
+                        time=res[FlowRun.RESULT_CREATED_ON],
+                        category=res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
+                        value=res[FlowRun.RESULT_VALUE])
+
+        flow_context = {}
+        values = []
+
+        for key, result in six.iteritems(self.get_results()):
+            flow_context[key] = value_wrapper(result)
+            values.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
+
+        flow_context['__default__'] = "\n".join(values)
+
+        # if we don't have a contact context, build one
+        if not contact_context:
+            self.contact.org = self.org
+            contact_context = self.contact.build_expressions_context()
+
+        flow_context['contact'] = contact_context
+
+        return flow_context
 
     @property
     def connection_interrupted(self):

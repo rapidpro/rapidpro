@@ -465,7 +465,8 @@ class Broadcast(models.Model):
                     # worry about the @child context.
                     if 'parent' in text:
                         if run.parent:
-                            message_context.update(dict(parent=run.parent.flow.build_flow_context(run.parent)))
+                            run.parent.org = self.org
+                            message_context.update(dict(parent=run.parent.build_expressions_context()))
 
             try:
                 msg = Msg.create_outgoing(org,
