@@ -670,13 +670,28 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           .success (data, statusCode) ->
             $rootScope.error = null
             $rootScope.errorDelay = quietPeriod
+
+            if data.status == 'flow_migrated'
+              resolveObj =
+                type: -> "info"
+                title: -> "Flow Upgraded"
+                body: -> "Your flow has been upgraded to the latest version. In order to continue editing, please refresh your browser."
+                ok: -> 'Reload'
+                hideCancel: -> true
+                details: -> ''
+              modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
+
+              modalInstance.result.then (reload) ->
+                if reload
+                  document.location.reload()
+
             if data.status == 'unsaved'
               resolveObj =
                 type: -> "error"
                 title: -> "Editing Conflict"
                 body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
                 ok: -> 'Reload'
-                hideCancel: -> false
+                hideCancel: -> true
                 details: -> ''
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
@@ -872,10 +887,17 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       else
         # our visited counts for actions
-        key = node.uuid + ':' + node.destination
+
         count = 0
-        if activity and activity.visited and key of activity.visited
-          count += activity.visited[key]
+        if activity and activity.visited
+          # TODO convert all path counts to be exit based and remove this
+          by_node_key = node.uuid + ':' + node.destination
+          if by_node_key of activity.visited
+            count += activity.visited[by_node_key]
+
+          by_exit_key = node.exit_uuid + ':' + node.destination
+          if by_exit_key of activity.visited
+            count += activity.visited[by_exit_key]
         node._visited = count
 
       return
@@ -1001,8 +1023,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if cfg.type == operatorType
           return cfg
 
-    fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
-      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
+    fetchRecentMessages: (exit_uuids, to_uuid) ->
+      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?exits=' + exit_uuids.join() + '&to=' + to_uuid).success (data) ->
 
     fetch: (flowId, onComplete = null) ->
 

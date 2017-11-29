@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum, Max
+from django.db.models import Q, Count, QuerySet, Sum, Max, Prefetch
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -35,7 +35,7 @@ from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, get_current_export_version
+from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
@@ -285,6 +285,7 @@ class Flow(TembaModel):
 
         entry_uuid = six.text_type(uuid4())
         definition = {
+            'version': flow.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -516,14 +517,9 @@ class Flow(TembaModel):
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
-        # if we handled it, increment our unread count
-        if handled:
-
-            if not call.contact.is_test:
-                run.flow.increment_unread_responses()
-
-            if msg.id:
-                Msg.mark_handled(msg)
+        # if we handled it, mark it so
+        if handled and msg.id:
+            Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -657,10 +653,6 @@ class Flow(TembaModel):
                                                       continue_parent=continue_parent)
 
             if handled:
-                # increment our unread count if this isn't the simulator
-                if not msg.contact.is_test:
-                    flow.increment_unread_responses()
-
                 return True, msgs
 
         return False, []
@@ -942,12 +934,6 @@ class Flow(TembaModel):
                 break
         return versions
 
-    def get_newer_versions(self):
-        """
-        Finds all versions that are newer than our current version
-        """
-        return Flow.get_versions_after(self.version_number)
-
     def build_flow_context(self, contact, contact_context=None):
         """
         Get a flow context built on the last run for the contact in the given flow
@@ -1012,7 +998,7 @@ class Flow(TembaModel):
 
     def get_category_counts(self, deleted_nodes=True):
 
-        actives = self.rule_sets.all().values('uuid', 'label')
+        actives = self.rule_sets.all().values('uuid', 'label').order_by('y', 'x')
 
         uuids = [active['uuid'] for active in actives]
         keys = [Flow.label_to_slug(active['label']) for active in actives]
@@ -1028,14 +1014,36 @@ class Flow(TembaModel):
 
         results = {}
         for count in counts:
-            result = results.get(count['result_key'], {})
+            key = count['result_key']
+            result = results.get(key, {})
             if 'name' not in result:
+                if count['category_name'] == 'All Responses':
+                    continue
+                result['key'] = key
                 result['name'] = count['result_name']
                 result['categories'] = [dict(name=count['category_name'], count=count['count'])]
+                result['total'] = count['count']
             else:
                 result['categories'].append(dict(name=count['category_name'], count=count['count']))
+                result['total'] += count['count']
             results[count['result_key']] = result
-        return results
+
+        for k, v in six.iteritems(results):
+            for cat in results[k]['categories']:
+                if (results[k]['total']):
+                    cat['pct'] = float(cat['count']) / float(results[k]['total'])
+                else:
+                    cat['pct'] = 0
+
+        # order counts by their place on the flow
+        result_list = []
+        for active in actives:
+            key = Flow.label_to_slug(active['label'])
+            result = results.get(key)
+            if result:
+                result_list.append(result)
+
+        return dict(counts=result_list)
 
     def delete_results(self):
         """
@@ -1252,6 +1260,7 @@ class Flow(TembaModel):
 
         entry_uuid = str(uuid4())
         definition = {
+            'version': self.version_number,
             'entry': entry_uuid,
             'base_language': base_language,
             'rule_sets': [],
@@ -1284,30 +1293,6 @@ class Flow(TembaModel):
             'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
             'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
         }
-
-    def get_and_clear_unread_responses(self):
-        """
-        Gets the number of new responses since the last clearing for this flow.
-        """
-        r = get_redis_connection()
-
-        # get the number of new responses
-        new_responses = r.hget(UNREAD_FLOW_RESPONSES, self.id)
-
-        # then clear them
-        r.hdel(UNREAD_FLOW_RESPONSES, self.id)
-
-        return 0 if new_responses is None else int(new_responses)
-
-    def increment_unread_responses(self):
-        """
-        Increments the number of new responses for this flow.
-        """
-        r = get_redis_connection()
-        r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
-
-        # increment our global count as well
-        self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
     def get_columns(self):
         node_order = []
@@ -1588,11 +1573,6 @@ class Flow(TembaModel):
             if flow_start:
                 flow_start.update_status()
             return []
-
-        # single contact starting from a trigger? increment our unread count
-        if start_msg and contact_count == 1:
-            if Contact.objects.filter(pk=all_contact_ids[0], org=self.org, is_test=False).first():
-                self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
@@ -1957,7 +1937,7 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentMessage.record_step(previous_step)
+                FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2285,6 +2265,11 @@ class Flow(TembaModel):
             raise FlowException("Found invalid cycle: %s" % cycle)
 
         try:
+
+            # make sure the flow version hasn't changed out from under us
+            if json_dict.get(Flow.VERSION) != get_current_export_version():
+                return dict(status="flow_migrated")
+
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:
@@ -2511,9 +2496,6 @@ class Flow(TembaModel):
             elif entry in existing_rulesets:
                 self.entry_uuid = entry
                 self.entry_type = Flow.RULES_ENTRY
-            else:
-                self.entry_uuid = None
-                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -2940,7 +2922,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
-        node = last_step.get_step()
+        node = last_step.get_node()
 
         # only continue if we are at a ruleset with a timeout
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
@@ -3220,13 +3202,25 @@ class FlowStep(models.Model):
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
     @classmethod
-    def from_json(cls, json_obj, flow, run, previous_rule=None):
-
+    def from_json(cls, json_obj, flow, run):
+        """
+        Creates a new flow step from the given Surveyor step JSON
+        """
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
         # find the previous step
-        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
+
+        # figure out which exit was taken by that step
+        exit_uuid = None
+        if prev_step:
+            if prev_step.step_type == cls.TYPE_RULE_SET:
+                exit_uuid = prev_step.rule_uuid
+            else:
+                prev_node = prev_step.get_node()
+                if prev_node:
+                    exit_uuid = prev_node.exit_uuid
 
         # generate the messages for this step
         msgs = []
@@ -3265,8 +3259,7 @@ class FlowStep(models.Model):
                 context = flow.build_expressions_context(run.contact, last_incoming)
                 msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on,
-                             exit_uuid=previous_rule)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=exit_uuid)
 
         # if a rule was picked on this ruleset
         if node.is_ruleset() and json_obj['rule']:
@@ -3396,9 +3389,9 @@ class FlowStep(models.Model):
             # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
-    def get_step(self):
+    def get_node(self):
         """
-        Returns either the RuleSet or ActionSet associated with this FlowStep
+        Returns the node (i.e. a RuleSet or ActionSet) associated with this step
         """
         if self.step_type == FlowStep.TYPE_RULE_SET:
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
@@ -3985,6 +3978,7 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
+                        json_flow[Flow.VERSION] = version
                     flows.append(json_flow)
                 exported_json['flows'] = flows
 
@@ -4000,12 +3994,13 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = get_current_export_version()
 
-        for version in flow.get_newer_versions():
+        for version in Flow.get_versions_after(json_flow.get(Flow.VERSION)):
             version_slug = version.replace(".", "_")
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break
@@ -4022,6 +4017,9 @@ class FlowRevision(SmartModel):
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
+
+        # make sure old revisions migrate properly
+        definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != get_current_export_version():
@@ -4055,7 +4053,11 @@ class FlowCategoryCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
         WITH removed as (
-            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+          DELETE FROM %(table)s WHERE "id" IN (
+            SELECT "id" FROM %(table)s
+              WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s
+              LIMIT 10000
+          ) RETURNING "count"
         )
         INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
         VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
@@ -4139,22 +4141,18 @@ class FlowPathRecentMessage(models.Model):
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
-    def record_step(cls, step):
-        from_uuid = step.rule_uuid or step.step_uuid
-        to_uuid = step.next_uuid
-
+    def record(cls, exit_uuid, to_uuid, run, msgs):
         objs = []
-        for msg in step.messages.all():
-            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text, created_on=msg.created_on))
+        for msg in msgs:
+            objs.append(cls(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
+    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
         if limit:
             recent = recent[:limit]
 
@@ -4535,10 +4533,13 @@ class ExportFlowResultsTask(BaseExportTask):
         for run_step in ChunkIterator(FlowStep, step_ids,
                                       order_by=['contact', 'run', 'arrived_on', 'pk'],
                                       select_related=['run', 'contact'],
-                                      prefetch_related=['messages__contact_urn',
-                                                        'messages__channel',
-                                                        'broadcasts',
-                                                        'contact__all_groups'],
+                                      prefetch_related=[
+                                          Prefetch('messages', queryset=Msg.objects.order_by('-id')),
+                                          'messages__contact_urn',
+                                          'messages__channel',
+                                          'broadcasts',
+                                          'contact__all_groups'
+                                      ],
                                       contact_fields=contact_fields):
 
             processed_steps += 1

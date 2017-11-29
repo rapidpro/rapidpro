@@ -144,7 +144,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
-                'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
                 'temba.orgs.context_processors.settings_includer',
@@ -441,6 +440,7 @@ PERMISSIONS = {
                    'archived',
                    'broadcast',
                    'campaign',
+                   'category_counts',
                    'completion',
                    'copy',
                    'editor',
@@ -812,6 +812,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
+        'flows.flow_category_counts',
         'flows.flow_export',
         'flows.flow_export_results',
         'flows.flow_filter',
@@ -933,10 +934,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
     },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
-    },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
         'schedule': timedelta(seconds=300),
@@ -996,6 +993,15 @@ BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+# TODO: uncomment to use SuperAutoscaler
+# CELERYD_AUTOSCALER='temba.celery_autoscaler:SuperAutoscaler'
+AUTOSCALE_MAX_CPU_USAGE = 75
+AUTOSCALE_MAX_USED_MEMORY = 75
+AUTOSCALE_MAX_WORKER_INC_BY = 4
+AUTOSCALE_MAX_WORKER_DEC_BY = 4
+AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
+AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
 IS_PROD = False
 HOSTNAME = "localhost"
