@@ -285,7 +285,7 @@ class RuleCRUDL(SmartCRUDL):
                 return obj.isoformat() if isinstance(obj, datetime) else obj
 
             org = self.request.user.get_org()
-            rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
+            rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).exclude(flow=None).order_by('flow__created_on', 'y').select_related('flow')
             current_flow = None
             flow_json = []
 
