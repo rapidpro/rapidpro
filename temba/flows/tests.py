@@ -119,7 +119,7 @@ class FlowTest(TembaTest):
         contact3 = self.create_contact('George', '+250788382234')
         self.flow.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(4):
             runs = FlowRun.objects.filter(flow=self.flow)
             for run_elt in runs:
                 self.flow.get_results(contact=run_elt.contact, run=run_elt)
@@ -595,10 +595,11 @@ class FlowTest(TembaTest):
         self.assertEqual(self.channel.get_name(), context['channel']['name'])
         self.assertEqual(self.channel.get_address_display(), context['channel']['__default__'])
 
-        # change our step instead be decimal
-        step.rule_value = '10'
-        step.rule_decimal_value = Decimal('10')
-        step.save()
+        # change our value instead be decimal
+        results = contact1_run.get_results()
+        results['color']['value'] = '10'
+        contact1_run.results = json.dumps(results)
+        contact1_run.save(update_fields=('results',))
 
         # check our message context again
         context = self.flow.build_expressions_context(self.contact, incoming)
@@ -609,9 +610,10 @@ class FlowTest(TembaTest):
         self.assertEqual('orange', context['flow']['color']['text'])
 
         # revert above change
-        step.rule_value = 'orange'
-        step.rule_decimal_value = None
-        step.save()
+        results = contact1_run.get_results()
+        results['color']['value'] = 'orange'
+        contact1_run.results = json.dumps(results)
+        contact1_run.save(update_fields=('results',))
 
         # finally we should have our final step which was our outgoing reply
         step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[2]
@@ -652,7 +654,8 @@ class FlowTest(TembaTest):
 
         color = result['values'][0]
         self.assertEqual('color', color['label'])
-        self.assertEqual('Orange', color['category']['base'])
+        self.assertEqual('Orange', color['category'])
+        self.assertEqual('Orange', color['category_localized'])
         self.assertEqual('orange', color['value'])
         self.assertEqual(color_ruleset.uuid, color['node'])
         self.assertEqual(incoming.text, color['text'])
@@ -5689,7 +5692,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_raw('edd').startswith('31-01-2015'))
+        self.assertTrue(mother.get_field_raw('edd').startswith('2015-01-31T'))
         self.assertEqual(mother.get_field_raw('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
         self.assertEqual(mother.get_field_raw('chw_name'), self.contact.name)
 
@@ -5722,7 +5725,7 @@ class FlowsTest(FlowFileTest):
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
+        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('2014-01-31T'))
         self.assertEqual("+12065552020", mother.get_field_raw('chw'))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
@@ -8209,7 +8212,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=228, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=185, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

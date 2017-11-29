@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 
+import iso8601
 import json
 import logging
 import numbers
@@ -947,7 +948,7 @@ class Flow(TembaModel):
             return dict(__default__=six.text_type(val['rule_value']),
                         text=val['text'],
                         time=datetime_to_str(val['time'], format=date_format, tz=self.org.timezone),
-                        category=self.get_localized_text(val['category'], contact),
+                        category=val['category_localized'],
                         value=six.text_type(val['rule_value']))
 
         flow_context = {}
@@ -1305,20 +1306,6 @@ class Flow(TembaModel):
 
         return node_order
 
-    @cached_property
-    def cached_rulesets(self):
-        rulesets = dict()
-        rule_categories = dict()
-
-        ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
-
-        for ruleset in ruleset_list:
-            rulesets[ruleset.uuid] = ruleset
-            for rule in ruleset.get_rules():
-                rule_categories[rule.uuid] = rule.category
-
-        return (rulesets, rule_categories)
-
     def build_expressions_context(self, contact, msg, run=None):
         contact_context = contact.build_expressions_context() if contact else dict()
 
@@ -1382,15 +1369,13 @@ class Flow(TembaModel):
         return context
 
     def get_results(self, contact=None, run=None):
-
-        (rulesets, rule_categories) = self.cached_rulesets
-
-        # for each of the contacts that participated
-        results = []
+        """
+        Gathers results across different runs for this flow
+        """
+        results = []  # results for each run
 
         if run:
             runs = [run]
-            flow_steps = [s for s in run.steps.all() if s.rule_uuid]
         else:
             runs = self.runs.all().select_related('contact')
 
@@ -1402,76 +1387,40 @@ class Flow(TembaModel):
 
             runs = runs.order_by('contact', '-created_on').distinct('contact')
 
-            flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
+        def convert_result(result, seen):
+            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
+            if not seen[0] or created_on < seen[0]:
+                seen[0] = created_on
+            if not seen[1] or created_on > seen[1]:
+                seen[1] = created_on
 
-            # filter our steps to only the runs we care about
-            flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
+            category = result[FlowRun.RESULT_CATEGORY]
 
-            flow_steps = flow_steps.order_by('arrived_on', 'pk')
-            flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
-
-        steps_cache = {}
-        for step in flow_steps:
-
-            step_dict = dict(left_on=step.left_on,
-                             arrived_on=step.arrived_on,
-                             rule_uuid=step.rule_uuid,
-                             rule_category=step.rule_category,
-                             rule_decimal_value=step.rule_decimal_value,
-                             rule_value=step.rule_value,
-                             text=step.get_text(),
-                             step_uuid=step.step_uuid)
-
-            step_run = step.run.id
-
-            if step_run in steps_cache.keys():
-                steps_cache[step_run].append(step_dict)
-
-            else:
-                steps_cache[step_run] = [step_dict]
+            return {
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'label': result[FlowRun.RESULT_NAME],
+                'category': category,
+                'category_localized': result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, category),
+                'text': result[FlowRun.RESULT_INPUT],
+                'value': result[FlowRun.RESULT_VALUE],
+                'rule_value': result[FlowRun.RESULT_VALUE],
+                'time': created_on,
+            }
 
         for run in runs:
-            first_seen = None
-            last_seen = None
-            values = []
-
-            if run.id in steps_cache:
-                run_steps = steps_cache[run.id]
-            else:
-                run_steps = []
-
-            for rule_step in run_steps:
-                ruleset = rulesets.get(rule_step['step_uuid'])
-                if not first_seen:
-                    first_seen = rule_step['left_on']
-                last_seen = rule_step['arrived_on']
-
-                if ruleset:
-                    time = rule_step['left_on'] if rule_step['left_on'] else rule_step['arrived_on']
-
-                    label = ruleset.label
-                    category = rule_categories.get(rule_step['rule_uuid'], None)
-
-                    # if this category no longer exists, use the category label at the time
-                    if not category:  # pragma: needs cover
-                        category = rule_step['rule_category']
-
-                    value = rule_step['rule_decimal_value'] if rule_step['rule_decimal_value'] is not None else rule_step['rule_value']
-
-                    values.append(dict(node=rule_step['step_uuid'],
-                                       label=label,
-                                       category=category,
-                                       text=rule_step['text'],
-                                       value=value,
-                                       rule_value=rule_step['rule_value'],
-                                       time=time))
-
-            results.append(dict(contact=run.contact, values=values, first_seen=first_seen, last_seen=last_seen, run=run.pk))
+            seen_range = [None, None]
+            values = [convert_result(res, seen_range) for key, res in six.iteritems(run.get_results())]
+            results.append({
+                'contact': run.contact,
+                'values': values,
+                'first_seen': seen_range[0],
+                'last_seen': seen_range[1],
+                'run': run.id
+            })
 
         # sort so most recent is first
         now = timezone.now()
-        results = sorted(results, reverse=True, key=lambda result: result['first_seen'] if result['first_seen'] else now)
-        return results
+        return sorted(results, reverse=True, key=lambda result: result['first_seen'] if result['first_seen'] else now)
 
     def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
         """
