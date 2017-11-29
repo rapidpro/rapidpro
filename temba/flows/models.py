@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 
-import iso8601
 import json
 import logging
 import numbers
@@ -937,36 +936,33 @@ class Flow(TembaModel):
                 break
         return versions
 
-    def build_flow_context(self, contact, contact_context=None, run=None):
+    def build_flow_context(self, run, contact_context=None):
         """
-        Get a flow context built on the last run for the contact in the given flow
+        Get a flow context for the given run in this flow
         """
-        date_format = get_datetime_format(self.org.get_dayfirst())[1]
-
-        # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
-        def value_wrapper(val):
-            return dict(__default__=six.text_type(val['rule_value']),
-                        text=val['text'],
-                        time=datetime_to_str(val['time'], format=date_format, tz=self.org.timezone),
-                        category=val['category_localized'],
-                        value=six.text_type(val['rule_value']))
+        # wrapper around our result, lets us do a nice representation of both @flow.foo and @flow.foo.text
+        def value_wrapper(res):
+            return dict(__default__=res[FlowRun.RESULT_VALUE],
+                        text=res[FlowRun.RESULT_INPUT],
+                        time=res[FlowRun.RESULT_CREATED_ON],
+                        category=res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
+                        value=res[FlowRun.RESULT_VALUE])
 
         flow_context = {}
         values = []
-        if contact:
-            results = self.get_results(contact)
-            if results and results[0]:
-                for value in results[0]['values']:
-                    field = Flow.label_to_slug(value['label'])
-                    flow_context[field] = value_wrapper(value)
-                    values.append("%s: %s" % (value['label'], value['rule_value']))
 
-            flow_context['__default__'] = "\n".join(values)
+        for key, result in six.iteritems(run.get_results()):
+            flow_context[key] = value_wrapper(result)
+            values.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
-            # if we don't have a contact context, build one
-            if not contact_context:
-                contact.org = self.org
-                flow_context['contact'] = contact.build_expressions_context()
+        flow_context['__default__'] = "\n".join(values)
+
+        # if we don't have a contact context, build one
+        if not contact_context:
+            run.contact.org = self.org
+            contact_context = run.contact.build_expressions_context()
+
+        flow_context['contact'] = contact_context
 
         return flow_context
 
@@ -1337,10 +1333,14 @@ class Flow(TembaModel):
         if not run:
             run = self.runs.filter(contact=contact).order_by('-created_on').first()
 
-        run_context = run.field_dict() if run else {}
+        if run:
+            run.contact = contact
 
-        # our current flow context
-        flow_context = self.build_flow_context(contact, contact_context, run=run)
+            run_context = run.field_dict()
+            flow_context = self.build_flow_context(run, contact_context)
+        else:
+            run_context = {}
+            flow_context = {}
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
 
@@ -1354,73 +1354,19 @@ class Flow(TembaModel):
                     run.parent.contact = run.contact
 
                 run.parent.contact.org = self.org
-                context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
+                context['parent'] = run.parent.flow.build_flow_context(run.parent)
 
             # see if we spawned any children and add them too
             child_run = run.cached_child
             if child_run:
                 child_run.flow.org = self.org
                 child_run.contact = run.contact
-                context['child'] = child_run.flow.build_flow_context(child_run.contact)
+                context['child'] = child_run.flow.build_flow_context(child_run)
 
         if contact:
             context['contact'] = contact_context
 
         return context
-
-    def get_results(self, contact=None, run=None):
-        """
-        Gathers results across different runs for this flow
-        """
-        results = []  # results for each run
-
-        if run:
-            runs = [run]
-        else:
-            runs = self.runs.all().select_related('contact')
-
-            # hide simulation test contact
-            runs = runs.filter(contact__is_test=Contact.get_simulation())
-
-            if contact:
-                runs = runs.filter(contact=contact)
-
-            runs = runs.order_by('contact', '-created_on').distinct('contact')
-
-        def convert_result(result, seen):
-            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
-            if not seen[0] or created_on < seen[0]:
-                seen[0] = created_on
-            if not seen[1] or created_on > seen[1]:
-                seen[1] = created_on
-
-            category = result[FlowRun.RESULT_CATEGORY]
-
-            return {
-                'node': result[FlowRun.RESULT_NODE_UUID],
-                'label': result[FlowRun.RESULT_NAME],
-                'category': category,
-                'category_localized': result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, category),
-                'text': result[FlowRun.RESULT_INPUT],
-                'value': result[FlowRun.RESULT_VALUE],
-                'rule_value': result[FlowRun.RESULT_VALUE],
-                'time': created_on,
-            }
-
-        for run in runs:
-            seen_range = [None, None]
-            values = [convert_result(res, seen_range) for key, res in six.iteritems(run.get_results())]
-            results.append({
-                'contact': run.contact,
-                'values': values,
-                'first_seen': seen_range[0],
-                'last_seen': seen_range[1],
-                'run': run.id
-            })
-
-        # sort so most recent is first
-        now = timezone.now()
-        return sorted(results, reverse=True, key=lambda result: result['first_seen'] if result['first_seen'] else now)
 
     def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
         """
