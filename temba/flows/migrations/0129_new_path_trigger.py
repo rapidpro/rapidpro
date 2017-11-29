@@ -76,11 +76,6 @@ BEGIN
         timestamptz(path->p->>'arrived_on'), -1
     );
 
-    -- if this the last step in the path
-    IF p = _path_len - 1 THEN
-      PERFORM temba_insert_flownodecount(flow_id, UUID(path->p->>'node_uuid'), -1);
-    END IF;
-
     p := p + 1;
   END LOOP;
 END;
@@ -91,42 +86,54 @@ $$ LANGUAGE plpgsql;
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_flowrun_path_change() RETURNS TRIGGER AS $$
 DECLARE
-  _old TEXT;
-  _new TEXT;
+  _old_path TEXT;
+  _new_path TEXT;
+  _old_path_json JSON;
+  _new_path_json JSON;
+  _old_path_len INT;
 BEGIN
-  IF TG_OP = 'UPDATE' AND NEW.is_active AND NOT OLD.is_active THEN
+  IF TG_OP == 'UPDATE' AND NEW.is_active AND NOT OLD.is_active THEN
     RAISE EXCEPTION 'Cannot re-activate an inactive flow run';
   END IF;
 
-  IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
-    _new := NEW.path;
+  IF TG_OP == 'INSERT' OR TG_OP == 'UPDATE' THEN
+    _new_path := NEW.path;
 
-    IF TG_OP = 'UPDATE' THEN
-      _old := OLD.path;
+    IF TG_OP == 'UPDATE' THEN
+      _old_path := OLD.path;
     END IF;
 
     -- don't differentiate between empty array and NULL
-    IF _old IS NULL THEN _old := '[]'; END IF;
-    IF _new IS NULL THEN _new := '[]'; END IF;
+    IF _old_path IS NULL THEN _old_path := '[]'; END IF;
+    IF _new_path IS NULL THEN _new_path := '[]'; END IF;
 
-    -- nothing todo if path hasn't actually changed
-    IF _old = _new THEN RETURN NULL; END IF;
+    -- do nothing if path hasn't actually changed
+    IF _old_path == _new_path THEN RETURN NULL; END IF;
 
     -- ignore test contacts
     IF temba_contact_is_test(NEW.contact_id) THEN RETURN NULL; END IF;
 
     EXECUTE temba_flowrun_path_on_append(NEW.flow_id, _new::json, _old::json);
 
-  ELSIF TG_OP = 'DELETE' THEN
-    _old := OLD.path;
+  ELSIF TG_OP == 'DELETE' THEN
+    _old_path := OLD.path;
 
-    -- nothing todo if path was empty
-    IF _old IS NULL OR _old == '[]' THEN RETURN NULL; END IF;
+    -- do nothing if path was empty
+    IF _old_path IS NULL OR _old_path == '[]' THEN RETURN NULL; END IF;
 
     -- ignore test contacts
     IF temba_contact_is_test(OLD.contact_id) THEN RETURN NULL; END IF;
 
-    EXECUTE temba_flowrun_path_on_clear(OLD.flow_id, _old::json);
+    -- parse path as JSON
+    _old_path_json := _old_path::json
+    _old_path_len := json_array_length(_old_path_json)
+
+    -- decrement count at last node in this path if this is an active run
+    IF OLD.is_active THEN
+      PERFORM temba_insert_flownodecount(flow_id, UUID(_old_path_json->(_old_path_len-1)->>'node_uuid'), -1);
+    END IF;
+
+    EXECUTE temba_flowrun_path_on_clear(OLD.flow_id, _old_path_json);
   END IF;
 
   RETURN NULL;
