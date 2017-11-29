@@ -3491,7 +3491,7 @@ class RuleSet(models.Model):
 
     uuid = models.CharField(max_length=36, unique=True)
 
-    flow = models.ForeignKey(Flow, related_name='rule_sets', null=True, blank=True)
+    flow = models.ForeignKey(Flow, related_name='rule_sets', null=True)
 
     label = models.CharField(max_length=64, null=True, blank=True,
                              help_text=_("The label for this field"))
