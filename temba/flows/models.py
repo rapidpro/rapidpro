@@ -1054,8 +1054,6 @@ class Flow(TembaModel):
         and steps since those are not long for this world.
         """
 
-        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 
