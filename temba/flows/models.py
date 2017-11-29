@@ -953,7 +953,7 @@ class Flow(TembaModel):
         flow_context = {}
         values = []
         if contact:
-            results = self.get_results(contact, only_last_run=True)
+            results = self.get_results(contact)
             if results and results[0]:
                 for value in results[0]['values']:
                     field = Flow.label_to_slug(value['label'])
@@ -1381,7 +1381,7 @@ class Flow(TembaModel):
 
         return context
 
-    def get_results(self, contact=None, only_last_run=True, run=None):
+    def get_results(self, contact=None, run=None):
 
         (rulesets, rule_categories) = self.cached_rulesets
 
@@ -1400,11 +1400,7 @@ class Flow(TembaModel):
             if contact:
                 runs = runs.filter(contact=contact)
 
-            runs = runs.order_by('contact', '-created_on')
-
-            # or possibly only the last run
-            if only_last_run:
-                runs = runs.distinct('contact')
+            runs = runs.order_by('contact', '-created_on').distinct('contact')
 
             flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
 
