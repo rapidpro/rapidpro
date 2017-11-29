@@ -14,7 +14,6 @@ from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.db.models import Prefetch
 from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
@@ -127,22 +126,8 @@ class FlowTest(TembaTest):
         flow2 = self.get_flow('no_ruleset_flow')
         flow2.start([], [self.contact, self.contact2, contact3])
 
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(4):
             runs = FlowRun.objects.filter(flow=flow2)
-            for run_elt in runs:
-                flow2.get_results(contact=run_elt.contact, run=run_elt)
-
-        # no ruleset do not look up rulesets at all; 6 queries because no org query from flow__org select related too
-        with self.assertNumQueries(6):
-            steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
-            rulesets_prefetch = Prefetch('flow__rule_sets',
-                                         queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
-                                         to_attr='ruleset_prefetch')
-
-            # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-            runs = FlowRun.objects.filter(flow=flow2).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
-                                                                       'steps__messages', 'contact')
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)
 
@@ -973,7 +958,7 @@ class FlowTest(TembaTest):
         self.assertExcelRow(sheet_msgs, 5, [contact1_out3.contact.uuid, "+250788382382", "Eric",
                                             contact1_out3.created_on, "OUT",
                                             "I love orange too! You said: orange which is category: Orange You are: "
-                                            "0788 382 382 SMS: orange Flow: color: light beige\ncolor: orange",
+                                            "0788 382 382 SMS: orange Flow: color: orange",
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
@@ -2770,10 +2755,10 @@ class FlowTest(TembaTest):
         self.assertEqual(1, len(results[0]['values']))
 
         color = results[0]['values'][0]
-        self.assertEqual('color', color['label'])
-        self.assertEqual('Blue', color['category']['base'])
-        self.assertEqual('blue', color['value'])
-        self.assertEqual(incoming.text, color['text'])
+        self.assertEqual(color['label'], 'color')
+        self.assertEqual(color['category'], 'Blue')
+        self.assertEqual(color['value'], 'blue')
+        self.assertEqual(color['text'], incoming.text)
 
     def test_ignore_keyword_triggers(self):
         self.flow.start([], [self.contact])
