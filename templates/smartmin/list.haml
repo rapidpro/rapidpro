@@ -58,9 +58,10 @@
 {% block extra-script %}
 {{ block.super }}
 :javascript
-  current_label_id = 0;
-  {% if current_label %}
-  current_label_id = {{current_label.pk}};
+  {% if current_label.id %}
+    current_label_id = {{current_label.id}};
+  {% else %}
+    current_label_id = 0;
   {% endif %}
 
 <script>

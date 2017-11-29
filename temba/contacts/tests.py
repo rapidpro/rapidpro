@@ -1662,7 +1662,8 @@ class ContactTest(TembaTest):
             scheduled = timezone.now()
             EventFire.objects.create(event=self.message_event, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
-            response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]) + '?before=%d' % datetime_to_ms(timezone.now()), self.admin)
+            # when fetched in a bit, it should be the first event we see
+            response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]) + '?before=%d' % datetime_to_ms(scheduled + timedelta(minutes=5)), self.admin)
             self.assertEqual(self.message_event, response.context['activity'][0]['obj'].event)
 
         # now try the proper max history to test truncation

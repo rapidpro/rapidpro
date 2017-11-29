@@ -2020,24 +2020,28 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        check_channels_task()
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['from_email'] = 'support@mybrand.com'
+        with self.settings(BRANDING=branding):
+            check_channels_task()
 
-        # should have created one alert
-        alert = Alert.objects.get()
-        self.assertEqual(self.channel, alert.channel)
-        self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-        self.assertFalse(alert.ended_on)
+            # should have created one alert
+            alert = Alert.objects.get()
+            self.assertEqual(self.channel, alert.channel)
+            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
+            self.assertFalse(alert.ended_on)
 
-        self.assertTrue(len(mail.outbox) == 1)
-        template = 'channels/email/disconnected_alert.txt'
-        context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=self.channel.org.get_branding(),
-                       last_seen=self.channel.last_seen, sync=alert.sync_event)
+            self.assertTrue(len(mail.outbox) == 1)
+            template = 'channels/email/disconnected_alert.txt'
+            context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
+                           branding=self.channel.org.get_branding(),
+                           last_seen=self.channel.last_seen, sync=alert.sync_event)
 
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
+            text_template = loader.get_template(template)
+            text = text_template.render(context)
 
-        self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].from_email, 'support@mybrand.com')
 
         # call it again
         check_channels_task()
@@ -7819,6 +7823,12 @@ class JasminTest(TembaTest):
             # assert we were properly encoded
             self.assertEqual(mock.call_args[1]['params']['content'], gsm7.encode('événement')[0])
 
+            # check DLR related parameters
+            self.assertEqual(mock.call_args[1]['params']['dlr'], 'yes')
+            self.assertEqual(mock.call_args[1]['params']['dlr-level'], '2')
+            self.assertEqual(mock.call_args[1]['params']['dlr-method'], 'POST')
+            self.assertRegex(mock.call_args[1]['params']['dlr-url'], '^https?://')
+
             self.clear_cache()
 
         with patch('requests.get') as mock:
@@ -8715,7 +8725,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+        self.assertEqual("What is your favorite color?", contact1.msgs.order_by('id').last().text)
 
         # check if catchall trigger starts a different flow
         referral = """
@@ -8736,7 +8746,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("Pick a number between 1-10.", contact1.msgs.all().first().text)
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by('id').last().text)
 
         # check referral params in postback
         postback = """

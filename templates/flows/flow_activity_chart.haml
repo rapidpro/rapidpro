@@ -1,19 +1,29 @@
 -load humanize i18n compress temba
 
-// <script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
-// <script src="https://code.highcharts.com/highcharts.js"></script>
-// <script src="https://code.highcharts.com/modules/drilldown.js"></script>
-
 -compress css inline
   {% lessblock %}
     :plain
+      #histogram_container {
+        height: 200px;
+        display: inline-block;
+        width: 49%;
+      }
+
       #histogram {
-        height: 250px;
-        border-bottom: 3px solid #80b9fb;
+        height: 200px;
+      }
+
+      #completion_container {
+        display: inline-block;
+        width: 49%;
+
+        #completion {
+          height: 200px;
+        }
       }
 
       #dow_container {
-        width: 30%;
+        width: 49%;
         display: inline-block;
         #dow {
           height: 200px;
@@ -21,20 +31,11 @@
       }
 
       #hod_container {
-        width: 40%;
+        width: 49%;
         display: inline-block;
 
         #hod {
           height:200px;
-        }
-      }
-
-      #completion_container {
-        display: inline-block;
-        width: 29%;
-
-        #completion {
-          height: 200px;
         }
       }
 
@@ -44,45 +45,37 @@
       }
   {% endlessblock %}
 
+-if not hod and not dow
+  -trans "No results yet"
+
 -if hod and dow
-  #dow_container
+  #histogram_container
     %h4
       {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
+
+    #histogram
+
+  #completion_container
+    %h4
+      -trans "Completion"
+    #completion
+  
+  #dow_container
+    %h4
+      -trans "Day of Week"
     #dow
 
   #hod_container
     %h4
-      Time of Day
+      -trans "Time of Day"
     #hod
-
-  #completion_container
-    %h4
-      Completion
-    #completion
-
--if histogram
-  #histogram
-
-:javascript
-  $(document).ready(function(){
-    Highcharts.setOptions({
-      global: {
-        {% if utcoffset %}
-          timezoneOffset: {{utcoffset}},
-        {% endif %}
-      },
-      lang: {
-        thousandsSep: ','
-      }
-    });
-  });
 
 -if hod and dow
   :javascript
     var pie_points = [
-      {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
-      { name: 'Completed', y: {{completed}}, drilldown: null },
-      { name: 'Interrupted and Expired', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
+      {% if active %}{ name: 'Active', y: {{active}}, color: '#2387CA'},{%endif%}
+      { name: 'Completed', y: {{completed}}, drilldown: null, color: '#8FC93A'},
+      { name: 'Interrupted and Expired', y: {{interrupted|add:expired}}, drilldown: 'incomplete', color: '#CCC'},
     ];
 
     var pie_drill = {
@@ -91,16 +84,14 @@
         id: 'incomplete',
         innerSize: '50%',
         data:[
-          ['Expired', {{expired}}],
-          ['Interruped', {{interrupted}}],
+          {name: 'Expired', y: {{expired}}, color: '#CCC'},
+          {name: 'Interruped', y: {{interrupted}}, color: '#EEE'},
         ]
       }]
     };
 
-
     new Highcharts.chart({
       credits: { enabled: false },
-      colors: ['#80b9fb', '#2980b9', '#CCCCCC'],
       chart: {
           renderTo: 'completion',
           type: 'pie',
@@ -154,7 +145,7 @@
 
     new Highcharts.chart({
       credits: { enabled: false },
-      colors: ['#2980b9'],
+      colors: ['#2387CA'],
       chart: {
           renderTo: 'hod',
           type: 'column',
@@ -207,7 +198,6 @@
       }]
     });
 
-  :javascript
     var dow_points = [
       {% for point in dow %}
         {name:"{{point.day}}", y:{{point.pct}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
@@ -215,20 +205,9 @@
     ];
 
     $(document).ready(function(){
-      Highcharts.setOptions({
-        global: {
-          {% if utcoffset %}
-            timezoneOffset: {{utcoffset}},
-          {% endif %}
-        },
-        lang: {
-          thousandsSep: ','
-        }
-      });
-
       new Highcharts.Chart({
         credits: { enabled: false },
-        colors: ['#2980b9'],
+        colors: ['#2387CA'],
         chart: {
             renderTo: 'dow',
             type: 'column',
@@ -242,7 +221,7 @@
           labels: { enabled: true },
           lineWidth: 1,
           minorGridLineWidth: 0,
-          lineColor: '#2980b9',
+          lineColor: '#2387CA',
           minorTickLength: 0,
           tickLength: 0,
 
@@ -285,11 +264,10 @@
       });
     });
 
--if histogram
   :javascript
     var counts = [
     {% for point in histogram %}
-      [ {{point.bucket|date:"U"}}, {{point.count}}]{% if not forloop.last %},{% endif %}{% endfor %}
+      [ {{point.bucket|date:"U"}} * 1000, {{point.count }}]{% if not forloop.last %},{% endif %}{% endfor %}
     ];
 
     $(document).ready(function() {
@@ -298,29 +276,34 @@
             credits: {
                 enabled: false
             },
-            colors: ['#80b9fb',
-                     '#2980b9',
-                     '#CD76F0',
-                     '#8e44ad',
-                     '#633077'],
             chart: {
                 renderTo: 'histogram',
                 type: 'column',
-                margin: 0,
                 backgroundColor: 'transparent',
             },
             title: {
                 text: null
             },
             xAxis: {
-              min: {{min_date|date:"U"}},
               title: { text: null },
-              labels: { enabled: false },
-              lineWidth: 0,
+              labels: { enabled: true },
+              lineWidth: 1,
               minorGridLineWidth: 0,
-              lineColor: 'transparent',
+              lineColor: '#2980b9',
               minorTickLength: 0,
-              tickLength: 0
+              tickLength: 0,
+              min: {{min_date|date:"U"}} * 1000,
+              type: 'datetime',
+              dateTimeLabelFormats: {
+                millisecond: '%H:%M:%S.%L',
+                second: '%H:%M:%S',
+                minute: '%H:%M',
+                hour: '%H:%M',
+                day: '%e. %b',
+                week: '%e. %b',
+                month: '%b \'%y',
+                year: '%Y'
+              }
             },
             yAxis: {
               title: { text: null },
@@ -342,7 +325,7 @@
             },
             tooltip: {
               formatter: function() {
-                return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x * 1000);
+                return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
               }
             },
             series:[{

@@ -44,8 +44,8 @@ class JasminType(ChannelType):
 
         # build our payload
         payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
-                   'username': channel.config[Channel.CONFIG_USERNAME],
-                   'password': channel.config[Channel.CONFIG_PASSWORD], 'dlr': dlr_url, 'dlr-level': '2',
+                   'username': channel.config[Channel.CONFIG_USERNAME], 'dlr': 'yes',
+                   'password': channel.config[Channel.CONFIG_PASSWORD], 'dlr-url': dlr_url, 'dlr-level': '2',
                    'dlr-method': 'POST', 'coding': '0', 'content': encoded}
 
         log_payload = payload.copy()
