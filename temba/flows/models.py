@@ -1050,12 +1050,12 @@ class Flow(TembaModel):
 
     def deactivate_runs(self):
         """
-        Removes all flow runs, values and steps for a flow. For now, intentionally leave our values
+        Exits all flow runs, values and steps for a flow. For now, intentionally leave our values
         and steps since those are not long for this world.
         """
 
-        # grab the ids of all our runs
-        run_ids = self.runs.all().values_list('id', flat=True)
+        # grab the ids of all our active runs
+        run_ids = self.runs.filter(is_active=True).values_list('id', flat=True)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
