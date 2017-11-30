@@ -5752,6 +5752,12 @@ class FlowsTest(FlowFileTest):
         # run the flow
         self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
 
+        # run it again to completion
+        joe = self.create_contact('Joe', '1234')
+        self.send_message(flow, "green", contact=joe)
+        self.send_message(flow, "primus", contact=joe)
+        self.send_message(flow, "Joe", contact=joe)
+
         # try to remove the flow, not logged in, no dice
         response = self.client.post(reverse('flows.flow_delete', args=[flow.pk]))
         self.assertLoginRedirect(response)
@@ -5765,15 +5771,15 @@ class FlowsTest(FlowFileTest):
         flow.refresh_from_db()
         self.assertFalse(flow.is_active)
 
-        # should still have a run though
-        self.assertEqual(flow.runs.count(), 1)
+        # should still have runs though
+        self.assertEqual(flow.runs.count(), 2)
 
         # but they should all be inactive
         self.assertEqual(flow.runs.filter(is_active=True).count(), 0)
 
-        # just no steps or values
-        self.assertEqual(Value.objects.all().count(), 0)
-        self.assertEqual(FlowStep.objects.all().count(), 0)
+        # one is completed, the other interrupted
+        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 1)
+        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 1)
 
         # our campaign event should no longer be active
         event1.refresh_from_db()

@@ -938,11 +938,11 @@ class BroadcastTest(TembaTest):
 
     def test_broadcast_model(self):
 
-        def assertBroadcastStatus(sms, new_sms_status, broadcast_status):
-            sms.status = new_sms_status
-            sms.save()
-            sms.broadcast.update()
-            self.assertEqual(sms.broadcast.status, broadcast_status)
+        def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
+            msg.status = new_msg_status
+            msg.save(update_fields=('status',))
+            msg.broadcast.update()
+            self.assertEqual(msg.broadcast.status, broadcast_status)
 
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEqual('I', broadcast.status)
@@ -960,7 +960,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.status, 'Q')
 
         # test errored broadcast logic now that all sms status are queued
-        msgs = broadcast.get_messages()
+        msgs = broadcast.get_messages().order_by('-id')
         assertBroadcastStatus(msgs[0], 'E', 'Q')
         assertBroadcastStatus(msgs[1], 'E', 'Q')
         assertBroadcastStatus(msgs[2], 'E', 'E')  # now more than half are errored

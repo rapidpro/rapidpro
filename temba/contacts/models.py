@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -2238,9 +2238,12 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        group = cls._create(org, user, name, query=query)
-        group.update_query(query)
-        return group
+        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
+        # we will rollback the database changes
+        with transaction.atomic():
+            group = cls._create(org, user, name, query=query)
+            group.update_query(query=query)
+            return group
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2356,22 +2359,27 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields
+        from .search import extract_fields, parse_query
 
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        self.query = query
-        self.save(update_fields=('query',))
+        parsed_query = parse_query(text=query)
 
-        self.query_fields.clear()
+        if parsed_query.can_be_dynamic_group():
+            self.query = parsed_query.as_text()
+            self.save(update_fields=('query',))
 
-        for field in extract_fields(self.org, self.query):
-            self.query_fields.add(field)
+            self.query_fields.clear()
 
-        members = list(self._get_dynamic_members())
-        self.contacts.clear()
-        self.contacts.add(*members)
+            for field in extract_fields(self.org, self.query):
+                self.query_fields.add(field)
+
+            members = list(self._get_dynamic_members())
+            self.contacts.clear()
+            self.contacts.add(*members)
+        else:
+            raise ValueError('Cannot update a dynamic query that is not allowed')
 
     def _get_dynamic_members(self, base_set=None):
         """
@@ -2383,7 +2391,8 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            return Contact.search(self.org, self.query, base_set=base_set)
+            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
+            return qs
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
@@ -2547,7 +2556,7 @@ class ExportContactsTask(BaseExportTask):
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts = Contact.search(self.org, self.search, group)
+            contacts, _ = Contact.search(self.org, self.search, group)
         else:
             contacts = group.contacts.all()
 
