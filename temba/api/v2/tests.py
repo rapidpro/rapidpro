@@ -1715,7 +1715,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = YES", 'count': 0},
+            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = \"YES\"", 'count': 0},
             {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
         ])
 
