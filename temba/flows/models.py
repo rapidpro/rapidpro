@@ -196,7 +196,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0"
     ]
 
     name = models.CharField(max_length=64,
@@ -281,7 +281,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = '10.4'
+        flow.version_number = '11.0'
         flow.save(update_fields=('version_number',))
 
         entry_uuid = six.text_type(uuid4())
