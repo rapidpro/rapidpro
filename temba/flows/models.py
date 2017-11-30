@@ -196,7 +196,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0",
     ]
 
     name = models.CharField(max_length=64,
@@ -3911,9 +3911,13 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
-                        json_flow[Flow.VERSION] = version
+
                     flows.append(json_flow)
                 exported_json['flows'] = flows
+
+            # update each flow's version number
+            for json_flow in exported_json.get('flows', []):
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break

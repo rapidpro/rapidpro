@@ -6830,6 +6830,34 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_11_0(self):
+        self.create_field('nickname', "Nickname", Value.TYPE_TEXT)
+        self.create_field('district', "District", Value.TYPE_DISTRICT)
+        self.create_field('joined_on', "Joined On", Value.TYPE_DATETIME)
+
+        flow = self.get_flow("type_flow")
+        flow_json = flow.as_json()
+
+        # gather up replies to check expressions were migrated
+        replies = []
+        for action_set in flow_json['action_sets']:
+            for action in action_set['actions']:
+                if action['type'] == 'reply':
+                    for text in sorted(action['msg'].values()):
+                        replies.append(text)
+
+        self.assertEqual(replies, [
+            "Hey @contact.nickname, you joined on @(format_date(contact.joined_on)) in @(format_location(contact.district)).",
+            "Send text",
+            "You said @flow.text at @(format_date(flow.text.time)). Send date",
+            "You said @(format_date(flow.date)) which was in category @flow.date.category Send number",
+            "You said @flow.number. Send state",
+            "You said @(format_location(flow.state)) which was in category @flow.state.category. Send district",
+            "You said @(format_location(flow.district)). Send ward",
+            "Tu as dit @(format_location(flow.ward))",  # flow var followed by end of input
+            "You said @(format_location(flow.ward))."   # flow var followed by period then end of input
+        ])
+
     def test_migrate_to_10_4(self):
         definition = {
             'action_sets': [
