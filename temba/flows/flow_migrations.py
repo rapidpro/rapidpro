@@ -29,7 +29,7 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
     for cf in fields:
         format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
         replacements.append([
-            r'@contact\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.])' % cf.key,
+            r'@contact\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % cf.key,
             r'@(%s(contact.%s))\1' % (format_function, cf.key)
         ])
 
@@ -66,7 +66,7 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
                 continue
 
             replacements.append([
-                r'@flow\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.])' % key,
+                r'@flow\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % key,
                 r'@(%s(flow.%s))\1' % (format_function, key)
             ])
 

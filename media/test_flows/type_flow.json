@@ -14,12 +14,21 @@
           "actions": [
             {
               "msg": {
-                "base": "Hey @contact.nickname, you joined on @contact.joined_on in @contact.district. Send text"
+                "base": "Hey @contact.nickname, you joined on @contact.joined_on in @contact.district."
               }, 
               "media": {}, 
               "send_all": false, 
               "type": "reply", 
               "uuid": "4dc98ff5-8d86-45f5-8336-8949029e893e"
+            },
+            {
+              "msg": {
+                "base": "Send text"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "9568e1c8-04f2-45ef-a477-4521d19bfaf6"
             }
           ]
         }, 
@@ -116,7 +125,8 @@
           "actions": [
             {
               "msg": {
-                "base": "You said @flow.ward."
+                "base": "You said @flow.ward.",
+                "fre": "Tu as dit @flow.ward"
               },
               "media": {},
               "send_all": false,
@@ -325,7 +335,7 @@
               "test": {
                 "state": "@flow.state.", 
                 "type": "ward", 
-                "district": "@flow.distict"
+                "district": "@flow.district"
               }
             }, 
             {

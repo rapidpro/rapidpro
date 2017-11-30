@@ -6884,16 +6884,19 @@ class FlowMigrationTest(FlowFileTest):
         for action_set in flow_json['action_sets']:
             for action in action_set['actions']:
                 if action['type'] == 'reply':
-                    replies.append(action['msg']['base'])
+                    for text in sorted(action['msg'].values()):
+                        replies.append(text)
 
         self.assertEqual(replies, [
-            "Hey @contact.nickname, you joined on @(format_date(contact.joined_on)) in @(format_location(contact.district)). Send text",
+            "Hey @contact.nickname, you joined on @(format_date(contact.joined_on)) in @(format_location(contact.district)).",
+            "Send text",
             "You said @flow.text at @(format_date(flow.text.time)). Send date",
             "You said @(format_date(flow.date)) which was in category @flow.date.category Send number",
             "You said @flow.number. Send state",
             "You said @(format_location(flow.state)) which was in category @flow.state.category. Send district",
             "You said @(format_location(flow.district)). Send ward",
-            "You said @flow.ward."
+            "Tu as dit @(format_location(flow.ward))",  # flow var followed by end of input
+            "You said @(format_location(flow.ward))."   # flow var followed by period then end of input
         ])
 
     def test_migrate_to_10_4(self):
