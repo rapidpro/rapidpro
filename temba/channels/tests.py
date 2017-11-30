@@ -7141,7 +7141,7 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="name has Bob")
+        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """
