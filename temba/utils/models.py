@@ -54,7 +54,7 @@ class TembaModel(SmartModel):
 class RequireUpdateFieldsMixin(object):
 
     def save(self, *args, **kwargs):
-        if self.id and 'update_fields' not in kwargs:
+        if self.id and 'update_fields' not in kwargs:  # pragma: no cover
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
         return super(RequireUpdateFieldsMixin, self).save(*args, **kwargs)

@@ -1025,9 +1025,23 @@ class GSM7Test(TembaTest):
         self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
-class ChunkTest(TembaTest):
+class ModelsTest(TembaTest):
 
-    def test_chunking(self):
+    def test_require_update_fields(self):
+        contact = self.create_contact("Bob", twitter="bobby")
+        flow = self.get_flow('color')
+        run, = flow.start([], [contact])
+
+        # we can save if we specify update_fields
+        run.modified_on = timezone.now()
+        run.save(update_fields=('modified_on',))
+
+        # but not without
+        with self.assertRaises(ValueError):
+            run.modified_on = timezone.now()
+            run.save()
+
+    def test_chunk_list(self):
         curr = 0
         for chunk in chunk_list(six.moves.xrange(100), 7):
             batch_curr = curr

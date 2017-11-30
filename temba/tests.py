@@ -31,14 +31,13 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
 from threading import Thread
 from twilio.util import RequestValidator
-from uuid import uuid4
 
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
@@ -382,50 +381,6 @@ class TembaTest(SmartminTest):
             (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
         return Msg.objects.create(**kwargs)
-
-    def create_flow(self, definition=None, **kwargs):
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'user' not in kwargs:
-            kwargs['user'] = self.user
-        if 'name' not in kwargs:
-            kwargs['name'] = "Color Flow"
-
-        flow = Flow.create(**kwargs)
-        if not definition:
-            # if definition isn't provided, generate simple single message flow
-            node_uuid = str(uuid4())
-            definition = {
-                "version": 10,
-                "flow_type": "F",
-                "base_language": "eng",
-                "entry": node_uuid,
-                "action_sets": [
-                    {
-                        "uuid": node_uuid,
-                        "x": 0,
-                        "y": 0,
-                        "actions": [
-                            {
-                                "msg": {"eng": "Hey everybody!"},
-                                "media": {},
-                                "send_all": False,
-                                "type": "reply"
-                            }
-                        ],
-                        "destination": None
-                    }
-                ],
-                "rule_sets": [],
-            }
-
-        flow.version_number = definition['version']
-        flow.save()
-
-        json_flow = FlowRevision.migrate_definition(definition, flow)
-        flow.update(json_flow)
-
-        return flow
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()
