@@ -1,3 +1,15 @@
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
+v3.0.263
+----------
+ * Start campaigns in separate task
+ * Enable flow results graphs on flow result page
+ * Fix run table json parsing
+ * SuperAutoScaler!
+
 v3.0.262
 ----------
  * Use string comparison to optimize temba_update_flowcategorycount
