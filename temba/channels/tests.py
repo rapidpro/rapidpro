@@ -3481,6 +3481,12 @@ class NexmoTest(TembaTest):
         org.config = json.dumps(config)
         org.save()
 
+        self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
+                                          Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
+                                          Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
+                                          Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]})
+        self.channel.save()
+
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
@@ -3597,15 +3603,9 @@ class NexmoTest(TembaTest):
             self.assertEqual('12', msg.external_id)
 
             # assert that we were called with unicode
-            mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
-                                         params={'from': u'250788123123',
-                                                 'api_secret': u'1234',
-                                                 'status-report-req': 1,
-                                                 'to': u'250788383383',
-                                                 'text': u'Unicode \u263a',
-                                                 'api_key': u'1234',
-                                                 'type': 'unicode'})
-
+            self.assertEqual(mock.call_args[1]['params']['text'], u'Unicode \u263a')
+            self.assertEqual(mock.call_args[1]['params']['from'], u'250788123123')
+            self.assertTrue(mock.call_args[1]['params']['callback'])
             self.clear_cache()
 
         with patch('requests.get') as mock:
