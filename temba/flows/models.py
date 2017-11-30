@@ -42,7 +42,7 @@ from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, RequireUpdateFieldsMixin, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
@@ -2674,7 +2674,7 @@ class Flow(TembaModel):
         ordering = ('-modified_on',)
 
 
-class FlowRun(models.Model):
+class FlowRun(RequireUpdateFieldsMixin, models.Model):
     STATE_ACTIVE = 'A'
 
     EXIT_TYPE_COMPLETED = 'C'
