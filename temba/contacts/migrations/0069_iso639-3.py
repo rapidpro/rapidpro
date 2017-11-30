@@ -44,7 +44,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0067_auto_20170808_1852'),
+        ('contacts', '0068_rewrite_dynamic_queries'),
     ]
 
     operations = [
