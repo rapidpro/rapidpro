@@ -4015,9 +4015,13 @@ class FlowRevision(SmartModel):
 
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
-                        json_flow[Flow.VERSION] = version
+
                     flows.append(json_flow)
                 exported_json['flows'] = flows
+
+            # update each flow's version number
+            for json_flow in exported_json.get('flows', []):
+                json_flow[Flow.VERSION] = version
 
             if version == to_version:
                 break

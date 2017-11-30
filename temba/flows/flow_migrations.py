@@ -13,7 +13,7 @@ from temba.flows.models import Flow
 from uuid import uuid4
 
 
-def migrate_export_to_version_11_0(json_flow, org, same_site=True):
+def migrate_export_to_version_11_0(json_export, org, same_site=True):
     """
     Introduces the concept of format_location and format_date. This migration
     wraps all references to rulesets or contact fields which are locations or dates and
@@ -33,7 +33,7 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
             r'@(%s(contact.%s))\1' % (format_function, cf.key)
         ])
 
-    for flow in json_flow.get('flows', []):
+    for flow in json_export.get('flows', []):
 
         # figure out which rulesets are date or location
         for rs in flow.get('rule_sets', []):
@@ -87,11 +87,11 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
 
                         msg[lang] = migrated_text
 
-    return json_flow
+    return json_export
 
 
 def migrate_to_version_11_0(json_flow, flow):
-    return migrate_export_to_version_11_0(json_flow, flow.org)
+    return migrate_export_to_version_11_0({'flows': json_flow}, flow.org)['flows'][0]
 
 
 def migrate_to_version_10_4(json_flow, flow=None):
