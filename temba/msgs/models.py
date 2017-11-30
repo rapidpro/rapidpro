@@ -1358,15 +1358,16 @@ class Msg(models.Model):
 
         (format_date, format_time) = get_datetime_format(dayfirst)
 
-        date_context = {
-            '__default__': datetime_to_str(timezone.now(), format=format_time, tz=tz),
-            'now': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+        now = timezone.now().astimezone(tz)
+
+        # add date.* constants to context
+        context['date'] = {
+            '__default__': now.isoformat(),
+            'now': now.isoformat(),
             'today': datetime_to_str(timezone.now(), format=format_date, tz=tz),
             'tomorrow': datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
             'yesterday': datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
         }
-
-        context['date'] = date_context
 
         date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
         context = EvaluationContext(context, tz, date_style)

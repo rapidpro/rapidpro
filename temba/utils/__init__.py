@@ -1,10 +1,10 @@
 from __future__ import print_function, unicode_literals
 
 import calendar
-import json
 import datetime
+import iso8601
+import json
 import locale
-
 import pytz
 import resource
 import six
@@ -73,6 +73,14 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     """
     if not date_str:
         return None
+
+    # try first as full ISO string
+    try:
+        iso_date = iso8601.parse_date(date_str)
+        if iso_date.tzinfo:
+            return iso_date.astimezone(tz)
+    except iso8601.ParseError:
+        pass
 
     try:
         if fill_time:

@@ -23,6 +23,15 @@
             },
             {
               "msg": {
+                "base": "It's @date. The time is @date.now on @date.today."
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "058e5d4a-3447-49d9-a033-ebe3010b5875"
+            },
+            {
+              "msg": {
                 "base": "Send text"
               },
               "media": {},

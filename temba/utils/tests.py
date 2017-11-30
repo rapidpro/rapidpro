@@ -138,6 +138,10 @@ class InitTest(TembaTest):
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T07:08:09.100000+04:30', tz, dayfirst=True))  # ISO in local tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
 

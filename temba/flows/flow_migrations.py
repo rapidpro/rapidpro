@@ -19,7 +19,10 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
     wraps all references to rulesets or contact fields which are locations or dates and
     wraps them appropriately
     """
-    replacements = []
+    replacements = [
+        [r'@date([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)', r'@(format_date(date))\1'],
+        [r'@date\.now', r'@(format_date(date.now))']
+    ]
 
     # get all contact fields that are date or location for this org
     fields = (ContactField.objects
