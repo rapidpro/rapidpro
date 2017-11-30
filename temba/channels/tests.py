@@ -3490,13 +3490,13 @@ class NexmoTest(TembaTest):
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
-        response = self.client.get(reverse('handlers.nexmo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('courier.nx', args=['not-real-uuid', 'status']), data)
         self.assertEqual(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1, should return 200
         # these are probably multipart message callbacks, which we don't track
         data = dict(to='250788123123', messageId='-1')
-        delivery_url = reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid])
+        delivery_url = reverse('courier.nx', args=[self.channel.uuid, 'status'])
         response = self.client.get(delivery_url, data)
         self.assertEqual(200, response.status_code)
 
@@ -3510,7 +3510,7 @@ class NexmoTest(TembaTest):
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.get(reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid]), data)
+            response = self.client.get(reverse('courier.nx', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -3523,7 +3523,7 @@ class NexmoTest(TembaTest):
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
-        callback_url = reverse('handlers.nexmo_handler', args=['receive', self.nexmo_uuid])
+        callback_url = reverse('courier.nx', args=[self.channel.uuid, 'receive'])
         response = self.client.get(callback_url, data)
 
         self.assertEqual(200, response.status_code)
