@@ -9,7 +9,7 @@ from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactGroup, ContactField, Contact
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
@@ -471,7 +471,13 @@ class EventFire(Model):
         Starts a batch of event fires that are for events which use the same flow
         """
         fired = timezone.now()
-        flow.start([], [f.contact for f in fires], restart_participants=True)
+        contacts = [f.contact for f in fires]
+
+        if len(contacts) == 1:
+            flow.start([], contacts, restart_participants=True)
+        else:
+            start = FlowStart.create(flow, flow.created_by, contacts=contacts)
+            start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
@@ -565,7 +571,7 @@ class EventFire(Model):
         EventFire.objects.filter(contact=contact, fired=None).delete()
 
         # get all the groups this user is in
-        groups = [g.id for g in contact.user_groups.all()]
+        groups = [g.id for g in contact.cached_user_groups]
 
         # for each campaign that might effect us
         for campaign in Campaign.objects.filter(group__in=groups, org=contact.org,
@@ -581,7 +587,7 @@ class EventFire(Model):
         Should be called anytime a contact field or contact group membership changes.
         """
         # get all the groups this user is in
-        groups = [_.id for _ in contact.user_groups.all()]
+        groups = [_.id for _ in contact.cached_user_groups]
 
         # get all events which are in one of these groups and on this field
         for event in CampaignEvent.objects.filter(campaign__group__in=groups, relative_to__key=key,

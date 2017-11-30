@@ -1,3 +1,38 @@
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
+v3.0.263
+----------
+ * Start campaigns in separate task
+ * Enable flow results graphs on flow result page
+ * Fix run table json parsing
+ * SuperAutoScaler!
+
+v3.0.262
+----------
+ * Use string comparison to optimize temba_update_flowcategorycount
+ * Allow path counts to be read by node or exit
+ * SuperAutoscaler
+ * Fix inbox views so we don't look up channel logs for views that don't have them
+ * Add management command for analyzing webhook calls
+ * Change recent message fetching to work with either node UUID or exit UUID
+
+v3.0.261
+----------
+ * Migrate revisions forward with rev version
+ * Limit scope of squashing so we can recover from giant unsquashed numbers
+
+v3.0.260
+----------
+ * Make tests go through migration
+ * Set version number of system created flows
+ * Block saving old versions over new versions
+ * Perform apply_topups as a task, tweak org update form
+ * Updates to credit caches to consider expiration
+ * Tweak credit expiration email
+
 v3.0.259
 ----------
  * Improve performance and restartability of run.path backfill migration

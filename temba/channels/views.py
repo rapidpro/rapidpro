@@ -609,7 +609,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org).first()
+                        msg = Msg.objects.filter(id=cmd['msg_id'], org=channel.org).first()
                         if msg:
                             if msg.direction == OUTGOING:
                                 handled = msg.update(cmd)

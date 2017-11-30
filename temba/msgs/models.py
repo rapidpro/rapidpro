@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
-from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, Prefetch, Sum
@@ -28,7 +27,7 @@ from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
-from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, TopUp, Language
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
 from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
@@ -849,14 +848,8 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
-        # Chatbase parameters to track logs
-        chatbase_not_handled = True
-
-        # if this is an inbox message, increment our unread inbox count
-        if msg.msg_type == INBOX:
-            msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
-        elif msg.msg_type == FLOW:
-            chatbase_not_handled = False
+        # chatbase parameters to track logs
+        chatbase_not_handled = msg.msg_type != FLOW
 
         # Sending data to Chatbase API
         if not msg.contact.is_test:
@@ -936,21 +929,6 @@ class Msg(models.Model):
         # and update all related broadcast statuses
         for broadcast in Broadcast.objects.filter(id__in=[b['broadcast'] for b in failed_broadcasts]):
             broadcast.update()
-
-    @classmethod
-    def get_unread_msg_count(cls, user):
-        org = user.get_org()
-
-        key = 'org_unread_msg_count_%d' % org.pk
-        unread_count = cache.get(key, None)
-
-        if unread_count is None:
-            unread_count = Msg.objects.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
-                                              msg_type=INBOX, contact__is_test=False,
-                                              created_on__gt=org.msg_last_viewed, labels=None).count()
-            cache.set(key, unread_count, 900)
-
-        return unread_count
 
     @classmethod
     def mark_handled(cls, msg):
@@ -1495,7 +1473,7 @@ class Msg(models.Model):
 
         # costs 1 credit to send a message
         if not topup_id and not contact.is_test:
-            (topup_id, amount) = org.decrement_credit()
+            (topup_id, _) = org.decrement_credit()
 
         if response_to:
             msg_type = response_to.msg_type
@@ -1676,9 +1654,6 @@ class Msg(models.Model):
             msg.resend()
             changed.append(msg.pk)
         return changed
-
-    class Meta:
-        ordering = ['-created_on', '-pk']
 
 
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
