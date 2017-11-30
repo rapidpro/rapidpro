@@ -29,8 +29,8 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
     for cf in fields:
         format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
         replacements.append([
-            "@contact\\.%s([^0-9a-zA-Z\\.]|\.[^0-9a-zA-Z\\.])" % cf.key,
-            "@(%s(contact.%s))\\1" % (format_function, cf.key)
+            r'@contact\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.])' % cf.key,
+            r'@(%s(contact.%s))\1' % (format_function, cf.key)
         ])
 
     for flow in json_flow.get('flows', []):
@@ -49,19 +49,25 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
                 elif rs_type and test != rs_type:
                     rs_type = 'none'
 
+            key = Flow.label_to_slug(rs['label'])
+
+            # any reference to this result value's time property needs wrapped in format_date
+            replacements.append([
+                r'@flow\.%s\.time' % key,
+                r'@(format_date(flow.%s.time))' % key
+            ])
+
+            # how we wrap the actual result value depends on its type
             if rs_type in ['date', 'date_before', 'date_after', 'date_equal']:
                 format_function = 'format_date'
-
             elif rs_type in ['state', 'district', 'ward']:
                 format_function = 'format_location'
-
             else:
                 continue
 
-            key = Flow.label_to_slug(rs['label'])
             replacements.append([
-                "@flow\\.%s([^0-9a-zA-Z\\.]|\.[^0-9a-zA-Z\\.])" % key,
-                "@(%s(flow.%s))\\1" % (format_function, key)
+                r'@flow\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.])' % key,
+                r'@(%s(flow.%s))\1' % (format_function, key)
             ])
 
         # for every action in this flow, look for replies, sends or says that use these fields and wrap them
@@ -69,18 +75,17 @@ def migrate_export_to_version_11_0(json_flow, org, same_site=True):
             for action in actionset.get('actions', []):
                 if action['type'] in ['reply', 'send', 'say']:
                     msg = action['msg']
-                    for lang, value in msg.items():
+                    for lang, text in msg.items():
+                        migrated_text = text
                         for pattern, replacement in replacements:
-                            new_value = regex.sub(
+                            migrated_text = regex.sub(
                                 pattern,
                                 replacement,
-                                value,
+                                migrated_text,
                                 flags=regex.UNICODE | regex.MULTILINE
                             )
 
-                            # if it changed, reassign it
-                            if new_value != value:
-                                msg[lang] = new_value
+                        msg[lang] = migrated_text
 
     return json_flow
 

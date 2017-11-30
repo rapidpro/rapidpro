@@ -14,7 +14,7 @@
           "actions": [
             {
               "msg": {
-                "base": "Send text"
+                "base": "Hey @contact.nickname, you joined on @contact.joined_on in @contact.district. Send text"
               }, 
               "media": {}, 
               "send_all": false, 
@@ -31,7 +31,7 @@
           "actions": [
             {
               "msg": {
-                "base": "You said @flow.text. Send date"
+                "base": "You said @flow.text at @flow.text.time. Send date"
               }, 
               "media": {}, 
               "send_all": false, 
