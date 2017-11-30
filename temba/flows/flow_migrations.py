@@ -40,7 +40,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
             rs_type = None
             for rule in rs.get('rules', []):
                 test = rule.get('test', {}).get('type')
-                if not test:
+                if not test:  # pragma: no cover
                     continue
                 elif test == 'true':
                     continue
@@ -62,7 +62,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                 format_function = 'format_date'
             elif rs_type in ['state', 'district', 'ward']:
                 format_function = 'format_location'
-            else:
+            else:  # pragma: no cover
                 continue
 
             replacements.append([
