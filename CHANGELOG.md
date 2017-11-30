@@ -1,3 +1,11 @@
+v3.0.265
+----------
+ * Fix not updating versions on import flows
+ * Require FlowRun saves to use update_fields
+ * Rework get_results to use FlowRun.results
+ * Don't allow users to save dynamic groups with 'id' or 'name' attributes
+ * Add flow version 11.0, create migration to update references to contact fields and flow fields
+
 v3.0.264
 ----------
  * Show summary for non-waits on flow results
