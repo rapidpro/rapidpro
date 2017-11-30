@@ -91,7 +91,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
 
 
 def migrate_to_version_11_0(json_flow, flow):
-    return migrate_export_to_version_11_0({'flows': json_flow}, flow.org)['flows'][0]
+    return migrate_export_to_version_11_0({'flows': [json_flow]}, flow.org)['flows'][0]
 
 
 def migrate_to_version_10_4(json_flow, flow=None):
