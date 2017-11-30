@@ -1114,9 +1114,6 @@ class FlowTest(TembaTest):
         self.flow.save()
         run = self.flow.start([], [self.contact])[0]
 
-        # run.submitted_by = self.admin
-        run.save()
-
         # no urn or channel
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
@@ -1143,7 +1140,7 @@ class FlowTest(TembaTest):
 
         # now try setting a submitted by on our run
         run.submitted_by = self.admin
-        run.save()
+        run.save(update_fields=('submitted_by',))
 
         workbook = self.export_flow_results(self.flow)
         tz = self.org.timezone
@@ -3913,7 +3910,7 @@ class FlowRunTest(TembaTest):
 
         # clear our fields
         run.fields = None
-        run.save()
+        run.save(update_fields=('fields',))
 
         # set to a list instead
         run.update_fields(["zero", "one", "two"])
@@ -4156,7 +4153,7 @@ class WebhookTest(TembaTest):
 
         # clear our run's field dict
         run.fields = json.dumps(dict())
-        run.save()
+        run.save(update_fields=('fields',))
 
         rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
                                             step_uuid=rules.uuid, arrived_on=timezone.now())
@@ -4197,7 +4194,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '["zero", "one", "two"]')
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -4211,7 +4208,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', json.dumps(range(300)))
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -4229,7 +4226,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -4243,7 +4240,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -4257,7 +4254,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "Server Error", status=500)
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -4268,7 +4265,7 @@ class WebhookTest(TembaTest):
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "error": "400", "message": "Missing field in request" }', status=400)
 
         rule_step.run.fields = None
-        rule_step.run.save()
+        rule_step.run.save(update_fields=('fields',))
 
         (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
         (match, value) = rules.find_matching_rule(rule_step, run, incoming)
@@ -5255,7 +5252,7 @@ class FlowsTest(FlowFileTest):
         # set the run to be ready for expiration
         run = tupac.runs.first()
         run.expires_on = timezone.now() - timedelta(days=1)
-        run.save()
+        run.save(update_fields=('expires_on',))
 
         # now trigger the checking task and make sure it is removed from our activity
         from .tasks import check_flows_task
@@ -7812,7 +7809,7 @@ class TimeoutTest(FlowFileTest):
 
         # reactivate our first run (not usually possible to have both active)
         run1.is_active = True
-        run1.save()
+        run1.save(update_fields=('is_active',))
 
         # remove our timeout rule on our second flow
         flow_json = flow2.as_json()
