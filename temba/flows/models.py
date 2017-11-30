@@ -8,6 +8,7 @@ import phonenumbers
 import regex
 import six
 import time
+import traceback
 import urllib2
 
 from collections import OrderedDict, defaultdict
@@ -57,8 +58,23 @@ START_FLOW_BATCH_SIZE = 500
 
 
 class FlowException(Exception):
-    def __init__(self, *args, **kwargs):
-        super(FlowException, self).__init__(*args, **kwargs)
+    pass
+
+
+class FlowInvalidCycleException(FlowException):
+    def __init__(self, node_uuids):
+        self.node_uuids = node_uuids
+
+
+class FlowUserConflictException(FlowException):
+    def __init__(self, other_user, last_saved_on):
+        self.other_user = other_user
+        self.last_saved_on = last_saved_on
+
+
+class FlowVersionConflictException(FlowException):
+    def __init__(self, rejected_version):
+        self.rejected_version = rejected_version
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
@@ -2262,7 +2278,7 @@ class Flow(TembaModel):
 
     def update(self, json_dict, user=None, force=False):
         """
-        Updates a definition for a flow.
+        Updates a definition for a flow and returns the new revision
         """
 
         def get_step_type(dest, rulesets, actionsets):
@@ -2273,15 +2289,14 @@ class Flow(TembaModel):
                     return FlowStep.TYPE_ACTION_SET
             return None
 
-        cycle = Flow.detect_invalid_cycles(json_dict)
-        if cycle:
-            raise FlowException("Found invalid cycle: %s" % cycle)
+        cycle_node_uuids = Flow.detect_invalid_cycles(json_dict)
+        if cycle_node_uuids:
+            raise FlowInvalidCycleException(cycle_node_uuids)
 
         try:
-
             # make sure the flow version hasn't changed out from under us
             if json_dict.get(Flow.VERSION) != get_current_export_version():
-                return dict(status="flow_migrated")
+                raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
@@ -2309,9 +2324,7 @@ class Flow(TembaModel):
                         if not saver:
                             saver = self.saved_by.username
 
-                        saver = saver.strip()
-
-                        return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(last_save), saved_by=saver)
+                        raise FlowUserConflictException(saver.strip(), last_save)
 
             top_y = 0
             top_uuid = None
@@ -2538,31 +2551,28 @@ class Flow(TembaModel):
                 user = self.created_by
 
             # last version
-            revision = 1
+            revision_num = 1
             last_revision = self.revisions.order_by('-revision').first()
             if last_revision:
-                revision = last_revision.revision + 1
+                revision_num = last_revision.revision + 1
 
             # create a new version
-            self.revisions.create(definition=json.dumps(json_dict),
-                                  created_by=user,
-                                  modified_by=user,
-                                  spec_version=get_current_export_version(),
-                                  revision=revision)
+            revision = self.revisions.create(definition=json.dumps(json_dict),
+                                             created_by=user,
+                                             modified_by=user,
+                                             spec_version=get_current_export_version(),
+                                             revision=revision_num)
 
             self.update_dependencies()
 
-            return dict(status="success", description="Flow Saved",
-                        saved_on=datetime_to_str(self.saved_on), revision=revision)
-
         except Exception as e:
             # note that badness happened
-            import logging
             logger = logging.getLogger(__name__)
             logger.exception(six.text_type(e))
-            import traceback
             traceback.print_exc(e)
             raise e
+
+        return revision
 
     def update_dependencies(self):
 

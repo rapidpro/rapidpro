@@ -44,6 +44,7 @@ from temba.utils.views import BaseActionForm
 from temba.values.models import Value
 from uuid import uuid4
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentMessage
+from .models import FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 
 logger = logging.getLogger(__name__)
 
@@ -1552,11 +1553,26 @@ class FlowCRUDL(SmartCRUDL):
             print(json.dumps(json_dict, indent=2))
 
             try:
-                response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
-                return JsonResponse(response_data, status=200)
-            except Exception as e:
-                # give the editor a formatted error response
-                return JsonResponse(dict(status="failure", description=str(e)), status=400)
+                flow = self.get_object(self.get_queryset())
+                revision = flow.update(json_dict, user=self.request.user)
+                return JsonResponse({
+                    'status': "success",
+                    'saved_on': datetime_to_str(flow.saved_on),
+                    'revision': revision.revision
+                }, status=200)
+
+            except FlowInvalidCycleException:
+                error = _("Your flow contains an invalid loop. Please refresh your browser.")
+            except FlowVersionConflictException:
+                error = _("Your flow has been upgraded to the latest version. "
+                          "In order to continue editing, please refresh your browser.")
+            except FlowUserConflictException as e:
+                error = _("%s is currently editing this Flow. "
+                          "Your changes will not be saved until you refresh your browser.") % e.other_user
+            except Exception:  # pragma: no cover
+                error = _("Your flow could not be saved. Please refresh your browser.")
+
+            return JsonResponse({'status': "failure", 'description': error}, status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):
