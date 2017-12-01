@@ -1,3 +1,9 @@
+v3.0.266
+----------
+ * Fix campaign export issue
+ * Disable legacy analytics page
+ * Change date constants to be ISO in context
+
 v3.0.265
 ----------
  * Fix not updating versions on import flows
