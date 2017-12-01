@@ -1,3 +1,7 @@
+v3.0.270
+----------
+ * Load results and path from new JSON fields instead of step/value objects on API runs endpoint
+
 v3.0.269
 ----------
  * Fix campaign export issue
