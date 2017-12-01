@@ -3603,9 +3603,11 @@ class ContactTest(TembaTest):
 
         value = joe.get_field(registration_field.key)
         self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T03:04:00+02:00')
+        self.assertEqual(Contact.serialize_field_value(registration_field, None), None)
 
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
+        self.assertEqual(Contact.serialize_field_value(weight_field, None), None)
 
         value = joe.get_field(state_field.key)
         self.assertEqual(Contact.serialize_field_value(state_field, value), 'Rwanda > Kigali City')
