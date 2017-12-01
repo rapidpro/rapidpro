@@ -1,3 +1,7 @@
+v3.0.272
+----------
+ * Fix parsing ISO dates with negative offsets
+
 v3.0.271
 ----------
  * Serialize contact field values with org timezone
