@@ -303,9 +303,13 @@ class TembaTest(SmartminTest):
         self.import_file(filename, substitutions=substitutions)
 
         if last_flow:
-            return Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow.org = self.org
+            return flow
 
-        return Flow.objects.all().order_by('-created_on').first()
+        flow = Flow.objects.all().order_by('-created_on').first()
+        flow.org = self.org
+        return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)

@@ -247,6 +247,8 @@ class ChannelTest(TembaTest):
         tigo.address = '1235'
         tigo.save()
 
+        self.org.clear_cached_channels()
+
         # should return the newest channel which is TIGO
         msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
         self.assertEqual(tigo, msg.channel)
@@ -255,6 +257,8 @@ class ChannelTest(TembaTest):
         # if we have prefixes matching set should honor those
         mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
         mtn.save()
+
+        self.org.clear_cached_channels()
 
         msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
         self.assertEqual(mtn, msg.channel)
@@ -7137,7 +7141,7 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="name has Bob")
+        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """
