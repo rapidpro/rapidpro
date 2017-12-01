@@ -688,8 +688,11 @@ class Contact(TembaModel):
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return value.datetime_value.isoformat()
+            return value.datetime_value.isoformat() if value.datetime_value else None
         elif field.value_type == Value.TYPE_DECIMAL:
+            if not value.decimal_value:
+                return None
+
             as_int = value.decimal_value.to_integral_value()
             is_int = value.decimal_value == as_int
             return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
