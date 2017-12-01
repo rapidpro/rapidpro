@@ -292,7 +292,7 @@ LOGGING = {
 BRANDING = {
     'rapidpro.io': {
         'slug': 'rapidpro',
-        'name': 'RapidPro',
+        'name': 'RapidPro (IST)',
         'org': 'UNICEF',
         'colors': dict(primary='#0c6596'),
         'styles': ['brands/rapidpro/font/style.css'],
