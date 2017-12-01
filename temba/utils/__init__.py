@@ -6,6 +6,7 @@ import iso8601
 import json
 import locale
 import pytz
+import regex
 import resource
 import six
 
@@ -20,6 +21,7 @@ from itertools import islice
 
 DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
+FULL_ISO8601_REGEX = regex.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?\+\d{2}:\d{2}')
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -74,15 +76,14 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     if not date_str:
         return None
 
+    date_str = date_str.strip()
+
     # try first as full ISO string
-    try:
-        iso_date = iso8601.parse_date(date_str, default_timezone=None)
-        if not iso_date.tzinfo:
-            return tz.localize(iso_date)
-        else:
-            return iso_date.astimezone(tz)
-    except iso8601.ParseError:
-        pass
+    if FULL_ISO8601_REGEX.match(date_str):
+        try:
+            return iso8601.parse_date(date_str).astimezone(tz)
+        except iso8601.ParseError:
+            pass
 
     try:
         if fill_time:

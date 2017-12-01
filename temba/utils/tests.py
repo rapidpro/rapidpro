@@ -795,19 +795,19 @@ class ExpressionsTest(TembaTest):
                          evaluate_template("Result: @(-5 - flow.users)", self.context))  # negatives
 
         # test date arithmetic
-        self.assertEqual(("Date: 02-12-2014 09:00", []),
+        self.assertEqual(("Date: 2014-12-02T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + 1)",
                                            self.context))  # var is datetime
-        self.assertEqual(("Date: 28-11-2014 09:00", []),
+        self.assertEqual(("Date: 2014-11-28T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.started - 3)",
                                            self.context))  # var is string
         self.assertEqual(("Date: 04-07-2014", []),
                          evaluate_template("Date: @(DATE(2014, 7, 1) + 3)",
                                            self.context))  # date constructor
-        self.assertEqual(("Date: 01-12-2014 11:30", []),
+        self.assertEqual(("Date: 2014-12-01T11:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))",
                                            self.context))  # time addition to datetime var
-        self.assertEqual(("Date: 01-12-2014 06:30", []),
+        self.assertEqual(("Date: 2014-12-01T06:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))",
                                            self.context))  # time subtraction from string var
 
@@ -826,7 +826,7 @@ class ExpressionsTest(TembaTest):
         self.assertEqual(('3', []),
                          evaluate_template('@(LEN( 1.2 ))',
                                            self.context))  # auto decimal -> string conversion
-        self.assertEqual(('16', []),
+        self.assertEqual(('25', []),
                          evaluate_template('@(LEN(flow.joined))',
                                            self.context))  # auto datetime -> string conversion
         self.assertEqual(('2', []),
