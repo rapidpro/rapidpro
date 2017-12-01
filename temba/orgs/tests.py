@@ -1399,7 +1399,7 @@ class OrgTest(TembaTest):
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
@@ -1416,10 +1416,12 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
+
+            self.assertEqual(len(mock_post.mock_calls), 0)
 
     def test_resthooks(self):
         # no hitting this page without auth

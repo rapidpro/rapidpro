@@ -25,7 +25,10 @@ class PlivoTypeTest(TembaTest):
         self.assertContains(response, "Plivo")
         self.assertContains(response, reverse('channels.claim_plivo'))
 
-        response = self.client.get(claim_plivo_url)
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_plivo_url)
+
         self.assertEqual(response.status_code, 302)
         response = self.client.get(claim_plivo_url, follow=True)
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
