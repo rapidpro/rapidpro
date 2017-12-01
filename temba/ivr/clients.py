@@ -1,15 +1,11 @@
 from __future__ import unicode_literals
 
 import json
-import mimetypes
-import re
 import requests
 import six
 import time
 
 from django.conf import settings
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
@@ -31,7 +27,7 @@ class IVRException(Exception):
 
 class NexmoClient(NexmoCli):
 
-    def __init__(self, api_key, api_secret, app_id, app_private_key, org=None):
+    def __init__(self, api_key, api_secret, app_id, app_private_key, org):
         self.org = org
         NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
         self.events = []
@@ -60,7 +56,7 @@ class NexmoClient(NexmoCli):
             raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
-        url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+        url = 'https://%s%s' % (self.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
 
         params = dict()
         params['answer_url'] = [url]
@@ -93,6 +89,7 @@ class NexmoClient(NexmoCli):
         :return: the url for our downloaded media with full content type prefix
         """
         attempts = 0
+        response = None
         while attempts < 4:
             response = self.download_recording(media_url)
 
@@ -104,27 +101,9 @@ class NexmoClient(NexmoCli):
                 attempts += 1
                 time.sleep(.250)
 
-        disposition = response.headers.get('Content-Disposition', None)
-        content_type = response.headers.get('Content-Type', None)
+        content_type, downloaded = self.org.save_response_media(response)
 
         if content_type:
-            extension = None
-            if disposition == 'inline':
-                extension = mimetypes.guess_extension(content_type)
-                extension = extension.strip('.')
-            elif disposition:
-                filename = re.findall("filename=\"(.+)\"", disposition)[0]
-                extension = filename.rpartition('.')[2]
-            elif content_type == 'audio/x-wav':
-                extension = 'wav'
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # save our file off
-            downloaded = self.org.save_media(File(temp), extension)
-
             # log that we downloaded it to our own url
             request = response.request
             event = HttpEvent(request.method, request.url, request.body, response.status_code, downloaded)
@@ -142,7 +121,7 @@ class NexmoClient(NexmoCli):
 
 class TwilioClient(TembaTwilioRestClient):
 
-    def __init__(self, account, token, org=None, **kwargs):
+    def __init__(self, account, token, org, **kwargs):
         self.org = org
         super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
 
@@ -172,8 +151,7 @@ class TwilioClient(TembaTwilioRestClient):
         validator = RequestValidator(self.auth[1])
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
-        base_url = settings.TEMBA_HOST
-        url = "https://%s%s" % (base_url, request.get_full_path())
+        url = "https://%s%s" % (request.get_host(), request.get_full_path())
         return validator.validate(url, request.POST, signature)
 
     def download_media(self, media_url):
@@ -182,6 +160,7 @@ class TwilioClient(TembaTwilioRestClient):
         :param media_url: the url where the media lives
         :return: the url for our downloaded media with full content type prefix
         """
+        response = None
         attempts = 0
         while attempts < 4:
             response = requests.get(media_url, stream=True, auth=self.auth)
@@ -194,25 +173,9 @@ class TwilioClient(TembaTwilioRestClient):
                 attempts += 1
                 time.sleep(.250)
 
-        disposition = response.headers.get('Content-Disposition', None)
-        content_type = response.headers.get('Content-Type', None)
-
+        content_type, downloaded = self.org.save_response_media(response)
         if content_type:
-            extension = None
-            if disposition == 'inline':
-                extension = mimetypes.guess_extension(content_type)
-                extension = extension.strip('.')
-            elif disposition:
-                filename = re.findall("filename=\"(.+)\"", disposition)[0]
-                extension = filename.rpartition('.')[2]
-            elif content_type == 'audio/x-wav':
-                extension = 'wav'
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
+            return '%s:%s' % (content_type, downloaded)
 
         return None  # pragma: needs cover
 

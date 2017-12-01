@@ -1,3 +1,599 @@
+v3.0.258
+----------
+ * Set brand domain on channel creations, use for callbacks
+
+v3.0.257
+----------
+ * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
+ * Ensure actions have UUIDs in single message and join-group flows
+ * Flow migration command shouldn't blow up if a single flow fails
+
+v3.0.255
+----------
+ * Fix Twilio to redirect to twilio claim page after connecting Twilio
+ * Add FlowRun.path and start populating it for new flow steps
+ * Removes no longer used Msg.has_template_error field
+
+v3.0.254
+----------
+ * Use get_host() when calculating signature for voice callbacks
+
+v3.0.253
+----------
+ * use get_host() when validating IVR requests
+
+v3.0.252
+----------
+ * Better Twilio channel claiming
+
+v3.0.250
+----------
+ * Tweaks to recommended channels display
+
+v3.0.246
+----------
+ * Update smartmin to version 1.11.4
+ * Dynamic channels: Chikka, Twilio, Twilio Messaging Service and TwiML Rest API
+
+v3.0.245
+----------
+ * Tweaks to the great FlowRun results migration for better logging and for parallel migrations
+ * Fixes us showing inactive orgs in nav bar and choose page
+ * Ignore requests missing text for incoming message from Infobip
+
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
+v3.0.243
+----------
+ * Add index to FlowPathRecentMessage
+ * Flows API endpoint should filter out campaign message flow type
+ * Add archived field to campaings API endpoint
+ * Fix to correctly substitute context brand variable in dynamic channel blurb
+
+v3.0.242
+----------
+ * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)
+
+v3.0.239
+----------
+ * Migration to increase size of category count
+
+v3.0.238
+----------
+ * Increase character limits on category counts
+
+v3.0.237
+----------
+ * Fix Nexmo channel link
+ * Add results field to FlowRun and start populating
+ * Add FlowCategoryCount model for aggregating flow results
+ * Remove duplicate USSD channels section
+
+v3.0.234
+----------
+ * Remove single message flows when events are deleted
+
+v3.0.233
+----------
+ * Remove field dependencies on flow release, cleanup migration
+ * Update to latest Django 1.11.6
+
+v3.0.232
+----------
+ * Mage handler shouldn't be accessible using example token in settings_common
+ * Make Msg.has_template_error nullable and stop using it
+
+v3.0.231
+----------
+ * Add claim page for dmark for more prettiness
+ * Add management command to migrate flows forward
+ * Add flow migration for partially localized single message flows
+ * Recalculate topups more often
+ * Add dmark channel (only can send and receive through courier)
+ * Merge pull request #1522 from nyaruka/headers
+ * Replace TEMBA_HEADERS with http_headers()
+ * Improve mock server used by tests so it can mock specifc url with specific responses
+ * Add method to get active channels of a particular channel type category
+ * Replace remaining occurrences of assertEquals
+ * Fix the way to check USSD support
+ * Dynamic channels: Vumi and Vumi USSD
+
+v3.0.230
+----------
+ * Deal with malformed group format as part of group updates
+ * Allow installs to configure how many fields they want to keep in @extra
+ * Fix Nexmo icon
+ * Add logs for incoming requests for InfoBip
+ * Do both Python 2 and 3 linting in a single build job
+
+v3.0.229
+----------
+ * Do not set external ID for InfoBip we have send them our ID
+ * Fix channel address comparison to be insensitive to +
+ * Use status groupId to check from the InfoBip response to know if the request was erroneous
+
+v3.0.228
+----------
+ * Add id to reserved field list
+
+v3.0.227
+----------
+ * Update Infobip channel type to use the latest JSON API
+ * Migrate flows forward to have dependencies
+
+v3.0.226
+----------
+ * Fix issue with dates in the contact field extractor
+ * Allow org admin to remove invites
+
+v3.0.225
+----------
+ * Optimize how we check for unsent messages on channels
+ * Ensure all actions have a UUID in new flow spec version 10.1
+ * Fixes viber URN validation: can be up to 24 chars
+ * Dynamic channels: Zenvia, YO
+ * Add support for minor flow migrations
+
+v3.0.224
+----------
+ * Remove duplicate excellent includes (only keep compressed version)
+
+v3.0.222
+----------
+ * Only show errors in UI when org level limits of groups etc are exceeded 
+ * Improve error messages when org reaches limit of groups etc
+
+v3.0.221
+----------
+ * Add indexes for retying webhook events
+
+v3.0.220
+----------
+ * Remove no longer used Msg.priority (requires latest Mage)
+
+v3.0.219
+----------
+ * Create channel event only for active channels
+ * Limit SMS Central channel type to the Kathmandu timezone
+ * Create fields from expressions on import
+ * Flow dependencies for fields, groups, and flows
+ * Dynamic channels: Start
+ * Dynamic channels: SMS Central
+
+v3.0.218
+----------
+ * Delete simulation messages in batch of 25 to use the response_to index
+ * Fix Kannel channel type icon
+ * @step.contact and @contact should both be the run contact
+ * Migration to set value_type on all RuleSets
+
+v3.0.217
+----------
+ * Add page titles for common pages
+ * New index for contact history
+ * Exit flows in batches so we dont have to grab all runs at once
+ * Check we can create a new groups before importing contact and show the error message to the user
+ * Fixes value type guessing on rulesets (we had zero typed as dates)
+ * Update po files
+ * Dynamic channels: Shaqodoon
+
+v3.0.216
+----------
+ * Should filter user groups by org before limiting to 250
+ * Fixes for slow contact history
+ * Allow updating existing fields via API without checking the count
+ * Update TWIML IVR protocol check
+ * Add update form fields in dynamic channel types
+ * Abstract out the channel update view form classes
+ * Add ivr_protocol field on channel type
+ * Mock constants to not create a lot of objects in test DB
+ * Limit the contact fields max per org to 200 to below the max form post fields allowed
+ * Limit number of contact groups creation on org to 250
+ * Limit number of contact fields creation on org to 250
+ * Dynamic channels: Red Rabbit, Plivo Nexmo
+
+v3.0.212
+----------
+ * Make Msg.priority nullable so courier doesn't have to write to it
+ * Calculate TPS cost for messages and add them to courier queues
+ * Fix truncate cases in SQL triggers
+ * Fix migration to recreate trigger on msgs table
+ * Dynamic channels: Mblox
+
+v3.0.211
+----------
+ * Properly create event fires for campaign events updated through api
+ * Strip matched string in not empty test
+ * Dynamic channels: Macrokiosk
+
+v3.0.210
+----------
+ * Make message priority be based on responded state of flow runs
+ * Support templatized urls in media
+ * Add UI for URL Attachments
+ * Prevent creation of groups and labels at flow run time
+ * Dynamic channels: M3Tech, Kannel, Junebug and Junebug USSD
+
+v3.0.209
+----------
+ * Add a way to specify the prefixes short codes should be matching
+ * Include both high_priority and priority in courier JSON
+ * Fix TwiML migration
+ * Fix JSON response when searching Plivo numbers
+
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
+v3.0.206
+----------
+ * Fix broken Twilio Messaging Service status callback URL
+ * Only update dynamic groups from set_field if value has changed
+ * Optimize how we lookup contacts for some API endpoints
+ * More dynamic channels
+
+v3.0.205
+----------
+ * add way to show recommended channel on claim page for dynamic channels
+ * change Org.get_recommended_channel to return the channel type instead of a random string
+
+v3.0.204
+----------
+ * separate create and drop index operations in migration
+
+v3.0.203
+----------
+ * create new compound index on channel id and external id, remove old external id index
+ * consistent header for contact uuid in exports and imports
+ * unstop contacts in handle message for new messages
+ * populate @extra even on webhook failures
+ * fix flow simulator with chatbase connected
+ * use ContactQL for name of contact querying grammar
+ * dynamic channels: Clickatell
+ * fix contact searching where text includes + or / chars
+ * replace Ply with ANTLR for contact searching (WIP)
+
+v3.0.201
+----------
+ * Make clean string method replace non characteres correctly
+
+v3.0.200
+----------
+ * Support Telegram /start command to trigger new conversation trigger
+
+v3.0.199
+----------
+ * Use correct Twilio callback URL, status is for voice, keep as handler
+
+v3.0.198
+----------
+ * Add /c/kn/uuid-uuid-uuid/receive style endpoints for all channel types
+ * Delete webhook events in batches
+ * Dynamic channels: Blackmyna
+
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
+v3.0.183
+----------
+ * Use twitter icon for twitter id urns
+
+v3.0.182
+----------
+ * Tweak test_start_flow_action to test parent run states only after child runs have completed
+ * Stop contacts when they have only an invalid twitter screen name
+ * Change to max USSD session length
+
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
+v3.0.179
+----------
+ * Allow editing of start conversation triggers
+
+v3.0.178
+----------
+ * Remove urn field, urn compound index, remove last uses of urn field
+
+v3.0.177
+----------
+ * remove all uses of urn (except when writing)
+ * create display index, backfill identity
+ * Allow users to specify extra URNs columns to include on the flow results export
+
+v3.0.176
+----------
+ * Add display and identity fields to ContactURN
+ * Add schemes field to allow channels to support more than one scheme
+
+v3.0.175
+----------
+ * Fix incorrect lambda use so message sending works
+
+v3.0.174
+----------
+ * Make ContactField.uuid unique and non-null
+
+v3.0.173
+----------
+ * Add migration to populate ContactField.uuid
+
+v3.0.172
+----------
+ * Only try to delete Twilio app when channel config contains 'application_sid'
+ * Surveyor submissions should try rematching the rules if the same ruleset got updated by the user and old rules were removed
+ * Add uuid field to ContactField
+ * Convert more channel types to dynamic types 
+
+v3.0.171
+----------
+ * Fixes for Twitter Activity channels
+ * Add stop contact command to mage handler
+ * Convert Firebase Cloud Messaging to a dynamic channel type
+ * Convert Viber Public to a dynamic channel type
+ * Change to the correct way for dynamic channel
+ * Convert LINE to a dynamic channel type
+ * Better message in SMS alert email
+
+v3.0.170
+----------
+ * Hide SMTP config password and do not change the set password if blank is submitted
+ * Validate the length of message campaigns for better user feedback
+ * Make FlowRun.uuid unique and non-null (advise faking this and building index concurrently)
+
+v3.0.169
+----------
+ * Migration to populate FlowRun.uuid. Advise faking this and running manually.
+ * More channel logs for Jiochat channel interactions
+
+v3.0.167
+----------
+ * Fix inclusion of attachment urls in webhook payloads and add tests
+ * Install lxml to improve performance of large Excel exports
+ * Add proper deactivation of Telegram channels
+ * Converted Facebook and Telegram to dynamic channel types
+ * Add nullable uuid field to FlowRun
+ * Make sure we consider all URN schemes we can send to when looking up the if we have a send channel
+ * Split Twitter and Twitter Beta into separate channel types
+ * Remove support for old-style Twilio endpoints
+
+v3.0.166
+----------
+ * Release channels before Twilio/Nexmo configs are cleared
+ * Expose flow start UUID on runs from the runs endpoint
+
+v3.0.165
+----------
+ * Migration to populate FlowStart.uuid on existing objects (advise faking and run manually)
+
+v3.0.163
+----------
+ * Add uuid field to FlowStart
+ * Migration to convert TwiML apps
+
+v3.0.160
+----------
+ * Add support for Twitter channels using new beta Activity API
+
+v3.0.159
+----------
+ * Clean incoming message text to remove invalid chars
+
+v3.0.158
+----------
+ * Add more exception currencies for pycountry
+ * Support channel specific Twilio endpoints
+
+v3.0.156
+----------
+ * Clean up pip-requires and reset pip-freeze
+
+v3.0.155
+----------
+ * Reduce the rate limit for SMS central to 1 requests per second
+ * Display Jiochat on channel claim page
+ * Fix date pickers on modal forms
+ * Update channels to generate messages with multiple attachments
+
+v3.0.154
+----------
+ * Rate limit sending throught SMS central to 10 messages per second
+ * Fix some more uses of Context objects no longer supported in django 1.11
+ * Fix channel log list request time display
+ * Add @step.text and @step.attachments to message context
+
+v3.0.153
+----------
+ * Jiochat channels
+ * Django 1.11
+
+v3.0.151
+----------
+ * Convert all squashable and prunable models to use big primary keys
+
+v3.0.150
+----------
+ * Drop database-level length restrictions on msg and values
+ * Add sender ID config for Macrokiosk channels
+ * Expose org credit information on API org endpoint
+ * Add contact_uuid parameter to update FCM user
+ * Add configurable webhook header fields
+
+v3.0.148
+----------
+* Fix simulator with attachments
+* Switch to using new recent messages model
+
+v3.0.147
+----------
+ * Migration to populate FlowPathRecentMessage
+ * Clip messages to 640 chars for recent messages table
+
+v3.0.145
+----------
+ * Change Macrokiosk time format to not have space
+ * Better error message for external channel handler for wrong time format
+ * Add new model for tracking recent messages on flow path segments
+
+v3.0.144
+----------
+ * Remove Msg.media field that was replaced by Msg.attachments
+ * Change default ivr timeouts to 2m
+ * Fix the content-type for Twilio call response
+
+v3.0.143
+----------
+ * Update contact read page and inbox views to show multiple message attachments 
+ * Fix use of videojs to provide consistent video playback across browsers
+ * API should return error message if user provides something unparseable for a non-serializer param
+
+v3.0.142
+----------
+ * Fix handling of old msg structs with no attachments attribute
+ * Tweak in create_outgoing to prevent possible NPEs in flow execution
+ * Switch to using Msg.attachments instead of Msg.media
+ * Replace index on Value.string_value with one that is limited to first 32 chars
+
+v3.0.139
+----------
+* Fix Macrokiosk JSON responses
+
+v3.0.138
+----------
+ * Migration to populate attachments field on old messages
+
+v3.0.137
+----------
+ * Don't assume event fires still exist in process_fire_events
+ * Add new Msg.attachments field to hold multiple attachments on an incoming message
+
+v3.0.136
+----------
+ * Fix scheduled broadcast text display
+
+v3.0.135
+----------
+ * Make 'only' keyword triggers ignore punctuation
+ * Make check_campaigns_task lock on the event fires that it will queue
+ * Break up flow event fires into sub-batches of 500
+ * Ignore and ack incoming messages from Android relayer that have no number
+
+v3.0.134
+----------
+ * Add match_type option to triggers so users can create triggers which only match when message only contains keyword
+ * Allow Africa's talking to retry sending message
+ * Allow search on the triggers pages
+ * Clear results for analytics when user removes a flow run
+
+v3.0.133
+----------
+ * Make Msg.get_sync_commands more efficent
+ * Fix open range airtime transfers
+ * Fix multiple Android channels sync
+ * Fix parsing of macrokiosk channel time format
+ * Ensure that our select2 boxes show "Add new" option even if there is a partial match with an existing item
+ * Switch to new translatable fields and remove old Broadcast fields
+ * Add Firebase Cloud messaging support for Android channels
+
+v3.0.132
+----------
+ * Migration to populate new translatable fields on old broadcasts. This migration is slow on a large database so it's
+   recommended that large deployments fake it and run it manually.
+
+v3.0.128
+----------
+ * Add new translatable fields to Broadcast and ensure they're populated for new stuff
+
+v3.0.127
+----------
+ * Fix autocomplete for items containing digits or other items
+ * Make autocomplete dropdown disappear when user clicks in input box
+ * Replace usages of "SMS" with "message" in editor
+ * Allow same subflow to be called without pause in between
+
+v3.0.126
+----------
+ * Fix exporting messages by a label folder
+ * Improve performance of org export page for large orgs
+ * Make it easier to enable/disable debug toolbar
+ * Increase channel logging for requests and responses
+ * Change contact api v1 to insert nonexistent fields
+ * Graceful termination of USSD sessions
+
+v3.0.125
+----------
+ * Don't show deleted flows on list page
+ * Convert timestamps sent by MacroKiosk from local Kuala Lumpur time
+
+v3.0.124
+----------
+ * Move initial IVR expiration check to status update on the call
+ * Hide request time in channel log if unset
+ * Check the existance of broadcast recipients before adding
+ * Voice flows import should never allow expirations longer than 15 mins
+ * Fix parse location to correctly use the tokenizized text if the location was matched for the entire text
+ * Use updates instead of full Channel saves() on realyer syncs, only update when there are changes
+
 v3.0.123
 ----------
  * Use flow starts for triggers that operate on groups

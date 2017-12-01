@@ -15,9 +15,10 @@ from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.writer.write_only import WriteOnlyCell
 from temba.assets.models import BaseAssetStore, get_asset_store
-from . import clean_string, analytics
+from . import analytics
 from .models import TembaModel
 from .email import send_template_email
+from .text import clean_string
 
 
 class BaseExportAssetStore(BaseAssetStore):
@@ -121,7 +122,7 @@ class BaseExportTask(TembaModel):
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
         else:
-            return six.text_type(value)
+            return clean_string(six.text_type(value))
 
     def set_sheet_column_widths(self, sheet, widths):
         for index, width in enumerate(widths):
@@ -197,8 +198,10 @@ class TableExporter(object):
         """
         Saves our data to a file, returning the file saved to and the extension
         """
-        # have to flush the XLS file
+        gc.collect()  # force garbage collection
+
         if not self.is_csv:
+            print("Writing Excel workbook...")
             self.workbook.save(self.file)
 
         self.file.flush()

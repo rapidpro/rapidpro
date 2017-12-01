@@ -290,7 +290,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
         urns = self.request.query_params.getlist('urns', None)
         if urns:
-            queryset = queryset.filter(urns__urn__in=urns)
+            queryset = queryset.filter(urns__identity__in=urns)
 
         groups = self.request.query_params.getlist('group', None)  # deprecated, use group_uuids
         if groups:

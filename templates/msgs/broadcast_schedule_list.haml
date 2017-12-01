@@ -23,7 +23,7 @@
               {% endblocktrans %}
 
           %td.value-text.field_text
-            -get_value object 'text'
+            {{ object.get_default_text }}
           %td.value-next
             -if object.schedule.status == 'S'
               .glyph.icon-clock

@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import json
 import logging
 import plivo
@@ -30,22 +31,25 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from email.utils import parseaddr
 from functools import cmp_to_key
-from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from smartmin.views import SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, \
+    ACCOUNT_TOKEN
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
+from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
 
 
 def check_login(request):
@@ -446,11 +450,11 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
-               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
-               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'smtp_server')
+    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
+               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
+               'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
+               'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -475,7 +479,7 @@ class OrgCRUDL(SmartCRUDL):
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
                 json_data = json.loads(data)
-                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
                     raise ValidationError('This file is no longer valid. Please export a new version and try again.')
 
                 return data
@@ -508,93 +512,88 @@ class OrgCRUDL(SmartCRUDL):
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         def post(self, request, *args, **kwargs):
+            org = self.get_object()
 
-            # get all of the selected flows and campaigns
-            from temba.flows.models import Flow
-            from temba.campaigns.models import Campaign
+            # fetch the selected flows and campaigns
+            flows = Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=org, is_active=True)
+            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=org, is_active=True)
 
-            flows = set(Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=self.get_object(), is_active=True))
-            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=self.get_object())
+            components = set(itertools.chain(flows, campaigns))
 
-            # by default we include the triggers for the requested flows
-            dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
+            # add triggers for the selected flows
             for flow in flows:
-                dependencies = flow.get_dependencies(dependencies)
+                components.update(flow.triggers.filter(is_active=True, is_archived=False))
 
-            triggers = dependencies['triggers']
-
-            export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
+            export = org.export_definitions(request.branding['link'], components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))
-            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
+            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(org.name)
             return response
 
         def get_context_data(self, **kwargs):
-            from collections import defaultdict
-
-            def connected_components(lists):
-                neighbors = defaultdict(set)
-                seen = set()
-                for each in lists:
-                    for item in each:
-                        neighbors[item].update(each)
-
-                def component(node, neighbors=neighbors, seen=seen, see=seen.add):
-                    nodes = {node}
-                    next_node = nodes.pop
-                    while nodes:
-                        node = next_node()
-                        see(node)
-                        nodes |= neighbors[node] - seen
-                        yield node
-                for node in neighbors:
-                    if node not in seen:
-                        yield sorted(component(node))
-
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
-            include_archived = self.request.GET.get('archived', 0)
+            org = self.get_object()
+            include_archived = bool(int(self.request.GET.get('archived', 0)))
 
-            # all of our user facing flows
-            flows = self.get_object().get_export_flows(include_archived=include_archived)
-
-            # now add lists of flows with their dependencies
-            all_depends = []
-            for flow in flows:
-                depends = flow.get_dependencies()
-                all_depends.append([flow] + list(depends['flows']) + list(depends['campaigns']))
-
-            # add all campaigns
-            from temba.campaigns.models import Campaign
-            campaigns = Campaign.objects.filter(org=self.get_object())
-
-            if not include_archived:
-                campaigns = campaigns.filter(is_archived=False)
-
-            for campaign in campaigns:
-                all_depends.append((campaign,))
-
-            buckets = connected_components(all_depends)
-
-            # sort our buckets, campaigns, flows, triggers
-            bucket_list = []
-            singles = []
-            for bucket in buckets:
-                if len(bucket) > 1:
-                    bucket_list.append(sorted(list(bucket), key=attrgetter('__class__', 'name')))
-                else:
-                    singles.append(bucket[0])
-
-            # put the buckets with the most items first
-            bucket_list = sorted(bucket_list, key=lambda s: len(s), reverse=True)
-
-            # sort our singles by type
-            singles = sorted(singles, key=attrgetter('__class__', 'name'))
+            buckets, singles = self.generate_export_buckets(org, include_archived)
 
             context['archived'] = include_archived
-            context['buckets'] = bucket_list
+            context['buckets'] = buckets
             context['singles'] = singles
-
             return context
+
+        def generate_export_buckets(self, org, include_archived):
+            """
+            Generates a set of buckets of related exportable flows and campaigns
+            """
+            dependencies = org.generate_dependency_graph(include_archived=include_archived)
+
+            unbucketed = set(dependencies.keys())
+            buckets = []
+
+            # helper method to add a component and its dependencies to a bucket
+            def collect_component(c, bucket):
+                if c in bucket:  # pragma: no cover
+                    return
+
+                unbucketed.remove(c)
+                bucket.add(c)
+
+                for d in dependencies[c]:
+                    if d in unbucketed:
+                        collect_component(d, bucket)
+
+            while unbucketed:
+                component = next(iter(unbucketed))
+
+                bucket = set()
+                buckets.append(bucket)
+
+                collect_component(component, bucket)
+
+            # collections with only one non-group component should be merged into a single "everything else" collection
+            non_single_buckets = []
+            singles = set()
+
+            # items within buckets are sorted by type and name
+            def sort_key(c):
+                return c.__class__, c.name.lower()
+
+            # buckets with a single item are merged into a special singles bucket
+            for b in buckets:
+                if len(b) > 1:
+                    sorted_bucket = sorted(list(b), key=sort_key)
+                    non_single_buckets.append(sorted_bucket)
+                else:
+                    singles.update(b)
+
+            # put the buckets with the most items first
+            non_single_buckets = sorted(non_single_buckets, key=lambda b: len(b), reverse=True)
+
+            # sort singles
+            singles = sorted(list(singles), key=sort_key)
+
+            return non_single_buckets, singles
 
     class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
@@ -626,7 +625,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_twilio'
+        success_url = '@channels.claim_twilio'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -638,31 +637,26 @@ class OrgCRUDL(SmartCRUDL):
             org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
             org = self.get_object()
+            domain = org.get_brand_domain()
 
             nexmo_client = org.get_nexmo_client()
             if not nexmo_client:
                 return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
 
             nexmo_uuid = org.nexmo_uuid()
-            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
+            dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             try:
-                from temba.settings import TEMBA_HOST
-                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
-                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+                nexmo_client.update_account('http://%s%s' % (domain, mo_path),
+                                            'http://%s%s' % (domain, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -670,17 +664,18 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
 
-            from temba.settings import TEMBA_HOST
             org = self.get_object()
+            domain = org.get_brand_domain()
+
             config = org.config_json()
             context['nexmo_api_key'] = config[NEXMO_KEY]
             context['nexmo_api_secret'] = config[NEXMO_SECRET]
 
             nexmo_uuid = config.get(NEXMO_UUID, None)
-            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
-            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
-            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
+            mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
+            dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
+            context['mo_path'] = 'https://%s%s' % (domain, mo_path)
+            context['dl_path'] = 'https://%s%s' % (domain, dl_path)
 
             return context
 
@@ -792,12 +787,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
@@ -824,7 +814,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_plivo'
+        success_url = '@channels.claim_plivo'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
@@ -852,7 +842,9 @@ class OrgCRUDL(SmartCRUDL):
                                               help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"))
             smtp_host = forms.CharField(max_length=128, label=_("SMTP Host"), required=False)
             smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False)
-            smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False)
+            smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False,
+                                            help_text=_("Leave blank to keep the existing set password if one exists"),
+                                            widget=forms.PasswordInput)
             smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
             smtp_encryption = forms.ChoiceField(choices=(('', _("No encryption")),
                                                          ('T', _("Use TLS"))),
@@ -867,6 +859,11 @@ class OrgCRUDL(SmartCRUDL):
                     smtp_username = self.cleaned_data.get('smtp_username', None)
                     smtp_password = self.cleaned_data.get('smtp_password', None)
                     smtp_port = self.cleaned_data.get('smtp_port', None)
+
+                    config = self.instance.config_json()
+                    existing_username = config.get(SMTP_USERNAME, '')
+                    if not smtp_password and existing_username == smtp_username:
+                        smtp_password = config.get(SMTP_PASSWORD, '')
 
                     if not smtp_from_email:
                         raise ValidationError(_("You must enter a from email"))
@@ -887,6 +884,7 @@ class OrgCRUDL(SmartCRUDL):
                     if not smtp_port:
                         raise ValidationError(_("You must enter the SMTP port"))
 
+                    self.cleaned_data['smtp_password'] = smtp_password
                 return self.cleaned_data
 
             class Meta:
@@ -1125,6 +1123,16 @@ class OrgCRUDL(SmartCRUDL):
                     fields_by_user[user] = fields
                 return fields_by_user
 
+            def add_invite_remove_fields(self, invites):
+                fields_by_invite = {}
+
+                for invite in invites:
+                    field_name = "%s_%d" % ('remove_invite', invite.pk)
+                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    fields_by_invite[invite] = field_name
+
+                return fields_by_invite
+
             def clean_invite_emails(self):
                 emails = self.cleaned_data['invite_emails'].lower().strip()
                 if emails:
@@ -1166,8 +1174,12 @@ class OrgCRUDL(SmartCRUDL):
         def get_form(self):
             form = super(OrgCRUDL.ManageAccounts, self).get_form()
 
-            self.org_users = self.get_object().get_org_users()
+            org = self.get_object()
+            self.org_users = org.get_org_users()
             self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
+
+            self.invites = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            self.fields_by_invite = form.add_invite_remove_fields(self.invites)
 
             return form
 
@@ -1176,6 +1188,10 @@ class OrgCRUDL(SmartCRUDL):
 
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
+
+            for invite in self.fields_by_invite.keys():
+                if cleaned_data.get(self.fields_by_invite.get(invite)):
+                    Invitation.objects.filter(org=org, pk=invite.pk).delete()
 
             invite_emails = cleaned_data['invite_emails'].lower().strip()
             invite_group = cleaned_data['invite_group']
@@ -1234,7 +1250,8 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = org
             context['org_users'] = self.org_users
             context['group_fields'] = self.fields_by_users
-            context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            context['invites'] = self.invites
+            context['invites_fields'] = self.fields_by_invite
             return context
 
         def get_success_url(self):
@@ -1294,6 +1311,10 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+
+            if self.has_org_perm("orgs.org_dashboard"):
+                links.append(dict(title='Dashboard',
+                                  href=reverse('dashboard.dashboard_home')))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
                 links.append(dict(title='New',
@@ -1963,6 +1984,74 @@ class OrgCRUDL(SmartCRUDL):
             context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
+    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class ChatbaseForm(forms.ModelForm):
+            agent_name = forms.CharField(max_length=255, label=_("Agent Name"), required=False,
+                                         help_text="Enter your Chatbase Agent's name")
+            api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
+                                      help_text="You can find your Agent's API Key "
+                                                "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1")
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.Chatbase.ChatbaseForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    agent_name = self.cleaned_data.get('agent_name')
+                    api_key = self.cleaned_data.get('api_key')
+
+                    if not agent_name or not api_key:
+                        raise ValidationError(_("Missing data: Agent Name or API Key."
+                                                "Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('agent_name', 'api_key', 'version', 'disconnect')
+
+        success_message = ''
+        success_url = '@orgs.org_home'
+        form_class = ChatbaseForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.Chatbase, self).derive_initial()
+            org = self.get_object()
+            config = org.config_json()
+            initial['agent_name'] = config.get(CHATBASE_AGENT_NAME, '')
+            initial['api_key'] = config.get(CHATBASE_API_KEY, '')
+            initial['version'] = config.get(CHATBASE_VERSION, '')
+            initial['disconnect'] = 'false'
+            return initial
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Chatbase, self).get_context_data(**kwargs)
+            (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
+            if chatbase_api_key:
+                config = self.object.config_json()
+                agent_name = config.get(CHATBASE_AGENT_NAME, None)
+                context['chatbase_agent_name'] = agent_name
+
+            return context
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            agent_name = form.cleaned_data.get('agent_name')
+            api_key = form.cleaned_data.get('api_key')
+            version = form.cleaned_data.get('version')
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+
+            if disconnect:
+                org.remove_chatbase_account(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            elif api_key:
+                org.connect_chatbase(agent_name, api_key, version, user)
+
+            return super(OrgCRUDL.Chatbase, self).form_valid(form)
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -1988,8 +2077,8 @@ class OrgCRUDL(SmartCRUDL):
         def add_channel_section(self, formax, channel):
 
             if self.has_org_perm('channels.channel_read'):
-                from temba.channels.views import get_channel_icon, get_channel_read_url
-                formax.add_section('channel', get_channel_read_url(channel), icon=get_channel_icon(channel.channel_type), action='link')
+                from temba.channels.views import get_channel_read_url
+                formax.add_section('channel', get_channel_read_url(channel), icon=channel.get_type().icon, action='link')
 
         def derive_formax_sections(self, formax, context):
 
@@ -2037,6 +2126,15 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
                                        action='redirect', nobutton=True)
 
+            if self.has_org_perm('orgs.org_chatbase'):
+                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
+                if not chatbase_api_key:
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', button=_("Connect"))
+                else:  # pragma: needs cover
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', nobutton=True)
+
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
 
@@ -2071,7 +2169,7 @@ class OrgCRUDL(SmartCRUDL):
                         info_txt = parsed_response.get('info_txt', None)
                         error_txt = parsed_response.get('error_txt', None)
 
-                    except:
+                    except Exception:
                         raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
                                                 "Please check them again and retry."))
 
@@ -2172,8 +2270,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
             config = json.loads(self.object.config)
-            initial['account_sid'] = config['ACCOUNT_SID']
-            initial['account_token'] = config['ACCOUNT_TOKEN']
+            initial['account_sid'] = config[ACCOUNT_SID]
+            initial['account_token'] = config[ACCOUNT_TOKEN]
             initial['disconnect'] = 'false'
             return initial
 

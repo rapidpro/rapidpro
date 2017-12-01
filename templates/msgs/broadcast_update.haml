@@ -56,7 +56,7 @@
           {{ count_comma }} recipients
 
     #broadcast_preview
-      "{{ object.text }}"
+      {{ object.get_default_text }}
 
   -else
     -blocktrans

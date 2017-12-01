@@ -1,0 +1,120 @@
+-extends "channels/channel_claim_form.html"
+-load i18n
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with brand.name as brand
+        You can connect an external aggregator or messaging service to {{ brand }} using our external API.
+
+        You can specify parameters to substitute in the URL or body by using these variables:
+
+    %ul
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the message of the text being sent
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or address you have configured for this service
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}from_no_plus{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or address you have configured for this service, with leading +'s removed
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or URN this message is addressed to
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}to_no_plus{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or URN this message is addressed to, with leading +'s removed
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}id{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the unique id for this message
+
+    %p
+      -blocktrans
+        An example that would substitute variables in the URL:
+
+    %pre<
+      http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}
+
+    %p
+      -blocktrans
+        If using POST or PUT, you can specify the body of the request using the same variables.
+
+    %p
+      -blocktrans with brand.name as brand
+        After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
+        {{ brand }} or notify {{ brand }} of the delivery status of a message.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      var schemeSelect = $('#id_scheme');
+      schemeSelect.on('change', function() {
+        updateFormForScheme($(this).val());
+      });
+      updateFormForScheme(schemeSelect.val());
+
+      var methodSelect = $("#id_method");
+      methodSelect.on('change', function(){
+        updateFormForMethod($(this).val());
+      })
+      updateFormForMethod($(this).val());
+
+      schemeSelect.select2({ minimumResultsForSearch: -1, width: '370px' });
+      $('#id_country').select2({width:'370px'});
+      $('#id_method').select2({ minimumResultsForSearch: -1, width: '370px' });
+      $('#id_content_type').select2({ minimumResultsForSearch: -1, width: '370px' });
+    });
+
+    function updateFormForMethod(method){
+      var bodyCtrlGroup = $('#id_body').parents('.control-group');
+      if (method == 'GET'){
+        bodyCtrlGroup.hide();
+      } else {
+        bodyCtrlGroup.show();
+      }
+    }
+
+    function updateFormForScheme(scheme) {
+      var numberCtrlGroup = $('#id_number').parents('.control-group');
+      var handleCtrlGroup = $('#id_handle').parents('.control-group');
+      var addressCtrlGroup = $('#id_address').parents('.control-group');
+      var countryCtrlGroup = $('#id_country').parents('.control-group');
+
+      if (scheme == 'tel') {
+        numberCtrlGroup.show();
+        handleCtrlGroup.hide();
+        addressCtrlGroup.hide();
+        countryCtrlGroup.show();
+      } else if (scheme == 'twitter') {
+        numberCtrlGroup.hide();
+        handleCtrlGroup.show();
+        addressCtrlGroup.hide();
+        countryCtrlGroup.hide();
+      } else if (scheme == 'ext') {
+        numberCtrlGroup.hide();
+        handleCtrlGroup.hide();
+        addressCtrlGroup.show();
+        countryCtrlGroup.hide();
+      }
+    }
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }

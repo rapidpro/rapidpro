@@ -1,16 +1,8 @@
 -extends "channels/channel_claim_form.html"
 -load i18n
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-    });
-
 -block title
-  .medium-help.icon-phone.float-left
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
 
   %h2.font_normalize.header-margin
     {{ title }}
@@ -20,6 +12,15 @@
     %p
       -blocktrans
         You can connect your number by entering your credentials here.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });
+
 
 -block extra-style
   {{ block.super }}

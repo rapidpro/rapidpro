@@ -15,7 +15,7 @@
             "actions": [
               {
                 "action": "GET",
-                "webhook": "http://foo.com/",
+                "webhook": "http://localhost:49999/msg",
                 "type": "api"
               },
               {

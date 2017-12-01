@@ -1,0 +1,35 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can to connect using a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank">
+        Firebase Cloud Messaging App</a> to your {{ name }} account to automate sending notifications.
+    %p
+      -blocktrans
+        You will need to create a new App on Firebase Console and get its key. To do so:
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+
+    #id_auth_token {
+      width: 340px;
+    }

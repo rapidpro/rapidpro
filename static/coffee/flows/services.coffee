@@ -424,8 +424,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @actions = [
         { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
         { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
-        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE,SURVEY,USSD] }
-        { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
+        { type:'reply', name:'Send Message', verbose_name:'Send a response message', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'end_ussd', name:'End USSD Session', verbose_name:'End USSD session with message', icon: 'icon-bubble-3', message:true, filter:USSD }
+        { type:'send', name:'Send Message', verbose_name: 'Send a message to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
         { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
         { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
         { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true, filter:ALL }
@@ -461,7 +462,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
         ]},
 
-        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE], rules:[
+        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE,USSD], rules:[
           { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
         ]},
@@ -934,7 +935,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # Updates a single source to a given target. Expects a source id and a target id.
     # Source can be a rule or an actionset id.
     updateDestination: (source, target) ->
-
       source = source.split('_')
 
       sourceNode = Flow.getNode(source[0])
@@ -1019,7 +1019,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
           for action in actionset.actions
-            action.uuid = uuid()
+            if not action.uuid
+              action.uuid = uuid()
 
         # save the channel countries
         Flow.channel_countries = data.channel_countries
@@ -1189,7 +1190,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     removeConnection: (connection) ->
       @updateDestination(connection.sourceId, null)
 
-    removeRuleset: (ruleset) ->
+    removeRuleset: (uuid) ->
 
       DragHelper.hide()
 
@@ -1200,13 +1201,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       $timeout ->
 
         # update our model to nullify rules that point to us
-        connections = Plumb.getConnectionMap({ target: ruleset.uuid })
+        connections = Plumb.getConnectionMap({ target: uuid })
         for source of connections
           Flow.updateDestination(source, null)
 
         # then remove us
         for rs, idx in flow.rule_sets
-          if rs.uuid == ruleset.uuid
+          if rs.uuid == uuid
             flow.rule_sets.splice(idx, 1)
             break
       ,0
@@ -1305,11 +1306,16 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if not action
         return true
 
-      return action.type != 'flow'
+      return action.type not in ['flow', 'end_ussd']
 
     saveAction: (actionset, action) ->
 
       actionset._lastActionMissingTranslation = null
+
+      if action.type == "end_ussd"
+        actionset.destination = null
+        Plumb.updateConnection(actionset)
+        @applyActivity(actionset, $rootScope.activity)
 
       found = false
       lastAction = null

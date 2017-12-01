@@ -61,7 +61,7 @@ class Campaign(TembaModel):
         Import campaigns from our export file
         """
         from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(exported_json.get('version', "0"), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         if 'campaigns' in exported_json:
@@ -148,6 +148,12 @@ class Campaign(TembaModel):
                 EventFire.update_campaign_events(campaign)
 
     @classmethod
+    def restore_flows(cls, campaign):
+        events = campaign.events.filter(is_active=True, event_type=CampaignEvent.TYPE_FLOW).exclude(flow=None).select_related('flow')
+        for event in events:
+            event.flow.restore()
+
+    @classmethod
     def apply_action_archive(cls, user, campaigns):
         campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
 
@@ -163,6 +169,7 @@ class Campaign(TembaModel):
 
         # update the events for each campaign
         for campaign in campaigns:
+            Campaign.restore_flows(campaign)
             EventFire.update_campaign_events(campaign)
 
         return [each_campaign.pk for each_campaign in campaigns]
@@ -184,7 +191,7 @@ class Campaign(TembaModel):
             if message:
                 try:
                     message = json.loads(message)
-                except:  # pragma: needs cover
+                except Exception:  # pragma: needs cover
                     message = dict(base=message)
 
             event_definition = dict(uuid=event.uuid, offset=event.offset,
@@ -206,18 +213,6 @@ class Campaign(TembaModel):
 
         definition['events'] = events
         return definition
-
-    def get_all_flows(self):  # pragma: needs cover
-        """
-        Unique set of flows, including single message flows
-        """
-        return [event.flow for event in self.events.filter(is_active=True).order_by('flow__id').distinct('flow')]
-
-    def get_flows(self):
-        """
-        A unique set of user-facing flows this campaign uses
-        """
-        return [event.flow for event in self.events.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE).order_by('flow__id').distinct('flow')]
 
     def get_sorted_events(self):
         """
@@ -270,13 +265,13 @@ class CampaignEvent(TembaModel):
     relative_to = models.ForeignKey(ContactField, related_name='campaigns',
                                     help_text="The field our offset is relative to")
 
-    flow = models.ForeignKey(Flow, help_text="The flow that will be triggered")
+    flow = models.ForeignKey(Flow, related_name='events', help_text="The flow that will be triggered")
 
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
                                   help_text='The type of this event')
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
-    message = TranslatableField(max_length=Msg.MAX_SIZE, null=True)
+    message = TranslatableField(max_length=Msg.MAX_TEXT_LEN, null=True)
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
@@ -424,6 +419,10 @@ class CampaignEvent(TembaModel):
         # delete any pending event fires
         EventFire.update_eventfires_for_event(self)
 
+        # if our flow is a single message flow, release that too
+        if self.flow.flow_type == Flow.MESSAGE:
+            self.flow.release()
+
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
         return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
@@ -464,7 +463,16 @@ class EventFire(Model):
         """
         self.fired = timezone.now()
         self.event.flow.start([], [self.contact], restart_participants=True)
-        self.save()
+        self.save(update_fields=('fired',))
+
+    @classmethod
+    def batch_fire(cls, fires, flow):
+        """
+        Starts a batch of event fires that are for events which use the same flow
+        """
+        fired = timezone.now()
+        flow.start([], [f.contact for f in fires], restart_participants=True)
+        EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
     def update_campaign_events(cls, campaign):

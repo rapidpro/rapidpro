@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Displaying USSD Menu with textarea, menu inputs and char counter
 #============================================================================
-app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log, Flow, utils) ->
+app.directive "ussd", [ "$rootScope", "$log", "Flow", ($rootScope, $log, Flow) ->
   MESSAGE_LENGTH = 182
 
   link = (scope, element, attrs) ->
@@ -94,38 +94,54 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
 #============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
-app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
+app.directive "msg", [ "$log", "Flow", ($log, Flow) ->
+
   link = (scope, element, attrs) ->
+
+    msgType = if attrs.type then attrs.type else "sms"
+
+    if msgType == "sms"
+      messageLength = 160
+    else if msgType == "ussd"
+      messageLength = 182
 
     scope.showCounter = true
     if attrs.showCounter?
       scope.showCounter = eval(attrs.showCounter)
 
-    # find out how many sms messages this will be
+    # find out how many messages this will be
     scope.countCharacters = ->
       if scope.message
-        length = scope.message.length
-        scope.messages = Math.ceil(length/160)
-        scope.characters = scope.messages * 160 - length
+        if msgType == "sms"
+          length = scope.message.length
+          scope.messages = Math.ceil(length/messageLength)
+          scope.characters = scope.messages * messageLength - length
+        if msgType == "ussd"
+          length = scope.message.length
+          scope.characters = messageLength - length
+
+          # invalidate form if we ran out of chars
+          modelController = element.find('textarea').controller('ngModel')
+          modelController?.$setValidity 'message', scope.characters >= 0
       else
         scope.messages = 0
-        scope.characters = 160
+        scope.characters = messageLength
 
     # update our counter everytime the message changes
     scope.$watch (->scope.message), scope.countCharacters
 
     # determine the initial message based on the current language
-    if scope.sms
-      scope.message = scope.sms[Flow.flow.base_language]
+    if scope.msg
+      scope.message = scope.msg[Flow.flow.base_language]
       if not scope.message
         scope.message = ""
 
   return {
-    templateUrl: "/partials/sms_directive"
+    templateUrl: "/partials/msg_directive"
     restrict: "A"
     link: link
     scope: {
-      sms: '='
+      msg: '='
       message: '='
     }
   }
@@ -345,14 +361,22 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
       minimumInputLength: 0
       query: (query) ->
         data = { results: [] }
+        cleaned_query = if query.term then query.term.toLowerCase().strip() else ""
+        exact_match = false
+
         for d in this['data']
           if d.text
-            if not query.term or  d.text.toLowerCase().indexOf(query.term.toLowerCase().strip()) != -1
+            if not query.term or d.text.toLowerCase().indexOf(cleaned_query) != -1
               data.results.push({ id:d.id, text: d.text });
 
+              if d.text.toLowerCase() == cleaned_query
+                exact_match = true
+
         # TODO: This should be configurable via the directive, for now only variable selection using this
-        if query.term and data.results.length == 0 and query.term.strip().length > 0 and query.term.strip().length <= 36 and /^[a-zA-Z0-9-][a-zA-Z0-9- ]*$/.test(query.term.strip())
+        # if term is non-empty and hasn't matched an returned item exactly, show option for creating a new item
+        if not exact_match and cleaned_query.length > 0 and cleaned_query.length <= 36 and /^[a-z0-9-][a-z0-9- ]*$/.test(cleaned_query)
           data.results.push({id:'[_NEW_]' + query.term, text: gettext('Add new variable') + ': ' + query.term});
+
         query.callback(data)
 
       formatNoMatches: (term) ->

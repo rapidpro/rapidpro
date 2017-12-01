@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import six
 
 from django import forms
@@ -9,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from enum import Enum
 from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -24,6 +26,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
+from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
 from .serializers import CampaignEventWriteSerializer, ChannelReadSerializer, ChannelEventReadSerializer
@@ -315,6 +318,20 @@ class BaseAPIView(generics.GenericAPIView):
 
         return generics.get_object_or_404(queryset)
 
+    def get_int_param(self, name):
+        param = self.request.query_params.get(name)
+        try:
+            return int(param) if param is not None else None
+        except ValueError:
+            raise InvalidQueryError("Value for %s must be an integer" % name)
+
+    def get_uuid_param(self, name):
+        param = self.request.query_params.get(name)
+        try:
+            return UUID(param) if param is not None else None
+        except ValueError:
+            raise InvalidQueryError("Value for %s must be a valid UUID" % name)
+
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
         context['org'] = self.request.user.get_org()
@@ -326,7 +343,7 @@ class BaseAPIView(generics.GenericAPIView):
             raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
 
         try:
-            return URN.normalize(value)
+            return URN.identity(URN.normalize(value))
         except ValueError:
             raise InvalidQueryError("Invalid URN: %s" % value)
 
@@ -640,23 +657,22 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
-        params = self.request.query_params
         org = self.request.user.get_org()
 
         queryset = queryset.filter(is_active=True)
 
         # filter by id (optional)
-        msg_id = params.get('id')
-        if msg_id:
-            queryset = queryset.filter(id=msg_id)
+        broadcast_id = self.get_int_param('id')
+        if broadcast_id:
+            queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         if not org.is_anon:
-            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('urn')))
+            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('scheme', 'path', 'display').order_by('pk')))
 
         return self.filter_before_after(queryset, 'created_on')
 
@@ -701,6 +717,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **name** - the name of the campaign (string).
+     * **archived** - whether this campaign is archived (boolean)
      * **group** - the group this campaign operates on (object).
      * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
 
@@ -717,6 +734,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "name": "Reminders",
+                "archived": false,
                 "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
@@ -744,6 +762,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "name": "Reminders",
+            "archived": false,
             "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
             "created_on": "2013-08-19T19:11:21.088Z"
         }
@@ -1099,8 +1118,8 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
      * **channel** - the UUID and name of the channel that handled this call (object).
      * **type** - the type of event (one of "call-in", "call-in-missed", "call-out", "call-out-missed").
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **time** - when this event happened on the channel (datetime).
-     * **duration** - the duration in seconds if event is a call (int, 0 for missed calls).
+     * **extra** - any extra attributes collected for this event
+     * **occurred_on** - when this event happened on the channel (datetime).
      * **created_on** - when this event was created (datetime), filterable as `before` and `after`.
 
     Example:
@@ -1118,8 +1137,8 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
                 "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
                 "type": "call-in"
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
-                "time": "2013-02-27T09:06:12.123"
-                "duration": 606,
+                "extra": { "duration": 606 },
+                "occurred_on": "2013-02-27T09:06:12.123"
                 "created_on": "2013-02-27T09:06:15.456"
             },
             ...
@@ -1132,13 +1151,12 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
-        queryset = queryset.filter(is_active=True)
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        call_id = params.get('id')
+        call_id = self.get_int_param('id')
         if call_id:
-            queryset = queryset.filter(pk=call_id)
+            queryset = queryset.filter(id=call_id)
 
         # filter by contact (optional)
         contact_uuid = params.get('contact')
@@ -1236,7 +1254,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "name": "Ben Haggerty",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
-            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "groups": ["6685e933-26e1-4363-a468-8f7268ab63a9"],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
@@ -1304,7 +1322,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
     write_serializer_class = ContactWriteSerializer
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = 'v2.contacts'
-    lookup_params = {'uuid': 'uuid', 'urn': 'urns__urn'}
+    lookup_params = {'uuid': 'uuid', 'urn': 'urns__identity'}
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1321,7 +1339,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         # filter by URN (optional)
         urn = params.get('urn')
         if urn:
-            queryset = queryset.filter(urns__urn=self.normalize_urn(urn))
+            queryset = queryset.filter(urns__identity=self.normalize_urn(urn))
 
         # filter by group name/uuid (optional)
         group_ref = params.get('group')
@@ -1334,7 +1352,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name'), to_attr='prefetched_user_groups')
+            Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk'),
+                     to_attr='prefetched_user_groups')
         )
 
         return self.filter_before_after(queryset, 'modified_on')
@@ -1356,7 +1375,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = self.get_queryset().filter(**self.lookup_values)
 
         # don't blow up if posted a URN that doesn't exist - we'll let the serializer create a new contact
-        if self.request.method == 'POST' and 'urns__urn' in self.lookup_values:
+        if self.request.method == 'POST' and 'urns__identity' in self.lookup_values:
             return queryset.first()
         else:
             return generics.get_object_or_404(queryset)
@@ -1555,6 +1574,11 @@ class DefinitionsEndpoint(BaseAPIView):
     """
     permission = 'orgs.org_api'
 
+    class Depends(Enum):
+        none = 0
+        flows = 1
+        all = 2
+
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
         params = request.query_params
@@ -1566,40 +1590,30 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        dependency_type = params.get('dependencies', 'all')
-        depends = dependency_type != 'none'
+        include = params.get('dependencies', 'all')
+        if include not in DefinitionsEndpoint.Depends.__members__:
+            raise InvalidQueryError("dependencies must be one of %s" % ', '.join(DefinitionsEndpoint.Depends.__members__))
+
+        include = DefinitionsEndpoint.Depends[include]
 
         if flow_uuids:
-            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
         else:
             flows = set()
 
-        # any fetched campaigns
-        campaigns = []
         if campaign_uuids:
-            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+            campaigns = set(Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True))
+        else:
+            campaigns = set()
 
-            if depends:
-                for campaign in campaigns:
-                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
-                        flows.add(event.flow)
+        if include == DefinitionsEndpoint.Depends.none:
+            components = set(itertools.chain(flows, campaigns))
+        elif include == DefinitionsEndpoint.Depends.flows:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
+        else:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
 
-        # get any dependencies on our flows and campaigns
-        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
-        for flow in flows:
-            if depends:
-                include_campaigns = dependency_type == 'all'
-                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
-
-        # make sure our requested items are included flows we requested are included
-        to_export = dict(flows=dependencies['flows'],
-                         campaigns=dependencies['campaigns'],
-                         triggers=dependencies['triggers'])
-
-        # add in our primary requested flows
-        to_export['flows'].update(flows)
-
-        export = org.export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], components)
 
         return Response(export, status=status.HTTP_200_OK)
 
@@ -1793,6 +1807,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
+
+        queryset = queryset.exclude(flow_type=Flow.MESSAGE)
 
         # filter by UUID (optional)
         uuid = params.get('uuid')
@@ -2197,10 +2213,10 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav"
+                "media": "wav:http://domain.com/recording.wav",
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
-                "sent_on": "2016-01-06T15:35:03.675716Z",
+                "sent_on": "2016-01-06T15:35:03.675716Z"
             },
             ...
         }
@@ -2250,7 +2266,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        msg_id = params.get('id')
+        msg_id = self.get_int_param('id')
         if msg_id:
             queryset = queryset.filter(id=msg_id)
 
@@ -2284,9 +2300,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
+            Prefetch('contact_urn', queryset=ContactURN.objects.only('scheme', 'path', 'display')),
             Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
-            Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
+            Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name').order_by('pk')),
         )
 
         # incoming folder gets sorted by 'modified_on'
@@ -2391,6 +2407,7 @@ class OrgEndpoint(BaseAPIView):
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
+            "credits": {"used": 121433, "remaining": 3452},
             "anon": false
         }
     """
@@ -2406,6 +2423,7 @@ class OrgEndpoint(BaseAPIView):
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
             'timezone': six.text_type(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
+            'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
             'anon': org.is_anon
         }
 
@@ -2559,7 +2577,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
         params = self.request.query_params
 
         # filter by id (optional)
-        subscriber_id = params.get('id')
+        subscriber_id = self.get_int_param('id')
         if subscriber_id:
             queryset = queryset.filter(id=subscriber_id)
 
@@ -2786,7 +2804,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         # filter by id (optional)
-        run_id = params.get('id')
+        run_id = self.get_int_param('id')
         if run_id:
             queryset = queryset.filter(id=run_id)
 
@@ -2811,6 +2829,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
+            Prefetch('start', queryset=FlowStart.objects.only('uuid')),
             Prefetch('values'),
             Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
             Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
@@ -2846,7 +2865,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
     modified. Each flow start has the following attributes:
 
-     * **id** - the id of this flow start (integer)
+     * **uuid** - the UUID of this flow start (string)
      * **flow** - the flow which was started (object)
      * **contacts** - the list of contacts that were started in the flow (objects)
      * **groups** - the list of groups that were started in the flow (objects)
@@ -2867,7 +2886,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
                 {
-                    "id": 150051,
+                    "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                     "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
                     "groups": [
                          {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
@@ -2915,7 +2934,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     Response is the created flow start:
 
         {
-            "id": 150051,
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
             "groups": [
                  {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
@@ -2945,17 +2964,20 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         return self.model.objects.filter(flow__org=org, is_active=True)
 
     def filter_queryset(self, queryset):
-        params = self.request.query_params
-
-        # filter by id (optional)
-        start_id = params.get('id')
+        # filter by id (optional and deprecated)
+        start_id = self.get_int_param('id')
         if start_id:
             queryset = queryset.filter(id=start_id)
 
+        # filter by UUID (optional)
+        uuid = self.get_uuid_param('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         return self.filter_before_after(queryset, 'modified_on')

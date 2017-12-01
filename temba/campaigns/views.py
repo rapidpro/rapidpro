@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from smartmin.views import SmartCRUDL, SmartListView, SmartUpdateView, SmartCreateView, SmartReadView, SmartDeleteView
 from temba.contacts.models import ContactGroup, ContactField
 from temba.flows.models import Flow
+from temba.msgs.models import Msg
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
 
@@ -213,7 +214,14 @@ class EventForm(forms.ModelForm):
             language = self.languages[0].language
             iso_code = language['iso_code']
             if iso_code not in self.data or not self.data[iso_code].strip():
-                raise ValidationError("A message is required for '%s'" % language['name'])
+                raise ValidationError(_("A message is required for '%s'") % language['name'])
+
+            for lang_data in self.languages:
+                lang = lang_data.language
+                iso_code = lang['iso_code']
+                if iso_code in self.data and len(self.data[iso_code].strip()) > Msg.MAX_TEXT_LEN:
+                    raise ValidationError(
+                        _("Translation for '%s' exceeds the %d character limit.") % (lang['name'], Msg.MAX_TEXT_LEN))
 
         return data
 

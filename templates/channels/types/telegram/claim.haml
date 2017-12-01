@@ -1,0 +1,57 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can connect a <a href="https://core.telegram.org/bots">Telegram Bot</a> to your {{ name}} account
+        to automate sending and receiving Telegram messages.
+    %p
+      -blocktrans
+        You will need to <a href="https://core.telegram.org/bots#create-a-new-bot">create a new Telegram bot</a> and
+        get its Authentication Token. To do so:
+
+      %ol.telegram-steps
+        %li
+          -blocktrans
+            Start a new chat with the <a href="https://telegram.me/botfather">BotFather</a>. You can do so on your
+            device by searching for "botfather" and starting a new chat.</li>
+
+        %li
+          -blocktrans
+            In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and
+            choose a username for it.
+
+        %li
+          -blocktrans
+            Once you have created your bot, @botfather will provide you with the authentication token to use your bot.
+            Enter that token below.
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    ol.telegram-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+
+    #id_auth_token {
+      width: 340px;
+    }

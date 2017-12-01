@@ -9,6 +9,9 @@
   -if has_messages
     {{page_top}}
 
+-block page-title
+  {{title}}
+
 -block title-icon
   %span.title-icon
     .glyph.icon-inbox
@@ -179,6 +182,7 @@
                           {{ object.contact|short_name:user_org }}
                       %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
+
                         - if 'label' in actions
                           .value-labels
                             - for label in object.labels.all
@@ -186,22 +190,19 @@
                                 %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
                                   {{label.name}}
 
-                          - if object.get_flow_id
-                            %span.label.label-success
-                              %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
-                                {{object.get_flow.name}}
+                        -if object.attachments
+                          .value-attachments{ style:"margin-top: 5px" }
+                            - for attachment in object.attachments
+                              {% attachment_button attachment %}
 
-                      %td.value-icon.field_icon
-                        -with object.get_last_log as log
-                          -if log and not user_org.is_anon
-                            %a{href:"{% url 'channels.channellog_read' log.pk%}"}
-                              {{ object|as_icon }}
-                          -else
-                            {{ object|as_icon }}
+                      %td.created_on
+                        %span.time
+                          {{object.created_on|gmail_time}}
 
-                      %td.value-received.field_received
-                        %nobr
-                          {{ object.created_on|gmail_time }}
+                        .log-icon
+                          -if not user_org.is_anon or perms.contacts.contact_break_anon
+                            {% channel_log_link object %}
+
                     -empty
                       %tr
                         %td{colspan:3}
@@ -288,11 +289,16 @@
       bindRefreshBlock();
     });
 
+    // since message table rows are refreshed dynamically, we can't bind all our events at document load time
     $('.select-row').live('mouseover', function(){
-      url = '/contact/read/' + $(this).data('sender-uuid');
+      var contactPageUrl = '/contact/read/' + $(this).data('sender-uuid');
 
       $(this).find('td').not(':first-child').each(function(){
-        $(this).attr('onClick', "document.location.href=url;");
+        $(this).on('click', function(event) {
+          if (!$(event.target).is('.attachment a')) {
+            document.location.href = contactPageUrl;
+          }
+        });
       });
     });
 

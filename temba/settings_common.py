@@ -44,6 +44,9 @@ EMAIL_USE_TLS = True
 # their own SMTP server.
 FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
+# HTTP Headers using for outgoing requests to other services
+OUTGOING_REQUEST_HEADERS = {'User-agent': 'RapidPro'}
+
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
@@ -202,9 +205,6 @@ INSTALLED_APPS = (
     # Redis cache
     'redis',
 
-    # mo-betta permission management
-    'guardian',
-
     # rest framework for api access
     'rest_framework',
     'rest_framework.authtoken',
@@ -224,6 +224,7 @@ INSTALLED_APPS = (
     'temba.assets',
     'temba.auth_tweaks',
     'temba.api',
+    'temba.dashboard',
     'temba.public',
     'temba.schedules',
     'temba.orgs',
@@ -376,9 +377,11 @@ PERMISSIONS = {
                  'smtp_server',
                  'api',
                  'country',
+                 'chatbase',
                  'clear_cache',
                  'create_login',
                  'create_sub_org',
+                 'dashboard',
                  'download',
                  'edit',
                  'edit_sub_org',
@@ -411,49 +414,9 @@ PERMISSIONS = {
 
     'orgs.usersettings': ('phone',),
 
-
     'channels.channel': ('api',
                          'bulk_sender_options',
                          'claim',
-                         'claim_africas_talking',
-                         'claim_android',
-                         'claim_blackmyna',
-                         'claim_chikka',
-                         'claim_clickatell',
-                         'claim_dart_media',
-                         'claim_external',
-                         'claim_facebook',
-                         'claim_fcm',
-                         'claim_globe',
-                         'claim_high_connection',
-                         'claim_hub9',
-                         'claim_infobip',
-                         'claim_jasmin',
-                         'claim_junebug',
-                         'claim_kannel',
-                         'claim_line',
-                         'claim_macrokiosk',
-                         'claim_m3tech',
-                         'claim_mblox',
-                         'claim_nexmo',
-                         'claim_plivo',
-                         'claim_red_rabbit',
-                         'claim_shaqodoon',
-                         'claim_smscentral',
-                         'claim_start',
-                         'claim_telegram',
-                         'claim_twilio',
-                         'claim_twiml_api',
-                         'claim_twilio_messaging_service',
-                         'claim_twitter',
-                         'claim_verboice',
-                         'claim_viber',
-                         'claim_viber_public',
-                         'create_viber',
-                         'claim_vumi',
-                         'claim_vumi_ussd',
-                         'claim_yo',
-                         'claim_zenvia',
                          'configuration',
                          'create_bulk_sender',
                          'create_caller',
@@ -631,7 +594,9 @@ GROUP_PERMISSIONS = {
         'orgs.org_accounts',
         'orgs.org_smtp_server',
         'orgs.org_api',
+        'orgs.org_dashboard',
         'orgs.org_country',
+        'orgs.org_chatbase',
         'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
@@ -659,48 +624,9 @@ GROUP_PERMISSIONS = {
         'orgs.usersettings_phone',
         'orgs.usersettings_update',
 
-        'channels.channel_claim_nexmo',
         'channels.channel_api',
         'channels.channel_bulk_sender_options',
         'channels.channel_claim',
-        'channels.channel_claim_africas_talking',
-        'channels.channel_claim_android',
-        'channels.channel_claim_blackmyna',
-        'channels.channel_claim_chikka',
-        'channels.channel_claim_clickatell',
-        'channels.channel_claim_dart_media',
-        'channels.channel_claim_external',
-        'channels.channel_claim_facebook',
-        'channels.channel_claim_fcm',
-        'channels.channel_claim_globe',
-        'channels.channel_claim_high_connection',
-        'channels.channel_claim_hub9',
-        'channels.channel_claim_infobip',
-        'channels.channel_claim_jasmin',
-        'channels.channel_claim_junebug',
-        'channels.channel_claim_kannel',
-        'channels.channel_claim_line',
-        'channels.channel_claim_macrokiosk',
-        'channels.channel_claim_mblox',
-        'channels.channel_claim_m3tech',
-        'channels.channel_claim_plivo',
-        'channels.channel_claim_red_rabbit',
-        'channels.channel_claim_shaqodoon',
-        'channels.channel_claim_smscentral',
-        'channels.channel_claim_start',
-        'channels.channel_claim_telegram',
-        'channels.channel_claim_twilio',
-        'channels.channel_claim_twiml_api',
-        'channels.channel_claim_twilio_messaging_service',
-        'channels.channel_claim_twitter',
-        'channels.channel_claim_verboice',
-        'channels.channel_claim_viber',
-        'channels.channel_claim_viber_public',
-        'channels.channel_create_viber',
-        'channels.channel_claim_vumi',
-        'channels.channel_claim_vumi_ussd',
-        'channels.channel_claim_yo',
-        'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
@@ -810,44 +736,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_api',
         'channels.channel_bulk_sender_options',
         'channels.channel_claim',
-        'channels.channel_claim_africas_talking',
-        'channels.channel_claim_android',
-        'channels.channel_claim_blackmyna',
-        'channels.channel_claim_chikka',
-        'channels.channel_claim_clickatell',
-        'channels.channel_claim_dart_media',
-        'channels.channel_claim_external',
-        'channels.channel_claim_facebook',
-        'channels.channel_claim_fcm',
-        'channels.channel_claim_globe',
-        'channels.channel_claim_high_connection',
-        'channels.channel_claim_hub9',
-        'channels.channel_claim_infobip',
-        'channels.channel_claim_jasmin',
-        'channels.channel_claim_junebug',
-        'channels.channel_claim_kannel',
-        'channels.channel_claim_line',
-        'channels.channel_claim_mblox',
-        'channels.channel_claim_macrokiosk',
-        'channels.channel_claim_m3tech',
-        'channels.channel_claim_plivo',
-        'channels.channel_claim_red_rabbit',
-        'channels.channel_claim_shaqodoon',
-        'channels.channel_claim_smscentral',
-        'channels.channel_claim_start',
-        'channels.channel_claim_telegram',
-        'channels.channel_claim_twilio',
-        'channels.channel_claim_twiml_api',
-        'channels.channel_claim_twilio_messaging_service',
-        'channels.channel_claim_twitter',
-        'channels.channel_claim_verboice',
-        'channels.channel_claim_viber',
-        'channels.channel_claim_viber_public',
-        'channels.channel_create_viber',
-        'channels.channel_claim_vumi',
-        'channels.channel_claim_vumi_ussd',
-        'channels.channel_claim_yo',
-        'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
@@ -963,20 +851,16 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-# -----------------------------------------------------------------------------------
-# Guardian Configuration
-# -----------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = (
     'smartmin.backends.CaseInsensitiveBackend',
-    'guardian.backends.ObjectPermissionBackend',
 )
 
 ANONYMOUS_USER_NAME = 'AnonymousUser'
 
 # -----------------------------------------------------------------------------------
-# Our test runner is standard but with ability to exclude apps
+# Our test runner includes a mocked HTTP server and the ability to exclude apps
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = 'temba.tests.ExcludeTestRunner'
+TEST_RUNNER = 'temba.tests.TembaTestRunner'
 TEST_EXCLUDE = ('smartmin',)
 
 # -----------------------------------------------------------------------------------
@@ -1061,8 +945,8 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
-    "prune-flowpathrecentsteps": {
-        'task': 'prune_flowpathrecentsteps',
+    "prune-recentmessages": {
+        'task': 'prune_recentmessages',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
@@ -1081,6 +965,11 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600),
+    },
+
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1182,7 +1071,7 @@ for brand in BRANDING.values():
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
-MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
+MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
 
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
@@ -1210,13 +1099,61 @@ SEND_AIRTIME = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
+#         could cause data to be sent to Chatbase in test environment
+SEND_CHATBASE = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
 #         could cause calls in test environments
 SEND_CALLS = False
 
+MESSAGE_HANDLERS = [
+    'temba.triggers.handlers.TriggerHandler',
+    'temba.flows.handlers.FlowHandler',
+    'temba.triggers.handlers.CatchAllHandler'
+]
 
-MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
-                    'temba.flows.handlers.FlowHandler',
-                    'temba.triggers.handlers.CatchAllHandler']
+CHANNEL_TYPES = [
+    'temba.channels.types.twilio.TwilioType',
+    'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
+    'temba.channels.types.nexmo.NexmoType',
+    'temba.channels.types.africastalking.AfricasTalkingType',
+    'temba.channels.types.blackmyna.BlackmynaType',
+    'temba.channels.types.chikka.ChikkaType',
+    'temba.channels.types.clickatell.ClickatellType',
+    'temba.channels.types.dartmedia.DartMediaType',
+    'temba.channels.types.dmark.DMarkType',
+    'temba.channels.types.external.ExternalType',
+    'temba.channels.types.facebook.FacebookType',
+    'temba.channels.types.firebase.FirebaseCloudMessagingType',
+    'temba.channels.types.globe.GlobeType',
+    'temba.channels.types.highconnection.HighConnectionType',
+    'temba.channels.types.hub9.Hub9Type',
+    'temba.channels.types.infobip.InfobipType',
+    'temba.channels.types.jasmin.JasminType',
+    'temba.channels.types.jiochat.JioChatType',
+    'temba.channels.types.junebug.JunebugType',
+    'temba.channels.types.junebug_ussd.JunebugUSSDType',
+    'temba.channels.types.kannel.KannelType',
+    'temba.channels.types.line.LineType',
+    'temba.channels.types.m3tech.M3TechType',
+    'temba.channels.types.macrokiosk.MacrokioskType',
+    'temba.channels.types.mblox.MbloxType',
+    'temba.channels.types.plivo.PlivoType',
+    'temba.channels.types.redrabbit.RedRabbitType',
+    'temba.channels.types.shaqodoon.ShaqodoonType',
+    'temba.channels.types.smscentral.SMSCentralType',
+    'temba.channels.types.start.StartType',
+    'temba.channels.types.telegram.TelegramType',
+    'temba.channels.types.twiml_api.TwimlAPIType',
+    'temba.channels.types.twitter.TwitterType',
+    'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.viber_public.ViberPublicType',
+    'temba.channels.types.vumi.VumiType',
+    'temba.channels.types.vumi_ussd.VumiUSSDType',
+    'temba.channels.types.yo.YoType',
+    'temba.channels.types.zenvia.ZenviaType',
+]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
@@ -1245,10 +1182,11 @@ LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 
 # -----------------------------------------------------------------------------------
-# Installs may choose how big they want their text messages and contact fields to be
-# by default we use 640 chars or about 4 normal text messages
+# Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
+VALUE_FIELD_SIZE = 640
+FLOWRUN_FIELDS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours
@@ -1257,3 +1195,17 @@ MSG_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# -----------------------------------------------------------------------------------
+# Which channel types will be sent using Courier instead of RapidPro
+# -----------------------------------------------------------------------------------
+COURIER_CHANNELS = set(['DK'])
+
+# -----------------------------------------------------------------------------------
+# Chatbase integration
+# -----------------------------------------------------------------------------------
+CHATBASE_API_URL = 'https://chatbase.com/api/message'
+
+
+# To allow manage fields to support up to 1000 fields
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000

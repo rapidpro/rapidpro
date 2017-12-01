@@ -1,0 +1,112 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can connect a <a href="https://developers.line.me/messaging-api/overview" target="_blank">LINE Bot</a> to your {{ name }} account
+        to automate sending and receiving LINE messages.
+    %p
+      -blocktrans
+        To start creating a LINE bot, go to <a href="https://developers.line.me/messaging-api/getting-started" target="_blank">Getting started with the Messaging API</a>.
+
+      %ol.line-steps
+        %li
+          -blocktrans
+            Access the <a href="https://developers.line.me/channels/" target="_blank">LINE Channels</a> page and add a new Channel.</li>
+
+        %li
+          -blocktrans
+            Create a Line account using the application on your smartphone
+
+        %li
+          -blocktrans
+            Activate the permission to login via web application in the "Settings > Account > Allow login"
+
+        %li
+          -blocktrans
+            Register your email and password via the application "Settings > Account > Email Account"
+
+        %li
+          -blocktrans
+            Create a new business account Line (With Messaging API enabled)
+
+          %ol.line-steps
+            %li
+              -blocktrans
+                In <a href="https://business.line.me/en/" target="_blank">LINE Business Center</a>, select "Messaging API" in the "Services"
+
+            %li
+              -blocktrans
+                Select "Start using Messaging API"
+
+            %li
+              -blocktrans
+                Enter your credentials created through the application and wait for the confirmation code in it.
+
+              .important
+                %p
+                  -blocktrans
+                    Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested.
+
+            %li
+              -blocktrans
+                After the creation process of the LINE business account, you will see the page to add a new channel of communication "Messaging API." Enter the name and select the appropriate category and click OK.
+
+            %li
+              -blocktrans
+                In the next step, click the "LINE @ Manager" and it will redirect you to the API activation page.
+
+            %li
+              -blocktrans
+                Click "Enable API" and confirm. (By doing so, the status of your API will be "Valid")
+
+            %li
+              -blocktrans
+                Enable the option to allow the use of Webhooks and click "Save."
+
+        %li
+          -blocktrans
+            Set your bot:
+
+          %ol.line-steps
+            %li
+              -blocktrans
+                Click on the menu "Accounts" at the top of the page at the link <a href="https://business.line.me" target="_blank">https://business.line.me</a>
+
+            %li
+              -blocktrans
+                In the communication channel of your choice, click on the "LINE Developers" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel Secret and Channel Access Token).
+
+              %p
+                -blocktrans
+                  Note: To generate the Channel Access Token click on "Issue" button
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    ol.line-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+
+    #id_* {
+      width: 340px;
+    }

@@ -7,9 +7,10 @@
 
 
     .request-time.pull-right
-      Request time:
-      %span.request-time-value
-        {{ log.request_time|default:"0"|intcomma }}ms
+      -if log.request_time
+        Request time:
+        %span.request-time-value
+          {{ log.request_time|default:"0"|intcomma }}ms
 
     -if log.response_status
       %span.status-code

@@ -12,7 +12,7 @@ CURRENCY_EXCEPTIONS = {
     'AG': 'XCD',
     'AI': 'XCD',
     'AO': 'AOA',
-    'AQ': '',
+    'AQ': 'USD',
     'AS': 'USD',
     'AT': 'EUR',
     'AX': 'EUR',
@@ -26,7 +26,7 @@ CURRENCY_EXCEPTIONS = {
     'BQ': 'USD',
     'BR': 'BRL',
     'BV': 'NOK',
-    'BY': 'BYR',
+    'BY': 'BYN',
     'CC': 'AUD',
     'CD': 'CDF',
     'CF': 'XAF',
@@ -36,9 +36,11 @@ CURRENCY_EXCEPTIONS = {
     'CM': 'XAF',
     'CW': 'ANG',
     'CX': 'AUD',
+    'CY': 'EUR',
     'DE': 'EUR',
     'DM': 'XCD',
     'EC': 'USD',
+    'EE': 'EUR',
     'EH': 'MAD',
     'ES': 'EUR',
     'ET': 'ETB',
@@ -70,6 +72,8 @@ CURRENCY_EXCEPTIONS = {
     'LC': 'XCD',
     'LI': 'CHF',
     'LU': 'EUR',
+    'LT': 'EUR',
+    'LV': 'EUR',
     'MC': 'EUR',
     'ME': 'EUR',
     'MF': 'EUR',
@@ -79,6 +83,7 @@ CURRENCY_EXCEPTIONS = {
     'MP': 'USD',
     'MQ': 'EUR',
     'MS': 'XCD',
+    'MT': 'EUR',
     'MZ': 'MZN',
     'NC': 'XPF',
     'NE': 'XOF',
@@ -114,6 +119,7 @@ CURRENCY_EXCEPTIONS = {
     'TJ': 'TJS',
     'TK': 'NZD',
     'TL': 'USD',
+    'TM': 'TMT',
     'TR': 'TRY',
     'TV': 'AUD',
     'TW': 'TWD',
@@ -126,13 +132,15 @@ CURRENCY_EXCEPTIONS = {
     'VI': 'USD',
     'WF': 'XPF',
     'YE': 'YER',
-    'YT': 'EUR'}
+    'YT': 'EUR',
+    'ZM': 'ZMW',
+    'ZW': 'ZWL'}
 
 
 def currency_for_country(alpha2):
-    country = pycountry.countries.get(alpha2=str(alpha2))
+    country = pycountry.countries.get(alpha_2=str(alpha2))
     try:
         return pycountry.currencies.get(numeric=country.numeric)
     except Exception:
         currency_code = CURRENCY_EXCEPTIONS.get(str(alpha2))
-        return pycountry.currencies.get(letter=currency_code)
+        return pycountry.currencies.get(alpha_3=currency_code)
