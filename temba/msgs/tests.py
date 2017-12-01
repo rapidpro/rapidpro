@@ -1213,7 +1213,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(("Hello Blow", []), substitute("Hello @(Proper(remove_first_word(contact)))", dict()))
         self.assertEqual(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
         self.assertEqual(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
-        self.assertEqual(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
+        self.assertEqual(("Hello 3.00000000", []), substitute("Hello @(contact.goats)", dict()))
 
         self.assertEqual(("Email is: foo@bar.com", []),
                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))))
