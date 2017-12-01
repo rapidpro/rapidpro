@@ -76,7 +76,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     if not date_str:
         return None
 
-    date_str = date_str.strip()
+    date_str = six.text_type(date_str).strip()
 
     # try first as full ISO string
     if FULL_ISO8601_REGEX.match(date_str):
