@@ -29,9 +29,11 @@ class PlivoTypeTest(TembaTest):
             plivo_get.return_value = MockResponse(400, {})
             response = self.client.get(claim_plivo_url)
 
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(claim_plivo_url, follow=True)
-        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_plivo_url, follow=True)
+
+            self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))
