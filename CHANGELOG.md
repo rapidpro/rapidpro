@@ -1,3 +1,7 @@
+v3.0.268
+----------
+ * Contact field values should use full/canonical form in expressions context
+
 v3.0.266
 ----------
  * Fix campaign export issue
