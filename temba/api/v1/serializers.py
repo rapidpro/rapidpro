@@ -522,8 +522,6 @@ class FlowReadSerializer(ReadSerializer):
 class FlowRunReadSerializer(ReadSerializer):
     run = serializers.ReadOnlyField(source='id')
     flow_uuid = serializers.SerializerMethodField()
-    values = serializers.SerializerMethodField()
-    steps = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField('get_contact_uuid')
     completed = serializers.SerializerMethodField('is_completed')
     created_on = DateTimeField()
@@ -544,32 +542,13 @@ class FlowRunReadSerializer(ReadSerializer):
     def is_completed(self, obj):
         return obj.is_completed()
 
-    def get_values(self, obj):
-        results = obj.flow.get_results(obj.contact, run=obj)
-        if results:
-            return results[0]['values']
-        else:  # pragma: needs cover
-            return []
-
-    def get_steps(self, obj):
-        steps = []
-        for step in obj.steps.all():
-            steps.append(dict(type=step.step_type,
-                              node=step.step_uuid,
-                              arrived_on=step.arrived_on,
-                              left_on=step.left_on,
-                              text=step.get_text(),
-                              value=six.text_type(step.rule_value)))
-
-        return steps
-
     def get_expired_on(self, obj):
         return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values',
-                  'steps', 'created_on', 'modified_on', 'expires_on', 'expired_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed',
+                  'created_on', 'modified_on', 'expires_on', 'expired_on')
 
 
 class FlowRunWriteSerializer(WriteSerializer):
