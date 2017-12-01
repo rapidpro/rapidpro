@@ -4124,7 +4124,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(42):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
                 ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -4346,7 +4346,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 45)
+        self.assertEqual(len(response_json), 46)
         self.assertEqual(response_json[0]['label'], 'Full name')
         self.assertEqual(response_json[0]['key'], 'name')
         self.assertEqual(response_json[1]['label'], 'Phone number')
@@ -4371,22 +4371,24 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[10]['key'], 'jiochat')
         self.assertEqual(response_json[11]['label'], 'Firebase Cloud Messaging identifier')
         self.assertEqual(response_json[11]['key'], 'fcm')
-        self.assertEqual(response_json[12]['label'], 'Groups')
-        self.assertEqual(response_json[12]['key'], 'groups')
-        self.assertEqual(response_json[13]['label'], 'First')
-        self.assertEqual(response_json[13]['key'], 'first')
-        self.assertEqual(response_json[14]['label'], 'label0')
-        self.assertEqual(response_json[14]['key'], 'key0')
+        self.assertEqual(response_json[12]['label'], 'WhatsApp identifier')
+        self.assertEqual(response_json[12]['key'], 'whatsapp')
+        self.assertEqual(response_json[13]['label'], 'Groups')
+        self.assertEqual(response_json[13]['key'], 'groups')
+        self.assertEqual(response_json[14]['label'], 'First')
+        self.assertEqual(response_json[14]['key'], 'first')
+        self.assertEqual(response_json[15]['label'], 'label0')
+        self.assertEqual(response_json[15]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEqual(response_json[13]['label'], 'AAAA')
-        self.assertEqual(response_json[13]['key'], 'key0')
-        self.assertEqual(response_json[14]['label'], 'First')
-        self.assertEqual(response_json[14]['key'], 'first')
+        self.assertEqual(response_json[14]['label'], 'AAAA')
+        self.assertEqual(response_json[14]['key'], 'key0')
+        self.assertEqual(response_json[15]['label'], 'First')
+        self.assertEqual(response_json[15]['key'], 'first')
 
 
 class URNTest(TembaTest):
