@@ -1,16 +1,8 @@
 v3.0.269
 ----------
- * serialize_field_value shouldn't blow up on null values
-
-v3.0.268
-----------
- * Contact field values should use full/canonical form in expressions context
-
-v3.0.266
-----------
  * Fix campaign export issue
  * Disable legacy analytics page
- * Change date constants to be ISO in context
+ * Change date constants and contact fields to use full/canonical format in expressions context
 
 v3.0.265
 ----------
