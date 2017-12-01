@@ -2417,7 +2417,7 @@ class LanguageTest(TembaTest):
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
         self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic (700-300 BCE) and Spanish')
 

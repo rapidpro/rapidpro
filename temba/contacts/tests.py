@@ -1655,7 +1655,9 @@ class ContactTest(TembaTest):
 
             self.assertEqual(len(activity), 95)
             self.assertIsInstance(activity[4]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
-            self.assertEqual(activity[4]['obj'].text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
+            self.assertEqual(activity[4]['obj'].text, {
+                'base': "What is your favorite color?", 'fra': "Quelle est votre couleur préférée?"
+            })
             self.assertEqual(activity[4]['obj'].translated_text, "What is your favorite color?")
 
             # if a new message comes in

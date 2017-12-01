@@ -245,7 +245,7 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # contact language doesn't override if it's not an org language
-        self.contact.language = 'fre'
+        self.contact.language = 'fra'
 
         self.contact.save(update_fields=('language',))
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
@@ -445,7 +445,9 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
+        self.assertEqual(
+            broadcast.text, {'base': "What is your favorite color?", 'fra': "Quelle est votre couleur préférée?"}
+        )
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 
@@ -1246,7 +1248,7 @@ class FlowTest(TembaTest):
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
-        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
@@ -1301,7 +1303,7 @@ class FlowTest(TembaTest):
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
-        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
@@ -3076,7 +3078,7 @@ class ActionTest(TembaTest):
         self.assertEqual(execution[0].text, u'testENG\n1: labelENG\n2: label2ENG')
 
         # now set contact's language to something we don't have in our org languages
-        self.contact.language = 'fre'
+        self.contact.language = 'fra'
         self.contact.save(update_fields=('language',))
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -6884,25 +6886,37 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_11_0(self):
         definition = {
-            "base_language": "base",
-            "action_sets": [
+            'base_language': 'base',
+            'action_sets': [
                 {
-                    "uuid": "9468bbce-0df6-4d86-ae14-f26525ddda1d",
-                    "destination": "cc904a60-9de1-4f0b-9b55-a42b4ea6c434",
-                    "actions": [
+                    'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
+                    'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
+                    'actions': [
                         {
-                            "msg": {
-                                "base": "What is your favorite color?",
-                                "eng": "What is your favorite color?",
-                                "fre": "Quelle est votre couleur préférée?"
+                            'msg': {
+                                'base': 'What is your favorite color?',
+                                'eng': 'What is your favorite color?',
+                                'fre': 'Quelle est votre couleur préférée?'
                             },
-                            "type": "reply",
-                            "uuid": "335eb13d-5167-48ba-90c6-eb116656247c"
+                            'type': 'reply',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
+                        },
+                        {
+                            'y': 1214,
+                            'x': 284,
+                            'destination': '498b1953-02f1-47dd-b9cb-1b51913e348f',
+                            'uuid': '9769918c-8ca4-4ec5-8b5b-bf94cc6746a9',
+                            'actions': [{
+                                'lang': 'fre',
+                                'type': 'lang',
+                                'name': 'French',
+                                'uuid': '56a4bca5-b9e5-4d04-883c-ca65d7c4d538'
+                            }]
                         }
                     ],
-                    "exit_uuid": "a9904153-c831-4b95-aa20-13f84fed0841",
-                    "y": 0,
-                    "x": 100
+                    'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
+                    'y': 0,
+                    'x': 100
                 }
             ]
         }

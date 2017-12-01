@@ -4008,16 +4008,25 @@ class FlowRevision(SmartModel):
 
             if migrate_fn:
                 exported_json = migrate_fn(exported_json, org, same_site)
-            else:
-                flows = []
-                for json_flow in exported_json.get('flows', []):
-                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
-                    if migrate_fn:
+                # update the version of migrated flows
+                flows = []
+                for sub_flow in exported_json.get('flows', []):
+                    sub_flow[Flow.VERSION] = version
+                    flows.append(sub_flow)
+
+                exported_json['flows'] = flows
+
+            else:
+                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
+                if migrate_fn:
+                    flows = []
+                    for json_flow in exported_json.get('flows', []):
                         json_flow = migrate_fn(json_flow, None)
                         json_flow[Flow.VERSION] = version
-                    flows.append(json_flow)
-                exported_json['flows'] = flows
+                        flows.append(json_flow)
+
+                    exported_json['flows'] = flows
 
             if version == to_version:
                 break
