@@ -6853,23 +6853,23 @@ class FlowMigrationTest(FlowFileTest):
                             },
                             'type': 'reply',
                             'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
-                        },
-                        {
-                            'y': 1214,
-                            'x': 284,
-                            'destination': '498b1953-02f1-47dd-b9cb-1b51913e348f',
-                            'uuid': '9769918c-8ca4-4ec5-8b5b-bf94cc6746a9',
-                            'actions': [{
-                                'lang': 'fre',
-                                'type': 'lang',
-                                'name': 'French',
-                                'uuid': '56a4bca5-b9e5-4d04-883c-ca65d7c4d538'
-                            }]
                         }
                     ],
                     'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
                     'y': 0,
                     'x': 100
+                },
+                {
+                    'y': 1214,
+                    'x': 284,
+                    'destination': '498b1953-02f1-47dd-b9cb-1b51913e348f',
+                    'uuid': '9769918c-8ca4-4ec5-8b5b-bf94cc6746a9',
+                    'actions': [{
+                        'lang': 'fre',
+                        'type': 'lang',
+                        'name': 'French',
+                        'uuid': '56a4bca5-b9e5-4d04-883c-ca65d7c4d538'
+                    }]
                 }
             ]
         }
@@ -6890,6 +6890,10 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertTrue('fra' in lang_path)
         self.assertEqual(len(lang_path), 3)
+
+        lang_key_value = new_definition['action_sets'][1]['actions'][0]['lang']
+
+        self.assertEqual(lang_key_value, 'fra')
 
         # we cannot migrate flows to version 11 without flow object (languages depend on flow.org)
         self.assertRaises(ValueError, migrate_to_version_11_1, definition)
