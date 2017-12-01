@@ -688,6 +688,23 @@ class Contact(TembaModel):
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
+            return value.datetime_value.isoformat()
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return six.text_type(value.decimal_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
+            return value.location_value.as_path()
+        else:
+            return value.string_value
+
+    @classmethod
+    def serialize_field_value_legacy(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == Value.TYPE_DATETIME:
             return datetime_to_str(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
@@ -1664,7 +1681,7 @@ class Contact(TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields:
-            field_value = Contact.get_field_display_for_value(field, self.get_field(field.key))
+            field_value = Contact.serialize_field_value(field, self.get_field(field.key))
             context[field.key] = field_value if field_value is not None else ''
 
         return context
