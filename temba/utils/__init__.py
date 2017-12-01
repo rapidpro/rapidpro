@@ -76,8 +76,10 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
 
     # try first as full ISO string
     try:
-        iso_date = iso8601.parse_date(date_str)
-        if iso_date.tzinfo:
+        iso_date = iso8601.parse_date(date_str, default_timezone=None)
+        if not iso_date.tzinfo:
+            return tz.localize(iso_date)
+        else:
             return iso_date.astimezone(tz)
     except iso8601.ParseError:
         pass

@@ -1227,6 +1227,10 @@ class BroadcastTest(TembaTest):
 
         text, errors = substitute("Today is @date.now", dict())
         self.assertEqual(errors, [])
+        self.assertRegex(text, "Today is \d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d\+\d\d:\d\d")
+
+        text, errors = substitute("Today is @(format_date(date.now))", dict())
+        self.assertEqual(errors, [])
         self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
         text, errors = substitute("Your DOB is @contact.dob", dict())
