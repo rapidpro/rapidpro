@@ -680,7 +680,14 @@ class FlowRunReadSerializer(ReadSerializer):
         return {'uuid': str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
-        return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
+        def convert_step(step):
+            arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
+            return {
+                'node': step[FlowRun.PATH_NODE_UUID],
+                'time': format_datetime(arrived_on)
+            }
+
+        return [convert_step(s) for s in obj.get_path()]
 
     def get_values(self, obj):
         def convert_result(result):
