@@ -3428,10 +3428,6 @@ class RuleSet(models.Model):
         return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
     @property
-    def context_key(self):
-        return Flow.label_to_slug(self.label)
-
-    @property
     def is_messaging(self):
         return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE,))
 

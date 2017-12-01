@@ -526,12 +526,6 @@ class FlowRunReadSerializer(ReadSerializer):
     completed = serializers.SerializerMethodField('is_completed')
     created_on = DateTimeField()
     modified_on = DateTimeField()
-    expires_on = DateTimeField()
-    expired_on = serializers.SerializerMethodField()
-    flow = serializers.SerializerMethodField()  # deprecated, use flow_uuid
-
-    def get_flow(self, obj):
-        return obj.flow_id
 
     def get_flow_uuid(self, obj):
         return obj.flow.uuid
@@ -542,13 +536,9 @@ class FlowRunReadSerializer(ReadSerializer):
     def is_completed(self, obj):
         return obj.is_completed()
 
-    def get_expired_on(self, obj):
-        return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
-
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed',
-                  'created_on', 'modified_on', 'expires_on', 'expired_on')
+        fields = ('flow_uuid', 'run', 'contact', 'completed', 'created_on', 'modified_on',)
 
 
 class FlowRunWriteSerializer(WriteSerializer):

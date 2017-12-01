@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import iso8601
 import json
 import six
 
@@ -682,16 +683,16 @@ class FlowRunReadSerializer(ReadSerializer):
         return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
 
     def get_values(self, obj):
-        values = {}
-        for value in obj.values.all():
-            values[value.ruleset.context_key] = {
-                'value': value.decimal_value if value.decimal_value is not None else value.string_value,
-                'category': value.category,
-                'node': value.ruleset.uuid,
-                'time': value.modified_on,
+        def convert_result(result):
+            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
+            return {
+                'value': result[FlowRun.RESULT_VALUE],
+                'category': result[FlowRun.RESULT_CATEGORY],
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'time': format_datetime(created_on),
             }
 
-        return values
+        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
