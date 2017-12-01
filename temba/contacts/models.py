@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -27,11 +27,11 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
-
 
 logger = logging.getLogger(__name__)
 
@@ -516,6 +516,13 @@ class Contact(TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
+    @property
+    def cached_user_groups(self):
+        """
+        Define Contact.user_groups to only refer to user groups
+        """
+        return get_cacheable_attr(self, '_user_groups', lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED))
+
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
 
@@ -681,6 +688,28 @@ class Contact(TembaModel):
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
+            return value.datetime_value.isoformat() if value.datetime_value else None
+        elif field.value_type == Value.TYPE_DECIMAL:
+            if not value.decimal_value:
+                return None
+
+            as_int = value.decimal_value.to_integral_value()
+            is_int = value.decimal_value == as_int
+            return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
+            return value.location_value.as_path()
+        else:
+            return value.string_value
+
+    @classmethod
+    def serialize_field_value_legacy(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == Value.TYPE_DATETIME:
             return datetime_to_str(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
@@ -798,6 +827,10 @@ class Contact(TembaModel):
             EventFire.update_events_for_contact_field(self, field.key)
 
         if group or dynamic_group_change:
+            # delete any cached groups
+            if hasattr(self, '_user_groups'):
+                delattr(self, '_user_groups')
+
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
@@ -1556,6 +1589,22 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
 
+    def cached_send_channel(self, contact_urn):
+        cache = getattr(self, '_send_channels', {})
+        channel = cache.get(contact_urn.id)
+        if not channel:
+            channel = self.org.get_send_channel(contact_urn=contact_urn)
+            cache[contact_urn.id] = channel
+            self._send_channels = cache
+
+        return channel
+
+    def initialize_cache(self):
+        if getattr(self, '__cache_initialized', False):
+            return
+
+        Contact.bulk_cache_initialize(self.org, [self])
+
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
         """
@@ -1602,10 +1651,16 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
+        # set the cache initialize as correct
+        for contact in contacts:
+            setattr(contact, '__cache_initialized', True)
+
     def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
         """
+        self.initialize_cache()
+
         org = self.org
         context = {
             '__default__': self.get_display(),
@@ -1613,7 +1668,7 @@ class Contact(TembaModel):
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
             'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            'groups': ",".join([_.name for _ in self.user_groups.all()]),
+            'groups': ",".join([_.name for _ in self.cached_user_groups]),
             'uuid': self.uuid
         }
 
@@ -1629,15 +1684,9 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
-        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
-
-        # get all the values for this contact
-        contact_values = {v.contact_field.key: v for v in field_values}
-
         # add all active fields to our context
-        for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
-            field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
+        for field in org.cached_contact_fields:
+            field_value = Contact.serialize_field_value(field, self.get_field(field.key))
             context[field.key] = field_value if field_value is not None else ''
 
         return context
@@ -2204,9 +2253,12 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        group = cls._create(org, user, name, query=query)
-        group.update_query(query)
-        return group
+        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
+        # we will rollback the database changes
+        with transaction.atomic():
+            group = cls._create(org, user, name, query=query)
+            group.update_query(query=query)
+            return group
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2322,22 +2374,27 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields
+        from .search import extract_fields, parse_query
 
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        self.query = query
-        self.save(update_fields=('query',))
+        parsed_query = parse_query(text=query)
 
-        self.query_fields.clear()
+        if parsed_query.can_be_dynamic_group():
+            self.query = parsed_query.as_text()
+            self.save(update_fields=('query',))
 
-        for field in extract_fields(self.org, self.query):
-            self.query_fields.add(field)
+            self.query_fields.clear()
 
-        members = list(self._get_dynamic_members())
-        self.contacts.clear()
-        self.contacts.add(*members)
+            for field in extract_fields(self.org, self.query):
+                self.query_fields.add(field)
+
+            members = list(self._get_dynamic_members())
+            self.contacts.clear()
+            self.contacts.add(*members)
+        else:
+            raise ValueError('Cannot update a dynamic query that is not allowed')
 
     def _get_dynamic_members(self, base_set=None):
         """
@@ -2349,7 +2406,8 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            return Contact.search(self.org, self.query, base_set=base_set)
+            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
+            return qs
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
@@ -2513,7 +2571,7 @@ class ExportContactsTask(BaseExportTask):
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts = Contact.search(self.org, self.search, group)
+            contacts, _ = Contact.search(self.org, self.search, group)
         else:
             contacts = group.contacts.all()
 

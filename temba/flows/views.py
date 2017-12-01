@@ -285,7 +285,7 @@ class RuleCRUDL(SmartCRUDL):
                 return obj.isoformat() if isinstance(obj, datetime) else obj
 
             org = self.request.user.get_org()
-            rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
+            rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).exclude(flow=None).order_by('flow__created_on', 'y').select_related('flow')
             current_flow = None
             flow_json = []
 
@@ -1165,7 +1165,7 @@ class FlowCRUDL(SmartCRUDL):
 
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
-            rulesets = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT))
+            rulesets = list(flow.rule_sets.all())
 
             from_uuids = []
             for ruleset in rulesets:
@@ -1286,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-                results = json.loads(run.results)
+                results = run.get_results()
                 run.value_list = []
                 for ruleset in context['rulesets']:
                     key = Flow.label_to_slug(ruleset.label)
@@ -1314,7 +1314,7 @@ class FlowCRUDL(SmartCRUDL):
                                   js_class="download-results"))
 
             if self.has_org_perm('flows.flow_editor'):
-                links.append(dict(title=_("View"),
+                links.append(dict(title=_("Edit Flow"),
                                   style='btn-primary',
                                   href=reverse('flows.flow_editor', args=[self.get_object().uuid])))
 

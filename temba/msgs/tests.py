@@ -938,11 +938,11 @@ class BroadcastTest(TembaTest):
 
     def test_broadcast_model(self):
 
-        def assertBroadcastStatus(sms, new_sms_status, broadcast_status):
-            sms.status = new_sms_status
-            sms.save()
-            sms.broadcast.update()
-            self.assertEqual(sms.broadcast.status, broadcast_status)
+        def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
+            msg.status = new_msg_status
+            msg.save(update_fields=('status',))
+            msg.broadcast.update()
+            self.assertEqual(msg.broadcast.status, broadcast_status)
 
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEqual('I', broadcast.status)
@@ -960,7 +960,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.status, 'Q')
 
         # test errored broadcast logic now that all sms status are queued
-        msgs = broadcast.get_messages()
+        msgs = broadcast.get_messages().order_by('-id')
         assertBroadcastStatus(msgs[0], 'E', 'Q')
         assertBroadcastStatus(msgs[1], 'E', 'Q')
         assertBroadcastStatus(msgs[2], 'E', 'E')  # now more than half are errored
@@ -1194,6 +1194,8 @@ class BroadcastTest(TembaTest):
     def test_substitute_variables(self):
         ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_DECIMAL)
         self.joe.set_field(self.user, 'goats', "3 ")
+        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_DECIMAL)
+        self.joe.set_field(self.user, 'temp', "37.45")
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
@@ -1214,6 +1216,9 @@ class BroadcastTest(TembaTest):
         self.assertEqual(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
         self.assertEqual(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
         self.assertEqual(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
+        self.assertEqual(("Hello 37.45000000", []), substitute("Hello @(contact.temp)", dict()))
+        self.assertEqual(("Hello 37", []), substitute("Hello @(INT(contact.temp))", dict()))
+        self.assertEqual(("Hello 37.45", []), substitute("Hello @(FIXED(contact.temp))", dict()))
 
         self.assertEqual(("Email is: foo@bar.com", []),
                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))))
@@ -1223,16 +1228,20 @@ class BroadcastTest(TembaTest):
         # check date variables
         text, errors = substitute("Today is @date.today", dict())
         self.assertEqual(errors, [])
-        self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d")
+        self.assertRegex(text, "Today is \d{2}-\d{2}-\d{4}")
 
         text, errors = substitute("Today is @date.now", dict())
+        self.assertEqual(errors, [])
+        self.assertRegex(text, "Today is \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
+
+        text, errors = substitute("Today is @(format_date(date.now))", dict())
         self.assertEqual(errors, [])
         self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
         text, errors = substitute("Your DOB is @contact.dob", dict())
         self.assertEqual(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
-        self.assertRegex(text, "Your DOB is 28-05-1981 \d\d:\d\d")
+        self.assertRegex(text, "Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
 
         # unicode tests
         self.joe.name = u"شاملیدل عمومی"

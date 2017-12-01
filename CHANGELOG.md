@@ -1,3 +1,37 @@
+v3.0.269
+----------
+ * serialize_field_value shouldn't blow up on null values
+
+v3.0.268
+----------
+ * Contact field values should use full/canonical form in expressions context
+
+v3.0.266
+----------
+ * Fix campaign export issue
+ * Disable legacy analytics page
+ * Change date constants to be ISO in context
+
+v3.0.265
+----------
+ * Fix not updating versions on import flows
+ * Require FlowRun saves to use update_fields
+ * Rework get_results to use FlowRun.results
+ * Don't allow users to save dynamic groups with 'id' or 'name' attributes
+ * Add flow version 11.0, create migration to update references to contact fields and flow fields
+
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
+v3.0.263
+----------
+ * Start campaigns in separate task
+ * Enable flow results graphs on flow result page
+ * Fix run table json parsing
+ * SuperAutoScaler!
+
 v3.0.262
 ----------
  * Use string comparison to optimize temba_update_flowcategorycount
