@@ -372,7 +372,7 @@ class ContactReadSerializer(ReadSerializer):
         fields = {}
         for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
+            fields[contact_field.key] = Contact.serialize_field_value_legacy(contact_field, value)
         return fields
 
     def get_blocked(self, obj):

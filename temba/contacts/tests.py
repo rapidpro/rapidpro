@@ -3602,13 +3602,13 @@ class ContactTest(TembaTest):
         joe.set_field(self.user, 'state', "kigali city")
 
         value = joe.get_field(registration_field.key)
-        self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T01:04:00.000000Z')
+        self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T03:04:00+02:00')
 
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
 
         value = joe.get_field(state_field.key)
-        self.assertEqual(Contact.serialize_field_value(state_field, value), 'Kigali City')
+        self.assertEqual(Contact.serialize_field_value(state_field, value), 'Rwanda > Kigali City')
 
         value = joe.get_field(color_field.key)
         self.assertEqual(Contact.serialize_field_value(color_field, value), 'green')
@@ -3635,13 +3635,15 @@ class ContactTest(TembaTest):
         self.assertTrue(value.location_value)
         self.assertEqual(value.location_value.name, "Kigali City")
         self.assertEqual("Kigali City", joe.get_field_display_for_value(state_field, value))
-        self.assertEqual("Kigali City", joe.serialize_field_value(state_field, value))
+        self.assertEqual("Rwanda > Kigali City", joe.serialize_field_value(state_field, value))
+        self.assertEqual("Kigali City", joe.serialize_field_value_legacy(state_field, value))
 
         # test that we don't normalize non-location fields
         joe.set_field(self.user, 'not_state', 'kigali city')
         value = Value.objects.filter(contact=joe, contact_field=not_state_field).first()
         self.assertEqual("kigali city", joe.get_field_display_for_value(not_state_field, value))
         self.assertEqual("kigali city", joe.serialize_field_value(not_state_field, value))
+        self.assertEqual("kigali city", joe.serialize_field_value_legacy(not_state_field, value))
 
         joe.set_field(self.user, 'district', 'Remera')
         value = Value.objects.filter(contact=joe, contact_field=district_field).first()
