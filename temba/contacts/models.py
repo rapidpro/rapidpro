@@ -690,7 +690,9 @@ class Contact(TembaModel):
         if field.value_type == Value.TYPE_DATETIME:
             return value.datetime_value.isoformat()
         elif field.value_type == Value.TYPE_DECIMAL:
-            return six.text_type(value.decimal_value)
+            as_int = value.decimal_value.to_integral_value()
+            is_int = value.decimal_value == as_int
+            return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.as_path()
         else:
