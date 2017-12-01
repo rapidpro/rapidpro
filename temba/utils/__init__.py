@@ -21,7 +21,7 @@ from itertools import islice
 
 DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
-FULL_ISO8601_REGEX = regex.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?\+\d{2}:\d{2}')
+FULL_ISO8601_REGEX = regex.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?[\+\-]\d{2}:\d{2}')
 
 
 TRANSFERTO_COUNTRY_NAMES = {
