@@ -1,3 +1,7 @@
+v3.0.273
+----------
+ * Don't blow up when a flow result doesn't have input
+
 v3.0.272
 ----------
  * Fix parsing ISO dates with negative offsets
