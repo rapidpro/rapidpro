@@ -1163,6 +1163,9 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
+        resp_json = response.json()
+        self.assertEqual(resp_json['urns'], [u'twitter:jean', u'tel:+250783333333'])
+
         # URNs will be normalized
         jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
@@ -1312,6 +1315,42 @@ class APITest(TembaTest):
         # try to delete a contact in another org
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assert404(response)
+
+    def test_contact_actions_if_org_is_anonymous(self):
+        # set org to anonymous
+        self.org.is_anon = True
+        self.org.save(update_fields=('is_anon',))
+
+        url = reverse('api.v2.contacts')
+        self.assertEndpointAccess(url)
+
+        group = ContactGroup.get_or_create(self.org, self.admin, 'Customers')
+
+        # create a contact
+        response = self.postJSON(url, None, {
+            'name': 'Ben Haggarty',
+            'urns': ['tel:+250783333333'],
+            'groups': [group.uuid]
+        })
+        self.assertEqual(response.status_code, 201)
+
+        resp_json = response.json()
+        self.assertTrue('uuid' in resp_json)
+        self.assertEqual(resp_json['urns'], [])
+        self.assertEqual(resp_json['groups'][0]['name'], 'Customers')
+
+        contact_uuid = resp_json['uuid']
+
+        # update a contact, add urn, should not be allowed for Anon Orgs
+        response = self.postJSON(url, 'uuid=%s' % contact_uuid, {
+            'name': 'Ben Haggarty',
+            'urns': ['tel:+250783333333'],
+            'groups': [group.uuid]
+        })
+        self.assertEqual(response.status_code, 400)
+
+        resp_json = response.json()
+        self.assertEqual(resp_json['urns'], ['Updating URNs not allowed for anonymous organizations'])
 
     def test_contact_actions(self):
         url = reverse('api.v2.contact_actions')
