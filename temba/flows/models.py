@@ -2656,7 +2656,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             """
             return {
                 '__default__': res[FlowRun.RESULT_VALUE],
-                'text': res[FlowRun.RESULT_INPUT],
+                'text': res.get(FlowRun.RESULT_INPUT),
                 'time': res[FlowRun.RESULT_CREATED_ON],
                 'category': res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
                 'value': res[FlowRun.RESULT_VALUE]
