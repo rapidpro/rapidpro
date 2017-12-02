@@ -6858,8 +6858,7 @@ class FlowMigrationTest(FlowFileTest):
                     'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
                     'y': 0,
                     'x': 100
-                },
-                {
+                }, {
                     'y': 1214,
                     'x': 284,
                     'destination': '498b1953-02f1-47dd-b9cb-1b51913e348f',
@@ -6870,6 +6869,24 @@ class FlowMigrationTest(FlowFileTest):
                         'name': 'French',
                         'uuid': '56a4bca5-b9e5-4d04-883c-ca65d7c4d538'
                     }]
+                }, {
+                    'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
+                    'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
+                    'actions': [
+                        {
+                            'msg': {
+                                'base': 'What is your favorite color?',
+                                'eng': 'What is your favorite color?',
+                                'fre': 'Quelle est votre couleur préférée?',
+                                'newl': 'Bogus translation'
+                            },
+                            'type': 'reply',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
+                        }
+                    ],
+                    'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
+                    'y': 0,
+                    'x': 100
                 }
             ]
         }
@@ -6894,6 +6911,9 @@ class FlowMigrationTest(FlowFileTest):
         lang_key_value = new_definition['action_sets'][1]['actions'][0]['lang']
 
         self.assertEqual(lang_key_value, 'fra')
+
+        should_not_be_migrated_path = new_definition['action_sets'][2]['actions'][0]['msg']
+        self.assertTrue('fre' in should_not_be_migrated_path)
 
         # we cannot migrate flows to version 11 without flow object (languages depend on flow.org)
         self.assertRaises(ValueError, migrate_to_version_11_1, definition)

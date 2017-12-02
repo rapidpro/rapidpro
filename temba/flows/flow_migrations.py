@@ -30,9 +30,8 @@ def _base_migrate_to_version_11_1(json_flow, country_code):
                 if len(k) == 3:
                     continue
                 else:
-                    break
-            else:
-                return True
+                    return False
+            return True
 
     def _traverse(obj, country_code):
         if isinstance(obj, dict):
