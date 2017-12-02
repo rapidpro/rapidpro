@@ -6916,6 +6916,7 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(replies, [
             "Hey @contact.nickname, you joined on @(format_date(contact.joined_on)) in @(format_location(contact.district)).",
+            "It's @(format_date(date)). The time is @(format_date(date.now)) on @date.today.",
             "Send text",
             "You said @flow.text at @(format_date(flow.text.time)). Send date",
             "You said @(format_date(flow.date)) which was in category @flow.date.category Send number",

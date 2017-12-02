@@ -138,6 +138,14 @@ class InitTest(TembaTest):
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000, tzinfo=pytz.UTC),
+                             str_to_datetime('01-02-2013 07:08:09.100000Z', tz, dayfirst=True))  # Z marker
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T07:08:09.100000+04:30', tz, dayfirst=True))  # ISO in local tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T00:38:09.100000-02:00', tz, dayfirst=True))  # ISO in other tz
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
 
@@ -791,19 +799,19 @@ class ExpressionsTest(TembaTest):
                          evaluate_template("Result: @(-5 - flow.users)", self.context))  # negatives
 
         # test date arithmetic
-        self.assertEqual(("Date: 02-12-2014 09:00", []),
+        self.assertEqual(("Date: 2014-12-02T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + 1)",
                                            self.context))  # var is datetime
-        self.assertEqual(("Date: 28-11-2014 09:00", []),
+        self.assertEqual(("Date: 2014-11-28T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.started - 3)",
                                            self.context))  # var is string
         self.assertEqual(("Date: 04-07-2014", []),
                          evaluate_template("Date: @(DATE(2014, 7, 1) + 3)",
                                            self.context))  # date constructor
-        self.assertEqual(("Date: 01-12-2014 11:30", []),
+        self.assertEqual(("Date: 2014-12-01T11:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))",
                                            self.context))  # time addition to datetime var
-        self.assertEqual(("Date: 01-12-2014 06:30", []),
+        self.assertEqual(("Date: 2014-12-01T06:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))",
                                            self.context))  # time subtraction from string var
 
@@ -822,7 +830,7 @@ class ExpressionsTest(TembaTest):
         self.assertEqual(('3', []),
                          evaluate_template('@(LEN( 1.2 ))',
                                            self.context))  # auto decimal -> string conversion
-        self.assertEqual(('16', []),
+        self.assertEqual(('25', []),
                          evaluate_template('@(LEN(flow.joined))',
                                            self.context))  # auto datetime -> string conversion
         self.assertEqual(('2', []),
