@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0036_ensure_anon_user_exists'),
+        ('orgs', '0037_iso639-3_language_model'),
     ]
 
     operations = [
