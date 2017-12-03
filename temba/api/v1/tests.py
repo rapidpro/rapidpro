@@ -229,7 +229,7 @@ class APITest(TembaTest):
                                                anon=False))
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
@@ -237,7 +237,7 @@ class APITest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.json(), dict(name="Temba",
                                                country="RW",
-                                               languages=["eng", "fre"],
+                                               languages=["eng", "fra"],
                                                primary_language="eng",
                                                timezone="Africa/Kigali",
                                                date_style="day_first",

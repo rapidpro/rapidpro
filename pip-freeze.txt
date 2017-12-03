@@ -54,7 +54,7 @@ httplib2==0.10.3          # via twilio
 idna==2.5                 # via cryptography, requests
 ipaddress==1.0.18         # via cryptography
 iptools==0.6.1
-iso639==0.1.4
+iso-639==0.4.5
 iso8601==0.1.12
 isoweek==1.3.3
 jdcal==1.3                # via openpyxl

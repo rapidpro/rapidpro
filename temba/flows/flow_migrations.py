@@ -1,16 +1,99 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals, print_function, division
 
 import copy
 import json
 import regex
 import six
+from uuid import uuid4
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
 from temba.contacts.models import ContactField
 from temba.flows.models import Flow
-from uuid import uuid4
+from temba.utils.languages import iso6392_to_iso6393
+
+
+def _base_migrate_to_version_11_1(json_flow, country_code):
+    def _is_this_a_lang_object(obj):
+        """
+        Lang objects should only have keys of length == 3
+        """
+        keys = set(obj.keys())  # py3 compatibility, keys() is an iterable
+
+        # remove the 'base' language
+        keys.discard('base')
+
+        if keys:
+            for k in keys:
+                if len(k) == 3:
+                    continue
+                else:
+                    return False
+            return True
+
+    def _traverse(obj, country_code):
+        if isinstance(obj, dict):
+
+            if _is_this_a_lang_object(obj):
+                new_obj = {}
+
+                for key, val in obj.items():
+                    if key == 'base':
+                        new_obj.update({key: val})
+                    else:
+                        new_key = iso6392_to_iso6393(key, country_code)
+                        new_obj.update({new_key: val})
+
+                value = new_obj
+            elif 'lang' in obj:
+                iso_code = obj['lang']
+                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                obj['lang'] = new_iso_code
+                value = obj
+            else:
+                value = {k: _traverse(v, country_code) for k, v in obj.items()}
+
+        elif isinstance(obj, list):
+            value = [_traverse(elem, country_code) for elem in obj]
+        else:
+            value = obj
+
+        return value
+
+    return _traverse(json_flow, country_code=country_code)
+
+
+def migrate_to_version_11_1(json_flow, flow=None):
+    """
+    Migrates translation language codes in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_1(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_1(exported_json, org, same_site=True):
+    """
+        Migrates translation language codes in flow exports from iso639-2 to iso639-3
+    """
+    if org is not None:
+        country_code = org.get_country_code()
+    else:
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_1(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
 
 
 def migrate_export_to_version_11_0(json_export, org, same_site=True):
