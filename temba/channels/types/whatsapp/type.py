@@ -56,4 +56,4 @@ class WhatsAppType(ChannelType):
                                    channel.config_json()[Channel.CONFIG_PASSWORD]))
 
         if resp.status_code != 200:
-            raise ValidationError("Unable to register callbacks: %s", resp.content)
+            raise ValidationError(_("Unable to register callbacks: %s", resp.content))

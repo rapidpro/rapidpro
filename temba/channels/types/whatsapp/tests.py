@@ -22,7 +22,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context['form'].initial
 
-        post_data['number'] = '250788123123'
+        post_data['number'] = '0788123123'
         post_data['username'] = 'temba'
         post_data['password'] = 'tembapasswd'
         post_data['country'] = 'RW'
@@ -47,6 +47,6 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual('tembapasswd', channel.config_json()['password'])
         self.assertEqual('https://whatsapp.foo.bar', channel.config_json()['base_url'])
 
-        self.assertEqual('250788123123', channel.address)
+        self.assertEqual('+250788123123', channel.address)
         self.assertEqual('RW', channel.country)
         self.assertEqual('WA', channel.channel_type)
