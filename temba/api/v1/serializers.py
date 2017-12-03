@@ -205,7 +205,7 @@ class ContactReadSerializer(ReadSerializer):
 
         for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value_legacy(contact_field, value)
+            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
         return fields
 
     def get_tel(self, obj):
@@ -659,10 +659,11 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj, submitted_by=self.submitted_by_obj,
-                                     flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
+        run = FlowRun.objects.filter(
+            org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started
+        ).order_by('-modified_on').first()
 
-        if not run:
+        if not run or run.submitted_by != self.submitted_by_obj:
             run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
 
         step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]

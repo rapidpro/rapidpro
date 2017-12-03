@@ -196,7 +196,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1"
     ]
 
     name = models.CharField(max_length=64,
@@ -281,7 +281,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = '10.4'
+        flow.version_number = '11.1'
         flow.save(update_fields=('version_number',))
 
         entry_uuid = six.text_type(uuid4())
@@ -2604,7 +2604,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, db_index=False,
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
@@ -3119,7 +3119,7 @@ class FlowStep(models.Model):
 
     arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
 
-    left_on = models.DateTimeField(null=True, db_index=True,
+    left_on = models.DateTimeField(null=True,
                                    help_text=_("When the user left this step in the flow"))
 
     messages = models.ManyToManyField(Msg, related_name='steps',
@@ -3900,16 +3900,25 @@ class FlowRevision(SmartModel):
 
             if migrate_fn:
                 exported_json = migrate_fn(exported_json, org, same_site)
-            else:
-                flows = []
-                for json_flow in exported_json.get('flows', []):
-                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
-                    if migrate_fn:
+                # update the version of migrated flows
+                flows = []
+                for sub_flow in exported_json.get('flows', []):
+                    sub_flow[Flow.VERSION] = version
+                    flows.append(sub_flow)
+
+                exported_json['flows'] = flows
+
+            else:
+                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
+                if migrate_fn:
+                    flows = []
+                    for json_flow in exported_json.get('flows', []):
                         json_flow = migrate_fn(json_flow, None)
 
-                    flows.append(json_flow)
-                exported_json['flows'] = flows
+                        flows.append(json_flow)
+
+                    exported_json['flows'] = flows
 
             # update each flow's version number
             for json_flow in exported_json.get('flows', []):

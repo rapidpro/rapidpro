@@ -25,7 +25,8 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
+from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -698,7 +699,7 @@ class Contact(TembaModel):
         if field.value_type == Value.TYPE_DATETIME:
             return value.datetime_value.astimezone(org.timezone).isoformat() if value.datetime_value else None
         elif field.value_type == Value.TYPE_DECIMAL:
-            if not value.decimal_value:
+            if value.decimal_value is None:
                 return None
 
             as_int = value.decimal_value.to_integral_value()
@@ -706,23 +707,6 @@ class Contact(TembaModel):
             return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.as_path()
-        else:
-            return value.string_value
-
-    @classmethod
-    def serialize_field_value_legacy(cls, field, value):
-        """
-        Utility method to give the serialized value for the passed in field, value pair.
-        """
-        if value is None:
-            return None
-
-        if field.value_type == Value.TYPE_DATETIME:
-            return datetime_to_str(value.datetime_value)
-        elif field.value_type == Value.TYPE_DECIMAL:
-            return format_decimal(value.decimal_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.name
         else:
             return value.string_value
 
@@ -1175,6 +1159,12 @@ class Contact(TembaModel):
         language = field_dict.get(Contact.LANGUAGE)
         if language is not None and len(language) != 3:
             language = None  # ignore anything that's not a 3-letter code
+        else:
+            try:
+                # convert every language to the iso639-3
+                language = iso6392_to_iso6393(language, org.get_country_code())
+            except ValueError:
+                language = None
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
