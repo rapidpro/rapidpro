@@ -1154,7 +1154,7 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json['results'][0]['name'], "Jay-Z")
         self.assertEqual(resp_json['results'][0]['fields'], {'real_name': None,
-                                                             'registration_date': "2014-12-31T01:04:00.000000Z",
+                                                             'registration_date': "2014-12-31T03:04:00+02:00",
                                                              'state': None})
 
         # search using deprecated phone field
