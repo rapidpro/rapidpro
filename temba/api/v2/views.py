@@ -123,7 +123,7 @@ class RootView(views.APIView):
     ## Translatable Values
 
     Some endpoints return or accept text fields that may be translated into different languages. These should be objects
-    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
+    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
 
     ## Authentication
 
@@ -2403,7 +2403,7 @@ class OrgEndpoint(BaseAPIView):
         {
             "name": "Nyaruka",
             "country": "RW",
-            "languages": ["eng", "fre"],
+            "languages": ["eng", "fra"],
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",

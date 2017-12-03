@@ -1957,46 +1957,47 @@ class BroadcastLanguageTest(TembaTest):
         super(BroadcastLanguageTest, self).setUp()
 
         self.francois = self.create_contact('Francois', '+12065551213')
-        self.francois.language = 'fre'
+        self.francois.language = 'fra'
         self.francois.save()
 
         self.greg = self.create_contact('Greg', '+12065551212')
 
         self.wilbert = self.create_contact('Wilbert', '+12065551214')
-        self.wilbert.language = 'fre'
+        self.wilbert.language = 'fra'
         self.wilbert.save()
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
         eng_msg = "This is my message"
-        fre_msg = "Ceci est mon message"
+        fra_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fra=fra_msg),
                                  [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
         # assert the right language was used for each contact
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.francois).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.francois).text)
         self.assertEqual(eng_msg, Msg.objects.get(contact=self.greg).text)
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.wilbert).text)
 
         eng_msg = "Please see attachment"
-        fre_msg = "SVP regardez l'attachement."
+        fra_msg = "SVP regardez l'attachement."
 
         eng_attachment = 'image/jpeg:attachments/eng_picture.jpg'
-        fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
+        fra_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
-                                 [self.francois, self.greg, self.wilbert], base_language='eng',
-                                 media=dict(eng=eng_attachment, fre=fre_attachment))
+        bcast = Broadcast.create(
+            self.org, self.admin, dict(eng=eng_msg, fra=fra_msg), [self.francois, self.greg, self.wilbert],
+            base_language='eng', media=dict(eng=eng_attachment, fra=fra_attachment)
+        )
 
         bcast.send()
 
@@ -2004,18 +2005,18 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
 
-        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
         greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1])
-        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
 
         # assert the right language was used for each contact on both text and media
-        self.assertEqual(francois_media.text, fre_msg)
+        self.assertEqual(francois_media.text, fra_msg)
         self.assertEqual(francois_media.attachments, [francois_media_url])
 
         self.assertEqual(greg_media.text, eng_msg)
         self.assertEqual(greg_media.attachments, [greg_media_url])
 
-        self.assertEqual(wilbert_media.text, fre_msg)
+        self.assertEqual(wilbert_media.text, fra_msg)
         self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
 
 
