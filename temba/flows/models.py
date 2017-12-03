@@ -2604,7 +2604,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, db_index=False,
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
@@ -3119,7 +3119,7 @@ class FlowStep(models.Model):
 
     arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
 
-    left_on = models.DateTimeField(null=True, db_index=True,
+    left_on = models.DateTimeField(null=True,
                                    help_text=_("When the user left this step in the flow"))
 
     messages = models.ManyToManyField(Msg, related_name='steps',
