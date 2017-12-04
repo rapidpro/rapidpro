@@ -161,11 +161,12 @@
 
                       -else
                         %td.value-status
-                          {% blocktrans count run_count=object.run_stats.total %}
-                            {{ run_count }} run
-                          {% plural %}
-                            {{ run_count }} runs
-                          {% endblocktrans %}
+                          %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
+                            {% blocktrans count run_count=object.run_stats.total|intcomma %}
+                              {{ run_count }} run
+                            {% plural %}
+                              {{run_count}} runs
+                            {% endblocktrans %}
 
                         %td.value-status
                           {% blocktrans with completed_percentage=object.run_stats.completion %}

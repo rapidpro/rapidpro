@@ -229,7 +229,7 @@ class APITest(TembaTest):
                                                anon=False))
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
@@ -237,7 +237,7 @@ class APITest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.json(), dict(name="Temba",
                                                country="RW",
-                                               languages=["eng", "fre"],
+                                               languages=["eng", "fra"],
                                                primary_language="eng",
                                                timezone="Africa/Kigali",
                                                date_style="day_first",
@@ -1154,7 +1154,7 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json['results'][0]['name'], "Jay-Z")
         self.assertEqual(resp_json['results'][0]['fields'], {'real_name': None,
-                                                             'registration_date': "2014-12-31T01:04:00.000000Z",
+                                                             'registration_date': "2014-12-31T03:04:00+02:00",
                                                              'state': None})
 
         # search using deprecated phone field

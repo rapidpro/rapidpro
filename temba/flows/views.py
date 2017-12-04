@@ -1314,7 +1314,7 @@ class FlowCRUDL(SmartCRUDL):
                                   js_class="download-results"))
 
             if self.has_org_perm('flows.flow_editor'):
-                links.append(dict(title=_("View"),
+                links.append(dict(title=_("Edit Flow"),
                                   style='btn-primary',
                                   href=reverse('flows.flow_editor', args=[self.get_object().uuid])))
 

@@ -20,12 +20,6 @@
         .title
           -trans "flows"
 
-  -if org_perms.flows.ruleset_analytics and not request.user.is_superuser
-    %li.nav-analytics
-      %a.icon-nav-analytics{href:"{% url 'flows.ruleset_analytics' %}", class:"{% active request 'analytics' %}"}
-        .title
-          -trans "analytics"
-
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %li.nav-campaigns
       %a.icon-nav-campaigns{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
