@@ -1,3 +1,11 @@
+v3.0.274
+----------
+ * Fix serialization of 0 decimal values in API
+ * Add initial version of WhatsApp channel (simple messaging only)
+ * Migrate to iso639-3 language codes (from iso639-2)
+ * Remove indexes on Msg, FlowRun and FlowStep which we don't use
+ * Remove fields no longer used on org model
+
 v3.0.273
 ----------
  * Don't blow up when a flow result doesn't have input
