@@ -1,3 +1,7 @@
+v3.0.275
+----------
+ * Fix language migrations
+
 v3.0.274
 ----------
  * Fix serialization of 0 decimal values in API
