@@ -1,8 +1,24 @@
-v3.0.266
+v3.0.273
+----------
+ * Don't blow up when a flow result doesn't have input
+
+v3.0.272
+----------
+ * Fix parsing ISO dates with negative offsets
+
+v3.0.271
+----------
+ * Serialize contact field values with org timezone
+
+v3.0.270
+----------
+ * Load results and path from new JSON fields instead of step/value objects on API runs endpoint
+
+v3.0.269
 ----------
  * Fix campaign export issue
  * Disable legacy analytics page
- * Change date constants to be ISO in context
+ * Change date constants and contact fields to use full/canonical format in expressions context
 
 v3.0.265
 ----------

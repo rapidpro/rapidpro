@@ -9,15 +9,18 @@ import pytz
 import re
 import six
 import time
-
+from uuid import uuid4
 from datetime import timedelta
 from decimal import Decimal
+
+from mock import patch
+from openpyxl import load_workbook
+
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
-from mock import patch
-from openpyxl import load_workbook
+
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
@@ -31,20 +34,22 @@ from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str
 from temba.values.models import Value
-from uuid import uuid4
-from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
-from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
-from .flow_migrations import migrate_to_version_10_2, migrate_to_version_10_4
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
-from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import FlowCategoryCount, FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
-from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
-from .models import DateEqualTest, DateAfterTest, DateBeforeTest, DateTest
-from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
-from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
-from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
-from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
-from .models import VariableContactAction, UssdAction
+
+from .flow_migrations import (
+    migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8, migrate_to_version_9,
+    migrate_export_to_version_9, migrate_to_version_10_2, migrate_to_version_10_4, migrate_to_version_11_1
+)
+from .models import (
+    Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
+    RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user, FlowCategoryCount,
+    FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest, EqTest, LtTest, LteTest,
+    GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest, DateEqualTest, DateAfterTest,
+    DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
+    HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
+    SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
+    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction
+)
+
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
 from .tasks import update_run_expirations_task, prune_recentmessages, squash_flowruncounts, squash_flowpathcounts
@@ -193,7 +198,7 @@ class FlowTest(TembaTest):
 
     def test_get_localized_text(self):
 
-        text_translations = dict(eng="Hello", spa="Hola", fre="Salut")
+        text_translations = dict(eng="Hello", spa="Hola", fra="Salut")
 
         # use default when flow, contact and org don't have language set
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
@@ -213,13 +218,13 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # contact language doesn't override if it's not an org language
-        self.contact.language = 'fre'
+        self.contact.language = 'fra'
 
         self.contact.save(update_fields=('language',))
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # does override if it is
-        self.flow.org.set_languages(self.admin, ['eng', 'spa', 'fre'], 'spa')
+        self.flow.org.set_languages(self.admin, ['eng', 'spa', 'fra'], 'fra')
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
@@ -413,7 +418,9 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
+        self.assertEqual(
+            broadcast.text, {'base': "What is your favorite color?", 'fra': "Quelle est votre couleur préférée?"}
+        )
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 
@@ -1198,7 +1205,7 @@ class FlowTest(TembaTest):
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
-        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
@@ -1253,7 +1260,7 @@ class FlowTest(TembaTest):
         actions = entry.get_actions()
         self.assertEqual(len(actions), 1)
         self.assertIsInstance(actions[0], ReplyAction)
-        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?"))
         self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
@@ -3022,7 +3029,7 @@ class ActionTest(TembaTest):
         self.assertEqual(execution[0].text, u'testENG\n1: labelENG\n2: label2ENG')
 
         # now set contact's language to something we don't have in our org languages
-        self.contact.language = 'fre'
+        self.contact.language = 'fra'
         self.contact.save(update_fields=('language',))
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -6829,6 +6836,87 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['base_language'], 'base')
         self.assertEqual(5, len(flow_json['action_sets']))
         self.assertEqual(1, len(flow_json['rule_sets']))
+
+    def test_migrate_to_11_1(self):
+        definition = {
+            'base_language': 'base',
+            'action_sets': [
+                {
+                    'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
+                    'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
+                    'actions': [
+                        {
+                            'msg': {
+                                'base': 'What is your favorite color?',
+                                'eng': 'What is your favorite color?',
+                                'fre': 'Quelle est votre couleur préférée?'
+                            },
+                            'type': 'reply',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
+                        }
+                    ],
+                    'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
+                    'y': 0,
+                    'x': 100
+                }, {
+                    'y': 1214,
+                    'x': 284,
+                    'destination': '498b1953-02f1-47dd-b9cb-1b51913e348f',
+                    'uuid': '9769918c-8ca4-4ec5-8b5b-bf94cc6746a9',
+                    'actions': [{
+                        'lang': 'fre',
+                        'type': 'lang',
+                        'name': 'French',
+                        'uuid': '56a4bca5-b9e5-4d04-883c-ca65d7c4d538'
+                    }]
+                }, {
+                    'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
+                    'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
+                    'actions': [
+                        {
+                            'msg': {
+                                'base': 'What is your favorite color?',
+                                'eng': 'What is your favorite color?',
+                                'fre': 'Quelle est votre couleur préférée?',
+                                'newl': 'Bogus translation'
+                            },
+                            'type': 'reply',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
+                        }
+                    ],
+                    'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
+                    'y': 0,
+                    'x': 100
+                }
+            ]
+        }
+
+        flow = Flow.create_instance(dict(
+            name='String group', org=self.org, created_by=self.admin, modified_by=self.admin, saved_by=self.admin,
+            version_number=1)
+        )
+
+        FlowRevision.create_instance(dict(
+            flow=flow, definition=json.dumps(definition), spec_version=1, revision=1, created_by=self.admin,
+            modified_by=self.admin)
+        )
+
+        new_definition = migrate_to_version_11_1(definition, flow=flow)
+
+        lang_path = new_definition['action_sets'][0]['actions'][0]['msg']
+
+        self.assertTrue('fra' in lang_path)
+        self.assertEqual(len(lang_path), 3)
+
+        lang_key_value = new_definition['action_sets'][1]['actions'][0]['lang']
+
+        self.assertEqual(lang_key_value, 'fra')
+
+        should_not_be_migrated_path = new_definition['action_sets'][2]['actions'][0]['msg']
+        self.assertTrue('fre' in should_not_be_migrated_path)
+
+        # we cannot migrate flows to version 11 without flow object (languages depend on flow.org)
+        self.assertRaises(ValueError, migrate_to_version_11_1, definition)
 
     def test_migrate_to_11_0(self):
         self.create_field('nickname', "Nickname", Value.TYPE_TEXT)

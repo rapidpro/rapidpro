@@ -526,12 +526,6 @@ class FlowRunReadSerializer(ReadSerializer):
     completed = serializers.SerializerMethodField('is_completed')
     created_on = DateTimeField()
     modified_on = DateTimeField()
-    expires_on = DateTimeField()
-    expired_on = serializers.SerializerMethodField()
-    flow = serializers.SerializerMethodField()  # deprecated, use flow_uuid
-
-    def get_flow(self, obj):
-        return obj.flow_id
 
     def get_flow_uuid(self, obj):
         return obj.flow.uuid
@@ -542,13 +536,9 @@ class FlowRunReadSerializer(ReadSerializer):
     def is_completed(self, obj):
         return obj.is_completed()
 
-    def get_expired_on(self, obj):
-        return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
-
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed',
-                  'created_on', 'modified_on', 'expires_on', 'expired_on')
+        fields = ('flow_uuid', 'run', 'contact', 'completed', 'created_on', 'modified_on',)
 
 
 class FlowRunWriteSerializer(WriteSerializer):
@@ -669,10 +659,11 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj, submitted_by=self.submitted_by_obj,
-                                     flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
+        run = FlowRun.objects.filter(
+            org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started
+        ).order_by('-modified_on').first()
 
-        if not run:
+        if not run or run.submitted_by != self.submitted_by_obj:
             run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
 
         step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
