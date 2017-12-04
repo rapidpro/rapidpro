@@ -22,7 +22,7 @@ def migrate_language(contact_qs):
 
             if new_language != contact.language:
                 print(
-                    'Updated: contact_id=', contact.id, 'org__country__name', contact.org.country.name,
+                    'Updated: contact_id=', contact.id, 'org__country__name', country_code,
                     'old_lang=', contact.language, '=> new_lang=', new_language
                 )
                 contact.language = new_language
@@ -31,13 +31,13 @@ def migrate_language(contact_qs):
 
 def apply_manual():
     from temba.contacts.models import Contact
-    contact_qs = Contact.objects.filter(language__isnull=False).select_related('org', 'org__country')
+    contact_qs = Contact.objects.filter(language__isnull=False).exclude(language="").select_related('org', 'org__country')
     migrate_language(contact_qs)
 
 
 def apply_as_migration(apps, schema_editor):
     Contact = apps.get_model('contacts', 'Contact')
-    contact_qs = Contact.objects.filter(language__isnull=False).select_related('org', 'org__country')
+    contact_qs = Contact.objects.filter(language__isnull=False).exclude(language="").select_related('org', 'org__country')
     migrate_language(contact_qs)
 
 

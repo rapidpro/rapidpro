@@ -27,7 +27,7 @@ def migrate_language(language_qs):
 
             if new_iso_code != language.iso_code or new_lang_name != language.name:
                 print(
-                    'Updated: language_id=', language.id, 'org__country__name', language.org.country.name,
+                    'Updated: language_id=', language.id, 'org__country', country_code,
                     'old_iso_code=', language.iso_code, '=> new_iso_code=', new_iso_code,
                     'old_name=', language.name, '=> new_lang_name', new_lang_name
                 )
