@@ -47,7 +47,7 @@ def search_language_names(query):
 # we know about at the time of our 639-2 -> 639-3 migration.
 MIGRATION_OVERRIDES = {
     'NG:cpe': 'pcm',
-    'LI:cpe': 'lir',
+    'LR:cpe': 'lir',
     'NI:cpe': 'bzk',
 
     'XX:mkh': 'khm',
@@ -79,7 +79,7 @@ def iso6392_to_iso6393(iso_code, country_code=None):
     if iso_code == '':
         raise ValueError('iso_code must not be empty')
 
-    cache_key = '{}:{}'.format(iso_code, 'XX' if country_code is None else country_code)
+    cache_key = '{}:{}'.format('XX' if country_code is None else country_code, iso_code)
 
     if cache_key not in migration_lang_cache:
 
