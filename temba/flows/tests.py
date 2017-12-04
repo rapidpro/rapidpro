@@ -383,21 +383,16 @@ class FlowTest(TembaTest):
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
 
-    def test_flow_read(self):
-        self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_read', args=[self.flow.uuid]))
-        self.assertTrue('initial' in response.context)
-
     def test_flow_editor(self):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
-        self.assertTrue('mutable' in response.context)
-        self.assertTrue('has_airtime_service' in response.context)
+        self.assertTrue(response.context['mutable'])
+        self.assertTrue(response.context['has_airtime_service'])
 
+        # superusers can't edit flows
         self.login(self.superuser)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
-        self.assertTrue('mutable' in response.context)
-        self.assertTrue('has_airtime_service' in response.context)
+        self.assertFalse(response.context['mutable'])
 
     def test_states(self):
         # set our flow
@@ -486,19 +481,17 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         test_contact = Contact.get_test_contact(self.admin)
-        test_message = self.create_msg(contact=test_contact, text='Hi')
 
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
-        self.assertEqual(activity['messages'], [])
+        self.assertFalse(activity['is_starting'])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
-        self.assertTrue(activity['messages'], [test_message.as_json()])
 
         # set the flow as inactive, shouldn't react to replies
         self.flow.is_archived = True

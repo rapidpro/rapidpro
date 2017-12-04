@@ -305,7 +305,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # activity from simulation is updated separately
     if window.simulation
-      $scope.scheduleActivityUpdate()
       return
 
     $.ajax(
@@ -314,7 +313,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       cache: false
       success: (data, status, xhr) ->
 
-        $rootScope.pending = data.pending
+        $rootScope.is_starting = data.is_starting
 
         # to be successful we should be a 200 with activity data
         if xhr.status == 200 and data.activity
