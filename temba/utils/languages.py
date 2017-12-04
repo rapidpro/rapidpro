@@ -61,6 +61,7 @@ MIGRATION_OVERRIDES = {
     'XX:cpp': 'kea',
     'XX:him': 'xnr',
     'XX:kar': 'blk',
+    'XX:esp': 'spa',
 }
 
 
