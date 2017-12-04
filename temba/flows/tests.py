@@ -6839,11 +6839,10 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(1, len(flow_json['rule_sets']))
 
     def test_migrate_to_11_2(self):
-        definition = {
+        fre_definition = {
             'base_language': 'fre',
             'action_sets': [
                 {
-                    'base_language': 'base',
                     'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
                     'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
                     'actions': [
@@ -6854,8 +6853,7 @@ class FlowMigrationTest(FlowFileTest):
                                 'fra': 'Quelle est votre couleur préférée?'
                             },
                             'type': 'reply',
-                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c',
-                            'base_language': 'fre',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
                         }
                     ],
                     'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
@@ -6865,25 +6863,56 @@ class FlowMigrationTest(FlowFileTest):
             ]
         }
 
-        flow = Flow.create_instance(dict(
-            name='String group', org=self.org, created_by=self.admin, modified_by=self.admin, saved_by=self.admin,
+        base_definition = {
+            'base_language': 'base',
+            'action_sets': [
+                {
+                    'uuid': '9468bbce-0df6-4d86-ae14-f26525ddda1d',
+                    'destination': 'cc904a60-9de1-4f0b-9b55-a42b4ea6c434',
+                    'actions': [
+                        {
+                            'msg': {
+                                'base': 'What is your favorite color?',
+                                'eng': 'What is your favorite color?',
+                                'fra': 'Quelle est votre couleur préférée?'
+                            },
+                            'type': 'reply',
+                            'uuid': '335eb13d-5167-48ba-90c6-eb116656247c'
+                        }
+                    ],
+                    'exit_uuid': 'a9904153-c831-4b95-aa20-13f84fed0841',
+                    'y': 0,
+                    'x': 100
+                }
+            ]
+        }
+
+        flow1 = Flow.create_instance(dict(
+            name='base lang test', org=self.org, created_by=self.admin, modified_by=self.admin, saved_by=self.admin,
+            version_number=1)
+        )
+        flow2 = Flow.create_instance(dict(
+            name='Base lang test', org=self.org, created_by=self.admin, modified_by=self.admin, saved_by=self.admin,
             version_number=1)
         )
         FlowRevision.create_instance(dict(
-            flow=flow, definition=json.dumps(definition), spec_version=1, revision=1, created_by=self.admin,
+            flow=flow1, definition=json.dumps(fre_definition), spec_version=1, revision=1, created_by=self.admin,
+            modified_by=self.admin)
+        )
+        FlowRevision.create_instance(dict(
+            flow=flow2, definition=json.dumps(fre_definition), spec_version=1, revision=1, created_by=self.admin,
             modified_by=self.admin)
         )
 
-        new_definition = migrate_to_version_11_2(definition, flow=flow)
+        new_definition = migrate_to_version_11_2(fre_definition, flow=flow1)
+
+        fre_lang_value = new_definition['base_language']
+        self.assertEqual(fre_lang_value, 'fra')
+
+        new_definition = migrate_to_version_11_2(base_definition, flow=flow2)
 
         base_lang_value = new_definition['base_language']
-        self.assertEqual(base_lang_value, 'fra')
-
-        lang_key_value = new_definition['action_sets'][0]['base_language']
-        self.assertEqual(lang_key_value, 'base')
-
-        fra_lang_key_value = new_definition['action_sets'][0]['actions'][0]['base_language']
-        self.assertEqual(fra_lang_key_value, 'fra')
+        self.assertEqual(base_lang_value, 'base')
 
     def test_migrate_to_11_1(self):
         definition = {

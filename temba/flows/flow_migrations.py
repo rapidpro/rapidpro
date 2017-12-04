@@ -16,23 +16,12 @@ from temba.utils.languages import iso6392_to_iso6393
 
 
 def _base_migrate_to_version_11_2(json_flow, country_code):
-    def _traverse(obj, country_code):
-        if isinstance(obj, dict):
-            if 'base_language' in obj and obj['base_language'] != 'base':
-                iso_code = obj['base_language']
-                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
-                obj['base_language'] = new_iso_code
+    if 'base_language' in json_flow and json_flow['base_language'] != 'base':
+        iso_code = json_flow['base_language']
+        new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+        json_flow['base_language'] = new_iso_code
 
-            value = {k: _traverse(v, country_code) for k, v in obj.items()}
-
-        elif isinstance(obj, list):
-            value = [_traverse(elem, country_code) for elem in obj]
-        else:
-            value = obj
-
-        return value
-
-    return _traverse(json_flow, country_code=country_code)
+    return json_flow
 
 
 def migrate_to_version_11_2(json_flow, flow=None):
