@@ -88,7 +88,7 @@
         var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
         var onActions = {
           onSuccess: function(data) {
-            $('html').scope().pending = 'P';
+            $('html').scope().is_starting = true;
           },
           onFormLoaded: function() { }
         }
@@ -124,8 +124,8 @@
     }
 
     $(document).ready(function() {
-      {% if starting %}
-        $("html").scope().pending = 'P';
+      {% if is_starting %}
+        $("html").scope().is_starting = true;
       {% endif %}
     })
 
@@ -218,7 +218,7 @@
           .icon-mobile
         {{ flow.name }}
 
-      #pending{ng-show:'pending == "S" || pending == "P"'}
+      #pending{ng-show:'is_starting'}
         %div{class:"alert alert-info"}
           -blocktrans
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.

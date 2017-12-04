@@ -1102,6 +1102,12 @@ class Flow(TembaModel):
         """
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
+    def is_starting(self):
+        """
+        Returns whether this flow has active flow starts
+        """
+        return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
+
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
