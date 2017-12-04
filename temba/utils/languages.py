@@ -87,6 +87,10 @@ def iso6392_to_iso6393(iso_code, country_code=None):
         override_key = '%s:%s' % (country_code, iso_code) if country_code else 'XX:%s' % iso_code
         override = MIGRATION_OVERRIDES.get(override_key)
 
+        if not override and country_code:
+            override_key = 'XX:%s' % iso_code
+            override = MIGRATION_OVERRIDES.get(override_key)
+
         if override:
             return override
 
