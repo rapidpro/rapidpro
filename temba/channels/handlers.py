@@ -3075,7 +3075,10 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+
+            contact = Contact.from_urn(channel.org, urn)
+            if not contact:
+                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)
