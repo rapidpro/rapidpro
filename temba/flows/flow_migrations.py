@@ -15,6 +15,57 @@ from temba.flows.models import Flow
 from temba.utils.languages import iso6392_to_iso6393
 
 
+def _base_migrate_to_version_11_2(json_flow, country_code):
+    def _traverse(obj, country_code):
+        if isinstance(obj, dict):
+            if 'base_language' in obj and obj['base_language'] != 'base':
+                iso_code = obj['base_language']
+                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                obj['base_language'] = new_iso_code
+
+            value = {k: _traverse(v, country_code) for k, v in obj.items()}
+
+        elif isinstance(obj, list):
+            value = [_traverse(elem, country_code) for elem in obj]
+        else:
+            value = obj
+
+        return value
+
+    return _traverse(json_flow, country_code=country_code)
+
+
+def migrate_to_version_11_2(json_flow, flow=None):
+    """
+    Migrates base_language in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_2(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_2(exported_json, org, same_site=True):
+    """
+        Migrates base_language in flow exports from iso639-2 to iso639-3
+    """
+    if org is not None:
+        country_code = org.get_country_code()
+    else:
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_2(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
+
+
 def _base_migrate_to_version_11_1(json_flow, country_code):
     def _is_this_a_lang_object(obj):
         """
