@@ -944,7 +944,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 context['languages'] = languages
 
-            context['has_ussd_channel'] = True if org and org.get_ussd_channel() else False
+            context['has_ussd_channel'] = org and org.get_ussd_channel()
             context['media_url'] = '%s://%s/' % ('http' if settings.DEBUG else 'https', settings.AWS_BUCKET_DOMAIN)
             context['is_starting'] = flow.is_starting()
             context['mutable'] = self.has_org_perm('flows.flow_update') and not self.request.user.is_superuser

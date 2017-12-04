@@ -387,7 +387,9 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertTrue(response.context['mutable'])
-        self.assertTrue(response.context['has_airtime_service'])
+        self.assertFalse(response.context['has_airtime_service'])
+        self.assertFalse(response.context['is_starting'])
+        self.assertFalse(response.context['has_ussd_channel'])
 
         # superusers can't edit flows
         self.login(self.superuser)
