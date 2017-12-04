@@ -56,6 +56,7 @@ TWITTER_SCHEME = 'twitter'
 TWITTERID_SCHEME = 'twitterid'
 VIBER_SCHEME = 'viber'
 FCM_SCHEME = 'fcm'
+WHATSAPP_SCHEME = 'whatsapp'
 
 FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
@@ -70,7 +71,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
                      (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
-                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
+                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME),
+                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), 'whatsapp', WHATSAPP_SCHEME))
 
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
@@ -181,8 +183,8 @@ class URN(object):
                 except ValueError:
                     return False
 
-        # telegram uses integer ids
-        elif scheme == TELEGRAM_SCHEME:
+        # telegram and whatsapp uses integer ids
+        elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
             try:
                 int(path)
                 return True
@@ -314,6 +316,10 @@ class URN(object):
     @classmethod
     def from_viber(cls, path):
         return cls.from_parts(VIBER_SCHEME, path)
+
+    @classmethod
+    def from_whatsapp(cls, path):
+        return cls.from_parts(WHATSAPP_SCHEME, path)
 
     @classmethod
     def from_fcm(cls, path):
@@ -1973,6 +1979,7 @@ class ContactURN(models.Model):
         JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
         LINE_SCHEME: dict(label='Line', key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
+        WHATSAPP_SCHEME: dict(label="WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
     }
 
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
