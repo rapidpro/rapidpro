@@ -961,9 +961,10 @@ class Org(SmartModel):
 
     def calculate_country_code(self):
         # first try the actual country field
-        if self.country:
+        if self.country_id:
             try:
-                country = pycountry.countries.get(name=self.country.name)
+                admin_country = AdminBoundary.objects.filter(id=self.country_id).only('id', 'name').first()
+                country = pycountry.countries.get(name=admin_country.name)
                 if country:
                     return country.alpha_2
             except KeyError:  # pragma: no cover
