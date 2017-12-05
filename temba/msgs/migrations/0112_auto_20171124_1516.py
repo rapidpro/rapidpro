@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0110_remove_msg_has_template_error'),
+        ('msgs', '0111_auto_20171116_0922'),
     ]
 
     operations = [

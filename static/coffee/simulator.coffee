@@ -42,6 +42,15 @@ window.updateSimulator = (data) ->
     media_type = null
     media_viewer_elt = null
 
+    quick_replies = null
+
+    metadata = msg.metadata
+    if metadata and metadata.quick_replies?
+      quick_replies = "<div id='quick-reply-content'>"
+      for reply in metadata.quick_replies
+        quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
+      quick_replies += "</div>"
+
     if msg.attachments and msg.attachments.length > 0
       attachment = msg.attachments[0]
       parts = attachment.split(':')
@@ -67,16 +76,25 @@ window.updateSimulator = (data) ->
       ele += " media-msg"
     ele += "\">"
     ele += msg.text
+    ele += "</div>"
+
+    if quick_replies
+      ele_quick_replies = "<div class='ilog " + level + " " + direction + " " + ussd + "'>"
+      ele_quick_replies += quick_replies
+      ele_quick_replies += "</div>"
+      ele += ele_quick_replies
     
     if media_type and media_viewer_elt
       ele += media_viewer_elt
-
-    ele += "</div>"
 
     $(".simulator-body").append(ele)
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
+
+  $(".btn.quick-reply").on "click", (event) ->
+    payload = event.target.innerText
+    sendMessage(payload)
 
   if window.simulation
 

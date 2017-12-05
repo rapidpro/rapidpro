@@ -12,6 +12,18 @@ from smartmin.models import SmartModel
 logger = logging.getLogger(__name__)
 
 
+# default manager for AdminBoundary, doesn't load geometries
+class NoGeometryManager(models.GeoManager):
+    def get_queryset(self):
+        return super(NoGeometryManager, self).get_queryset().defer('geometry', 'simplified_geometry')
+
+
+# optional 'geometries' manager for AdminBoundary, loads everything
+class GeometryManager(models.GeoManager):
+    def get_queryset(self):
+        return super(GeometryManager, self).get_queryset()
+
+
 @six.python_2_unicode_compatible
 class AdminBoundary(MPTTModel, models.Model):
     """
@@ -43,7 +55,8 @@ class AdminBoundary(MPTTModel, models.Model):
     simplified_geometry = models.MultiPolygonField(null=True,
                                                    help_text="The simplified geometry of this administrative boundary")
 
-    objects = models.GeoManager()
+    objects = NoGeometryManager()
+    geometries = GeometryManager()
 
     @staticmethod
     def get_geojson_dump(features):

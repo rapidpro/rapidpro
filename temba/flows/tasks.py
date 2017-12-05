@@ -148,7 +148,7 @@ def squash_flowruncounts():
     FlowCategoryCount.squash()
 
 
-@task(track_started=True, name="delete_flow_results_task")
-def delete_flow_results_task(flow_id):
+@task(track_started=True, name="deactivate_flow_runs_task")
+def deactivate_flow_runs_task(flow_id):
     flow = Flow.objects.get(id=flow_id)
-    flow.delete_results()
+    flow.deactivate_runs()
