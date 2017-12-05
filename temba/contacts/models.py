@@ -183,7 +183,7 @@ class URN(object):
                 except ValueError:
                     return False
 
-        # telegram and whatsapp uses integer ids
+        # telegram and whatsapp use integer ids
         elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
             return regex.match(r'^[0-9]+$', path, regex.V0)
 
