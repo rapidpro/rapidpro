@@ -67,6 +67,9 @@ def msg_as_task(msg):
     if msg.contact_urn.auth:  # pragma: no cover
         msg_json['contact_urn_auth'] = msg.contact_urn.auth
 
+    if msg.metadata:
+        msg_json['metadata'] = json.loads(msg.metadata)
+
     return msg_json
 
 
