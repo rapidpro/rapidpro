@@ -1,3 +1,54 @@
+v3.0.277
+----------
+ * Add flow migration for base_language in flow definitions
+
+v3.0.276
+----------
+ * back down to generic override if not found with specific code
+ * Add esp-spa as exception
+
+v3.0.275
+----------
+ * Fix language migrations
+
+v3.0.274
+----------
+ * Fix serialization of 0 decimal values in API
+ * Add initial version of WhatsApp channel (simple messaging only)
+ * Migrate to iso639-3 language codes (from iso639-2)
+ * Remove indexes on Msg, FlowRun and FlowStep which we don't use
+ * Remove fields no longer used on org model
+
+v3.0.273
+----------
+ * Don't blow up when a flow result doesn't have input
+
+v3.0.272
+----------
+ * Fix parsing ISO dates with negative offsets
+
+v3.0.271
+----------
+ * Serialize contact field values with org timezone
+
+v3.0.270
+----------
+ * Load results and path from new JSON fields instead of step/value objects on API runs endpoint
+
+v3.0.269
+----------
+ * Fix campaign export issue
+ * Disable legacy analytics page
+ * Change date constants and contact fields to use full/canonical format in expressions context
+
+v3.0.265
+----------
+ * Fix not updating versions on import flows
+ * Require FlowRun saves to use update_fields
+ * Rework get_results to use FlowRun.results
+ * Don't allow users to save dynamic groups with 'id' or 'name' attributes
+ * Add flow version 11.0, create migration to update references to contact fields and flow fields
+
 v3.0.264
 ----------
  * Show summary for non-waits on flow results

@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -25,7 +25,8 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
+from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -55,6 +56,7 @@ TWITTER_SCHEME = 'twitter'
 TWITTERID_SCHEME = 'twitterid'
 VIBER_SCHEME = 'viber'
 FCM_SCHEME = 'fcm'
+WHATSAPP_SCHEME = 'whatsapp'
 
 FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
@@ -69,7 +71,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
                      (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
-                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
+                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME),
+                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), 'whatsapp', WHATSAPP_SCHEME))
 
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
@@ -180,8 +183,8 @@ class URN(object):
                 except ValueError:
                     return False
 
-        # telegram uses integer ids
-        elif scheme == TELEGRAM_SCHEME:
+        # telegram and whatsapp uses integer ids
+        elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
             try:
                 int(path)
                 return True
@@ -313,6 +316,10 @@ class URN(object):
     @classmethod
     def from_viber(cls, path):
         return cls.from_parts(VIBER_SCHEME, path)
+
+    @classmethod
+    def from_whatsapp(cls, path):
+        return cls.from_parts(WHATSAPP_SCHEME, path)
 
     @classmethod
     def from_fcm(cls, path):
@@ -680,19 +687,26 @@ class Contact(TembaModel):
             return value.string_value
 
     @classmethod
-    def serialize_field_value(cls, field, value):
+    def serialize_field_value(cls, field, value, org=None):
         """
         Utility method to give the serialized value for the passed in field, value pair.
         """
+        org = org or field.org
+
         if value is None:
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return datetime_to_str(value.datetime_value)
+            return value.datetime_value.astimezone(org.timezone).isoformat() if value.datetime_value else None
         elif field.value_type == Value.TYPE_DECIMAL:
-            return format_decimal(value.decimal_value)
+            if value.decimal_value is None:
+                return None
+
+            as_int = value.decimal_value.to_integral_value()
+            is_int = value.decimal_value == as_int
+            return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.name
+            return value.location_value.as_path()
         else:
             return value.string_value
 
@@ -1145,6 +1159,12 @@ class Contact(TembaModel):
         language = field_dict.get(Contact.LANGUAGE)
         if language is not None and len(language) != 3:
             language = None  # ignore anything that's not a 3-letter code
+        else:
+            try:
+                # convert every language to the iso639-3
+                language = iso6392_to_iso6393(language, org.get_country_code())
+            except ValueError:
+                language = None
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
@@ -1664,7 +1684,7 @@ class Contact(TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields:
-            field_value = Contact.get_field_display_for_value(field, self.get_field(field.key))
+            field_value = Contact.serialize_field_value(field, self.get_field(field.key), org=org)
             context[field.key] = field_value if field_value is not None else ''
 
         return context
@@ -1959,6 +1979,7 @@ class ContactURN(models.Model):
         JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
         LINE_SCHEME: dict(label='Line', key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
+        WHATSAPP_SCHEME: dict(label="WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
     }
 
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
@@ -2231,9 +2252,12 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        group = cls._create(org, user, name, query=query)
-        group.update_query(query)
-        return group
+        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
+        # we will rollback the database changes
+        with transaction.atomic():
+            group = cls._create(org, user, name, query=query)
+            group.update_query(query=query)
+            return group
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2349,22 +2373,27 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields
+        from .search import extract_fields, parse_query
 
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
-        self.query = query
-        self.save(update_fields=('query',))
+        parsed_query = parse_query(text=query)
 
-        self.query_fields.clear()
+        if parsed_query.can_be_dynamic_group():
+            self.query = parsed_query.as_text()
+            self.save(update_fields=('query',))
 
-        for field in extract_fields(self.org, self.query):
-            self.query_fields.add(field)
+            self.query_fields.clear()
 
-        members = list(self._get_dynamic_members())
-        self.contacts.clear()
-        self.contacts.add(*members)
+            for field in extract_fields(self.org, self.query):
+                self.query_fields.add(field)
+
+            members = list(self._get_dynamic_members())
+            self.contacts.clear()
+            self.contacts.add(*members)
+        else:
+            raise ValueError('Cannot update a dynamic query that is not allowed')
 
     def _get_dynamic_members(self, base_set=None):
         """
@@ -2376,7 +2405,8 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            return Contact.search(self.org, self.query, base_set=base_set)
+            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
+            return qs
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
@@ -2540,7 +2570,7 @@ class ExportContactsTask(BaseExportTask):
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts = Contact.search(self.org, self.search, group)
+            contacts, _ = Contact.search(self.org, self.search, group)
         else:
             contacts = group.contacts.all()
 
