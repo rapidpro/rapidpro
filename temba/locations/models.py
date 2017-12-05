@@ -6,6 +6,8 @@ import logging
 import six
 
 from django.contrib.gis.db import models
+from django.db.models.functions import Concat
+from django.db.models import Value, F
 from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 
@@ -48,6 +50,8 @@ class AdminBoundary(MPTTModel, models.Model):
 
     parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
                             help_text="The parent to this political boundary if any")
+
+    path = models.CharField(max_length=768, help_text="The full path name for this location")
 
     geometry = models.MultiPolygonField(null=True,
                                         help_text="The full geometry of this administrative boundary")
@@ -111,6 +115,19 @@ class AdminBoundary(MPTTModel, models.Model):
         # update our object values so that self is up to date
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    def update_path(self):
+        if self.level == 0:
+            self.path = self.name
+            self.save(update_fields=('path',))
+
+        def update_paths(boundary):
+            boundaries = AdminBoundary.objects.filter(parent=boundary).only('name', 'parent__path')
+            boundaries.update(path=Concat(Value(boundary.path), Value(' > '), F('name')))
+            for boundary in boundaries:
+                update_paths(boundary)
+
+        update_paths(self)
 
     def __str__(self):
         return "%s" % self.name
