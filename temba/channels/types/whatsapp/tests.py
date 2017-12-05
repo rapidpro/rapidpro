@@ -6,6 +6,7 @@ from mock import patch
 from temba.tests import TembaTest, MockResponse
 from ...models import Channel
 from .type import WhatsAppType
+from django.forms import ValidationError
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -72,5 +73,5 @@ class WhatsAppTypeTest(TembaTest):
             try:
                 WhatsAppType().activate(channel)
                 self.fail("Should have thrown error activating channel")
-            except:
+            except ValidationError:
                 pass
