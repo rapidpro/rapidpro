@@ -38,7 +38,7 @@ from temba.values.models import Value
 from .flow_migrations import (
     migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8, migrate_to_version_9,
     migrate_export_to_version_9, migrate_to_version_10_2, migrate_to_version_10_4, migrate_to_version_11_1,
-    migrate_to_version_11_2
+    migrate_to_version_11_2, map_actions
 )
 from .models import (
     Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
@@ -48,11 +48,11 @@ from .models import (
     DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
-    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction
+    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction,
+    FlowUserConflictException, FlowVersionConflictException
 )
 
 from .views import FlowCRUDL
-from .flow_migrations import map_actions
 from .tasks import update_run_expirations_task, prune_recentmessages, squash_flowruncounts, squash_flowpathcounts
 
 
@@ -2641,8 +2641,8 @@ class FlowTest(TembaTest):
                                     json.dumps(json_dict),
                                     content_type="application/json")
 
-        self.assertEqual(400, response.status_code)
-        self.assertEqual('Invalid label name: @badlabel', response.json()['description'])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['description'], 'Your flow could not be saved. Please refresh your browser.')
 
     def test_flow_start_with_start_msg(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
@@ -4466,12 +4466,11 @@ class FlowsTest(FlowFileTest):
         flow_json = flow.as_json()
 
         # saving should work
-        response = flow.update(flow_json, self.admin)
-        self.assertEqual(response.get('status'), 'success')
+        flow.update(flow_json, self.admin)
 
         # but if we save from in the past after our save it should fail
-        response = flow.update(flow_json, self.admin)
-        self.assertEqual(response.get('status'), 'unsaved')
+        with self.assertRaises(FlowUserConflictException):
+            flow.update(flow_json, self.admin)
 
         # we should also fail if we try saving an old spec version from the editor
         flow.refresh_from_db()
@@ -4479,8 +4478,9 @@ class FlowsTest(FlowFileTest):
 
         with patch('temba.flows.models.get_current_export_version') as mock_version:
             mock_version.return_value = '1.234'
-            response = flow.update(flow_json, self.admin)
-            self.assertEqual(response.get('status'), 'flow_migrated')
+
+            with self.assertRaises(FlowVersionConflictException):
+                flow.update(flow_json, self.admin)
 
     def test_flow_category_counts(self):
 
@@ -6377,7 +6377,7 @@ class FlowsTest(FlowFileTest):
         json_dict['action_sets'][1]['actions'][0] = reply
 
         # save the changes
-        self.assertEqual('success', favorites.update(json_dict, self.admin)['status'])
+        favorites.update(json_dict, self.admin)
 
         # should get org primary language (english) since our contact has no preferred language
         FlowRun.objects.all().delete()
@@ -6399,7 +6399,7 @@ class FlowsTest(FlowFileTest):
         rule['test']['test']['tlh'] = 'klerk'
         rule['category']['tlh'] = 'Klerkistikloperopikshtop'
         json_dict['rule_sets'][0]['rules'][0] = rule
-        self.assertEqual('success', favorites.update(json_dict, self.admin)['status'])
+        favorites.update(json_dict, self.admin)
 
         FlowRun.objects.all().delete()
         self.assertEqual("Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", self.send_message(favorites, "klerk"))
@@ -6412,7 +6412,7 @@ class FlowsTest(FlowFileTest):
         action['groups'] = []
         action['variables'] = []
         json_dict['action_sets'][1]['actions'][0] = action
-        self.assertEqual('success', favorites.update(json_dict, self.admin)['status'])
+        favorites.update(json_dict, self.admin)
 
         FlowRun.objects.all().delete()
         self.send_message(favorites, "klerk", assert_reply=False)
@@ -6430,8 +6430,7 @@ class FlowsTest(FlowFileTest):
         rule = json_dict['rule_sets'][0]['rules'][0]
         rule['category']['updated'] = True
 
-        response = favorites.update(json_dict)
-        self.assertEqual('success', response['status'])
+        favorites.update(json_dict)
 
         favorites = Flow.objects.get(pk=favorites.pk)
         json_dict = favorites.as_json()
@@ -6748,9 +6747,11 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(2, len(response.json()))
 
         # attempt to save with old json, no bueno
-        failed = flow.update(old_json, user=self.admin)
-        self.assertEqual('unsaved', failed.get('status'))
-        self.assertEqual('System Update', failed.get('saved_by'))
+        with self.assertRaises(FlowUserConflictException) as cm:
+            flow.update(old_json, user=self.admin)
+
+        self.assertEqual(cm.exception.other_user, get_flow_user(self.org))
+        self.assertIsNotNone(cm.exception.last_saved_on)
 
         # now refresh and save a new version
         flow.update(flow.as_json(), user=self.admin)
@@ -7195,8 +7196,9 @@ class FlowMigrationTest(FlowFileTest):
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, False)
         self.assertNotEqual(flow_json['metadata']['uuid'], new_exported_json['flows'][0]['metadata']['uuid'])
 
+        # check we can update a flow with the migrated definition
         flow = Flow.objects.create(name='test flow', created_by=self.admin, modified_by=self.admin, org=self.org, saved_by=self.admin)
-        flow.update(exported_json)
+        flow.update(FlowRevision.migrate_definition(exported_json['flows'][0], flow))
 
         # can also just import a single flow
         exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
@@ -7383,10 +7385,12 @@ class FlowMigrationTest(FlowFileTest):
         rev.spec_version = '10'
         rev.save()
 
-        self.assertEqual('success', flow.update(rev.get_definition_json())['status'])
+        new_rev = flow.update(rev.get_definition_json())
+        self.assertEqual(new_rev.spec_version, get_current_export_version())
+
         flow.refresh_from_db()
-        self.assertEqual(2, flow.revisions.all().count())
-        self.assertEqual(get_current_export_version(), flow.version_number)
+        self.assertEqual(flow.revisions.all().count(), 2)
+        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')

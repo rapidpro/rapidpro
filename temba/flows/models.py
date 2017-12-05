@@ -2182,17 +2182,7 @@ class Flow(TembaModel):
                         last_save = self.modified_on
 
                     if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
-                        saver = ""
-
-                        if self.saved_by.first_name:  # pragma: needs cover
-                            saver += "%s " % self.saved_by.first_name
-                        if self.saved_by.last_name:  # pragma: needs cover
-                            saver += "%s" % self.saved_by.last_name
-
-                        if not saver:
-                            saver = self.saved_by.username
-
-                        raise FlowUserConflictException(saver.strip(), last_save)
+                        raise FlowUserConflictException(self.saved_by, last_save)
 
             top_y = 0
             top_uuid = None
