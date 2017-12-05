@@ -961,10 +961,9 @@ class Org(SmartModel):
 
     def calculate_country_code(self):
         # first try the actual country field
-        if self.country_id:
+        if self.country:
             try:
-                admin_country = AdminBoundary.objects.filter(id=self.country_id).only('id', 'name').first()
-                country = pycountry.countries.get(name=admin_country.name)
+                country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha_2
             except KeyError:  # pragma: no cover
@@ -1059,7 +1058,7 @@ class Org(SmartModel):
             boundary = parent.children.filter(name__iexact=name, level=level)
         else:
             query = self.generate_location_query(name, level)
-            boundary = AdminBoundary.objects.filter(**query)
+            boundary = AdminBoundary.objects.filter(**query).defer('geometry', 'geometry_simplified')
 
         # not found by name, try looking up by alias
         if not boundary:
@@ -1071,7 +1070,7 @@ class Org(SmartModel):
                 alias = BoundaryAlias.objects.filter(**query).first()
 
             if alias:
-                boundary = [alias.boundary]
+                boundary = AdminBoundary.objects.filter(id=alias.boundary_id).defer('geometry', 'geometry_simplified')
 
         return boundary
 
@@ -1083,7 +1082,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name

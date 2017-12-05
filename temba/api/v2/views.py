@@ -567,7 +567,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
         )
 
-        return queryset.select_related('parent')
+        return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
         context = super(BoundariesEndpoint, self).get_serializer_context()
