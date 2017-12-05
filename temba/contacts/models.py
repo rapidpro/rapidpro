@@ -645,7 +645,7 @@ class Contact(TembaModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        value = Value.objects.filter(contact=self, contact_field__key__exact=key).select_related('contact_field__value_type').first()
+        value = Value.objects.filter(contact=self, contact_field__key__exact=key).select_related('contact_field').first()
         if value.contact_field.value_type in Value.LOCATION_TYPES:
             value = value.prefetch_related("location_value__path")
 
