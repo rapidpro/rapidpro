@@ -36,8 +36,6 @@ class Value(models.Model):
     TYPE_DISTRICT = 'I'
     TYPE_WARD = 'W'
 
-    LOCATION_TYPES = (TYPE_STATE, TYPE_WARD, TYPE_DISTRICT)
-
     TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
                    (TYPE_DECIMAL, _("Numeric"), 'numeric'),
                    (TYPE_DATETIME, _("Date & Time"), 'datetime'),
