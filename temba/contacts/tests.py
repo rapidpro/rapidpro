@@ -4419,6 +4419,11 @@ class URNTest(TembaTest):
         self.assertEqual('asdf', URN.fb_ref_from_path(URN.path_from_fb_ref('asdf')))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref('asdf'))))
 
+    def test_whatsapp_urn(self):
+        self.assertEqual('whatsapp:12065551212', URN.from_whatsapp('12065551212'))
+        self.assertTrue(URN.validate('whatsapp:12065551212'))
+        self.assertFalse(URN.validate('whatsapp:+12065551212'))
+
     def test_from_parts(self):
         self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")

@@ -185,11 +185,7 @@ class URN(object):
 
         # telegram and whatsapp uses integer ids
         elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
-            try:
-                int(path)
-                return True
-            except ValueError:
-                return False
+            return regex.match(r'^[0-9]+$', path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
