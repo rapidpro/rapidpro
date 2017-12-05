@@ -29,6 +29,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -208,10 +209,6 @@ class Org(SmartModel):
 
     country = models.ForeignKey('locations.AdminBoundary', null=True, blank=True, on_delete=models.SET_NULL,
                                 help_text="The country this organization should map results for.")
-
-    msg_last_viewed = models.DateTimeField(verbose_name=_("Message Last Viewed"), auto_now_add=True)
-
-    flows_last_viewed = models.DateTimeField(verbose_name=_("Flows Last Viewed"), auto_now_add=True)
 
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
@@ -437,6 +434,18 @@ class Org(SmartModel):
         else:
             return channel
 
+    @cached_property
+    def cached_channels(self):
+        channels = [c for c in self.channels.filter(is_active=True)]
+        for ch in channels:
+            ch.org = self
+
+        return channels
+
+    def clear_cached_channels(self):
+        if 'cached_channels' in self.__dict__:
+            del self.__dict__['cached_channels']
+
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
@@ -467,13 +476,13 @@ class Org(SmartModel):
 
                 channels = []
                 if country_code:
-                    for c in self.channels.all():
+                    for c in self.cached_channels:
                         if c.country == country_code:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
+                    channels = [c for c in self.cached_channels if TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -563,6 +572,13 @@ class Org(SmartModel):
 
         setattr(self, cache_attr, schemes)
         return schemes
+
+    def clear_cached_schemes(self):
+        from temba.channels.models import Channel
+        for role in [Channel.ROLE_SEND, Channel.ROLE_RECEIVE, Channel.ROLE_ANSWER, Channel.ROLE_CALL, Channel.ROLE_USSD]:
+            cache_attr = '__schemes__%s' % role
+            if hasattr(self, cache_attr):
+                delattr(self, cache_attr)
 
     def normalize_contact_tels(self):
         """
@@ -1066,7 +1082,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
@@ -1513,6 +1529,14 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
+
+    @cached_property
+    def cached_contact_fields(self):
+        from temba.contacts.models import ContactField
+        fields = ContactField.objects.filter(org=self, is_active=True)
+        for field in fields:
+            field.org = self
+        return fields
 
     def add_credits(self, bundle, token, user):
         # look up our bundle

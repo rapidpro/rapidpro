@@ -87,12 +87,12 @@ class OrgTest(TembaTest):
     def test_languages(self):
         self.assertEqual(self.org.get_language_codes(), set())
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
         self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fra'})
 
         self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
         self.org.refresh_from_db()
@@ -1399,7 +1399,7 @@ class OrgTest(TembaTest):
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
@@ -1416,10 +1416,12 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
+
+            self.assertEqual(len(mock_post.mock_calls), 0)
 
     def test_resthooks(self):
         # no hitting this page without auth
@@ -2397,7 +2399,7 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        response = self.client.post(url, dict(primary_lang='fra', languages='hat,arc'))
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -2412,17 +2414,17 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
-        self.assertContains(response, 'fre')
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic (700-300 BCE)')
+        self.assertContains(response, 'fra')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic (700-300 BCE) and Spanish')
 
         # one translation language
-        self.client.post(url, dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
         self.assertEqual(response.context['languages'], 'Haitian')
 
@@ -2433,36 +2435,35 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % url)
+        response = self.client.get('%s?search=fra' % url)
         results = response.json()['results']
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % url)
+        response = self.client.get('%s?initial=fra' % url)
         results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
-        self.assertEqual('French', languages.get_language_name('fre'))
-        self.assertEqual('Creoles and pidgins, English based', languages.get_language_name('cpe'))
+        self.assertEqual('French', languages.get_language_name('fra'))
+        self.assertEqual('Chinese Pidgin English', languages.get_language_name('cpi'))
 
         # should strip off anything after an open paren or semicolon
-        self.assertEqual('Official Aramaic', languages.get_language_name('arc'))
         self.assertEqual('Haitian', languages.get_language_name('hat'))
 
         # check that search returns results and in the proper order
         matches = languages.search_language_names('Fre')
-        self.assertEqual(4, len(matches))
-        self.assertEqual('Creoles and pidgins, French-based', matches[0]['text'])
-        self.assertEqual('French', matches[1]['text'])
-        self.assertEqual('French, Middle (ca.1400-1600)', matches[2]['text'])
-        self.assertEqual('French, Old (842-ca.1400)', matches[3]['text'])
+        self.assertEqual(13, len(matches))
+        self.assertEqual('Saint Lucian Creole French', matches[0]['text'])
+        self.assertEqual('Seselwa Creole French', matches[1]['text'])
+        self.assertEqual('French', matches[2]['text'])
+        self.assertEqual('Cajun French', matches[3]['text'])
 
         # try a language that doesn't exist
         self.assertEqual(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
-        text_translations = dict(eng="Hello", esp="Hola")
+        text_translations = dict(eng="Hello", spa="Hola")
 
         # null case
         self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
@@ -2471,10 +2472,38 @@ class LanguageTest(TembaTest):
         self.assertEqual(Language.get_localized_text(text_translations, ['eng'], "Hi"), "Hello")
 
         # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre'], "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra'], "Hi"), "Hi")
 
         # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre', 'esp'], "Hi"), "Hola")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra', 'spa'], "Hi"), "Hola")
+
+    def test_language_migrations(self):
+        self.assertEqual('pcm', languages.iso6392_to_iso6393('cpe', country_code='NG'))
+
+        org_languages = ['dum', 'ger', 'alb', 'ita', 'tir', 'nwc', 'tsn', 'tso', 'lua', 'jav', 'nso', 'aus', 'nor',
+                         'ada', 'fij', 'hat', 'hau', 'fil', 'amh', 'som', 'ssw', 'mon', 'him', 'hin', 'tig', 'guj',
+                         'ibo', 'afr', 'div', 'bam', 'kac', 'tel', 'tpi', 'snd', 'ara', 'lao', 'nbl', 'arm', 'abk',
+                         'kur', 'per', 'wol', 'smi', 'lug', 'tmh', 'nep', 'luo', 'run', 'rum', 'tur', 'orm', 'que',
+                         'ori', 'rus', 'asm', 'pus', 'kik', 'ace', 'syr', 'ach', 'nde', 'srp', 'zul', 'vie', 'por',
+                         'chm', 'mai', 'pol', 'sot', 'art', 'tgl', 'che', 'fre', 'kon', 'swa', 'chi', 'twi', 'swe',
+                         'ukr', 'mkh', 'heb', 'kor', 'dut', 'tog', 'bur', 'ven', 'hmn', 'enm', 'gaa', 'ben', 'bem',
+                         'xho', 'aze', 'ain', 'ful', 'ang', 'dan', 'bho', 'jpn', 'raj', 'khm', 'AAR', 'ind', 'spa',
+                         'eng', 'lin', 'afa', 'ewe', 'nyn', 'nyo', 'mis', 'nya', 'yor', 'pan', 'tam', 'phi', 'mar',
+                         'sna', 'may', 'kan', 'kal', 'kas', 'kar', 'kin', 'lat', 'mal', 'urd', 'gsw', 'cpe', 'cpf',
+                         'cpp', 'tha']
+
+        for lang in org_languages:
+            self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
+
+        # test if language is already iso-639-3
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+        # test code path when language is in cache
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+
+        # test behavior with unknown values
+        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='')
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='123')
 
 
 class BulkExportTest(TembaTest):

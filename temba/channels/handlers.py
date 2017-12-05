@@ -106,6 +106,18 @@ class DMarkHandler(BaseChannelHandler):
         return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
 
 
+class WhatsApp(BaseChannelHandler):
+    courier_url = r'^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_name = 'courier.wa'
+
+    def get(self, request, *args, **kwargs):  # pragma: no cover
+        return HttpResponse("Illegal Method", status_code=405)
+
+    def post(self):  # pragma: no cover
+        logger.error('WhatsApp handling only implemented in courier')
+        return HttpResponse("WhatsApp handling only implemented in Courier.", status_code=401)
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'

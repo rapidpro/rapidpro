@@ -31,6 +31,7 @@ class FirebaseCloudMessagingType(ChannelType):
     max_length = 10000
     attachment_support = False
     free_sending = True
+    quick_reply_text_size = 36
 
     def send(self, channel, msg, text):
         start = time.time()
@@ -55,6 +56,14 @@ class FirebaseCloudMessagingType(ChannelType):
                 'body': text
             }
             data['content_available'] = True
+
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(title=item[:self.quick_reply_text_size], payload=item[:self.quick_reply_text_size])
+                             for item in quick_replies]
+
+        if quick_replies:
+            data['data']['quick_replies'] = formatted_replies
 
         payload = json.dumps(data)
         headers = http_headers(extra={'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')})
