@@ -1058,7 +1058,7 @@ class Org(SmartModel):
             boundary = parent.children.filter(name__iexact=name, level=level)
         else:
             query = self.generate_location_query(name, level)
-            boundary = AdminBoundary.objects.filter(**query).defer('geometry', 'geometry_simplified')
+            boundary = AdminBoundary.objects.filter(**query)
 
         # not found by name, try looking up by alias
         if not boundary:
@@ -1070,7 +1070,7 @@ class Org(SmartModel):
                 alias = BoundaryAlias.objects.filter(**query).first()
 
             if alias:
-                boundary = AdminBoundary.objects.filter(id=alias.boundary_id).defer('geometry', 'geometry_simplified')
+                boundary = [alias.boundary]
 
         return boundary
 
