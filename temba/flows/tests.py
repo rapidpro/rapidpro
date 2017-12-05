@@ -64,6 +64,7 @@ class FlowTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
         self.contact3 = self.create_contact('Norbert', '+250788123456')
+        self.contact4 = self.create_contact('Teeh', '+250788123457', language='por')
 
         self.flow = self.get_flow('color')
 
@@ -2667,6 +2668,30 @@ class FlowTest(TembaTest):
         # sms msg_type should be FLOW
         self.assertEqual(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
+    def test_flow_start_with_quick_replies(self):
+        flow = self.get_flow('quick_replies')
+        flow.start([], [self.contact4])
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact4))
+        run = FlowRun.objects.filter(contact=self.contact4).first()
+
+        self.assertEqual(run.steps.all().count(), 2)
+        actionset_step = run.steps.filter(step_type=FlowStep.TYPE_ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=FlowStep.TYPE_RULE_SET).first()
+
+        # no messages on the ruleset step
+        self.assertFalse(ruleset_step.messages.all())
+
+        # should have 2 messages on the actionset step
+        self.assertEqual(actionset_step.messages.all().count(), 1)
+
+        runs = flow.start([], [self.contact3, self.contact4])
+        self.assertEqual(1, len(runs))
+
+        contact_test = self.create_contact('Teeh', '+250788123457', language='por', is_test=True)
+        flow.start([], [contact_test])
+        self.assertTrue(FlowRun.objects.filter(contact=contact_test))
+
     def test_multiple(self):
         self.flow.start([], [self.contact])
 
@@ -2926,6 +2951,20 @@ class ActionTest(TembaTest):
         response = msg.responses.get()
         self.assertEqual("Here is your profile pic.", response.text)
         self.assertEqual(self.contact, response.contact)
+
+    def test_quick_replies_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Yes")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        payload = [dict(eng='Yes'), dict(eng='No')]
+
+        action = ReplyAction(str(uuid4()), msg=dict(base="Are you fine?"), quick_replies=payload)
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+
+        self.execute_action(action, run, msg)
+        self.assertEqual(action.msg, dict(base="Are you fine?"))
+        self.assertEqual(action.quick_replies, payload)
 
     def test_ussd_action(self):
         self.channel.delete()

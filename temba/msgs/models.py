@@ -231,8 +231,11 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
+    metadata = models.TextField(null=True, help_text=_("The metadata for messages of this broadcast"))
+
     @classmethod
-    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
+               quick_replies=None, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
@@ -243,9 +246,13 @@ class Broadcast(models.Model):
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language %s doesn't exist in the provided translations dict")
 
+        metadata = None
+        if quick_replies:
+            metadata = json.dumps(dict(quick_replies=quick_replies))
+
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
-                                       created_by=user, modified_by=user, **kwargs)
+                                       created_by=user, modified_by=user, metadata=metadata, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -377,6 +384,20 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
+    def get_translated_quick_replies(self, contact, org=None):
+        """
+        Gets the appropriate quick replies translation for the given contact
+        """
+        preferred_languages = self.get_preferred_languages(contact, org)
+        language_metadata = []
+        if self.metadata:
+            metadata = json.loads(self.metadata)
+            for item in metadata.get('quick_replies'):
+                text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+                language_metadata.append(text)
+
+        return language_metadata
+
     def get_translated_media(self, contact, org=None):
         """
         Gets the appropriate media for the given contact
@@ -440,6 +461,9 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            # get the appropriate quick replies translation for this contact
+            quick_replies = self.get_translated_quick_replies(contact)
+
             media = self.get_translated_media(contact)
             if media:
                 media_type, media_url = media.split(':', 1)
@@ -482,7 +506,8 @@ class Broadcast(models.Model):
                                           high_priority=high_priority,
                                           insert_object=False,
                                           attachments=[media] if media else None,
-                                          created_on=created_on)
+                                          created_on=created_on,
+                                          quick_replies=quick_replies)
 
             except UnreachableException:
                 # there was no way to reach this contact, do not create a message
@@ -719,6 +744,8 @@ class Msg(models.Model):
 
     connection = models.ForeignKey('channels.ChannelSession', null=True,
                                    help_text=_("The session this message was a part of if any"))
+
+    metadata = models.TextField(null=True, help_text=_("The metadata for this msg"))
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -1010,7 +1037,8 @@ class Msg(models.Model):
                     id=self.id,
                     attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
-                    model="msg")
+                    model="msg",
+                    metadata=json.loads(self.metadata) if self.metadata else {})
 
     def simulator_json(self):
         msg_json = self.as_json()
@@ -1092,11 +1120,12 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None):
+              send_all=False, created_on=None, quick_replies=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 high_priority=True, quick_replies=quick_replies)
 
     def update(self, cmd):
         """
@@ -1235,6 +1264,9 @@ class Msg(models.Model):
         if chatbase_api_key:
             data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
                              is_org_connected_to_chatbase=True))
+
+        if self.metadata:
+            data['metadata'] = json.loads(self.metadata)
 
         return data
 
@@ -1378,7 +1410,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
-                        attachments=None, topup_id=None, msg_type=INBOX, connection=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1485,6 +1517,14 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
+        metadata = None
+        if quick_replies:
+            for counter, reply in enumerate(quick_replies):
+                (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
+                if value:
+                    quick_replies[counter] = value
+            metadata = json.dumps(dict(quick_replies=quick_replies))
+
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
                         org=org,
@@ -1499,6 +1539,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         high_priority=high_priority,
                         attachments=evaluated_attachments,
+                        metadata=metadata,
                         connection=connection)
 
         if topup_id is not None:
