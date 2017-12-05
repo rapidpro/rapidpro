@@ -51,7 +51,7 @@ class AdminBoundary(MPTTModel, models.Model):
     parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
                             help_text="The parent to this political boundary if any")
 
-    path = models.CharField(max_length=768, help_text="The full path name for this location")
+    path = models.CharField(max_length=768, null=True, help_text="The full path name for this location")
 
     geometry = models.MultiPolygonField(null=True,
                                         help_text="The full geometry of this administrative boundary")

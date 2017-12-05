@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='adminboundary',
             name='path',
-            field=models.CharField(help_text='The full path of the admin boundary', max_length=768, null=True),
+            field=models.CharField(help_text='The full path name for this location', max_length=768, null=True),
         ),
         migrations.RunPython(apply_as_migration, undo_path)
     ]
