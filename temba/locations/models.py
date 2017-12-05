@@ -93,16 +93,6 @@ class AdminBoundary(MPTTModel, models.Model):
             children.append(child.get_geojson_feature())
         return AdminBoundary.get_geojson_dump(children)
 
-    def as_path(self):
-        """
-        Returns the full path for this admin boundary, from country downwards using > as separator between
-        each level.
-        """
-        if self.parent:
-            return "%s %s %s" % (self.parent.as_path(), AdminBoundary.PATH_SEPARATOR, self.name.replace(AdminBoundary.PATH_SEPARATOR, " "))
-        else:
-            return self.name.replace(AdminBoundary.PATH_SEPARATOR, " ")
-
     def update(self, **kwargs):
         AdminBoundary.objects.filter(id=self.id).update(**kwargs)
 
@@ -123,7 +113,7 @@ class AdminBoundary(MPTTModel, models.Model):
 
         def update_paths(boundary):
             boundaries = AdminBoundary.objects.filter(parent=boundary).only('name', 'parent__path')
-            boundaries.update(path=Concat(Value(boundary.path), Value(' > '), F('name')))
+            boundaries.update(path=Concat(Value(boundary.path), Value(' %s ' % AdminBoundary.PATH_SEPARATOR), F('name')))
             for boundary in boundaries:
                 update_paths(boundary)
 
