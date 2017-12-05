@@ -12,8 +12,12 @@ from django.db import connection
 
 from celery.worker.autoscale import Autoscaler
 from celery.five import monotonic
+from celery.utils.log import get_logger
 
 from temba.utils import analytics
+
+
+LOG = get_logger(__name__)
 
 
 class SuperAutoscaler(Autoscaler):
@@ -45,14 +49,15 @@ class SuperAutoscaler(Autoscaler):
     def _maybe_scale(self, req=None):
         if self.should_run():
             self.collect_stats()
+
             analytics.gauge('temba.celery_active_workers_%s' % (self.bound_queues,), self.processes)
 
-            self._debug(
-                '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
-                    self.processes, self.min_concurrency, self.max_concurrency, self.qty,
-                    self.max_cpu_bound_workers, self.max_memory_bound_workers, self.max_db_bound_workers
-                )
+            logging_msg = '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
+                self.processes, self.min_concurrency, self.max_concurrency, self.qty,
+                self.max_cpu_bound_workers, self.max_memory_bound_workers, self.max_db_bound_workers
             )
+            LOG.info(logging_msg)
+            self._debug(logging_msg)
 
             max_target_procs = min(
                 self.qty, self.max_concurrency, self.max_cpu_bound_workers, self.max_memory_bound_workers,
