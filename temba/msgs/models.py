@@ -452,11 +452,9 @@ class Broadcast(models.Model):
         if not created_on:
             created_on = timezone.now()
 
-        # pre-fetch channels to reduce database hits
-        org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
+            contact.org = self.org
 
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
@@ -493,7 +491,7 @@ class Broadcast(models.Model):
                             message_context.update(dict(parent=run.parent.build_expressions_context()))
 
             try:
-                msg = Msg.create_outgoing(org,
+                msg = Msg.create_outgoing(self.org,
                                           self.created_by,
                                           recipient,
                                           text,
