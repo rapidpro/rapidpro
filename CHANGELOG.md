@@ -1,3 +1,8 @@
+v3.0.278
+----------
+ * Fixes to the ISO639-3 migration
+ * Add support for quick replies
+
 v3.0.277
 ----------
  * Add flow migration for base_language in flow definitions
