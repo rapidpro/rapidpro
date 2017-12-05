@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import iso8601
 import json
 import six
 
@@ -372,7 +373,7 @@ class ContactReadSerializer(ReadSerializer):
         fields = {}
         for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
+            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value, org=self.context['org'])
         return fields
 
     def get_blocked(self, obj):
@@ -679,19 +680,26 @@ class FlowRunReadSerializer(ReadSerializer):
         return {'uuid': str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
-        return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
-
-    def get_values(self, obj):
-        values = {}
-        for value in obj.values.all():
-            values[value.ruleset.context_key] = {
-                'value': value.decimal_value if value.decimal_value is not None else value.string_value,
-                'category': value.category,
-                'node': value.ruleset.uuid,
-                'time': value.modified_on,
+        def convert_step(step):
+            arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
+            return {
+                'node': step[FlowRun.PATH_NODE_UUID],
+                'time': format_datetime(arrived_on)
             }
 
-        return values
+        return [convert_step(s) for s in obj.get_path()]
+
+    def get_values(self, obj):
+        def convert_result(result):
+            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
+            return {
+                'value': result[FlowRun.RESULT_VALUE],
+                'category': result[FlowRun.RESULT_CATEGORY],
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'time': format_datetime(created_on),
+            }
+
+        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)

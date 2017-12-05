@@ -44,7 +44,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0127_backfill_flowrun_path'),
+        ('flows', '0130_auto_20171128_1618'),
     ]
 
     operations = [
