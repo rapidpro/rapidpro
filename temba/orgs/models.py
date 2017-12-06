@@ -1543,9 +1543,7 @@ class Org(SmartModel):
         if '__cached_groups' in self.__dict__:
             del self.__dict__['__cached_groups']
 
-    def get_group_for_uuid(self, uuid):
-        if not uuid:
-            return None
+    def get_group(self, uuid):
         cached_groups = self.__dict__.get('__cached_groups', {})
         existing = cached_groups.get(uuid, None)
 
