@@ -1324,7 +1324,7 @@ class FlowTest(TembaTest):
         if runs:
             run = runs[0]
         else:
-            run = FlowRun.create(self.flow, self.contact.pk)
+            run = FlowRun.create(self.flow, self.contact)
 
         # clear any extra on this run
         run.fields = ""
@@ -1927,7 +1927,7 @@ class FlowTest(TembaTest):
         if runs:
             run = runs[0]
         else:
-            run = FlowRun.create(self.flow, self.contact.id)
+            run = FlowRun.create(self.flow, self.contact)
 
         self.org.country = self.country
         run.flow.org = self.org
@@ -2838,7 +2838,7 @@ class ActionTest(TembaTest):
 
     def test_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         with self.assertRaises(FlowException):
             ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE})
@@ -2869,7 +2869,7 @@ class ActionTest(TembaTest):
     def test_send_all_action(self):
         contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         action = ReplyAction(str(uuid4()), dict(base="We love green too!"), None, send_all=True)
         action_replies = self.execute_action(action, run, msg)
@@ -2886,7 +2886,7 @@ class ActionTest(TembaTest):
         Msg.objects.all().delete()
 
         msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         # create twitter channel
         Channel.create(self.org, self.user, None, 'TT')
@@ -2909,7 +2909,7 @@ class ActionTest(TembaTest):
 
     def test_media_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         action = ReplyAction(str(uuid4()), dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
         self.execute_action(action, run, msg)
@@ -2935,7 +2935,7 @@ class ActionTest(TembaTest):
 
     def test_media_expression(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="profile")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         action = ReplyAction(str(uuid4()), dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
 
@@ -2955,7 +2955,7 @@ class ActionTest(TembaTest):
 
     def test_quick_replies_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Yes")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         payload = [dict(eng='Yes'), dict(eng='No')]
 
@@ -2973,7 +2973,7 @@ class ActionTest(TembaTest):
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         menu_uuid = str(uuid4())
 
@@ -3015,7 +3015,7 @@ class ActionTest(TembaTest):
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         menu_uuid = str(uuid4())
 
@@ -3067,7 +3067,7 @@ class ActionTest(TembaTest):
         # now set contact's language to something we don't have in our org languages
         self.contact.language = 'fra'
         self.contact.save(update_fields=('language',))
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         # resend the message to him
         execution = self.execute_action(action, run, msg)
@@ -3079,7 +3079,7 @@ class ActionTest(TembaTest):
         # now set contact's language to hungarian
         self.contact.language = 'hun'
         self.contact.save(update_fields=('language',))
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         # resend the message to him
         execution = self.execute_action(action, run, msg)
@@ -3092,7 +3092,7 @@ class ActionTest(TembaTest):
 
     def test_trigger_flow_action(self):
         flow = self.create_flow()
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         # add a channel to make sure that country is ambiguous
         Channel.create(self.org, self.admin, 'US', 'EX', schemes=['tel'])
@@ -3116,7 +3116,7 @@ class ActionTest(TembaTest):
         self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
 
         action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [], [])
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
         msgs = self.execute_action(action, run, None)
 
         self.assertFalse(msgs)
@@ -3124,7 +3124,7 @@ class ActionTest(TembaTest):
         self.other_group.update_contacts(self.user, [self.contact2], True)
 
         action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [self.contact], [])
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
         self.execute_action(action, run, None)
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
@@ -3147,7 +3147,7 @@ class ActionTest(TembaTest):
 
         self.contact.set_field(self.user, 'state', "WA", label="State")
         self.contact2.set_field(self.user, 'state', "GA", label="State")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         action = SendAction(str(uuid4()), dict(base=msg_body), [], [self.contact2], [])
         self.execute_action(action, run, None)
@@ -3179,7 +3179,7 @@ class ActionTest(TembaTest):
         self.other_group.update_contacts(self.user, [self.contact2], True)
 
         action = SendAction(str(uuid4()), dict(base=msg_body), [self.other_group], [test_contact], [])
-        run = FlowRun.create(self.flow, test_contact.pk)
+        run = FlowRun.create(self.flow, test_contact)
         self.execute_action(action, run, None)
 
         # since we are test contact now, no new broadcasts
@@ -3201,7 +3201,7 @@ class ActionTest(TembaTest):
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
         # test send media to someone else
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
         msg_body = 'I am a media message message'
 
         action = SendAction(str(uuid4()), dict(base=msg_body), [], [self.contact2], [], dict(base='image/jpeg:attachments/picture.jpg'))
@@ -3239,7 +3239,7 @@ class ActionTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
 
@@ -3269,7 +3269,7 @@ class ActionTest(TembaTest):
 
         # check simulator reports invalid addresses
         test_contact = Contact.get_test_contact(self.user)
-        test_run = FlowRun.create(self.flow, test_contact.pk)
+        test_run = FlowRun.create(self.flow, test_contact)
 
         self.execute_action(action, test_run, msg)
 
@@ -3301,7 +3301,7 @@ class ActionTest(TembaTest):
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         field = ContactField.objects.get(org=self.org, key="superhero_name")
         self.assertEqual("Superhero Name", field.label)
@@ -3413,7 +3413,7 @@ class ActionTest(TembaTest):
         # try the same with a simulator contact
         test_contact = Contact.get_test_contact(self.admin)
         test_contact_urn = test_contact.urns.all().first()
-        run = FlowRun.create(self.flow, test_contact.pk)
+        run = FlowRun.create(self.flow, test_contact)
         self.execute_action(test, run, sms)
 
         ActionLog.objects.all().delete()
@@ -3453,7 +3453,7 @@ class ActionTest(TembaTest):
         self.assertEqual('Klingon', action.name)
 
         # execute our action and check we are Klingon now, eeektorp shnockahltip.
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
         self.execute_action(action, run, None)
         self.assertEqual('kli', Contact.objects.get(pk=self.contact.pk).language)
 
@@ -3491,11 +3491,11 @@ class ActionTest(TembaTest):
 
     def test_group_actions(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         test_contact = Contact.get_test_contact(self.admin)
         test_msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Blue")
-        test_run = FlowRun.create(self.flow, test_contact.pk)
+        test_run = FlowRun.create(self.flow, test_contact)
 
         group = self.create_group("Flow Group", [])
 
@@ -3631,7 +3631,7 @@ class ActionTest(TembaTest):
 
     def test_set_channel_action(self):
         flow = self.flow
-        run = FlowRun.create(flow, self.contact.pk)
+        run = FlowRun.create(flow, self.contact)
 
         tel1_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12061111111', 'KN', {})
         tel2_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12062222222', 'KN', {})
@@ -3699,7 +3699,7 @@ class ActionTest(TembaTest):
     def test_add_label_action(self):
         flow = self.flow
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(flow, self.contact.pk)
+        run = FlowRun.create(flow, self.contact)
 
         label1 = Label.get_or_create(self.org, self.user, "green label")
         action = AddLabelAction(str(uuid4()), [label1, "@step.contact"])
@@ -3754,7 +3754,7 @@ class ActionTest(TembaTest):
         # check to and from JSON
         action_json = action.as_json()
         action = WebhookAction.from_json(self.org, action_json)
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         mock_request = self.mockRequest('POST', '/token', '{"coupon":"NEXUS4"}', content_type='application/json')
 
@@ -3814,7 +3814,7 @@ class ActionTest(TembaTest):
         # check simulator warns of webhook URL errors
         action = WebhookAction(str(uuid4()), 'http://localhost:49999/token?xyz=@contact.xyz')
         test_contact = Contact.get_test_contact(self.user)
-        test_run = FlowRun.create(self.flow, test_contact.pk)
+        test_run = FlowRun.create(self.flow, test_contact)
 
         self.mockRequest('POST', '/token?xyz=@contact.xyz', '{"coupon":"NEXUS4"}', content_type='application_json')
         self.execute_action(action, test_run, None)
@@ -3882,7 +3882,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual(normalized, fields)
 
     def test_update_fields(self):
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         # set our fields from an empty state
         new_values = dict(Field1="value1", field_2="value2")
@@ -4094,7 +4094,7 @@ class WebhookTest(TembaTest):
         self.flow = self.get_flow('color')
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
 
-        run = FlowRun.create(self.flow, self.contact.pk)
+        run = FlowRun.create(self.flow, self.contact)
 
         split_uuid = str(uuid4())
         valid_uuid = str(uuid4())

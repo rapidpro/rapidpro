@@ -1484,8 +1484,8 @@ class Flow(TembaModel):
             return runs
 
         for contact_id in all_contact_ids:
-
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1559,7 +1559,7 @@ class Flow(TembaModel):
             if not contact or not contact_urn or not channel:  # pragma: no cover
                 continue
 
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1674,12 +1674,12 @@ class Flow(TembaModel):
         now = timezone.now()
 
         for contact_id in batch_contact_ids:
-            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
+            contact = contact_map[contact_id]
+            run = FlowRun.create(self, contact, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
 
             # assign our bulk initialized contact
             contact = contact_map[contact_id]
-            run.contact = contact
             batch.append(run)
 
         runs = FlowRun.objects.bulk_create(batch)
@@ -2640,10 +2640,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
+    def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
-        args = dict(org_id=flow.org_id, flow=flow, contact_id=contact_id, start=start,
+        args = dict(org_id=flow.org_id, flow=flow, contact=contact, start=start,
                     session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
@@ -2653,9 +2653,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             parent.clear_cached_child()
 
         if db_insert:
-            return FlowRun.objects.create(**args)
+            run = FlowRun.objects.create(**args)
         else:
-            return FlowRun(**args)
+            run = FlowRun(**args)
+
+        run.contact = contact
+        return run
 
     def build_expressions_context(self, contact_context=None):
         """
