@@ -198,6 +198,6 @@ class TwilioTypeTest(TembaTest):
                 # now lets be successful
                 mock_numbers.side_effect = None
                 self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
-                self.assertIsNone(self.org.channels.all().first())
+                self.assertIsNone(self.org.channels.filter(is_active=True).first())
                 self.assertEqual(mock_numbers.call_args_list[-1][1], dict(voice_application_sid='',
                                                                           sms_application_sid=''))
