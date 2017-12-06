@@ -189,7 +189,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                                        'T')
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=session, connection=call)
+                    FlowRun.create(flow, contact, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1301,7 +1301,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
                 session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=session, connection=call)
+                FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
