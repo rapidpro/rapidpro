@@ -33,6 +33,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str
+from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
 from .flow_migrations import (
@@ -7745,7 +7746,8 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        flow.start([], contacts)
+        with QueryTracker(assert_query_count=397, stack_count=10, skip_unique_queries=True):
+            flow.start([], contacts)
 
         # ensure 11 flow runs were created
         self.assertEqual(11, FlowRun.objects.all().count())
