@@ -1211,7 +1211,7 @@ class ChannelTest(TembaTest):
 
     def test_search_nexmo(self):
         self.login(self.admin)
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
         self.channel = Channel.create(self.org, self.user, 'RW', 'NX', None, '+250788123123',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -1294,14 +1294,12 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
         self.assertIsNone(android.gcm_id)
         self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
-        self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
         Channel.objects.all().delete()
@@ -1318,7 +1316,6 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
         self.assertIsNone(android.gcm_id)
         self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
@@ -1392,7 +1389,6 @@ class ChannelTest(TembaTest):
 
         # channel should be released now
         channel = Channel.objects.get(pk=self.unclaimed_channel.pk)
-        self.assertFalse(channel.org)
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):

@@ -21,7 +21,7 @@ class TwilioTypeTest(TembaTest):
         claim_twilio = reverse('channels.claim_twilio')
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         # make sure twilio is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
