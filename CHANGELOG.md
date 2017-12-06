@@ -1,3 +1,8 @@
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
 v3.0.279
 ----------
  * Update Nexmo channels to use new Courier URLs
