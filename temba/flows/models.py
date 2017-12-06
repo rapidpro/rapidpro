@@ -1102,6 +1102,12 @@ class Flow(TembaModel):
         """
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
+    def is_starting(self):
+        """
+        Returns whether this flow has active flow starts
+        """
+        return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
+
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
@@ -1592,7 +1598,8 @@ class Flow(TembaModel):
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                                  media=send_action.media,
                                                  base_language=self.base_language,
-                                                 send_all=send_action.send_all)
+                                                 send_all=send_action.send_all,
+                                                 quick_replies=send_action.quick_replies)
                     broadcast.update_contacts(all_contact_ids)
 
                     # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1690,8 +1697,8 @@ class Flow(TembaModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
-                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, created_on=created_on,
+                               partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
@@ -5431,13 +5438,15 @@ class ReplyAction(Action):
     MSG_TYPE = None
     MEDIA = 'media'
     SEND_ALL = 'send_all'
+    QUICK_REPLIES = 'quick_replies'
 
-    def __init__(self, uuid, msg=None, media=None, send_all=False):
+    def __init__(self, uuid, msg=None, media=None, quick_replies=None, send_all=False):
         super(ReplyAction, self).__init__(uuid)
 
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
+        self.quick_replies = quick_replies if quick_replies else []
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5453,10 +5462,24 @@ class ReplyAction(Action):
             raise FlowException("Invalid reply action, no message")
 
         return cls(json_obj.get(cls.UUID), msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
-                   send_all=json_obj.get(cls.SEND_ALL, False))
+                   quick_replies=json_obj.get(cls.QUICK_REPLIES), send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, media=self.media, quick_replies=self.quick_replies,
+                    send_all=self.send_all)
+
+    @staticmethod
+    def get_translated_quick_replies(metadata, run):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+        language_metadata = []
+        preferred_languages = [run.contact.language, run.flow.base_language]
+        for item in metadata:
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
+
+        return language_metadata
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
@@ -5467,6 +5490,10 @@ class ReplyAction(Action):
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
+
+            quick_replies = []
+            if self.quick_replies:
+                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
 
             attachments = None
             if self.media:
@@ -5487,15 +5514,16 @@ class ReplyAction(Action):
 
             if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
-                                    connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                    send_all=self.send_all, created_on=created_on)
+                                    connection=run.connection, msg_type=self.MSG_TYPE, quick_replies=quick_replies,
+                                    attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
                 high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
+                                           quick_replies=quick_replies, created_on=created_on, all_urns=self.send_all,
+                                           high_priority=high_priority)
         return replies
 
 

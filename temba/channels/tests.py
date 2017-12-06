@@ -6702,6 +6702,29 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['caption'], "Test message")
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
+    @override_settings(SEND_MESSAGES=True)
+    def test_send_quick_replies(self):
+        quick_replies = ['Yes', 'No']
+        joe = self.create_contact("Ernie", urn='telegram:1234')
+        msg = joe.send("Test message", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({"result": {"message_id": 1234}}))
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(WIRED, msg.status)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+            mock_json = json.loads(mock.call_args[0][1]['reply_markup'])
+
+            self.assertEqual(mock_json['keyboard'][0][0]['text'], "Yes")
+            self.assertEqual(mock_json['keyboard'][1][0]['text'], "No")
+
 
 class PlivoTest(TembaTest):
 
@@ -7127,6 +7150,69 @@ class TwitterTest(TembaTest):
             self.assertTrue(contact.is_stopped)
             self.assertEqual(contact.user_groups.count(), 0)
 
+            self.clear_cache()
+
+    @override_settings(SEND_MESSAGES=True)
+    def test_send_quick_replies(self):
+        quick_replies = ['Yes', 'No']
+        msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with patch('requests.sessions.Session.post') as mock:
+            response_dict = {
+                "event": {
+                    "created_timestamp": "1504717797522",
+                    "message_create": {
+                        "message_data": {
+                            "text": "Hello, choose\u200b an option, please.",
+                            "quick_reply": {
+                                "type": "options",
+                                "options": [{
+                                    "label": "Yes"
+                                }, {
+                                    "label": "No"
+                                }]
+                            },
+                            "entities": {
+                                "symbols": [],
+                                "user_mentions": [],
+                                "hashtags": [],
+                                "urls": []
+                            }
+                        },
+                        "sender_id": "000000",
+                        "target": {
+                            "recipient_id": "10002"
+                        }
+                    },
+                    "type": "message_create",
+                    "id": "000000000000000000"
+                }
+            }
+            mock.return_value = MockResponse(200, json.dumps(response_dict))
+
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://api.twitter.com/1.1/direct_messages/events/new.json',
+                                    files=None,
+                                    data=json.dumps(dict(event=dict(message_create=dict(message_data=dict(
+                                        text='Hello, world!',
+                                        quick_reply=dict(
+                                            type='options',
+                                            options=[dict(label='Yes'), dict(label='No')]
+                                        )),
+                                        target=dict(recipient_id='10002')),
+                                        type='message_create')
+                                    )))
+
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "000000000000000000")
+            self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
+            data_args = json.loads(mock.call_args[1]['data'])
+            message_data = data_args['event']['message_create']['message_data']
+            self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
+            self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
             self.clear_cache()
 
 
@@ -8884,6 +8970,41 @@ class FacebookTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
 
+        # quick reply
+        data = """{
+        "entry": [{
+          "id": 208685479508187,
+          "messaging": [{
+            "timestamp": 1502820098870,
+            "message": {
+              "text": "Test",
+              "mid": "external_id",
+              "seq": 1234,
+              "quick_reply": {
+                "payload": "Test"
+              }
+            },
+            "recipient": {
+              "id": "1234"
+            },
+            "sender": {
+              "id": "1234"
+            }
+          }],
+          "time": 1459991487970
+          }
+        ]}
+        """
+        Msg.objects.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.objects.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "Test")
+
         # link attachment
         data = """{
           "object":"page",
@@ -9059,6 +9180,54 @@ class FacebookTest(TembaTest):
 
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
+
+    @override_settings(SEND_MESSAGES=True)
+    def test_send_quick_replies(self):
+        joe = self.create_contact("Joe", urn="facebook:1234")
+        quick_replies = ['Yes', 'No']
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"recipient_id": "1234", "message_id": "mid.external"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, 'mid.external')
+            self.clear_cache()
+
+            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args[0][1])['recipient']['id'], '1234')
+            self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
+            self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')
+            self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
+
+        joe_test = self.create_contact("Joe", urn="facebook:12345", is_test=True)
+        quick_replies = ['Yes', 'No']
+        msg2 = joe_test.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with self.settings(SEND_MESSAGES=True):
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{"recipient_id": "12345", "message_id": "mid.external"}')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg2.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.clear_cache()
+
+                self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+                self.assertEqual(json.loads(mock.call_args[0][1])['recipient']['id'], '12345')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
 
 
 class JiochatTest(TembaTest):
@@ -10211,6 +10380,55 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.external_id, "4987381194038857789")
             self.clear_cache()
 
+    @override_settings(SEND_MESSAGES=True)
+    def test_send_quick_replies(self):
+        quick_replies = ['Yes', 'No']
+        joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
+
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
+                                    json=dict(
+                                        auth_token='auth_token',
+                                        receiver="FXLP/JstS7kDuoiUGihkgA==",
+                                        text="Hello, world!",
+                                        type='text',
+                                        tracking_data=msg.id,
+                                        keyboard=dict(
+                                            Type="keyboard",
+                                            DefaultHeight=True,
+                                            Buttons=[
+                                                {
+                                                    "Text": "Yes",
+                                                    "ActionBody": "Yes",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
+                                                },
+                                                {
+                                                    "Text": "No",
+                                                    "ActionBody": "No",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
+                                                }
+                                            ]
+                                        )
+                                    ),
+                                    timeout=5)
+
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "999")
+            self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
+            self.clear_cache()
+            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Yes')
+            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][1]['Text'], 'No')
+
 
 class FcmTest(TembaTest):
 
@@ -10380,6 +10598,52 @@ class FcmTest(TembaTest):
                                              timeout=5)
 
                 self.clear_cache()
+
+    @override_settings(SEND_MESSAGES=True)
+    def test_send_quick_replies(self):
+        quick_replies = ['Yes', 'No']
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+
+            data = json.dumps({
+                'data': {
+                    'type': 'rapidpro',
+                    'title': 'FCM Channel',
+                    'message': 'Hello, world!',
+                    'message_id': msg.id,
+                    'quick_replies': [{"payload": "Yes", "title": "Yes"},
+                                      {"payload": "No", "title": "No"}]
+                },
+                'content_available': True,
+                'to': '123456abcdef',
+                'priority': 'high',
+                'notification': {
+                    'title': 'FCM Channel',
+                    'body': 'Hello, world!'
+                }
+            })
+
+            mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
+                                         data=data,
+                                         headers={
+                                             'Content-Type': 'application/json',
+                                             'Authorization': 'key=123456789',
+                                             'User-agent': 'RapidPro'
+                                         },
+                                         timeout=5)
+
+            self.clear_cache()
 
 
 class CourierTest(TembaTest):
