@@ -247,6 +247,8 @@ class ChannelTest(TembaTest):
         tigo.address = '1235'
         tigo.save()
 
+        self.org.clear_cached_channels()
+
         # should return the newest channel which is TIGO
         msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
         self.assertEqual(tigo, msg.channel)
@@ -255,6 +257,8 @@ class ChannelTest(TembaTest):
         # if we have prefixes matching set should honor those
         mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
         mtn.save()
+
+        self.org.clear_cached_channels()
 
         msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
         self.assertEqual(mtn, msg.channel)
@@ -1207,7 +1211,7 @@ class ChannelTest(TembaTest):
 
     def test_search_nexmo(self):
         self.login(self.admin)
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
         self.channel = Channel.create(self.org, self.user, 'RW', 'NX', None, '+250788123123',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -1290,14 +1294,12 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
         self.assertIsNone(android.gcm_id)
         self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
-        self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
         Channel.objects.all().delete()
@@ -1314,7 +1316,6 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
         self.assertIsNone(android.gcm_id)
         self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
@@ -1388,7 +1389,6 @@ class ChannelTest(TembaTest):
 
         # channel should be released now
         channel = Channel.objects.get(pk=self.unclaimed_channel.pk)
-        self.assertFalse(channel.org)
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):
@@ -2020,24 +2020,28 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        check_channels_task()
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['from_email'] = 'support@mybrand.com'
+        with self.settings(BRANDING=branding):
+            check_channels_task()
 
-        # should have created one alert
-        alert = Alert.objects.get()
-        self.assertEqual(self.channel, alert.channel)
-        self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-        self.assertFalse(alert.ended_on)
+            # should have created one alert
+            alert = Alert.objects.get()
+            self.assertEqual(self.channel, alert.channel)
+            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
+            self.assertFalse(alert.ended_on)
 
-        self.assertTrue(len(mail.outbox) == 1)
-        template = 'channels/email/disconnected_alert.txt'
-        context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=self.channel.org.get_branding(),
-                       last_seen=self.channel.last_seen, sync=alert.sync_event)
+            self.assertTrue(len(mail.outbox) == 1)
+            template = 'channels/email/disconnected_alert.txt'
+            context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
+                           branding=self.channel.org.get_branding(),
+                           last_seen=self.channel.last_seen, sync=alert.sync_event)
 
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
+            text_template = loader.get_template(template)
+            text = text_template.render(context)
 
-        self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].from_email, 'support@mybrand.com')
 
         # call it again
         check_channels_task()
@@ -7219,7 +7223,7 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="name has Bob")
+        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """
@@ -8807,7 +8811,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+        self.assertEqual("What is your favorite color?", contact1.msgs.order_by('id').last().text)
 
         # check if catchall trigger starts a different flow
         referral = """
@@ -8828,7 +8832,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("Pick a number between 1-10.", contact1.msgs.all().first().text)
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by('id').last().text)
 
         # check referral params in postback
         postback = """

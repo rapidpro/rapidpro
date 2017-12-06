@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import hmac
+import iso8601
 import json
 import requests
 import six
@@ -219,15 +220,19 @@ class WebHookEvent(SmartModel):
         api_user = get_api_user()
         json_time = datetime_to_str(timezone.now())
 
-        # get the results for this contact
-        results = run.flow.get_results(run.contact)
         values = []
-
-        if results and results[0]:
-            values = results[0]['values']
-            for value in values:
-                value['time'] = datetime_to_str(value['time'])
-                value['value'] = six.text_type(value['value'])
+        for key, result in six.iteritems(run.get_results()):
+            category = result[FlowRun.RESULT_CATEGORY]
+            values.append({
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'label': result[FlowRun.RESULT_NAME],
+                'category': category,
+                'category_localized': result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, category),
+                'text': result[FlowRun.RESULT_INPUT],
+                'value': result[FlowRun.RESULT_VALUE],
+                'rule_value': result[FlowRun.RESULT_VALUE],
+                'time': datetime_to_str(iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])),
+            })
 
         if msg:
             text = msg.text

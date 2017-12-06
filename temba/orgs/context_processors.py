@@ -1,9 +1,7 @@
 from __future__ import unicode_literals
 
 from collections import defaultdict
-from django.core.urlresolvers import reverse
-from django.utils import timezone
-from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
+from .models import get_stripe_credentials
 
 
 class GroupPermWrapper(object):
@@ -74,45 +72,4 @@ def settings_includer(request):
     """
     Includes a few settings that we always want in our context
     """
-    context = dict(STRIPE_PUBLIC_KEY=get_stripe_credentials()[0])
-    return context
-
-
-def unread_count_processor(request):
-    """
-    Context processor to calculate the number of unread messages in the inbox and on flow tabs
-    """
-    context = dict()
-    user = request.user
-
-    if user.is_superuser or user.is_anonymous():
-        return context
-
-    org = user.get_org()
-
-    if org:
-        # calculate and populate our unread counts on flows
-        flows_unread_count = org.get_unread_msg_count(UNREAD_FLOW_MSGS)
-
-        if request.path.find(reverse('flows.flow_list')) == 0:
-            org.clear_unread_msg_count(UNREAD_FLOW_MSGS)
-            org.flows_last_viewed = timezone.now()
-            org.save(update_fields=['flows_last_viewed'])
-            flows_unread_count = 0
-
-        context['flows_last_viewed'] = org.flows_last_viewed
-        context['flows_unread_count'] = flows_unread_count
-
-        # calculate and populate our unread counts on inbox msgs
-        msgs_unread_count = org.get_unread_msg_count(UNREAD_INBOX_MSGS)
-
-        if request.path.find(reverse('msgs.msg_inbox')) == 0:
-            org.clear_unread_msg_count(UNREAD_INBOX_MSGS)
-            org.msg_last_viewed = timezone.now()
-            org.save(update_fields=['msg_last_viewed'])
-            msgs_unread_count = 0
-
-        context['msgs_last_viewed'] = org.msg_last_viewed
-        context['msgs_unread_count'] = msgs_unread_count
-
-    return context
+    return dict(STRIPE_PUBLIC_KEY=get_stripe_credentials()[0])

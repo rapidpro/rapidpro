@@ -19,7 +19,7 @@ class NexmoTypeTest(TembaTest):
         claim_nexmo = reverse('channels.claim_nexmo')
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         # make sure nexmo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))

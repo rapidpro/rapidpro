@@ -144,7 +144,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
-                'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
                 'temba.orgs.context_processors.settings_includer',
@@ -441,6 +440,7 @@ PERMISSIONS = {
                    'archived',
                    'broadcast',
                    'campaign',
+                   'category_counts',
                    'completion',
                    'copy',
                    'editor',
@@ -448,7 +448,6 @@ PERMISSIONS = {
                    'export_results',
                    'filter',
                    'json',
-                   'read',
                    'recent_messages',
                    'results',
                    'revisions',
@@ -532,7 +531,6 @@ GROUP_PERMISSIONS = {
         'contacts.contact_break_anon',
         'flows.flow_editor',
         'flows.flow_json',
-        'flows.flow_read',
         'flows.flow_revisions',
         'flows.flowrun_delete',
         'orgs.org_dashboard',
@@ -812,11 +810,11 @@ GROUP_PERMISSIONS = {
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
+        'flows.flow_category_counts',
         'flows.flow_export',
         'flows.flow_export_results',
         'flows.flow_filter',
         'flows.flow_list',
-        'flows.flow_read',
         'flows.flow_editor',
         'flows.flow_json',
         'flows.flow_recent_messages',
@@ -933,10 +931,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'trim_webhook_event_task',
         'schedule': crontab(hour=3, minute=0),
     },
-    "calculate-credit-caches": {
-        'task': 'calculate_credit_caches',
-        'schedule': timedelta(days=3),
-    },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
         'schedule': timedelta(seconds=300),
@@ -996,6 +990,14 @@ BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
+AUTOSCALE_MAX_CPU_USAGE = 80
+AUTOSCALE_MAX_USED_MEMORY = 80
+AUTOSCALE_MAX_WORKER_INC_BY = 2
+AUTOSCALE_MAX_WORKER_DEC_BY = 2
+AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
+AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
 IS_PROD = False
 HOSTNAME = "localhost"
@@ -1114,6 +1116,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
     'temba.channels.types.nexmo.NexmoType',
@@ -1199,7 +1202,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK'])
+COURIER_CHANNELS = set(['DK', 'WA'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
