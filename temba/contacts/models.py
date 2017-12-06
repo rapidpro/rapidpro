@@ -1612,8 +1612,7 @@ class Contact(TembaModel):
 
         fields = org.cached_contact_fields
         if for_show_only:
-            if for_show_only:
-                fields = [f for f in fields if f.show_in_table]
+            fields = [f for f in fields if f.show_in_table]
 
         # build id maps to avoid re-fetching contact objects
         key_map = {f.id: f.key for f in fields}
