@@ -1828,8 +1828,9 @@ class Flow(TembaModel):
 
         if previous_step:
             previous_step.left_on = arrived_on
+            previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'next_uuid'))
+            previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
             if not previous_step.contact.is_test:
                 FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
@@ -4025,7 +4026,7 @@ class FlowPathCount(SquashableModel):
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
 

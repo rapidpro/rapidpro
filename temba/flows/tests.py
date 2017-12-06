@@ -5103,10 +5103,8 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'chartreuse')
         (active, visited) = flow.get_activity()
 
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, active[color.uuid])
-        self.assertEqual(1, visited[other_rule_to_msg])
-        self.assertEqual(1, visited[msg_to_color_step])
+        self.assertEqual(active, {color.uuid: 1})
+        self.assertEqual(visited, {other_rule_to_msg: 1, msg_to_color_step: 1})
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
