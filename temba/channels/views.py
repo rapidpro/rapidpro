@@ -1706,7 +1706,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # everybody else goes to a different page depending how many channels there are
             org = self.request.user.get_org()
-            channels = list(Channel.objects.filter(org=org, is_active=True).exclude(org=None))
+            channels = list(Channel.objects.filter(org=org, is_active=True))
 
             if len(channels) == 0:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
