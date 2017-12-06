@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from django.conf import settings
 from django.db import migrations
@@ -23,33 +24,29 @@ class Migration(migrations.Migration):
 
         if settings.IS_PROD:
             nexmo_channels = Channel.objects.filter(channel_type='NX').exclude(org=None)
-
-            updated = []
             for channel in nexmo_channels:
                 try:
                     org = Org.objects.get(pk=channel.org_id)
                     org_config = org.config_json()
                     app_id = org_config[NEXMO_APP_ID]
-                    config = {Channel.CONFIG_NEXMO_APP_ID: app_id,
-                              Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
-                              Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
-                              Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET]}
-
-                    client = NexmoClient(config[Channel.CONFIG_NEXMO_API_KEY],
-                                         config[Channel.CONFIG_NEXMO_API_SECRET],
-                                         config[Channel.CONFIG_NEXMO_APP_ID],
-                                         config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY])
-
-                    receive_url = "https://" + org.get_brand_domain() + reverse('courier.nx',
-                                                                                args=[channel.uuid, 'receive'])
-
-                    client.update_nexmo_number(channel.country, channel.address, receive_url, app_id)
+                    config = {'nexmo_app_id': app_id,
+                              'nexmo_app_private_key': org_config[NEXMO_APP_PRIVATE_KEY],
+                              'nexmo_api_key': org_config[NEXMO_KEY],
+                              'nexmo_api_secret': org_config[NEXMO_SECRET]}
 
                     channel.config = json.dumps(config)
-                    channel.save()
+                    channel.save(update_fields=['config'])
 
-                    updated.append(channel.id)
-                except Exception:
+                    client = NexmoClient(config['nexmo_api_key'],
+                                         config['nexmo_api_secret'],
+                                         config['nexmo_app_id'],
+                                         config['nexmo_app_private_key'])
+
+                    receive_url = "https://" + org.get_brand_domain() + reverse('courier.nx', args=[channel.uuid, 'receive'])
+                    client.update_nexmo_number(six.text_type(channel.country), channel.address, receive_url, app_id)
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc(e)
                     pass
 
     operations = [
