@@ -2029,7 +2029,8 @@ class ContactURN(models.Model):
         # not found? create it
         if not urn:
             urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-            contact.clear_urn_cache()
+            if contact:
+                contact.clear_urn_cache()
 
         return urn
 
