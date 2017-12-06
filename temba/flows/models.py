@@ -1642,6 +1642,7 @@ class Flow(TembaModel):
 
         batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
         Contact.bulk_cache_initialize(self.org, batch_contacts)
+        contact_map = {c.id: c for c in batch_contacts}
 
         simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
@@ -1656,12 +1657,16 @@ class Flow(TembaModel):
         batch = []
         now = timezone.now()
 
-        for contact in batch_contacts:
-            contact.org = self.org
-            run = FlowRun.create(self, contact.id, fields=run_fields, start=flow_start, created_on=now,
+        for contact_id in batch_contact_ids:
+            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
+
+            # assign our bulk initialized contact
+            contact = contact_map[contact_id]
+            contact.org = self.org
             run.contact = contact
             batch.append(run)
+
         runs = FlowRun.objects.bulk_create(batch)
 
         # build a map of contact to flow run
@@ -1679,8 +1684,7 @@ class Flow(TembaModel):
 
         # if we have more than one run, update the others to the same expiration
         if len(run_map) > 1:
-            FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
-                                                                                         modified_on=timezone.now())
+            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on, modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1722,15 +1726,14 @@ class Flow(TembaModel):
             if entry_rules:
                 entry_rules.flow = self
 
-        runs = []
         msgs = []
         optimize_sending_action = len(broadcasts) > 0
 
-        for contact in batch_contacts:
+        for run in runs:
+            contact = run.contact
+
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
-
-            run = run_map[contact.id]
             run_msgs = message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
@@ -1776,7 +1779,6 @@ class Flow(TembaModel):
 
                 # set the msgs that were sent by this run so that any caller can deal with them
                 run.start_msgs = run_msgs
-                runs.append(run)
 
                 # add these messages as ones that are ready to send
                 for msg in run_msgs:

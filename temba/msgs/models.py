@@ -1437,7 +1437,7 @@ class Msg(models.Model):
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
                 if not channel and not contact.is_test:  # pragma: needs cover
-                    raise ValueError("No suitable channel available for this org")
+                    raise UnreachableException("No suitable channel available for this org")
         else:
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient

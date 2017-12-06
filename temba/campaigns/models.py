@@ -566,7 +566,7 @@ class EventFire(Model):
         groups = [g.id for g in contact.cached_user_groups]
 
         # for each campaign that might affect us
-        for campaign in contact.org.cached_campaigns:
+        for campaign in Campaign.objects.filter(org=contact.org, is_active=True, is_archived=False):
             if campaign.group_id in groups:
                 # update all the events for the campaign
                 EventFire.update_campaign_events_for_contact(campaign, contact)

@@ -445,6 +445,7 @@ class Org(SmartModel):
     def clear_cached_channels(self):
         if 'cached_channels' in self.__dict__:
             del self.__dict__['cached_channels']
+        self.clear_cached_schemes()
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
@@ -1537,11 +1538,6 @@ class Org(SmartModel):
         for field in fields:
             field.org = self
         return fields
-
-    @ cached_property
-    def cached_campaigns(self):
-        from temba.campaigns.models import Campaign
-        return Campaign.objects.filter(org=self, is_active=True, is_archived=False)
 
     def clear_cached_groups(self):
         if '__cached_groups' in self.__dict__:
