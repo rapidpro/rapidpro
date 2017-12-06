@@ -11,7 +11,7 @@ from smartmin.views import SmartFormView
 from temba.channels.models import Channel
 from temba.channels.views import BaseClaimNumberMixin, ClaimViewMixin, NEXMO_SUPPORTED_COUNTRIES, \
     NEXMO_SUPPORTED_COUNTRY_CODES
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, NEXMO_APP_ID, NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_PRIVATE_KEY
 from temba.utils import analytics
 from temba.utils.models import generate_uuid
 
@@ -84,7 +84,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         client = org.get_nexmo_client()
         org_config = org.config_json()
-        org_uuid = org_config.get(NEXMO_UUID)
         app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
@@ -111,9 +110,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                                   "Note that you can only claim numbers after "
                                   "adding credit to your Nexmo account.") + "\n" + str(e))
 
-        mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
-
         channel_uuid = generate_uuid()
+        callback_domain = org.get_brand_domain()
+        new_receive_url = "https://" + callback_domain + reverse('courier.nx', args=[channel_uuid, 'receive'])
 
         nexmo_phones = client.get_numbers(phone_number)
 
@@ -127,7 +126,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         # update the delivery URLs for it
         try:
-            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (org.get_brand_domain(), mo_path), app_id)
+            client.update_nexmo_number(country, phone_number, new_receive_url, app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -145,8 +144,14 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
+        config = {Channel.CONFIG_NEXMO_APP_ID: app_id,
+                  Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
+                  Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
+                  Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+                  Channel.CONFIG_CALLBACK_DOMAIN: callback_domain}
+
         channel = Channel.create(org, user, country, 'NX', name=phone, address=phone_number, role=role,
-                                 bod=nexmo_phone_number, uuid=channel_uuid)
+                                 config=config, bod=nexmo_phone_number, uuid=channel_uuid)
 
         analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
 

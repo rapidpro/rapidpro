@@ -1,3 +1,15 @@
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
+v3.0.279
+----------
+ * Update Nexmo channels to use new Courier URLs
+ * Store path on AdminBoundary for faster lookups
+ * Serialize metata for courier tasks (quick replies support)
+ * Add default manager to AdminBoundary which doesn't include geometry
+
 v3.0.278
 ----------
  * Fixes to the ISO639-3 migration
