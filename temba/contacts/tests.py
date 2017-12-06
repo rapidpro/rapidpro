@@ -3602,7 +3602,7 @@ class ContactTest(TembaTest):
         self.assertIsNone(self.joe.get_field('birth_date').decimal_value)
         self.assertIsNone(self.joe.get_field('birth_date').datetime_value)
 
-    def test_serialize_field_value(self):
+    def test_field_values(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
                                                         None, Value.TYPE_DATETIME)
 
@@ -3616,23 +3616,37 @@ class ContactTest(TembaTest):
         joe.set_field(self.user, 'color', "green")
         joe.set_field(self.user, 'state', "kigali city")
 
+        # none value instances
+        self.assertEqual(Contact.serialize_field_value(weight_field, None), None)
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, None), None)
+        self.assertEqual(Contact.serialize_field_value(registration_field, None), None)
+        self.assertEqual(Contact.get_field_display_for_value(registration_field, None), None)
+
         value = joe.get_field(registration_field.key)
         self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T03:04:00+02:00')
-        self.assertEqual(Contact.serialize_field_value(registration_field, None), None)
 
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
-        self.assertEqual(Contact.serialize_field_value(weight_field, None), None)
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), '75.888888')
 
         joe.set_field(self.user, 'weight', "0")
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), "0")
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), "0")
+
+        # passing something non-numeric to a decimal field
+        joe.set_field(self.user, 'weight', "xxx")
+        value = joe.get_field(weight_field.key)
+        self.assertEqual(Contact.serialize_field_value(weight_field, value), None)
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), "")
 
         value = joe.get_field(state_field.key)
         self.assertEqual(Contact.serialize_field_value(state_field, value), 'Rwanda > Kigali City')
+        self.assertEqual(Contact.get_field_display_for_value(state_field, value), 'Kigali City')
 
         value = joe.get_field(color_field.key)
         self.assertEqual(Contact.serialize_field_value(color_field, value), 'green')
+        self.assertEqual(Contact.get_field_display_for_value(color_field, value), 'green')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
