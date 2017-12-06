@@ -56,7 +56,7 @@ class NexmoClient(nx.Client):
         else:
             return []
 
-    def send_message_via_nexmo(self, from_number, to_number, text):
+    def send_message_via_nexmo(self, from_number, to_number, text, callback_url=None):
         from temba.channels.models import SendException
 
         params = dict(api_key=self.api_key, api_secret=self.api_secret)
@@ -64,6 +64,9 @@ class NexmoClient(nx.Client):
         params['to'] = to_number.strip('+')
         params['text'] = text
         params['status-report-req'] = 1
+
+        if callback_url:
+            params['callback'] = callback_url
 
         # if this isn't going to work as plaintext, send as unicode instead
         if not is_gsm7(text):
