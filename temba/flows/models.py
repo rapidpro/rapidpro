@@ -1677,9 +1677,6 @@ class Flow(TembaModel):
             contact = contact_map[contact_id]
             run = FlowRun.create(self, contact, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
-
-            # assign our bulk initialized contact
-            contact = contact_map[contact_id]
             batch.append(run)
 
         runs = FlowRun.objects.bulk_create(batch)
