@@ -5097,7 +5097,6 @@ class FlowsTest(FlowFileTest):
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
         msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
-        cyan_to_nothing = '%s:None' % (color_cyan_uuid)
         blue_to_beer = '%s:%s' % (color_blue_uuid, beer_question.uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
@@ -5300,15 +5299,9 @@ class FlowsTest(FlowFileTest):
         tyler = self.create_contact('Tyler Lockett', '+12065559999')
         self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
 
-        # we should have 2 counts of the cyan rule to nothing
-        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
-        self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
-
-        # squash our counts and make sure they are still the same
         squash_flowpathcounts()
-        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
 
-        # but now we have a single count
+        # and now we have a single count
         self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
         counts = len(flow.get_segment_counts(False))

@@ -1084,18 +1084,15 @@ class Flow(TembaModel):
         totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
         return {t[0]: t[1] for t in totals if t[1]}
 
-    def get_segment_counts(self, simulation, include_incomplete=False):
+    def get_segment_counts(self, simulation):
         """
         Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
         contacts as these are not pre-calculated.
         """
         if not simulation:
-            return FlowPathCount.get_totals(self, include_incomplete)
+            return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True)
-
-        if not include_incomplete:
-            steps = steps.exclude(next_uuid=None)
+        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
 
         visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
         visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
@@ -4058,11 +4055,8 @@ class FlowPathCount(SquashableModel):
         return sql, params
 
     @classmethod
-    def get_totals(cls, flow, include_incomplete=False):
-        counts = cls.objects.filter(flow=flow)
-        if not include_incomplete:
-            counts = counts.exclude(to_uuid=None)
-
+    def get_totals(cls, flow):
+        counts = cls.objects.filter(flow=flow).exclude(to_uuid=None)
         totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
         return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 
