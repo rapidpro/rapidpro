@@ -49,7 +49,7 @@ from .models import (
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
     DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction,
-    FlowUserConflictException, FlowVersionConflictException
+    FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 )
 
 from .views import FlowCRUDL
@@ -4504,12 +4504,25 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('favorites')
         flow_json = flow.as_json()
 
+        self.login(self.admin)
+
         # saving should work
         flow.update(flow_json, self.admin)
 
         # but if we save from in the past after our save it should fail
         with self.assertRaises(FlowUserConflictException):
             flow.update(flow_json, self.admin)
+
+        # check view sends converts exception to error response
+        response = self.client.post(reverse('flows.flow_json', args=[flow.id]), data=json.dumps(flow_json),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'description': 'Administrator is currently editing this Flow. '
+                           'Your changes will not be saved until you refresh your browser.',
+            'status': 'failure'
+        })
 
         # we should also fail if we try saving an old spec version from the editor
         flow.refresh_from_db()
@@ -4520,6 +4533,33 @@ class FlowsTest(FlowFileTest):
 
             with self.assertRaises(FlowVersionConflictException):
                 flow.update(flow_json, self.admin)
+
+            # check view sends converts exception to error response
+            response = self.client.post(reverse('flows.flow_json', args=[flow.id]), data=json.dumps(flow_json),
+                                        content_type='application/json')
+
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json(), {
+                'description': 'Your flow has been upgraded to the latest version. '
+                               'In order to continue editing, please refresh your browser.',
+                'status': 'failure'
+            })
+
+        # create an invalid loop in the flow definition
+        flow_json['action_sets'][0]['destination'] = flow_json['action_sets'][0]['uuid']
+
+        with self.assertRaises(FlowInvalidCycleException):
+            flow.update(flow_json, self.admin)
+
+        # check view sends converts exception to error response
+        response = self.client.post(reverse('flows.flow_json', args=[flow.id]), data=json.dumps(flow_json),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'description': 'Your flow contains an invalid loop. Please refresh your browser.',
+            'status': 'failure'
+        })
 
     def test_flow_category_counts(self):
 
@@ -6781,16 +6821,18 @@ class FlowMigrationTest(FlowFileTest):
 
         # should see the system user on our revision json
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_revisions', args=[flow.pk]))
+        response = self.client.get(reverse('flows.flow_revisions', args=[flow.id]))
         self.assertContains(response, 'System Update')
         self.assertEqual(2, len(response.json()))
 
         # attempt to save with old json, no bueno
-        with self.assertRaises(FlowUserConflictException) as cm:
-            flow.update(old_json, user=self.admin)
+        response = self.client.post(reverse('flows.flow_json', args=[flow.id]), data=json.dumps(old_json), content_type='application/json')
 
-        self.assertEqual(cm.exception.other_user, get_flow_user(self.org))
-        self.assertIsNotNone(cm.exception.last_saved_on)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'description': 'rapidpro_flow is currently editing this Flow. Your changes will not be saved until you refresh your browser.',
+            'status': u'failure'
+        })
 
         # now refresh and save a new version
         flow.update(flow.as_json(), user=self.admin)
