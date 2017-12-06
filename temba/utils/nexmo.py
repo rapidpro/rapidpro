@@ -48,7 +48,7 @@ class NexmoClient(nx.Client):
             if e.message.startswith('420') or e.message.startswith('429'):
                 time.sleep(1)
                 response = nx.Client.get_account_numbers(self, params=params)
-            else:
+            else:  # pragma: no cover
                 raise e
 
         if int(response.get('count', 0)):
