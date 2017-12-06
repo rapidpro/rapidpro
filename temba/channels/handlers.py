@@ -1338,7 +1338,6 @@ class NexmoHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
 
         # crazy enough, for nexmo 'to' is the channel number for both delivery reports and new messages
         channel_number = self.get_param('to')
@@ -1349,15 +1348,9 @@ class NexmoHandler(BaseChannelHandler):
             return HttpResponse("No to parameter, ignoring")
 
         # look up the channel
-        address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
-        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type='NX').exclude(org=None).first()
+        channel = Channel.objects.filter(is_active=True, channel_type='NX', uuid=kwargs['uuid']).exclude(org=None).first()
 
-        # make sure we got one, and that it matches the key for our org
-        org_uuid = None
-        if channel:
-            org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
-
-        if not channel or org_uuid != request_uuid:
+        if not channel:
             return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
         # this is a callback for a message we sent

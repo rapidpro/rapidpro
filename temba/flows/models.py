@@ -3059,7 +3059,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if isinstance(value, datetime):
             return value.isoformat()
         elif isinstance(value, AdminBoundary):
-            return value.as_path()
+            return value.path
         else:
             return six.text_type(value)
 

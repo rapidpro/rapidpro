@@ -3477,16 +3477,22 @@ class NexmoTest(TembaTest):
         org.config = json.dumps(config)
         org.save()
 
+        self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
+                                          Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
+                                          Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
+                                          Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]})
+        self.channel.save()
+
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
-        response = self.client.get(reverse('handlers.nexmo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('courier.nx', args=['not-real-uuid', 'status']), data)
         self.assertEqual(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1, should return 200
         # these are probably multipart message callbacks, which we don't track
         data = dict(to='250788123123', messageId='-1')
-        delivery_url = reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid])
+        delivery_url = reverse('courier.nx', args=[self.channel.uuid, 'status'])
         response = self.client.get(delivery_url, data)
         self.assertEqual(200, response.status_code)
 
@@ -3500,7 +3506,7 @@ class NexmoTest(TembaTest):
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.get(reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid]), data)
+            response = self.client.get(reverse('courier.nx', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -3513,7 +3519,7 @@ class NexmoTest(TembaTest):
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
-        callback_url = reverse('handlers.nexmo_handler', args=['receive', self.nexmo_uuid])
+        callback_url = reverse('courier.nx', args=[self.channel.uuid, 'receive'])
         response = self.client.get(callback_url, data)
 
         self.assertEqual(200, response.status_code)
@@ -3593,15 +3599,9 @@ class NexmoTest(TembaTest):
             self.assertEqual('12', msg.external_id)
 
             # assert that we were called with unicode
-            mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
-                                         params={'from': u'250788123123',
-                                                 'api_secret': u'1234',
-                                                 'status-report-req': 1,
-                                                 'to': u'250788383383',
-                                                 'text': u'Unicode \u263a',
-                                                 'api_key': u'1234',
-                                                 'type': 'unicode'})
-
+            self.assertEqual(mock.call_args[1]['params']['text'], u'Unicode \u263a')
+            self.assertEqual(mock.call_args[1]['params']['from'], u'250788123123')
+            self.assertTrue(mock.call_args[1]['params']['callback'])
             self.clear_cache()
 
         with patch('requests.get') as mock:
