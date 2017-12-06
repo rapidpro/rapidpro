@@ -1647,6 +1647,7 @@ class Contact(TembaModel):
 
         # set the cache initialize as correct
         for contact in contacts:
+            contact.org = org
             setattr(contact, '__cache_initialized', True)
 
     def build_expressions_context(self):

@@ -1679,7 +1679,6 @@ class Flow(TembaModel):
 
             # assign our bulk initialized contact
             contact = contact_map[contact_id]
-            contact.org = self.org
             run.contact = contact
             batch.append(run)
 
