@@ -111,13 +111,13 @@ class AdminBoundary(MPTTModel, models.Model):
             self.path = self.name
             self.save(update_fields=('path',))
 
-        def update_paths(boundary):
+        def _update_child_paths(boundary):
             boundaries = AdminBoundary.objects.filter(parent=boundary).only('name', 'parent__path')
             boundaries.update(path=Concat(Value(boundary.path), Value(' %s ' % AdminBoundary.PATH_SEPARATOR), F('name')))
             for boundary in boundaries:
-                update_paths(boundary)
+                _update_child_paths(boundary)
 
-        update_paths(self)
+        _update_child_paths(self)
 
     def __str__(self):
         return "%s" % self.name
