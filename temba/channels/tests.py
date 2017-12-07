@@ -360,8 +360,7 @@ class ChannelTest(TembaTest):
 
         msg = Msg.objects.get(pk=msg.pk)
         self.assertIsNotNone(msg.channel)
-        self.assertIsNone(msg.channel.gcm_id)
-        self.assertIsNone(msg.channel.secret)
+        self.assertFalse(msg.channel.is_active)
         self.assertEqual(self.org, msg.org)
 
         # queued messages for the channel should get marked as failed
@@ -369,8 +368,7 @@ class ChannelTest(TembaTest):
 
         call = ChannelEvent.objects.get(pk=call.pk)
         self.assertIsNotNone(call.channel)
-        self.assertIsNone(call.channel.gcm_id)
-        self.assertIsNone(call.channel.secret)
+        self.assertFalse(call.channel.is_active)
 
         self.assertEqual(self.org, call.org)
 
@@ -393,7 +391,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]), self.superuser)
         self.assertContains(response, 'Test Channel')
@@ -404,7 +402,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         # add channel trigger
         from temba.triggers.models import Trigger
@@ -1294,8 +1292,6 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
 
         # Nexmo delegate should have been released as well
@@ -1316,11 +1312,7 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
-
-        self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
