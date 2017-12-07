@@ -3481,16 +3481,22 @@ class NexmoTest(TembaTest):
         org.config = json.dumps(config)
         org.save()
 
+        self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
+                                          Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
+                                          Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
+                                          Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]})
+        self.channel.save()
+
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
-        response = self.client.get(reverse('handlers.nexmo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('courier.nx', args=['not-real-uuid', 'status']), data)
         self.assertEqual(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1, should return 200
         # these are probably multipart message callbacks, which we don't track
         data = dict(to='250788123123', messageId='-1')
-        delivery_url = reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid])
+        delivery_url = reverse('courier.nx', args=[self.channel.uuid, 'status'])
         response = self.client.get(delivery_url, data)
         self.assertEqual(200, response.status_code)
 
@@ -3504,7 +3510,7 @@ class NexmoTest(TembaTest):
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.get(reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid]), data)
+            response = self.client.get(reverse('courier.nx', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -3517,7 +3523,7 @@ class NexmoTest(TembaTest):
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
-        callback_url = reverse('handlers.nexmo_handler', args=['receive', self.nexmo_uuid])
+        callback_url = reverse('courier.nx', args=[self.channel.uuid, 'receive'])
         response = self.client.get(callback_url, data)
 
         self.assertEqual(200, response.status_code)
@@ -3597,15 +3603,9 @@ class NexmoTest(TembaTest):
             self.assertEqual('12', msg.external_id)
 
             # assert that we were called with unicode
-            mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
-                                         params={'from': u'250788123123',
-                                                 'api_secret': u'1234',
-                                                 'status-report-req': 1,
-                                                 'to': u'250788383383',
-                                                 'text': u'Unicode \u263a',
-                                                 'api_key': u'1234',
-                                                 'type': 'unicode'})
-
+            self.assertEqual(mock.call_args[1]['params']['text'], u'Unicode \u263a')
+            self.assertEqual(mock.call_args[1]['params']['from'], u'250788123123')
+            self.assertTrue(mock.call_args[1]['params']['callback'])
             self.clear_cache()
 
         with patch('requests.get') as mock:
@@ -10145,6 +10145,18 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.text, "incoming msg")
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
+
+        # set our contact name to something else
+        contact = msg.contact
+        contact.name = "ET4"
+        contact.save(update_fields=['name'])
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        self.assertEqual(response.status_code, 200)
+
+        # refresh our contact, name shouldn't have changed
+        contact.refresh_from_db()
+        self.assertEqual("ET4", contact.name)
 
     def assertSignedRequest(self, payload, expected_status=200):
         from temba.channels.handlers import ViberPublicHandler
