@@ -189,7 +189,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                                        'T')
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=session, connection=call)
+                    FlowRun.create(flow, contact, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1300,7 +1300,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
                 session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=session, connection=call)
+                FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
@@ -3061,7 +3061,10 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+
+            contact = Contact.from_urn(channel.org, urn)
+            if not contact:
+                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)
