@@ -724,7 +724,7 @@ class Channel(TembaModel):
         cached = cache.get(key, None)
 
         if cached is None:
-            channel = Channel.objects.filter(pk=channel_id, is_active=True).exclude(org=None).first()
+            channel = Channel.objects.filter(pk=channel_id, is_active=True).first()
 
             # channel has been disconnected, ignore
             if not channel:  # pragma: no cover
