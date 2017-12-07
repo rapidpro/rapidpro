@@ -487,14 +487,14 @@ class FlowTest(TembaTest):
         test_contact = Contact.get_test_contact(self.admin)
 
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertFalse(activity['is_starting'])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
 
         # set the flow as inactive, shouldn't react to replies
