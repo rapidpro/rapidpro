@@ -1610,10 +1610,9 @@ class Contact(TembaModel):
         if not contacts:
             return
 
-        # get our contact fields
-        fields = ContactField.objects.filter(org=org)
+        fields = org.cached_contact_fields
         if for_show_only:
-            fields = fields.filter(show_in_table=True)
+            fields = [f for f in fields if f.show_in_table]
 
         # build id maps to avoid re-fetching contact objects
         key_map = {f.id: f.key for f in fields}
@@ -1647,6 +1646,7 @@ class Contact(TembaModel):
 
         # set the cache initialize as correct
         for contact in contacts:
+            contact.org = org
             setattr(contact, '__cache_initialized', True)
 
     def build_expressions_context(self):
@@ -2029,6 +2029,8 @@ class ContactURN(models.Model):
         # not found? create it
         if not urn:
             urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+            if contact:
+                contact.clear_urn_cache()
 
         return urn
 
@@ -2224,7 +2226,7 @@ class ContactGroup(TembaModel):
         existing = None
 
         if group_uuid is not None:
-            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
+            existing = org.get_group(group_uuid)
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)

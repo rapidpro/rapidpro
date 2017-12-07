@@ -310,7 +310,7 @@ class MsgTest(TembaTest):
             msg.send()
 
         # can't create outgoing messages against an unassigned channel
-        unassigned_channel = Channel.create(None, self.admin, None, 'A', None, secret="67890", gcm_id="456")
+        unassigned_channel = Channel.create(None, self.admin, None, 'A', None, secret=Channel.generate_secret(), gcm_id="456")
 
         with self.assertRaises(Exception):
             Msg.create_incoming(unassigned_channel, "tel:250788382382", "No dice")
@@ -1007,19 +1007,19 @@ class BroadcastTest(TembaTest):
         assertBroadcastStatus(msgs[3], 'F', 'F')
 
         # first make sure there are no failed messages
-        for msg in broadcast.get_messages():
+        for msg in broadcast.get_messages().order_by('-id'):
             msg.status = 'S'
-            msg.save()
+            msg.save(update_fields=('status',))
 
-        assertBroadcastStatus(broadcast.get_messages()[0], 'Q', 'Q')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'Q', 'Q')
         # test queued broadcast logic
 
         # test sent broadcast logic
         broadcast.get_messages().update(status='D')
-        assertBroadcastStatus(broadcast.get_messages()[0], 'S', 'S')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'S', 'S')
 
         # test delivered broadcast logic
-        assertBroadcastStatus(broadcast.get_messages()[0], 'D', 'D')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'D', 'D')
 
         self.assertEqual("Temba (%d)" % broadcast.id, str(broadcast))
 
@@ -1053,8 +1053,8 @@ class BroadcastTest(TembaTest):
         Broadcast.objects.all()[0].delete()
 
         # test when we have many channels
-        Channel.create(self.org, self.user, None, "A", secret="123456", gcm_id="1234")
-        Channel.create(self.org, self.user, None, "A", secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="1234")
+        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="123")
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
@@ -1075,7 +1075,7 @@ class BroadcastTest(TembaTest):
         for channel in Channel.objects.all():
             channel.release()
 
-        Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, 'A', None, secret=Channel.generate_secret(), gcm_id="123")
 
         response = self.client.get(send_url)
         self.assertEqual(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
@@ -1179,10 +1179,12 @@ class BroadcastTest(TembaTest):
 
         # remove twitter relayer
         self.twitter.release(trigger_sync=False)
+        self.org.clear_cached_channels()
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
+        self.assertEqual(3, broadcast.recipient_count)
 
         # should have only one message created to Ryan
         msgs = broadcast.msgs.all()
