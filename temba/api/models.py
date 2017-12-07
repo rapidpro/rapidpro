@@ -214,6 +214,10 @@ class WebHookEvent(SmartModel):
 
     @classmethod
     def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
+        pass
+
+    @classmethod
+    def trigger_flow_event_legacy(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
         flow = run.flow
         org = flow.org
         contact = run.contact

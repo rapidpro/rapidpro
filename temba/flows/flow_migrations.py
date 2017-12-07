@@ -15,6 +15,22 @@ from temba.flows.models import Flow
 from temba.utils.languages import iso6392_to_iso6393
 
 
+def migrate_to_version_11_3(json_flow, flow=None):
+    """
+    Migrates webhooks to support legacy format
+    """
+    for actionset in json_flow['action_sets']:
+        for action in actionset['actions']:
+            if action['type'] == 'api':
+                action['legacy_format'] = True
+    for ruleset in json_flow['rule_sets']:
+        if ruleset['ruleset_type'] == 'webhook':
+            ruleset['config']['legacy_format'] = True
+
+    # print(json.dumps(json_flow, indent=1))
+    return json_flow
+
+
 def _base_migrate_to_version_11_2(json_flow, country_code):
     if 'base_language' in json_flow and json_flow['base_language'] != 'base':
         iso_code = json_flow['base_language']

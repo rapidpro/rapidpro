@@ -394,6 +394,7 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
       $http.get('/flow/revisions/' + flowId + '/').success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
+          console.log(data)
           _this.revisions = data
 
     getRevision: (revision) ->
@@ -402,6 +403,7 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
+          console.log(data)
 
 ]
 

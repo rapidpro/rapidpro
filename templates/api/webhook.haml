@@ -192,10 +192,56 @@
   :markdown
     ### Flow Events
 
-    If you choose to have your webhook called when a user reaches a particular point in a flow, this is the resulting
-    event. You will receive the phone number of the contact, flow name and their state in the flow.
+    If you choose to POST to a webhook when a user reaches a particular point in a flow, the following
+    JSON payload will be included as the body
 
-    Say that a user reaches an API node in a flow, we will ```POST``` the following to your webhook.
+        {
+            "flow": {
+                "name": "Water Survey",
+                "uuid": "13fed2d2-160e-48e5-b52e-6eea3f74f27d"
+            },
+            "contact": {
+                "uuid": "dc2b3709-3261-465f-b39a-fc7312b2ab95",
+                "name": "Ben Haggerty",
+                "groups": [
+                    {
+                        "name": "Customers",
+                        "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"
+                    }
+                ],
+                "fields": {
+                    "nickname": "Macklemore",
+                    "side_kick": "Ryan Lewis"
+                }
+            },
+            "path": [
+                {
+                    "node_uuid": "40019102-e621-4b88-acd2-1288961dc214",
+                    "arrived_on": "2014-06-03T08:21:09.865526+00:00",
+                    "exit_uuid": "207d919d-ac4d-451a-9892-3ceca16430ff"
+                },
+                {
+                    "node_uuid": "e0d8507a-4af1-4cc3-978a-08f368d5fcd7",
+                    "arrived_on": "2014-06-03T08:21:09.865526+00:00"
+                }
+            ],
+            "results": {
+                "water_source": {
+                    "node_uuid": "40019102-e621-4b88-acd2-1288961dc214",
+                    "name": "Water Source",
+                    "category": "Stream",
+                    "value": "stream",
+                    "input": "stream",
+                    "created_on": "2017-12-05T16:47:57.875680+00:00"
+                }
+            }
+        }
+
+  %a{ name:"legacy_flow" }
+  :markdown
+    ### Legacy Flow Events
+
+    This format has been deprecated and will be removed on December 31, 2017. Please use the <a href="#flow">current format</a>.
 
         POST http://www.yourapp.com/app.php?password=akabanga
         event=flow&relayer=254&relayer_phone=%2B250788111111&phone=%2B250788123123&flow=1524&step=12341234-1234-1234-1234-1234-12341234&values=[]
