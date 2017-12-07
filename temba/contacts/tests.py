@@ -2653,10 +2653,9 @@ class ContactTest(TembaTest):
         self.assertEqual(contact.language, 'fra')
 
         # language is not defined in iso639-3
-        contact = Contact.create_instance(dict(
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(
             org=self.org, created_by=self.admin, name="Mob", phone="+250788111112", language="123"
         ))
-        self.assertIsNone(contact.language)
 
     def do_import(self, user, filename):
 
@@ -2668,7 +2667,7 @@ class ContactTest(TembaTest):
             csv_file='test_imports/' + filename,
             model_class="Contact", import_params=json.dumps(import_params), import_log="", task_id="A")
 
-        return Contact.import_csv(task, log=None)
+        return Contact.import_csv(task, log=None), task
 
     def assertContactImport(self, filepath, expected_results=None, task_customize=None, custom_fields_number=None):
         csv_file = open(filepath, 'rb')
@@ -2701,7 +2700,7 @@ class ContactTest(TembaTest):
         #
         # first import brings in 3 contacts
         user = self.user
-        records = self.do_import(user, 'sample_contacts.xls')
+        records, _ = self.do_import(user, 'sample_contacts.xls')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2720,7 +2719,7 @@ class ContactTest(TembaTest):
         jen_pk = Contact.objects.get(name='Jen Newcomer').pk
 
         # import again, should be no more records
-        records = self.do_import(user, 'sample_contacts.xls')
+        records, _ = self.do_import(user, 'sample_contacts.xls')
         self.assertEqual(3, len(records))
 
         # But there should be another group
@@ -2735,7 +2734,7 @@ class ContactTest(TembaTest):
         eric.unstop(self.admin)
 
         # update file changes a name, and adds one more
-        records = self.do_import(user, 'sample_contacts_update.csv')
+        records, _ = self.do_import(user, 'sample_contacts_update.csv')
 
         # now there are three groups
         self.assertEqual(3, len(ContactGroup.user_groups.all()))
@@ -2756,7 +2755,7 @@ class ContactTest(TembaTest):
         self.assertEqual(3, len(ContactGroup.user_groups.all()))
 
         # import twitter urns
-        records = self.do_import(user, 'sample_contacts_twitter.xls')
+        records, _ = self.do_import(user, 'sample_contacts_twitter.xls')
         self.assertEqual(3, len(records))
 
         # now there are four groups
@@ -2768,7 +2767,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name='Nyaruka').count())
 
         # import twitter urns with phone
-        records = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
+        records, _ = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
         self.assertEqual(3, len(records))
 
         # now there are five groups
@@ -2790,7 +2789,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts_UPPER.XLS')
+        records, _ = self.do_import(user, 'sample_contacts_UPPER.XLS')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2801,7 +2800,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        records, _ = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
         self.assertEqual(2, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2809,7 +2808,7 @@ class ContactTest(TembaTest):
         self.assertEqual(group.name, "Sample Contacts With Filename Very Long That It Will N")
         self.assertEqual(2, group.contacts.count())
 
-        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        records, _ = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
         self.assertEqual(2, len(records))
 
         self.assertEqual(2, len(ContactGroup.user_groups.all()))
@@ -3169,7 +3168,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts.xlsx')
+        records, _ = self.do_import(user, 'sample_contacts.xlsx')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -3279,9 +3278,13 @@ class ContactTest(TembaTest):
         post_data['column_shoes_type'] = 'N'
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertEqual(response.context['results'], dict(records=3, errors=0, error_messages=[], creates=3,
-                                                           updates=0))
-        self.assertEqual(Contact.objects.all().count(), 3)
+        self.assertEqual(
+            response.context['results'], dict(
+                records=2, errors=1, creates=2, updates=0,
+                error_messages=[{'error': "Language: 'fre' is not defined in iso639-3 specification", 'line': 3}]
+            )
+        )
+        self.assertEqual(Contact.objects.all().count(), 2)
         self.assertEqual(ContactGroup.user_groups.all().count(), 1)
         self.assertEqual(ContactGroup.user_groups.all()[0].name, 'Sample Contacts With Extra Fields')
 
@@ -3467,12 +3470,15 @@ class ContactTest(TembaTest):
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
-        self.do_import(self.user, 'sample_contacts_with_language.xls')
+        imported_contacts, import_task = self.do_import(self.user, 'sample_contacts_with_language.xls')
 
+        self.assertEqual(2, len(imported_contacts))
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
-        # language is correctly migrated from iso639-2 to iso639-3, 'fre' -> 'fra'
-        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fra')  # created with language
-        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
+        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)  # no language
+
+        import_error_messages = json.loads(import_task.import_results)['error_messages']
+        self.assertEqual(len(import_error_messages), 1)
+        self.assertEqual(import_error_messages[0]['error'], "Language: 'fre' is not defined in iso639-3 specification")
 
     def test_import_sequential_numbers(self):
 
