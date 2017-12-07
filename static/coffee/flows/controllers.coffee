@@ -841,9 +841,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action_set = hovered.action_set
         action_set._showMessages = true
 
-        # TODO migrate all recent message records to use exit and stop including node UUID
-
-        Flow.fetchRecentMessages([action_set.exit_uuid, action_set.uuid], action_set.destination).then (response) ->
+        Flow.fetchRecentMessages([action_set.exit_uuid], action_set.destination).then (response) ->
           action_set._messages = response.data
 
       if hovered.category

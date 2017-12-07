@@ -1,3 +1,9 @@
+v3.0.281
+----------
+ * Set tps for nexmo and whatsapp
+ * Dont overwrite name when receiving a message from a contact that already exists
+ * Flow start performance improvements
+
 v3.0.280
 ----------
  * Parse ISO dates followed by a period
