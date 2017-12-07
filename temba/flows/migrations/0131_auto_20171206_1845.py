@@ -32,8 +32,8 @@ BEGIN
       PERFORM temba_insert_flownodecount(flow_id, UUID(OLD.step_uuid), -1);
     END IF;
 
-    IF OLD.rule_uuid IS NOT NULL THEN
-      PERFORM temba_insert_flowpathcount(flow_id, temba_step_from_uuid(OLD), UUID(OLD.next_uuid), OLD.left_on, -1);
+    IF OLD.rule_uuid IS NOT NULL AND OLD.next_uuid IS NOT NULL THEN
+      PERFORM temba_insert_flowpathcount(flow_id, UUID(OLD.rule_uuid), UUID(OLD.next_uuid), OLD.left_on, -1);
     END IF;
 
   -- FlowStep being added or left_on field updated
@@ -50,8 +50,8 @@ BEGIN
       PERFORM temba_insert_flownodecount(flow_id, UUID(NEW.step_uuid), 1);
     END IF;
 
-    IF NEW.rule_uuid IS NOT NULL THEN
-      PERFORM temba_insert_flowpathcount(flow_id, temba_step_from_uuid(NEW), UUID(NEW.next_uuid), NEW.left_on, 1);
+    IF NEW.rule_uuid IS NOT NULL AND NEW.next_uuid IS NOT NULL THEN
+      PERFORM temba_insert_flowpathcount(flow_id, UUID(NEW.rule_uuid), UUID(NEW.next_uuid), NEW.left_on, 1);
     END IF;
 
     IF TG_OP = 'UPDATE' AND OLD.left_on IS NULL THEN
@@ -61,6 +61,8 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP FUNCTION temba_step_from_uuid(flows_flowstep);
 """
 
 

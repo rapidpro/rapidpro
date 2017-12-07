@@ -1093,20 +1093,14 @@ class Flow(TembaModel):
             return FlowPathCount.get_totals(self)
 
         steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
+        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
 
-        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
-        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
+        path_counts = {}
+        for step in steps:
+            if step['count']:
+                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
 
-        visits = {}
-        for step in visited_actions:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['step_uuid'], step['next_uuid'])] = step['count']
-
-        for step in visited_rules:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
-
-        return visits
+        return path_counts
 
     def get_activity(self, simulation=False):
         """
