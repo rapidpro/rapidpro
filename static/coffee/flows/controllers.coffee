@@ -305,7 +305,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # activity from simulation is updated separately
     if window.simulation
-      $scope.scheduleActivityUpdate()
       return
 
     $.ajax(
@@ -314,7 +313,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       cache: false
       success: (data, status, xhr) ->
 
-        $rootScope.pending = data.pending
+        $rootScope.is_starting = data.is_starting
 
         # to be successful we should be a 200 with activity data
         if xhr.status == 200 and data.activity
@@ -463,7 +462,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     actionset =
       x: 100
       y: 0
-      uuid: uuid()
+      uuid: uuid(),
+      exit_uuid: uuid(),
       actions: [
         uuid: uuid()
         type: defaultActionSetType()
@@ -669,6 +669,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action:
           type: defaultActionSetType()
           uuid: uuid()
+
       flowController: -> $scope
 
     $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
@@ -727,7 +728,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
       if action.type in ["send", "reply", "say", "end_ussd"]
 
-        translations = [{ name: 'Message Text', from: action.msg[Flow.flow.base_language], to: action.msg[Flow.language.iso_code] }]
+        translations = [
+          {
+            name: 'Message Text',
+            from: action.msg[Flow.flow.base_language],
+            to: action.msg[Flow.language.iso_code],
+            fromQuickReplies: action.quick_replies || []
+          }
+        ]
 
         # add in our media for localization if we have some
         if action.media and action.media[Flow.flow.base_language]
@@ -763,6 +771,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           for translation in translations
             results = action.msg
             translated = if translation.to?.strip().length > 0 then translation.to else null
+
+            if translation.fromQuickReplies? && translation.fromQuickReplies != []
+              action.quick_replies = translation.fromQuickReplies
             
             if translation.name == "Attachment"
               results = action.media
@@ -829,7 +840,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if hovered.action_set
         action_set = hovered.action_set
         action_set._showMessages = true
-        Flow.fetchRecentMessages(action_set.uuid, action_set.destination).then (response) ->
+
+        # TODO migrate all recent message records to use exit and stop including node UUID
+
+        Flow.fetchRecentMessages([action_set.exit_uuid, action_set.uuid], action_set.destination).then (response) ->
           action_set._messages = response.data
 
       if hovered.category
@@ -842,11 +856,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         ruleset._showMessages = true
         category._showMessages = true
 
-        # use all rules as the source so we see all matched messages for the path
-        categoryFrom = category.sources.join()
-        categoryTo = category.target
-
-        Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
+        # get all recent messages for all rules that make up this category
+        Flow.fetchRecentMessages(category.sources, category.target).then (response) ->
           category._messages = response.data
     , 500
 
@@ -942,7 +953,7 @@ TranslationController = ($rootScope, $scope, $modalInstance, language, translati
     $modalInstance.dismiss "cancel"
 
 NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, flowController, Plumb, utils, options) ->
-
+ 
   # let our template know our editor type
   $scope.flow = Flow.flow
   $scope.nodeType = options.nodeType
@@ -1838,6 +1849,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     $scope.action._attachType = "image"
 
+  if $scope.options.dragSource? or !($scope.action.quick_replies? and $scope.action.quick_replies != undefined and $scope.action.quick_replies.length > 0)
+    $scope.quickReplies = []
+    $scope.action.quick_replies = []
+    $scope.showQuickReplyButton = true
+  else
+    $scope.quickReplies = $scope.action.quick_replies
+    $scope.showQuickReplyButton = false
+
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1871,6 +1890,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
+
+  $scope.addNewQuickReply = ->
+    $scope.showQuickReplyButton = false
+    if $scope.quickReplies.length < 11
+      addQuickReply = {}
+      addQuickReply[$scope.base_language] = ''
+      $scope.quickReplies.push(addQuickReply)
+
+  $scope.removeQuickReply = (index) ->
+    $scope.quickReplies.splice(index, 1)
+
+    if $scope.quickReplies.length == 0
+      $scope.showQuickReplyButton = true
+      $scope.action.quick_replies = []
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1953,6 +1986,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if not $scope.action._media
       $scope.action.media = null
 
+    if $scope.quickReplies.length > 0
+      $scope.action.quick_replies = $scope.quickReplies
+    else
+      $scope.action.quick_replies = []
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
@@ -2005,7 +2043,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           name: msgLabel.text
 
     $scope.action.labels = labels
-
+    
     $scope.action.type = 'add_label'
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

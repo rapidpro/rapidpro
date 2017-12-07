@@ -36,6 +36,9 @@ class GlobeType(ChannelType):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ['Asia/Manila']
 
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
+
     def send(self, channel, msg, text):
         payload = {
             'address': msg.urn_path.lstrip('+'),
@@ -60,7 +63,7 @@ class GlobeType(ChannelType):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code != 200 and response.status_code != 201:  # pragma: no cover
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 

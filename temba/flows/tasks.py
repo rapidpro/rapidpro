@@ -11,7 +11,7 @@ from temba.utils import datetime_to_epoch
 from temba.utils.cache import QueueRecord
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
-from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage
+from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage, FlowCategoryCount
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def start_msg_flow_batch_task():
 
         broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
         started_flows = [] if not task_obj['started_flows'] else task_obj['started_flows']
-        start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(pk=task_obj['start_msg']).first()
+        start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(id=task_obj['start_msg']).first()
         extra = task_obj['extra']
         flow_start = None if not task_obj['flow_start'] else FlowStart.objects.filter(pk=task_obj['flow_start']).first()
         contacts = task_obj['contacts']
@@ -145,9 +145,10 @@ def prune_recentmessages():
 def squash_flowruncounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
+    FlowCategoryCount.squash()
 
 
-@task(track_started=True, name="delete_flow_results_task")
-def delete_flow_results_task(flow_id):
+@task(track_started=True, name="deactivate_flow_runs_task")
+def deactivate_flow_runs_task(flow_id):
     flow = Flow.objects.get(id=flow_id)
-    flow.delete_results()
+    flow.deactivate_runs()

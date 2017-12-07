@@ -16,13 +16,19 @@ class NexmoTypeTest(TembaTest):
         mock_time_sleep.return_value = None
         self.login(self.admin)
 
+        claim_nexmo = reverse('channels.claim_nexmo')
+
         # remove any existing channels
         self.org.channels.update(is_active=False, org=None)
 
         # make sure nexmo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Nexmo")
-        self.assertContains(response, reverse('orgs.org_nexmo_connect'))
+
+        response = self.client.get(claim_nexmo)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(claim_nexmo, follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
 
         nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
                             NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
@@ -30,7 +36,6 @@ class NexmoTypeTest(TembaTest):
         self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
-        claim_nexmo = reverse('channels.claim_nexmo')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_nexmo)
 
@@ -146,6 +151,12 @@ class NexmoTypeTest(TembaTest):
                 self.assertTrue(Channel.ROLE_ANSWER in channel.role)
                 self.assertTrue(Channel.ROLE_CALL in channel.role)
 
+                channel_config = channel.config_json()
+                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], 'nexmo-key')
+                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], 'nexmo-secret')
+                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'nexmo-app-id')
+                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'nexmo-app-private-key')
+
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
                 response = self.client.get(update_url)
@@ -183,8 +194,8 @@ class NexmoTypeTest(TembaTest):
                 response = self.client.get(config_url)
                 self.assertEqual(200, response.status_code)
 
-                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'receive']))
-                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'status']))
+                self.assertContains(response, reverse('courier.nx', args=[channel.uuid, 'receive']))
+                self.assertContains(response, reverse('courier.nx', args=[channel.uuid, 'status']))
                 self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
 
                 call_handler_event_url = reverse('handlers.nexmo_call_handler', args=['event', channel.uuid])

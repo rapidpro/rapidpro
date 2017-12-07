@@ -230,7 +230,7 @@ class WebHookTest(TembaTest):
         org = self.channel.org
         org.save()
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
@@ -280,9 +280,10 @@ class WebHookTest(TembaTest):
 
         values = json.loads(data['values'][0])
 
-        self.assertEqual('Other', values[0]['category']['base'])
-        self.assertEqual('color', values[0]['label'])
-        self.assertEqual('Mauve', values[0]['text'])
+        self.assertEqual(values[0]['category'], 'Other')
+        self.assertEqual(values[0]['category_localized'], 'Other')
+        self.assertEqual(values[0]['label'], 'color')
+        self.assertEqual(values[0]['text'], 'Mauve')
         self.assertTrue(values[0]['time'])
         self.assertTrue(data['time'])
 

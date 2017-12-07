@@ -31,13 +31,15 @@ class ClaimView(AuthenticatedExternalClaimView):
     def form_valid(self, form):
         org = self.request.user.get_org()
         data = form.cleaned_data
+        config = {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                  self.get_submitted_country(data),
                                                                  data['number'], data['username'],
                                                                  data['password'], 'JN',
                                                                  data.get('url'),
-                                                                 role=Channel.DEFAULT_ROLE)
+                                                                 role=Channel.DEFAULT_ROLE,
+                                                                 extra_config=config)
         if data['secret']:
             self.object.secret = data['secret']
             self.object.save()

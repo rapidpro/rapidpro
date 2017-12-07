@@ -609,7 +609,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org).first()
+                        msg = Msg.objects.filter(id=cmd['msg_id'], org=channel.org).first()
                         if msg:
                             if msg.direction == OUTGOING:
                                 handled = msg.update(cmd)
@@ -775,8 +775,7 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                     help_text=_("The country this phone number is used in"))
         number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                 help_text=_(
-                                     "The phone number or short code you are connecting with country code. ex: +250788123124"))
+                                 help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"))
         username = forms.CharField(label=_("Username"),
                                    help_text=_("The username provided by the provider to use their API"))
         password = forms.CharField(label=_("Password"),
@@ -805,6 +804,12 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
     def get_submitted_country(self, data):
         return data['country']
 
+    def get_channel_config(self, org, data):
+        """
+        Subclasses can override this method to add in other channel config variables
+        """
+        return {}
+
     def form_valid(self, form):
         org = self.request.user.get_org()
 
@@ -812,15 +817,18 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
             raise Exception("No org for this user, cannot claim")
 
         data = form.cleaned_data
-        self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                 self.get_submitted_country(data),
-                                                                 data['number'],
-                                                                 data['username'],
-                                                                 data['password'],
-                                                                 self.channel_type,
-                                                                 data.get('url'))
+        extra_config = self.get_channel_config(org, data)
+        self.object = Channel.add_authenticated_external_channel(
+            org, self.request.user, self.get_submitted_country(data), data['number'], data['username'],
+            data['password'], self.channel_type, data.get('url'), extra_config=extra_config,
+        )
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)
+
+
+class AuthenticatedExternalCallbackClaimView(AuthenticatedExternalClaimView):
+    def get_channel_config(self, org, data):
+        return {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
 
 class BaseClaimNumberMixin(ClaimViewMixin):
@@ -1397,17 +1405,20 @@ class ChannelCRUDL(SmartCRUDL):
             context['twilio_countries'] = twilio_countries_str
 
             org = user.get_org()
-            context['recommended_channel'] = org.get_recommended_channel()
             context['org_timezone'] = six.text_type(org.timezone)
 
             context['brand'] = org.get_branding()
 
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
-            for ch_type in sorted(Channel.get_types(), key=lambda t: t.name):
-                if ch_type.is_available_to(user) and ch_type.category:
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif ch_type.is_available_to(user) and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
 
+            context['recommended_channels'] = recommended_channels
             context['channel_types'] = types_by_category
             return context
 
@@ -1615,7 +1626,7 @@ class ChannelCRUDL(SmartCRUDL):
                 context['example_url'] = Channel.replace_variables(send_url, example_payload)
                 context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
 
-            context['domain'] = settings.HOSTNAME
+            context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
 
             return context

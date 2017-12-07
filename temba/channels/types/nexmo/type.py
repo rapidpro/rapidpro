@@ -4,6 +4,8 @@ import time
 import regex
 
 from time import sleep
+
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType, Channel, SendException
@@ -11,8 +13,8 @@ from temba.channels.views import UpdateNexmoForm
 from temba.channels.types.nexmo.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_SECRET, NEXMO_KEY
 from temba.utils.nexmo import NexmoClient
+from temba.utils.timezones import timezone_to_country_code
 
 
 class NexmoType(ChannelType):
@@ -37,21 +39,28 @@ class NexmoType(ChannelType):
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
 
-    def is_available_to(self, user):
+    def is_recommended_to(self, user):
+        NEXMO_RECOMMENDED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
+                                       'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
         org = user.get_org()
-        return org.is_connected_to_nexmo()
+        countrycode = timezone_to_country_code(org.timezone)
+        return countrycode in NEXMO_RECOMMENDED_COUNTRIES
 
     def send(self, channel, msg, text):
 
-        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
-                             channel.org_config[NEXMO_APP_ID], channel.org_config[NEXMO_APP_PRIVATE_KEY])
+        config = channel.config
+
+        client = NexmoClient(config[Channel.CONFIG_NEXMO_API_KEY], config[Channel.CONFIG_NEXMO_API_SECRET],
+                             config[Channel.CONFIG_NEXMO_APP_ID], config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY])
         start = time.time()
+
+        callback_url = "https://" + channel.callback_domain + reverse('courier.nx', args=[channel.uuid, 'receive'])
 
         event = None
         attempts = 0
         while not event:
             try:
-                (message_id, event) = client.send_message_via_nexmo(channel.address, msg.urn_path, text)
+                (message_id, event) = client.send_message_via_nexmo(channel.address, msg.urn_path, text, callback_url)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.events[0].response_body)
 

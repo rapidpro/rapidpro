@@ -229,7 +229,7 @@ class APITest(TembaTest):
                                                anon=False))
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
@@ -237,7 +237,7 @@ class APITest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.json(), dict(name="Temba",
                                                country="RW",
-                                               languages=["eng", "fre"],
+                                               languages=["eng", "fra"],
                                                primary_language="eng",
                                                timezone="Africa/Kigali",
                                                date_style="day_first",
@@ -340,7 +340,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # create our test flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow_ruleset1 = RuleSet.objects.get(flow=flow)
 
         # this time, a 200
@@ -430,7 +430,7 @@ class APITest(TembaTest):
         url = reverse('api.v1.steps')
         self.login(self.surveyor)
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # remove our entry node
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
@@ -590,7 +590,11 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
+        color_prompt = ActionSet.objects.get(x=1, y=1)
+        color_ruleset = RuleSet.objects.get(label="color")
+        orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
 
         # add an update action
         definition = flow.as_json()
@@ -613,7 +617,7 @@ class APITest(TembaTest):
                     submitted_by=self.surveyor.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
-                        dict(node='d51ec25f-04e6-4349-a448-e7c4d93d4597',
+                        dict(node=color_prompt.uuid,
                              arrived_on='2015-08-25T11:09:30.088Z',
                              actions=[
                                  dict(type="reply", msg="What is your favorite color?")
@@ -640,7 +644,7 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].step_uuid, "d51ec25f-04e6-4349-a448-e7c4d93d4597")
+        self.assertEqual(steps[0].step_uuid, color_prompt.uuid)
         self.assertEqual(steps[0].step_type, 'A')
         self.assertEqual(steps[0].rule_uuid, None)
         self.assertEqual(steps[0].rule_category, None)
@@ -663,7 +667,7 @@ class APITest(TembaTest):
                          {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
-        self.assertEqual(flow.get_activity(), ({'d51ec25f-04e6-4349-a448-e7c4d93d4597': 1}, {}))
+        self.assertEqual(flow.get_activity(), ({color_prompt.uuid: 1}, {}))
 
         data = dict(flow=flow.uuid,
                     revision=2,
@@ -671,13 +675,13 @@ class APITest(TembaTest):
                     started='2015-08-25T11:09:29.088Z',
                     submitted_by=self.surveyor.username,
                     steps=[
-                        dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                        dict(node=color_ruleset.uuid,
                              arrived_on='2015-08-25T11:11:30.088Z',
-                             rule=dict(uuid='1c75fd71-027b-40e8-a819-151a0f8140e6',
+                             rule=dict(uuid=orange_rule.uuid,
                                        value="orange",
                                        category="Orange",
                                        text="I like orange")),
-                        dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                        dict(node=color_reply.uuid,
                              arrived_on='2015-08-25T11:13:30.088Z',
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
@@ -708,15 +712,15 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].next_uuid, 'bd531ace-911e-4722-8e53-6730d6122fe1')
+        self.assertEqual(steps[0].next_uuid, color_ruleset.uuid)
 
-        self.assertEqual(steps[1].step_uuid, 'bd531ace-911e-4722-8e53-6730d6122fe1')
+        self.assertEqual(steps[1].step_uuid, color_ruleset.uuid)
         self.assertEqual(steps[1].step_type, 'R')
-        self.assertEqual(steps[1].rule_uuid, '1c75fd71-027b-40e8-a819-151a0f8140e6')
+        self.assertEqual(steps[1].rule_uuid, orange_rule.uuid)
         self.assertEqual(steps[1].rule_category, 'Orange')
         self.assertEqual(steps[1].rule_value, "orange")
         self.assertEqual(steps[1].rule_decimal_value, None)
-        self.assertEqual(steps[1].next_uuid, '7d40faea-723b-473d-8999-59fb7d3c3ca2')
+        self.assertEqual(steps[1].next_uuid, color_reply.uuid)
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
@@ -725,8 +729,8 @@ class APITest(TembaTest):
         value = Value.objects.get(org=self.org)
         self.assertEqual(value.contact, self.joe)
         self.assertEqual(value.run, run)
-        self.assertEqual(value.ruleset, RuleSet.objects.get(uuid='bd531ace-911e-4722-8e53-6730d6122fe1'))
-        self.assertEqual(value.rule_uuid, '1c75fd71-027b-40e8-a819-151a0f8140e6')
+        self.assertEqual(value.ruleset, RuleSet.objects.get(label="color"))
+        self.assertEqual(value.rule_uuid, orange_rule.uuid)
         self.assertEqual(value.string_value, 'orange')
         self.assertEqual(value.decimal_value, None)
         self.assertEqual(value.datetime_value, None)
@@ -739,7 +743,7 @@ class APITest(TembaTest):
         self.assertEqual(step1_msgs[0].contact_urn, None)
         self.assertEqual(step1_msgs[0].text, "I like orange")
 
-        self.assertEqual(steps[2].step_uuid, '7d40faea-723b-473d-8999-59fb7d3c3ca2')
+        self.assertEqual(steps[2].step_uuid, color_reply.uuid)
         self.assertEqual(steps[2].step_type, 'A')
         self.assertEqual(steps[2].rule_uuid, None)
         self.assertEqual(steps[2].rule_category, None)
@@ -764,9 +768,9 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {'7d40faea-723b-473d-8999-59fb7d3c3ca2:' + new_node_uuid: 1,
-                                                '1c75fd71-027b-40e8-a819-151a0f8140e6:7d40faea-723b-473d-8999-59fb7d3c3ca2': 1,
-                                                'd51ec25f-04e6-4349-a448-e7c4d93d4597:bd531ace-911e-4722-8e53-6730d6122fe1': 1}))
+                                               {color_reply.uuid + ':' + new_node_uuid: 1,
+                                                orange_rule.uuid + ':' + color_reply.uuid: 1,
+                                                color_prompt.uuid + ':' + color_ruleset.uuid: 1}))
 
         # now lets remove our last action set
         definition['action_sets'].pop()
@@ -824,13 +828,13 @@ class APITest(TembaTest):
                         started='2015-08-25T11:09:29.088Z',
                         submitted_by=self.admin.username,
                         steps=[
-                            dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                            dict(node=color_ruleset.uuid,
                                  arrived_on='2015-08-25T11:11:30.088Z',
                                  rule=dict(uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
                                            value="orange",
                                            category="Orange",
                                            text="I like orange")),
-                            dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                            dict(node=color_reply.uuid,
                                  arrived_on='2015-08-25T11:13:30.088Z',
                                  actions=[
                                      dict(type="reply", msg="I love orange too!")
@@ -1150,7 +1154,7 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json['results'][0]['name'], "Jay-Z")
         self.assertEqual(resp_json['results'][0]['fields'], {'real_name': None,
-                                                             'registration_date': "2014-12-31T01:04:00.000000Z",
+                                                             'registration_date': "2014-12-31T03:04:00+02:00",
                                                              'state': None})
 
         # search using deprecated phone field

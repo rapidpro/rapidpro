@@ -1,12 +1,13 @@
 from __future__ import unicode_literals
 
+from collections import OrderedDict
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from temba.channels.views import TYPE_UPDATE_FORM_CLASSES
 from ..models import Channel, ChannelType, SEND_FUNCTIONS
 
-TYPES = {}
+TYPES = OrderedDict({})
 
 
 def register_channel_type(type_class):

@@ -18,20 +18,25 @@ class TwilioTypeTest(TembaTest):
     def test_claim(self):
         self.login(self.admin)
 
+        claim_twilio = reverse('channels.claim_twilio')
+
         # remove any existing channels
         self.org.channels.update(is_active=False, org=None)
 
         # make sure twilio is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Twilio")
-        self.assertContains(response, reverse('orgs.org_twilio_connect'))
+
+        response = self.client.get(claim_twilio)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(claim_twilio, follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_twilio_connect'))
 
         # attach a Twilio accont to the org
         self.org.config = json.dumps({ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'})
         self.org.save()
 
         # hit the claim page, should now have a claim twilio link
-        claim_twilio = reverse('channels.claim_twilio')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_twilio)
 
@@ -43,13 +48,13 @@ class TwilioTypeTest(TembaTest):
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, reverse('channels.channel_claim'))
+            self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
             mock_get_twilio_client.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure',
                                                                      code=20003)
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, reverse('channels.channel_claim'))
+            self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
@@ -106,6 +111,12 @@ class TwilioTypeTest(TembaTest):
                 channel = Channel.objects.get(channel_type='T', org=self.org)
                 self.assertEqual(channel.role,
                                  Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+
+                channel_config = channel.config_json()
+                self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], 'account-sid')
+                self.assertEqual(channel_config[Channel.CONFIG_AUTH_TOKEN], 'account-token')
+                self.assertTrue(channel_config[Channel.CONFIG_APPLICATION_SID])
+                self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         # voice only number
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:

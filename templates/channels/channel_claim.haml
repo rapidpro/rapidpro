@@ -17,107 +17,68 @@
 -block content
   .channel-options
     %h3
+      -trans "Recommendations"
+    .channel-options-recommended
+
+    -if recommended_channels
+      -for ch_type in recommended_channels
+        .claim-row.recommended
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+                .btn-container
+                  .claim-glyph{class:"{{ ch_type.icon }}"}
+                  %p.claim-text= ch_type.name
+            .span9
+              .claim-description
+                %div
+                  {% include ch_type.get_claim_blurb %}
+    -else
+      .claim-row.android-channel.recommended
+        .recommendation
+          -blocktrans
+            We recommend using an Android phone with a local sim card for your country. This phone
+            will send and receive messages for you. You will only need one phone per country depending on
+            message volume. Don't worry! The people you are texting with can still use basic phones.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-android
+                %p.claim-text
+                  -trans "Android Phone"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Works in any country and uses the cell phone plan
+                  you already have. You just need an Android phone
+                  to get started.
+
+    %h3
       -trans "Phone Channels"
 
-    .claim-row.android-channel{class:"{% if recommended_channel == 'A' %}recommended{% endif %}"}
-      .recommendation.hide
-        %h3
-          -trans "Recommendation"
-        -blocktrans
-          We recommend using an Android phone with a local sim card for your country. This phone
-          will send and receive messages for you. You will only need one phone per country depending on
-          message volume. Don't worry! The people you are texting with can still use basic phones.
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-android
-              %p.claim-text
-                -trans "Android Phone"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Works in any country and uses the cell phone plan
-                you already have. You just need an Android phone
-                to get started.
-
-    -if not user_org.is_connected_to_twilio
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://twilio.com'>" as link_start and "</a>" as link_end
-            We recommend using a Twilio phone number for SMS in your country. Sign up for a {{link_start}}Twilio Account{{link_end}} if you don't already have one.
-
+    - if recommended_channels
+      .claim-row.android-channel
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twilio{href:"#"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
               .btn-container
-                .claim-glyph.icon-channel-twilio
+                .claim-glyph.icon-channel-android
                 %p.claim-text
-                  -trans "Connect Twilio"
+                  -trans "Android Phone"
 
           .span9
             .claim-description
               %div
                 -blocktrans
-                  The easiest way to get started if you are in
-                  {{ twilio_countries }}, connect a Twilio account
-                  and get a dedicated phone number.
-
-    -if not user_org.is_connected_to_nexmo
-      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'NX' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
-              .btn-container
-                .claim-glyph.icon-channel-nexmo
-                %p.claim-text
-                  -trans "Connect Nexmo"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Another great option is to connect
-                  a <a href="http://nexmo.com" target="_blank">Nexmo</a> Account and get a dedicated number in a few minutes.
-
-
-    .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
-      .recommendation.hide
-        %h3
-          -trans "Recommendation"
-        -blocktrans
-          We recommend using a Plivo number in your country, select this option to purchase a number or use one you already have.
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-plivo{href:"#"}
-            .btn-container
-              .claim-glyph.icon-channel-plivo
-              %p.claim-text
-                -trans "Plivo Number"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                <a href="http://plivo.com" target="_blank">Plivo</a> provides local connectivity in a number of countries, connect
-                your Plivo Account and get a dedicated number in a few minutes.
+                  Works in any country and uses the cell phone plan
+                  you already have. You just need an Android phone
+                  to get started.
 
     -if False
       .claim-row.verboice-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using Verboice for voice calling in your country
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_verboice' %}"}
@@ -133,10 +94,7 @@
                   Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
 
     -for ch_type in channel_types.PHONE
-      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
+      .claim-row
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -152,10 +110,7 @@
       -trans "Social Network Channels"
 
     -for ch_type in channel_types.SOCIAL_MEDIA
-      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
+      .claim-row
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -171,10 +126,7 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
-      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
+      .claim-row
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -190,10 +142,7 @@
       -trans "USSD Channels"
 
     -for ch_type in channel_types.USSD
-      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
+      .claim-row
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -211,63 +160,10 @@
   {{block.super}}
 
   :javascript
-
-
     $(document).ready(function() {
       var channel = $('.claim-row.recommended');
-      $('.channel-options').prepend(channel);
+      $('.channel-options-recommended').prepend(channel);
     });
-
-    {% if not user_org.is_connected_to_twilio %}
-      $(".connect-twilio").live('click', function() {
-        var modal = new Modax('{% trans "Connect Twilio" %}', '{% url "orgs.org_twilio_connect" %}');
-        modal.setIcon("icon-channel-twilio");
-        modal.setListeners({onCompleted: function() {
-        },
-        onFormLoaded: function() {
-          form = modal.ele.find("form");
-          form.attr('autocomplete', 'off');
-        }});
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
-    {% if not user_org.is_connected_to_nexmo %}
-      $(".connect-nexmo").live('click', function() {
-        var modal = new Modax('{% trans "Connect Nexmo" %}', '{% url "orgs.org_nexmo_connect" %}');
-        modal.setIcon("icon-nexmo");
-        modal.setListeners({onCompleted: function() {
-        },
-        onFormLoaded: function() {
-          form = modal.ele.find("form");
-          form.attr('autocomplete', 'off');
-        }})
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% else %}
-      $(".nexmo-account").live('click', function() {
-        var modal = new Modax('{% trans "Disconnect Nexmo" %}', '{% url "orgs.org_nexmo_account" %}');
-        modal.setIcon("icon-nexmo");
-        modal.addClass("alert");
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
-    $(".connect-plivo").live('click', function() {
-        var modal = new Modax('{% trans "Connect plivo" %}', '{% url "orgs.org_plivo_connect" %}');
-        modal.setIcon("icon-plivo");
-        modal.setListeners({onCompleted: function() {
-        },
-        onFormLoaded: function() {
-          form = modal.ele.find("form");
-          form.attr('autocomplete', 'off');
-        }})
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
 
 
 -block extra-less

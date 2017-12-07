@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import copy
 import datetime
 import json
 import pycountry
@@ -13,7 +14,6 @@ from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.test import override_settings, SimpleTestCase
@@ -28,6 +28,7 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+
 from . import format_decimal, str_to_datetime, str_to_time, date_to_utc_range
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime
@@ -137,6 +138,16 @@ class InitTest(TembaTest):
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000, tzinfo=pytz.UTC),
+                             str_to_datetime('01-02-2013 07:08:09.100000Z', tz, dayfirst=True))  # Z marker
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T07:08:09.100000+04:30', tz, dayfirst=True))  # ISO in local tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T00:38:09.100000-02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                             str_to_datetime('2013-02-01T07:08:09.100000+04:30.', tz, dayfirst=True))  # trailing period
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
 
@@ -339,24 +350,24 @@ class CacheTest(TembaTest):
         self.create_contact("Bob", number="1234")
 
         def calculate():
-            return Contact.objects.all().count()
+            return Contact.objects.all().count(), 60
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # from cache
 
         self.create_contact("Jim", number="2345")
 
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 1)  # not updated
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 1)  # not updated
 
         get_redis_connection().delete('test_contact_count')  # delete from cache for force re-fetch from db
 
         with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from db
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from db
         with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from cache
+            self.assertEqual(get_cacheable_result('test_contact_count', calculate), 2)  # from cache
 
     def test_get_cacheable_attr(self):
         def calculate():
@@ -417,19 +428,11 @@ class EmailTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
-        self.assertEqual(mail.outbox[0].subject, "Test Subject")
-        self.assertEqual(mail.outbox[0].body, "Test Body")
-        self.assertEqual(mail.outbox[0].recipients(), ['recipient@bar.com'])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body')
+        self.assertOutbox(0, settings.DEFAULT_FROM_EMAIL, 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
-        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertEqual(mail.outbox[1].from_email, 'no-reply@foo.com')
-        self.assertEqual(mail.outbox[1].subject, "Test Subject")
-        self.assertEqual(mail.outbox[1].body, "Test Body")
-        self.assertEqual(mail.outbox[1].recipients(), ["recipient@bar.com"])
+        send_simple_email(['recipient@bar.com'], 'Test Subject', 'Test Body', from_email='no-reply@foo.com')
+        self.assertOutbox(1, 'no-reply@foo.com', 'Test Subject', 'Test Body', ['recipient@bar.com'])
 
     def test_is_valid_address(self):
 
@@ -798,19 +801,19 @@ class ExpressionsTest(TembaTest):
                          evaluate_template("Result: @(-5 - flow.users)", self.context))  # negatives
 
         # test date arithmetic
-        self.assertEqual(("Date: 02-12-2014 09:00", []),
+        self.assertEqual(("Date: 2014-12-02T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + 1)",
                                            self.context))  # var is datetime
-        self.assertEqual(("Date: 28-11-2014 09:00", []),
+        self.assertEqual(("Date: 2014-11-28T09:00:00+00:00", []),
                          evaluate_template("Date: @(flow.started - 3)",
                                            self.context))  # var is string
         self.assertEqual(("Date: 04-07-2014", []),
                          evaluate_template("Date: @(DATE(2014, 7, 1) + 3)",
                                            self.context))  # date constructor
-        self.assertEqual(("Date: 01-12-2014 11:30", []),
+        self.assertEqual(("Date: 2014-12-01T11:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))",
                                            self.context))  # time addition to datetime var
-        self.assertEqual(("Date: 01-12-2014 06:30", []),
+        self.assertEqual(("Date: 2014-12-01T06:30:00+00:00", []),
                          evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))",
                                            self.context))  # time subtraction from string var
 
@@ -829,7 +832,7 @@ class ExpressionsTest(TembaTest):
         self.assertEqual(('3', []),
                          evaluate_template('@(LEN( 1.2 ))',
                                            self.context))  # auto decimal -> string conversion
-        self.assertEqual(('16', []),
+        self.assertEqual(('25', []),
                          evaluate_template('@(LEN(flow.joined))',
                                            self.context))  # auto datetime -> string conversion
         self.assertEqual(('2', []),
@@ -1033,9 +1036,23 @@ class GSM7Test(TembaTest):
         self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
-class ChunkTest(TembaTest):
+class ModelsTest(TembaTest):
 
-    def test_chunking(self):
+    def test_require_update_fields(self):
+        contact = self.create_contact("Bob", twitter="bobby")
+        flow = self.get_flow('color')
+        run, = flow.start([], [contact])
+
+        # we can save if we specify update_fields
+        run.modified_on = timezone.now()
+        run.save(update_fields=('modified_on',))
+
+        # but not without
+        with self.assertRaises(ValueError):
+            run.modified_on = timezone.now()
+            run.save()
+
+    def test_chunk_list(self):
         curr = 0
         for chunk in chunk_list(six.moves.xrange(100), 7):
             batch_curr = curr
@@ -1546,6 +1563,15 @@ class MiddlewareTest(TembaTest):
     def test_branding(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['redirect'] = '/redirect'
+        with self.settings(BRANDING=branding):
+            self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
 
     def test_flow_simulation(self):
         Contact.set_simulation(True)
