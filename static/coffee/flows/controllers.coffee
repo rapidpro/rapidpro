@@ -2074,7 +2074,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
-    console.log($scope.action.webhook_headers)
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
