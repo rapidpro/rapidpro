@@ -68,13 +68,15 @@ DROP FUNCTION temba_step_from_uuid(flows_flowstep);
 
 def remove_partial_segment_counts(apps, schema_editor):
     FlowPathCount = apps.get_model('flows', 'FlowPathCount')
-    FlowPathCount.objects.filter(to_uuid=None).delete()
+    num_deleted = FlowPathCount.objects.filter(to_uuid=None).delete()
+    if num_deleted:
+        print("Deleted %d incomplete flow path counts" % num_deleted)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0130_auto_20171128_1618'),
+        ('flows', '0131_add_flowrun_index'),
     ]
 
     operations = [
