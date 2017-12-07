@@ -745,7 +745,7 @@ class APITest(TembaTest):
 
         self.assertEqual(steps[2].step_uuid, color_reply.uuid)
         self.assertEqual(steps[2].step_type, 'A')
-        self.assertEqual(steps[2].rule_uuid, None)
+        self.assertEqual(steps[2].rule_uuid, color_reply.exit_uuid)
         self.assertEqual(steps[2].rule_category, None)
         self.assertEqual(steps[2].rule_value, None)
         self.assertEqual(steps[2].rule_decimal_value, None)
@@ -768,9 +768,9 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {color_reply.uuid + ':' + new_node_uuid: 1,
+                                               {color_reply.exit_uuid + ':' + new_node_uuid: 1,
                                                 orange_rule.uuid + ':' + color_reply.uuid: 1,
-                                                color_prompt.uuid + ':' + color_ruleset.uuid: 1}))
+                                                color_prompt.exit_uuid + ':' + color_ruleset.uuid: 1}))
 
         # now lets remove our last action set
         definition['action_sets'].pop()
