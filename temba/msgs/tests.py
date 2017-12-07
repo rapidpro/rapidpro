@@ -1007,19 +1007,19 @@ class BroadcastTest(TembaTest):
         assertBroadcastStatus(msgs[3], 'F', 'F')
 
         # first make sure there are no failed messages
-        for msg in broadcast.get_messages():
+        for msg in broadcast.get_messages().order_by('-id'):
             msg.status = 'S'
-            msg.save()
+            msg.save(update_fields=('status',))
 
-        assertBroadcastStatus(broadcast.get_messages()[0], 'Q', 'Q')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'Q', 'Q')
         # test queued broadcast logic
 
         # test sent broadcast logic
         broadcast.get_messages().update(status='D')
-        assertBroadcastStatus(broadcast.get_messages()[0], 'S', 'S')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'S', 'S')
 
         # test delivered broadcast logic
-        assertBroadcastStatus(broadcast.get_messages()[0], 'D', 'D')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'D', 'D')
 
         self.assertEqual("Temba (%d)" % broadcast.id, str(broadcast))
 
@@ -1179,10 +1179,12 @@ class BroadcastTest(TembaTest):
 
         # remove twitter relayer
         self.twitter.release(trigger_sync=False)
+        self.org.clear_cached_channels()
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
+        self.assertEqual(3, broadcast.recipient_count)
 
         # should have only one message created to Ryan
         msgs = broadcast.msgs.all()

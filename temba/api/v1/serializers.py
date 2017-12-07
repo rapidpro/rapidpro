@@ -664,7 +664,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         ).order_by('-modified_on').first()
 
         if not run or run.submitted_by != self.submitted_by_obj:
-            run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
+            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
 
         step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
 
