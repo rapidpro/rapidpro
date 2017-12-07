@@ -35,7 +35,8 @@ class Migration(migrations.Migration):
                               'nexmo_api_secret': org_config[NEXMO_SECRET]}
 
                     channel.config = json.dumps(config)
-                    channel.save(update_fields=['config'])
+                    channel.tps = 1
+                    channel.save(update_fields=['config', 'tps'])
 
                     client = NexmoClient(config['nexmo_api_key'],
                                          config['nexmo_api_secret'],
