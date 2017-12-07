@@ -1110,15 +1110,6 @@ class APITest(TembaTest):
             'modified_on': format_datetime(contact3.modified_on)
         })
 
-        with AnonymousOrg(self.org):
-            # can't filter by URN
-            response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
-
-            # output shouldn't include URNs
-            response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
-            self.assertEqual(response.json()['results'][0]['urns'], [])
-
         # try to post something other than an object
         response = self.postJSON(url, None, [])
         self.assertEqual(response.status_code, 400)
@@ -1164,7 +1155,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         resp_json = response.json()
-        self.assertEqual(resp_json['urns'], [u'twitter:jean', u'tel:+250783333333'])
+        self.assertEqual(resp_json['urns'], ['twitter:jean', 'tel:+250783333333'])
 
         # URNs will be normalized
         jean = Contact.objects.filter(name="Jean", language='fra').order_by('-pk').first()
@@ -1272,24 +1263,6 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'uuid=%s&urn=%s' % (jean.uuid, quote_plus("tel:+250784444444")), {})
         self.assertResponseError(response, None, "URL can only contain one of the following parameters: urn, uuid")
 
-        with AnonymousOrg(self.org):
-            # can't update via URN
-            response = self.postJSON(url, 'urn=%s' % 'tel:+250785555555', {})
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
-
-            # can't update contact URNs
-            response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ["tel:+250786666666"]})
-            self.assertResponseError(response, 'urns', "Updating URNs not allowed for anonymous organizations")
-
-            # but can create with URNs
-            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
-            self.assertEqual(response.status_code, 201)
-
-            # TODO should UUID be masked in response??
-
-            xavier = Contact.objects.get(name="Xavier")
-            self.assertEqual(set(xavier.urns.values_list('identity', flat=True)), {"tel:+250787777777", "twitter:xavier"})
-
         # try an empty delete request
         response = self.deleteJSON(url, None)
         self.assertResponseError(response, None, "URL must contain one of the following parameters: urn, uuid")
@@ -1301,11 +1274,15 @@ class APITest(TembaTest):
         jean.refresh_from_db()
         self.assertFalse(jean.is_active)
 
+        # create xavier
+        response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
+        self.assertEqual(response.status_code, 201)
+
         # delete a contact by URN (which should be normalized)
         response = self.deleteJSON(url, 'urn=%s' % quote_plus('twitter:XAVIER'))
         self.assertEqual(response.status_code, 204)
 
-        xavier.refresh_from_db()
+        xavier = Contact.objects.get(name="Xavier")
         self.assertFalse(xavier.is_active)
 
         # try deleting a contact by a non-existent URN
@@ -1317,40 +1294,52 @@ class APITest(TembaTest):
         self.assert404(response)
 
     def test_contact_actions_if_org_is_anonymous(self):
-        # set org to anonymous
-        self.org.is_anon = True
-        self.org.save(update_fields=('is_anon',))
-
         url = reverse('api.v2.contacts')
         self.assertEndpointAccess(url)
 
         group = ContactGroup.get_or_create(self.org, self.admin, 'Customers')
 
-        # create a contact
         response = self.postJSON(url, None, {
-            'name': 'Ben Haggarty',
-            'urns': ['tel:+250783333333'],
-            'groups': [group.uuid]
+            'name': "Jean",
+            'language': "fra",
+            'urns': ["tel:+250783333333", "twitter:JEAN"],
+            'groups': [group.uuid],
+            'fields': {}
         })
         self.assertEqual(response.status_code, 201)
 
-        resp_json = response.json()
-        self.assertTrue('uuid' in resp_json)
-        self.assertEqual(resp_json['urns'], [])
-        self.assertEqual(resp_json['groups'][0]['name'], 'Customers')
+        jean = Contact.objects.filter(name="Jean", language='fra').get()
 
-        contact_uuid = resp_json['uuid']
+        with AnonymousOrg(self.org):
+            # can't update via URN
+            response = self.postJSON(url, 'urn=%s' % 'tel:+250785555555', {})
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
-        # update a contact, add urn, should not be allowed for Anon Orgs
-        response = self.postJSON(url, 'uuid=%s' % contact_uuid, {
-            'name': 'Ben Haggarty',
-            'urns': ['tel:+250783333333'],
-            'groups': [group.uuid]
-        })
-        self.assertEqual(response.status_code, 400)
+            # can't update contact URNs
+            response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ["tel:+250786666666"]})
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, 'urns', "Updating URNs not allowed for anonymous organizations")
 
-        resp_json = response.json()
-        self.assertEqual(resp_json['urns'], ['Updating URNs not allowed for anonymous organizations'])
+            # output shouldn't include URNs
+            response = self.fetchJSON(url, 'uuid=%s' % jean.uuid)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['results'][0]['urns'], [])
+
+            # but can create with URNs
+            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
+            self.assertEqual(response.status_code, 201)
+
+            # TODO should UUID be masked in response??
+            xavier = Contact.objects.get(name="Xavier")
+            self.assertEqual(
+                set(xavier.urns.values_list('identity', flat=True)), {"tel:+250787777777", "twitter:xavier"}
+            )
+
+            # can't filter by URN
+            response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
     def test_contact_actions(self):
         url = reverse('api.v2.contact_actions')
