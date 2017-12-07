@@ -1733,10 +1733,17 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
       else if rulesetConfig.type == 'webhook'
+
+        # don't include headers without a name
+        webhook_headers = []
+        for header in formData.webhook_headers
+          if header.name
+            webhook_headers.push(header)
+
         ruleset.config =
           webhook: formData.webhook
           webhook_action: formData.webhook_action
-          webhook_headers: formData.webhook_headers
+          webhook_headers: webhook_headers
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
@@ -2071,9 +2078,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.hasInvalidFields([url])
       return
 
+    # don't include headers without name
+    webhook_headers = []
+    for header in $scope.action.webhook_headers
+      if header.name
+        webhook_headers.push(header)
+
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
+    $scope.action.webhook_headers = webhook_headers
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
