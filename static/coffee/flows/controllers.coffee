@@ -1092,20 +1092,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       formData.timeout = option
 
   formData.webhook_action = 'GET'
-  $scope.webhook_headers_name = []
-  $scope.webhook_headers_value = []
-
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
     formData.isWebhookAdditionalOptionsVisible = formData.webhook_headers.length > 0
-
-    item_counter = 0
-    for item in formData.webhook_headers
-      $scope.webhook_headers_name[item_counter] = item.name
-      $scope.webhook_headers_value[item_counter] = item.value
-      item_counter++
   else
     formData.webhook_headers = []
     formData.isWebhookAdditionalOptionsVisible = false
@@ -1129,9 +1120,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.removeWebhookHeader = (index) ->
     formData.webhook_headers.splice(index, 1)
-    $scope.webhook_headers_name.splice(index, 1)
-    $scope.webhook_headers_value.splice(index, 1)
-
     if formData.webhook_headers.length == 0
       $scope.addNewWebhookHeader()
 
@@ -1745,20 +1733,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
       else if rulesetConfig.type == 'webhook'
-        webhook_headers = []
-        item_counter = 0
-        if formData.webhook_headers
-          for item in formData.webhook_headers
-            item_name = if $scope.webhook_headers_name.length > 0 then $scope.webhook_headers_name[item_counter] else null
-            item_value = if $scope.webhook_headers_value.length > 0 then $scope.webhook_headers_value[item_counter] else null
-            if item_name and item_value
-              webhook_headers.push({name: item_name, value: item_value})
-            item_counter++
-
         ruleset.config =
           webhook: formData.webhook
           webhook_action: formData.webhook_action
-          webhook_headers: webhook_headers
+          webhook_headers: formData.webhook_headers
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
@@ -1837,9 +1815,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Actions editor
   #-----------------------------------------------------------------
   $scope.action = utils.clone(action)
-  $scope.action_webhook_headers_name = []
-  $scope.action_webhook_headers_value = []
-
   $scope.showAttachOptions = false
   $scope.showAttachVariable = false
   
@@ -1851,22 +1826,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   if $scope.options.dragSource? or !($scope.action.quick_replies? and $scope.action.quick_replies != undefined and $scope.action.quick_replies.length > 0)
     $scope.quickReplies = []
-    $scope.action.quick_replies = []
     $scope.showQuickReplyButton = true
   else
     $scope.quickReplies = $scope.action.quick_replies
     $scope.showQuickReplyButton = false
 
-  if $scope.action.webhook_headers
-    item_counter = 0
-    for item in $scope.action.webhook_headers
-      $scope.action_webhook_headers_name[item_counter] = item.name
-      $scope.action_webhook_headers_value[item_counter] = item.value
-      item_counter++
-  else
-    $scope.action.webhook_headers = []
-
-  formData.isActionWebhookAdditionalOptionsVisible = $scope.action.webhook_headers.length > 0
+  formData.isActionWebhookAdditionalOptionsVisible = $scope.action.webhook_headers?.length > 0
 
   $scope.actionWebhookAdditionalOptions = () ->
     if formData.isActionWebhookAdditionalOptionsVisible == true
@@ -1880,14 +1845,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.addNewActionWebhookHeader = () ->
     if !$scope.action.webhook_headers
       $scope.action.webhook_headers = []
-
     $scope.action.webhook_headers.push({name: '', value: ''})
 
   $scope.removeActionWebhookHeader = (index) ->
     $scope.action.webhook_headers.splice(index, 1)
-    $scope.action_webhook_headers_name.splice(index, 1)
-    $scope.action_webhook_headers_value.splice(index, 1)
-
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
 
@@ -1903,7 +1864,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if $scope.quickReplies.length == 0
       $scope.showQuickReplyButton = true
-      $scope.action.quick_replies = []
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1952,9 +1912,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close()
 
   $scope.removeAttachment = ->
-    $scope.action.media = null
-    $scope.action._media = null
-    $scope.action._attachURL = null
+    delete $scope.action['media']
+    delete $scope.action['_media']
+    delete $scope.action['_attachURL']
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply', hasAttachURL=false) ->
@@ -1984,12 +1944,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           $scope.action.media[key] = $scope.action._attachType + ':' + translation.split(':')[1]
     
     else if not $scope.action._media
-      $scope.action.media = null
+      delete $scope.action['media']
 
     if $scope.quickReplies.length > 0
       $scope.action.quick_replies = $scope.quickReplies
     else
-      $scope.action.quick_replies = []
+      delete $scope.action['quick_replies']
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
@@ -2114,17 +2074,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
-
-    webhook_headers = []
-    item_counter = 0
-    for item in $scope.action.webhook_headers
-      item_name = if $scope.action_webhook_headers_name then $scope.action_webhook_headers_name[item_counter] else null
-      item_value = if $scope.action_webhook_headers_value then $scope.action_webhook_headers_value[item_counter] else null
-      if item_name and item_value
-        webhook_headers.push({name: item_name, value: item_value})
-      item_counter++
-
-    $scope.action.webhook_headers = webhook_headers
+    console.log($scope.action.webhook_headers)
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
