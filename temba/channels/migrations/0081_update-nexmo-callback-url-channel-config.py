@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
         Channel = apps.get_model('channels', 'Channel')
 
         if settings.IS_PROD:
-            nexmo_channels = Channel.objects.filter(channel_type='NX').exclude(org=None)
+            nexmo_channels = Channel.objects.filter(channel_type='NX', is_active=True)
             for channel in nexmo_channels:
                 try:
                     org = Org.objects.get(pk=channel.org_id)
@@ -35,7 +35,8 @@ class Migration(migrations.Migration):
                               'nexmo_api_secret': org_config[NEXMO_SECRET]}
 
                     channel.config = json.dumps(config)
-                    channel.save(update_fields=['config'])
+                    channel.tps = 1
+                    channel.save(update_fields=['config', 'tps'])
 
                     client = NexmoClient(config['nexmo_api_key'],
                                          config['nexmo_api_secret'],

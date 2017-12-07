@@ -151,7 +151,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                   Channel.CONFIG_CALLBACK_DOMAIN: callback_domain}
 
         channel = Channel.create(org, user, country, 'NX', name=phone, address=phone_number, role=role,
-                                 config=config, bod=nexmo_phone_number, uuid=channel_uuid)
+                                 config=config, bod=nexmo_phone_number, uuid=channel_uuid, tps=1)
 
         analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
 
