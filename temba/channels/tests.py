@@ -10146,6 +10146,18 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
 
+        # set our contact name to something else
+        contact = msg.contact
+        contact.name = "ET4"
+        contact.save(update_fields=['name'])
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        self.assertEqual(response.status_code, 200)
+
+        # refresh our contact, name shouldn't have changed
+        contact.refresh_from_db()
+        self.assertEqual("ET4", contact.name)
+
     def assertSignedRequest(self, payload, expected_status=200):
         from temba.channels.handlers import ViberPublicHandler
 

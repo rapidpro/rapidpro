@@ -30,7 +30,7 @@ def migrate_to_version_11_2(json_flow, flow=None):
     """
     if flow is not None:
         country_code = flow.org.get_country_code()
-    else:
+    else:  # pragma: no cover
         raise ValueError('Languages depend on org, can not migrate to version 11 without org')
 
     return _base_migrate_to_version_11_2(json_flow, country_code=country_code)
@@ -40,10 +40,7 @@ def migrate_export_to_version_11_2(exported_json, org, same_site=True):
     """
         Migrates base_language in flow exports from iso639-2 to iso639-3
     """
-    if org is not None:
-        country_code = org.get_country_code()
-    else:
-        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+    country_code = org.get_country_code()
 
     migrated_flows = []
     for sub_flow in exported_json.get('flows', []):
@@ -111,7 +108,7 @@ def migrate_to_version_11_1(json_flow, flow=None):
     """
     if flow is not None:
         country_code = flow.org.get_country_code()
-    else:
+    else:  # pragma: no cover
         raise ValueError('Languages depend on org, can not migrate to version 11 without org')
 
     return _base_migrate_to_version_11_1(json_flow, country_code=country_code)
@@ -121,10 +118,7 @@ def migrate_export_to_version_11_1(exported_json, org, same_site=True):
     """
         Migrates translation language codes in flow exports from iso639-2 to iso639-3
     """
-    if org is not None:
-        country_code = org.get_country_code()
-    else:
-        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+    country_code = org.get_country_code()
 
     migrated_flows = []
     for sub_flow in exported_json.get('flows', []):
