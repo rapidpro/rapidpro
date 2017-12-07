@@ -1424,9 +1424,9 @@ class FlowTest(TembaTest):
         sms.text = "Greenish is ok too"
         self.assertTest(False, None, test)
 
-        # edit distance
+        # no edit distance
         sms.text = "Greenn is ok though"
-        self.assertTest(True, "Greenn", test)
+        self.assertTest(False, None, test)
 
         sms.text = "RESIST!!"
         test = ContainsOnlyPhraseTest(test=dict(base="resist"))
