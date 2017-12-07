@@ -448,7 +448,6 @@ PERMISSIONS = {
                    'export_results',
                    'filter',
                    'json',
-                   'read',
                    'recent_messages',
                    'results',
                    'revisions',
@@ -532,7 +531,6 @@ GROUP_PERMISSIONS = {
         'contacts.contact_break_anon',
         'flows.flow_editor',
         'flows.flow_json',
-        'flows.flow_read',
         'flows.flow_revisions',
         'flows.flowrun_delete',
         'orgs.org_dashboard',
@@ -817,7 +815,6 @@ GROUP_PERMISSIONS = {
         'flows.flow_export_results',
         'flows.flow_filter',
         'flows.flow_list',
-        'flows.flow_read',
         'flows.flow_editor',
         'flows.flow_json',
         'flows.flow_recent_messages',
@@ -994,12 +991,11 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-# TODO: uncomment to use SuperAutoscaler
-# CELERYD_AUTOSCALER='temba.celery_autoscaler:SuperAutoscaler'
-AUTOSCALE_MAX_CPU_USAGE = 75
-AUTOSCALE_MAX_USED_MEMORY = 75
-AUTOSCALE_MAX_WORKER_INC_BY = 4
-AUTOSCALE_MAX_WORKER_DEC_BY = 4
+CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
+AUTOSCALE_MAX_CPU_USAGE = 80
+AUTOSCALE_MAX_USED_MEMORY = 80
+AUTOSCALE_MAX_WORKER_INC_BY = 2
+AUTOSCALE_MAX_WORKER_DEC_BY = 2
 AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
 AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
@@ -1120,6 +1116,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
     'temba.channels.types.nexmo.NexmoType',
@@ -1205,7 +1202,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK'])
+COURIER_CHANNELS = set(['DK', 'WA'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

@@ -210,10 +210,6 @@ class Org(SmartModel):
     country = models.ForeignKey('locations.AdminBoundary', null=True, blank=True, on_delete=models.SET_NULL,
                                 help_text="The country this organization should map results for.")
 
-    msg_last_viewed = models.DateTimeField(verbose_name=_("Message Last Viewed"), auto_now_add=True)
-
-    flows_last_viewed = models.DateTimeField(verbose_name=_("Flows Last Viewed"), auto_now_add=True)
-
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
 
@@ -449,6 +445,7 @@ class Org(SmartModel):
     def clear_cached_channels(self):
         if 'cached_channels' in self.__dict__:
             del self.__dict__['cached_channels']
+        self.clear_cached_schemes()
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
@@ -1086,7 +1083,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
@@ -1541,6 +1538,24 @@ class Org(SmartModel):
         for field in fields:
             field.org = self
         return fields
+
+    def clear_cached_groups(self):
+        if '__cached_groups' in self.__dict__:
+            del self.__dict__['__cached_groups']
+
+    def get_group(self, uuid):
+        cached_groups = self.__dict__.get('__cached_groups', {})
+        existing = cached_groups.get(uuid, None)
+
+        if existing:
+            return existing
+
+        from temba.contacts.models import ContactGroup
+        existing = ContactGroup.user_groups.filter(org=self, uuid=uuid).first()
+        if existing:
+            cached_groups[uuid] = existing
+            self.__dict__['__cached_groups'] = cached_groups
+        return existing
 
     def add_credits(self, bundle, token, user):
         # look up our bundle

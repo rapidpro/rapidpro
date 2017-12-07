@@ -1,3 +1,41 @@
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
+v3.0.279
+----------
+ * Update Nexmo channels to use new Courier URLs
+ * Store path on AdminBoundary for faster lookups
+ * Serialize metata for courier tasks (quick replies support)
+ * Add default manager to AdminBoundary which doesn't include geometry
+
+v3.0.278
+----------
+ * Fixes to the ISO639-3 migration
+ * Add support for quick replies
+
+v3.0.277
+----------
+ * Add flow migration for base_language in flow definitions
+
+v3.0.276
+----------
+ * back down to generic override if not found with specific code
+ * Add esp-spa as exception
+
+v3.0.275
+----------
+ * Fix language migrations
+
+v3.0.274
+----------
+ * Fix serialization of 0 decimal values in API
+ * Add initial version of WhatsApp channel (simple messaging only)
+ * Migrate to iso639-3 language codes (from iso639-2)
+ * Remove indexes on Msg, FlowRun and FlowStep which we don't use
+ * Remove fields no longer used on org model
+
 v3.0.273
 ----------
  * Don't blow up when a flow result doesn't have input

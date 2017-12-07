@@ -614,12 +614,12 @@ class APITest(TembaTest):
 
         # create new broadcast with translations
         response = self.postJSON(url, None, {
-            'text': {'base': "Hello", 'fre': "Bonjour"},
+            'text': {'base': "Hello", 'fra': "Bonjour"},
             'contacts': [self.joe.uuid, self.frank.uuid],
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello", 'fre': "Bonjour"})
+        self.assertEqual(broadcast.text, {'base': "Hello", 'fra': "Bonjour"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
         # try sending as a suspended org
@@ -874,13 +874,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': {'base': "OK", 'fre': "D'accord"}
+            'message': {'base': "OK", 'fra': "D'accord"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord"})
+        self.assertEqual(event2.message, {'base': "OK", 'fra': "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
@@ -889,13 +889,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"}
+            'message': {'base': "OK", 'fra': "D'accord", 'kin': "Sawa"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"})
+        self.assertEqual(event2.message, {'base': "OK", 'fra': "D'accord", 'kin': "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
@@ -1017,10 +1017,10 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some more contacts (in addition to Joe and Frank)
-        contact1 = self.create_contact("Ann", "0788000001", language='fre')
+        contact1 = self.create_contact("Ann", "0788000001", language='fra')
         contact2 = self.create_contact("Bob", "0788000002")
         contact3 = self.create_contact("Cat", "0788000003")
-        contact4 = self.create_contact("Don", "0788000004", language='fre')
+        contact4 = self.create_contact("Don", "0788000004", language='fra')
 
         contact1.set_field(self.user, 'nickname', "Annie", label="Nick name")
         contact4.set_field(self.user, 'nickname', "Donnie", label="Nick name")
@@ -1052,7 +1052,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': contact4.uuid,
             'name': "Don",
-            'language': "fre",
+            'language': "fra",
             'urns': ["tel:+250788000004"],
             'groups': [{'uuid': group.uuid, 'name': group.name}],
             'fields': {'nickname': "Donnie"},
@@ -1156,7 +1156,7 @@ class APITest(TembaTest):
         # create with all fields
         response = self.postJSON(url, None, {
             'name': "Jean",
-            'language': "fre",
+            'language': "fra",
             'urns': ["tel:+250783333333", "twitter:JEAN"],
             'groups': [group.uuid],
             'fields': {'nickname': "Jado"}
@@ -1167,7 +1167,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['urns'], [u'twitter:jean', u'tel:+250783333333'])
 
         # URNs will be normalized
-        jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
+        jean = Contact.objects.filter(name="Jean", language='fra').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
@@ -1192,7 +1192,7 @@ class APITest(TembaTest):
         # contact should be unchanged
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean")
-        self.assertEqual(jean.language, "fre")
+        self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
@@ -2127,16 +2127,31 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json(), {
             'name': "Temba",
             'country': "RW",
-            'languages': ["eng", "fre"],
+            'languages': ["eng", "fra"],
             'primary_language': "eng",
             'timezone': "Africa/Kigali",
             'date_style': "day_first",
+            'credits': {'used': 0, 'remaining': 1000},
+            'anon': False
+        })
+
+        # try to set languages which do not exist in iso639-3
+        self.org.set_languages(self.admin, ['fra', '123', 'eng'], 'eng')
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json(), {
+            'name': 'Temba',
+            'country': 'RW',
+            'languages': ['eng', 'fra'],
+            'primary_language': 'eng',
+            'timezone': 'Africa/Kigali',
+            'date_style': 'day_first',
             'credits': {'used': 0, 'remaining': 1000},
             'anon': False
         })
@@ -2174,8 +2189,8 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # allow Frank to run the flow in French
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
-        self.frank.language = 'fre'
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
+        self.frank.language = 'fra'
         self.frank.save()
 
         flow1 = self.get_flow('color')

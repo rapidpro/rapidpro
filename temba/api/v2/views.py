@@ -123,7 +123,7 @@ class RootView(views.APIView):
     ## Translatable Values
 
     Some endpoints return or accept text fields that may be translated into different languages. These should be objects
-    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
+    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
 
     ## Authentication
 
@@ -567,7 +567,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
         )
 
-        return queryset.select_related('parent')
+        return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
         context = super(BoundariesEndpoint, self).get_serializer_context()
@@ -2213,10 +2213,10 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav"
+                "media": "wav:http://domain.com/recording.wav",
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
-                "sent_on": "2016-01-06T15:35:03.675716Z",
+                "sent_on": "2016-01-06T15:35:03.675716Z"
             },
             ...
         }
@@ -2403,7 +2403,7 @@ class OrgEndpoint(BaseAPIView):
         {
             "name": "Nyaruka",
             "country": "RW",
-            "languages": ["eng", "fre"],
+            "languages": ["eng", "fra"],
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",

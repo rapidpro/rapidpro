@@ -12,8 +12,12 @@ from django.db import connection
 
 from celery.worker.autoscale import Autoscaler
 from celery.five import monotonic
+from celery.utils.log import get_logger
 
 from temba.utils import analytics
+
+
+LOG = get_logger(__name__)
 
 
 class SuperAutoscaler(Autoscaler):
@@ -45,14 +49,15 @@ class SuperAutoscaler(Autoscaler):
     def _maybe_scale(self, req=None):
         if self.should_run():
             self.collect_stats()
+
             analytics.gauge('temba.celery_active_workers_%s' % (self.bound_queues,), self.processes)
 
-            self._debug(
-                '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
-                    self.processes, self.min_concurrency, self.max_concurrency, self.qty,
-                    self.max_cpu_bound_workers, self.max_memory_bound_workers, self.max_db_bound_workers
-                )
+            logging_msg = '_maybe_scale => CUR: (%s) CON: (%s,%s), Qty: %s, CPU: %s, Mem: %s, Db: %s' % (
+                self.processes, self.min_concurrency, self.max_concurrency, self.qty,
+                self.max_cpu_bound_workers, self.max_memory_bound_workers, self.max_db_bound_workers
             )
+            LOG.info(logging_msg)
+            self._debug(logging_msg)
 
             max_target_procs = min(
                 self.qty, self.max_concurrency, self.max_cpu_bound_workers, self.max_memory_bound_workers,
@@ -98,18 +103,16 @@ class SuperAutoscaler(Autoscaler):
         self.cpu_stats = cur_stats
 
         if self.processes > 0:
-            cpu_usage_per_proc = cpu_usage / self.processes
-            max_cpu_bound_workers = int(
-                ((settings.AUTOSCALE_MAX_CPU_USAGE - cpu_usage) / cpu_usage_per_proc) + self.processes
-            )
-            target_cpu_bound_workers = min(max_cpu_bound_workers or 1, self.max_concurrency)
+            if cpu_usage < settings.AUTOSCALE_MAX_CPU_USAGE:
+                target_cpu_bound_workers = self.max_concurrency
+            else:
+                target_cpu_bound_workers = 1
         else:
             target_cpu_bound_workers = 1
-            cpu_usage_per_proc = -1
 
         self._debug(
-            '_cpu => %s %s %s %s' % (
-                settings.AUTOSCALE_MAX_CPU_USAGE, cpu_usage, cpu_usage_per_proc, target_cpu_bound_workers
+            '_cpu => %s %s %s' % (
+                settings.AUTOSCALE_MAX_CPU_USAGE, cpu_usage, target_cpu_bound_workers
             )
         )
 
@@ -119,18 +122,16 @@ class SuperAutoscaler(Autoscaler):
         used_memory = self._get_used_memory()
 
         if self.processes > 0:
-            mem_usage_per_proc = (used_memory - self.initial_memory_usage) / self.processes
-            max_mem_bound_workers = int(
-                ((settings.AUTOSCALE_MAX_USED_MEMORY - used_memory) / mem_usage_per_proc) + self.processes
-            )
-            target_mem_bound_workers = min(max_mem_bound_workers or 1, self.max_concurrency)
+            if used_memory < settings.AUTOSCALE_MAX_USED_MEMORY:
+                target_mem_bound_workers = self.max_concurrency
+            else:
+                target_mem_bound_workers = 1
         else:
             target_mem_bound_workers = 1
-            mem_usage_per_proc = -1
 
         self._debug(
-            '_mem => %s %s %s %s' % (
-                settings.AUTOSCALE_MAX_CPU_USAGE, used_memory, mem_usage_per_proc, target_mem_bound_workers
+            '_mem => %s %s %s' % (
+                settings.AUTOSCALE_MAX_USED_MEMORY, used_memory, target_mem_bound_workers
             )
         )
 

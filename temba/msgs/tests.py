@@ -364,6 +364,40 @@ class MsgTest(TembaTest):
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778899').count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
+    def test_broadcast_metadata(self):
+        contact = self.create_contact('Stephen', '+12078778899')
+        contact2 = self.create_contact('Maaaarcos', '+12078778888')
+        ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
+        ContactURN.get_or_create(self.org, contact2, 'tel:+12078778888')
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
+                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
+        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
+        broadcast.send(True, partial_recipients=partial_recipients)
+
+        self.assertTrue(broadcast.metadata)
+        self.assertEqual(3, broadcast.msgs.all().count())
+
+        # should not create a broadcast recipient if a similar one exists
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
+                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
+        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
+        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact2.id)
+
+        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
+        broadcast.send(True, partial_recipients=partial_recipients)
+
+        self.assertEqual(2, broadcast.recipients.all().count())
+        self.assertEqual(3, broadcast.msgs.all().count())
+
+        contact3 = self.create_contact('Leandro', '+12078778877', is_test=True)
+        ContactURN.get_or_create(self.org, contact3, 'tel:+12078778877')
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact3], send_all=True,
+                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
+        partial_recipients = list(), Contact.objects.filter(pk=contact3.pk)
+        broadcast.send(True, partial_recipients=partial_recipients)
+        self.assertTrue(broadcast.metadata)
+        self.assertEqual(1, broadcast.msgs.all().count())
+
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
 
@@ -1145,10 +1179,12 @@ class BroadcastTest(TembaTest):
 
         # remove twitter relayer
         self.twitter.release(trigger_sync=False)
+        self.org.clear_cached_channels()
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
+        self.assertEqual(3, broadcast.recipient_count)
 
         # should have only one message created to Ryan
         msgs = broadcast.msgs.all()
@@ -1957,46 +1993,47 @@ class BroadcastLanguageTest(TembaTest):
         super(BroadcastLanguageTest, self).setUp()
 
         self.francois = self.create_contact('Francois', '+12065551213')
-        self.francois.language = 'fre'
+        self.francois.language = 'fra'
         self.francois.save()
 
         self.greg = self.create_contact('Greg', '+12065551212')
 
         self.wilbert = self.create_contact('Wilbert', '+12065551214')
-        self.wilbert.language = 'fre'
+        self.wilbert.language = 'fra'
         self.wilbert.save()
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
         eng_msg = "This is my message"
-        fre_msg = "Ceci est mon message"
+        fra_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fra=fra_msg),
                                  [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
         # assert the right language was used for each contact
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.francois).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.francois).text)
         self.assertEqual(eng_msg, Msg.objects.get(contact=self.greg).text)
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.wilbert).text)
 
         eng_msg = "Please see attachment"
-        fre_msg = "SVP regardez l'attachement."
+        fra_msg = "SVP regardez l'attachement."
 
         eng_attachment = 'image/jpeg:attachments/eng_picture.jpg'
-        fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
+        fra_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
-                                 [self.francois, self.greg, self.wilbert], base_language='eng',
-                                 media=dict(eng=eng_attachment, fre=fre_attachment))
+        bcast = Broadcast.create(
+            self.org, self.admin, dict(eng=eng_msg, fra=fra_msg), [self.francois, self.greg, self.wilbert],
+            base_language='eng', media=dict(eng=eng_attachment, fra=fra_attachment)
+        )
 
         bcast.send()
 
@@ -2004,18 +2041,18 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
 
-        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
         greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1])
-        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
 
         # assert the right language was used for each contact on both text and media
-        self.assertEqual(francois_media.text, fre_msg)
+        self.assertEqual(francois_media.text, fra_msg)
         self.assertEqual(francois_media.attachments, [francois_media_url])
 
         self.assertEqual(greg_media.text, eng_msg)
         self.assertEqual(greg_media.attachments, [greg_media_url])
 
-        self.assertEqual(wilbert_media.text, fre_msg)
+        self.assertEqual(wilbert_media.text, fra_msg)
         self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
 
 

@@ -106,6 +106,18 @@ class DMarkHandler(BaseChannelHandler):
         return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
 
 
+class WhatsApp(BaseChannelHandler):
+    courier_url = r'^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_name = 'courier.wa'
+
+    def get(self, request, *args, **kwargs):  # pragma: no cover
+        return HttpResponse("Illegal Method", status_code=405)
+
+    def post(self):  # pragma: no cover
+        logger.error('WhatsApp handling only implemented in courier')
+        return HttpResponse("WhatsApp handling only implemented in Courier.", status_code=401)
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
@@ -177,7 +189,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                                        'T')
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=session, connection=call)
+                    FlowRun.create(flow, contact, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1289,7 +1301,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
                 session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=session, connection=call)
+                FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
@@ -1326,7 +1338,6 @@ class NexmoHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
 
         # crazy enough, for nexmo 'to' is the channel number for both delivery reports and new messages
         channel_number = self.get_param('to')
@@ -1337,15 +1348,9 @@ class NexmoHandler(BaseChannelHandler):
             return HttpResponse("No to parameter, ignoring")
 
         # look up the channel
-        address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
-        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type='NX').exclude(org=None).first()
+        channel = Channel.objects.filter(is_active=True, channel_type='NX', uuid=kwargs['uuid']).exclude(org=None).first()
 
-        # make sure we got one, and that it matches the key for our org
-        org_uuid = None
-        if channel:
-            org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
-
-        if not channel or org_uuid != request_uuid:
+        if not channel:
             return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
         # this is a callback for a message we sent
@@ -3063,7 +3068,10 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+
+            contact = Contact.from_urn(channel.org, urn)
+            if not contact:
+                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)

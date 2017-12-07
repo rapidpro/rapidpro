@@ -8,6 +8,7 @@ import phonenumbers
 import regex
 import six
 import time
+import traceback
 import urllib2
 
 from collections import OrderedDict, defaultdict
@@ -57,8 +58,23 @@ START_FLOW_BATCH_SIZE = 500
 
 
 class FlowException(Exception):
-    def __init__(self, *args, **kwargs):
-        super(FlowException, self).__init__(*args, **kwargs)
+    pass
+
+
+class FlowInvalidCycleException(FlowException):
+    def __init__(self, node_uuids):
+        self.node_uuids = node_uuids
+
+
+class FlowUserConflictException(FlowException):
+    def __init__(self, other_user, last_saved_on):
+        self.other_user = other_user
+        self.last_saved_on = last_saved_on
+
+
+class FlowVersionConflictException(FlowException):
+    def __init__(self, rejected_version):
+        self.rejected_version = rejected_version
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
@@ -196,7 +212,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1", "11.2"
     ]
 
     name = models.CharField(max_length=64,
@@ -281,7 +297,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = '10.4'
+        flow.version_number = '11.2'
         flow.save(update_fields=('version_number',))
 
         entry_uuid = six.text_type(uuid4())
@@ -1102,6 +1118,12 @@ class Flow(TembaModel):
         """
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
+    def is_starting(self):
+        """
+        Returns whether this flow has active flow starts
+        """
+        return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
+
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
@@ -1462,8 +1484,8 @@ class Flow(TembaModel):
             return runs
 
         for contact_id in all_contact_ids:
-
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1537,7 +1559,7 @@ class Flow(TembaModel):
             if not contact or not contact_urn or not channel:  # pragma: no cover
                 continue
 
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1592,7 +1614,8 @@ class Flow(TembaModel):
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                                  media=send_action.media,
                                                  base_language=self.base_language,
-                                                 send_all=send_action.send_all)
+                                                 send_all=send_action.send_all,
+                                                 quick_replies=send_action.quick_replies)
                     broadcast.update_contacts(all_contact_ids)
 
                     # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1633,10 +1656,11 @@ class Flow(TembaModel):
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
 
-        simulation = False
-        if len(batch_contact_ids) == 1:
-            if Contact.objects.filter(pk=batch_contact_ids[0], org_id=self.org_id, is_test=True).first():
-                simulation = True
+        batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
+        Contact.bulk_cache_initialize(self.org, batch_contacts)
+        contact_map = {c.id: c for c in batch_contacts}
+
+        simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
         # these fields are the initial state for our flow run
         run_fields = None
@@ -1650,15 +1674,16 @@ class Flow(TembaModel):
         now = timezone.now()
 
         for contact_id in batch_contact_ids:
-            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
+            contact = contact_map[contact_id]
+            run = FlowRun.create(self, contact, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
-
             batch.append(run)
-        FlowRun.objects.bulk_create(batch)
+
+        runs = FlowRun.objects.bulk_create(batch)
 
         # build a map of contact to flow run
         run_map = dict()
-        for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now).select_related('contact'):
+        for run in runs:
             run.flow = self
             run.org = self.org
 
@@ -1671,8 +1696,7 @@ class Flow(TembaModel):
 
         # if we have more than one run, update the others to the same expiration
         if len(run_map) > 1:
-            FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
-                                                                                         modified_on=timezone.now())
+            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on, modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1684,17 +1708,19 @@ class Flow(TembaModel):
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
+                broadcast.org = self.org
                 # provide the broadcast with a partial recipient list
-                partial_recipients = list(), Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
+                partial_recipients = list(), batch_contacts
 
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
-                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, created_on=created_on,
+                               partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel'):
+                    msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:  # pragma: needs cover
@@ -1712,16 +1738,15 @@ class Flow(TembaModel):
             if entry_rules:
                 entry_rules.flow = self
 
-        runs = []
         msgs = []
         optimize_sending_action = len(broadcasts) > 0
 
-        for contact_id in batch_contact_ids:
+        for run in runs:
+            contact = run.contact
+
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
-
-            run = run_map[contact_id]
-            run_msgs = message_map.get(contact_id, [])
+            run_msgs = message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
             try:
@@ -1739,7 +1764,7 @@ class Flow(TembaModel):
 
                         next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                                                      is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
@@ -1757,7 +1782,7 @@ class Flow(TembaModel):
                     # if we didn't get an incoming message, see if we need to evaluate it passively
                     elif not entry_rules.is_pause():
                         # create an empty placeholder message
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
@@ -1766,14 +1791,13 @@ class Flow(TembaModel):
 
                 # set the msgs that were sent by this run so that any caller can deal with them
                 run.start_msgs = run_msgs
-                runs.append(run)
 
                 # add these messages as ones that are ready to send
                 for msg in run_msgs:
                     msgs.append(msg)
 
             except Exception:
-                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact.id), exc_info=1, extra={'stack': True})
 
                 # mark this flow as interrupted
                 run.set_interrupted()
@@ -2124,7 +2148,7 @@ class Flow(TembaModel):
 
     def update(self, json_dict, user=None, force=False):
         """
-        Updates a definition for a flow.
+        Updates a definition for a flow and returns the new revision
         """
 
         def get_step_type(dest, rulesets, actionsets):
@@ -2135,15 +2159,14 @@ class Flow(TembaModel):
                     return FlowStep.TYPE_ACTION_SET
             return None
 
-        cycle = Flow.detect_invalid_cycles(json_dict)
-        if cycle:
-            raise FlowException("Found invalid cycle: %s" % cycle)
+        cycle_node_uuids = Flow.detect_invalid_cycles(json_dict)
+        if cycle_node_uuids:
+            raise FlowInvalidCycleException(cycle_node_uuids)
 
         try:
-
             # make sure the flow version hasn't changed out from under us
             if json_dict.get(Flow.VERSION) != get_current_export_version():
-                return dict(status="flow_migrated")
+                raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
@@ -2161,19 +2184,7 @@ class Flow(TembaModel):
                         last_save = self.modified_on
 
                     if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
-                        saver = ""
-
-                        if self.saved_by.first_name:  # pragma: needs cover
-                            saver += "%s " % self.saved_by.first_name
-                        if self.saved_by.last_name:  # pragma: needs cover
-                            saver += "%s" % self.saved_by.last_name
-
-                        if not saver:
-                            saver = self.saved_by.username
-
-                        saver = saver.strip()
-
-                        return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(last_save), saved_by=saver)
+                        raise FlowUserConflictException(self.saved_by, last_save)
 
             top_y = 0
             top_uuid = None
@@ -2400,31 +2411,28 @@ class Flow(TembaModel):
                 user = self.created_by
 
             # last version
-            revision = 1
+            revision_num = 1
             last_revision = self.revisions.order_by('-revision').first()
             if last_revision:
-                revision = last_revision.revision + 1
+                revision_num = last_revision.revision + 1
 
             # create a new version
-            self.revisions.create(definition=json.dumps(json_dict),
-                                  created_by=user,
-                                  modified_by=user,
-                                  spec_version=get_current_export_version(),
-                                  revision=revision)
+            revision = self.revisions.create(definition=json.dumps(json_dict),
+                                             created_by=user,
+                                             modified_by=user,
+                                             spec_version=get_current_export_version(),
+                                             revision=revision_num)
 
             self.update_dependencies()
 
-            return dict(status="success", description="Flow Saved",
-                        saved_on=datetime_to_str(self.saved_on), revision=revision)
-
         except Exception as e:
             # note that badness happened
-            import logging
             logger = logging.getLogger(__name__)
             logger.exception(six.text_type(e))
-            import traceback
             traceback.print_exc(e)
             raise e
+
+        return revision
 
     def update_dependencies(self):
 
@@ -2604,7 +2612,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, db_index=False,
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
@@ -2629,10 +2637,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
+    def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
-        args = dict(org_id=flow.org_id, flow=flow, contact_id=contact_id, start=start,
+        args = dict(org_id=flow.org_id, flow=flow, contact=contact, start=start,
                     session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
@@ -2642,9 +2650,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             parent.clear_cached_child()
 
         if db_insert:
-            return FlowRun.objects.create(**args)
+            run = FlowRun.objects.create(**args)
         else:
-            return FlowRun(**args)
+            run = FlowRun(**args)
+
+        run.contact = contact
+        return run
 
     def build_expressions_context(self, contact_context=None):
         """
@@ -3052,7 +3063,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if isinstance(value, datetime):
             return value.isoformat()
         elif isinstance(value, AdminBoundary):
-            return value.as_path()
+            return value.path
         else:
             return six.text_type(value)
 
@@ -3119,7 +3130,7 @@ class FlowStep(models.Model):
 
     arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
 
-    left_on = models.DateTimeField(null=True, db_index=True,
+    left_on = models.DateTimeField(null=True,
                                    help_text=_("When the user left this step in the flow"))
 
     messages = models.ManyToManyField(Msg, related_name='steps',
@@ -3900,16 +3911,25 @@ class FlowRevision(SmartModel):
 
             if migrate_fn:
                 exported_json = migrate_fn(exported_json, org, same_site)
-            else:
-                flows = []
-                for json_flow in exported_json.get('flows', []):
-                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
 
-                    if migrate_fn:
+                # update the version of migrated flows
+                flows = []
+                for sub_flow in exported_json.get('flows', []):
+                    sub_flow[Flow.VERSION] = version
+                    flows.append(sub_flow)
+
+                exported_json['flows'] = flows
+
+            else:
+                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % version_slug, None)
+                if migrate_fn:
+                    flows = []
+                    for json_flow in exported_json.get('flows', []):
                         json_flow = migrate_fn(json_flow, None)
 
-                    flows.append(json_flow)
-                exported_json['flows'] = flows
+                        flows.append(json_flow)
+
+                    exported_json['flows'] = flows
 
             # update each flow's version number
             for json_flow in exported_json.get('flows', []):
@@ -5422,13 +5442,15 @@ class ReplyAction(Action):
     MSG_TYPE = None
     MEDIA = 'media'
     SEND_ALL = 'send_all'
+    QUICK_REPLIES = 'quick_replies'
 
-    def __init__(self, uuid, msg=None, media=None, send_all=False):
+    def __init__(self, uuid, msg=None, media=None, quick_replies=None, send_all=False):
         super(ReplyAction, self).__init__(uuid)
 
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
+        self.quick_replies = quick_replies if quick_replies else []
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5444,10 +5466,24 @@ class ReplyAction(Action):
             raise FlowException("Invalid reply action, no message")
 
         return cls(json_obj.get(cls.UUID), msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
-                   send_all=json_obj.get(cls.SEND_ALL, False))
+                   quick_replies=json_obj.get(cls.QUICK_REPLIES), send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, media=self.media, quick_replies=self.quick_replies,
+                    send_all=self.send_all)
+
+    @staticmethod
+    def get_translated_quick_replies(metadata, run):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+        language_metadata = []
+        preferred_languages = [run.contact.language, run.flow.base_language]
+        for item in metadata:
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
+
+        return language_metadata
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
@@ -5458,6 +5494,10 @@ class ReplyAction(Action):
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
+
+            quick_replies = []
+            if self.quick_replies:
+                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
 
             attachments = None
             if self.media:
@@ -5478,15 +5518,16 @@ class ReplyAction(Action):
 
             if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
-                                    connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                    send_all=self.send_all, created_on=created_on)
+                                    connection=run.connection, msg_type=self.MSG_TYPE, quick_replies=quick_replies,
+                                    attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
                 high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
+                                           quick_replies=quick_replies, created_on=created_on, all_urns=self.send_all,
+                                           high_priority=high_priority)
         return replies
 
 

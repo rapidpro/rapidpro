@@ -95,6 +95,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
+    quick_reply_text_size = 20
 
     ivr_protocol = None
 
@@ -184,6 +185,7 @@ class Channel(TembaModel):
     TYPE_VIBER = 'VI'
 
     # keys for various config options stored in the channel config dict
+    CONFIG_BASE_URL = 'base_url'
     CONFIG_SEND_URL = 'send_url'
     CONFIG_SEND_METHOD = 'method'
     CONFIG_SEND_BODY = 'body'
@@ -214,6 +216,11 @@ class Channel(TembaModel):
     CONFIG_APPLICATION_SID = 'application_sid'
     CONFIG_NUMBER_SID = 'number_sid'
     CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
+
+    CONFIG_NEXMO_API_KEY = 'nexmo_api_key'
+    CONFIG_NEXMO_API_SECRET = 'nexmo_api_secret'
+    CONFIG_NEXMO_APP_ID = 'nexmo_app_id'
+    CONFIG_NEXMO_APP_PRIVATE_KEY = 'nexmo_app_private_key'
 
     CONFIG_SHORTCODE_MATCHING_PREFIXES = 'matching_prefixes'
 
@@ -358,7 +365,7 @@ class Channel(TembaModel):
         if not schemes:
             raise ValueError("Cannot create channel without schemes")
 
-        if country and schemes != ['tel']:
+        if country and schemes[0] not in ['tel', 'whatsapp']:
             raise ValueError("Only channels handling phone numbers can be country specific")
 
         if config is None:
