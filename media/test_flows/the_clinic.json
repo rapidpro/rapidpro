@@ -819,7 +819,6 @@
     }, 
     {
       "definition": {
-        "base_language": "eng", 
         "action_sets": [
           {
             "y": 0, 
@@ -828,9 +827,7 @@
             "uuid": "0ce3e457-5a9b-4b33-8593-22f878bd5470", 
             "actions": [
               {
-                "msg": {
-                  "eng": "I was triggered from another flow"
-                }, 
+                "msg": "I was triggered from another flow",
                 "type": "reply"
               }
             ]

@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
-from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, Prefetch, Sum
@@ -28,7 +27,7 @@ from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
-from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, TopUp, Language
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
 from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
@@ -453,11 +452,9 @@ class Broadcast(models.Model):
         if not created_on:
             created_on = timezone.now()
 
-        # pre-fetch channels to reduce database hits
-        org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
+            contact.org = self.org
 
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
@@ -490,11 +487,11 @@ class Broadcast(models.Model):
                     # worry about the @child context.
                     if 'parent' in text:
                         if run.parent:
-                            from temba.flows.models import Flow
-                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+                            run.parent.org = self.org
+                            message_context.update(dict(parent=run.parent.build_expressions_context()))
 
             try:
-                msg = Msg.create_outgoing(org,
+                msg = Msg.create_outgoing(self.org,
                                           self.created_by,
                                           recipient,
                                           text,
@@ -718,7 +715,7 @@ class Msg(models.Model):
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
                                     help_text=_("Any labels on this message"))
 
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE, db_index=True,
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE,
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
@@ -876,14 +873,8 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
-        # Chatbase parameters to track logs
-        chatbase_not_handled = True
-
-        # if this is an inbox message, increment our unread inbox count
-        if msg.msg_type == INBOX:
-            msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
-        elif msg.msg_type == FLOW:
-            chatbase_not_handled = False
+        # chatbase parameters to track logs
+        chatbase_not_handled = msg.msg_type != FLOW
 
         # Sending data to Chatbase API
         if not msg.contact.is_test:
@@ -963,21 +954,6 @@ class Msg(models.Model):
         # and update all related broadcast statuses
         for broadcast in Broadcast.objects.filter(id__in=[b['broadcast'] for b in failed_broadcasts]):
             broadcast.update()
-
-    @classmethod
-    def get_unread_msg_count(cls, user):
-        org = user.get_org()
-
-        key = 'org_unread_msg_count_%d' % org.pk
-        unread_count = cache.get(key, None)
-
-        if unread_count is None:
-            unread_count = Msg.objects.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
-                                              msg_type=INBOX, contact__is_test=False,
-                                              created_on__gt=org.msg_last_viewed, labels=None).count()
-            cache.set(key, unread_count, 900)
-
-        return unread_count
 
     @classmethod
     def mark_handled(cls, msg):
@@ -1412,15 +1388,16 @@ class Msg(models.Model):
 
         (format_date, format_time) = get_datetime_format(dayfirst)
 
-        date_context = {
-            '__default__': datetime_to_str(timezone.now(), format=format_time, tz=tz),
-            'now': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+        now = timezone.now().astimezone(tz)
+
+        # add date.* constants to context
+        context['date'] = {
+            '__default__': now.isoformat(),
+            'now': now.isoformat(),
             'today': datetime_to_str(timezone.now(), format=format_date, tz=tz),
             'tomorrow': datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
             'yesterday': datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
         }
-
-        context['date'] = date_context
 
         date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
         context = EvaluationContext(context, tz, date_style)
@@ -1460,7 +1437,7 @@ class Msg(models.Model):
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
                 if not channel and not contact.is_test:  # pragma: needs cover
-                    raise ValueError("No suitable channel available for this org")
+                    raise UnreachableException("No suitable channel available for this org")
         else:
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
@@ -1527,7 +1504,7 @@ class Msg(models.Model):
 
         # costs 1 credit to send a message
         if not topup_id and not contact.is_test:
-            (topup_id, amount) = org.decrement_credit()
+            (topup_id, _) = org.decrement_credit()
 
         if response_to:
             msg_type = response_to.msg_type
@@ -1717,9 +1694,6 @@ class Msg(models.Model):
             msg.resend()
             changed.append(msg.pk)
         return changed
-
-    class Meta:
-        ordering = ['-created_on', '-pk']
 
 
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \

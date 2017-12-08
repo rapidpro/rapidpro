@@ -609,7 +609,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org).first()
+                        msg = Msg.objects.filter(id=cmd['msg_id'], org=channel.org).first()
                         if msg:
                             if msg.direction == OUTGOING:
                                 handled = msg.update(cmd)
@@ -1706,7 +1706,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # everybody else goes to a different page depending how many channels there are
             org = self.request.user.get_org()
-            channels = list(Channel.objects.filter(org=org, is_active=True).exclude(org=None))
+            channels = list(Channel.objects.filter(org=org, is_active=True))
 
             if len(channels) == 0:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))

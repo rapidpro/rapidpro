@@ -1,6 +1,8 @@
 from __future__ import print_function, unicode_literals
 
 import operator
+
+import regex
 import six
 
 from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
@@ -26,6 +28,9 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
+
+TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$', flags=regex.V0)
+CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+', flags=regex.V0)
 
 
 class Concat(Func):
@@ -58,8 +63,6 @@ class ContactQuery(object):
     PROP_SCHEME = 'S'
     PROP_FIELD = 'F'
 
-    SEARCHABLE_ATTRIBUTES = ('name',)
-
     SEARCHABLE_SCHEMES = ('tel', 'twitter')
 
     def __init__(self, root):
@@ -73,17 +76,29 @@ class ContactQuery(object):
 
         return self.root.as_query(org, prop_map, base_set)
 
+    def as_text(self):
+        return self.root.as_text()
+
     def get_prop_map(self, org):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
         and URN schemes.
         """
-        prop_map = {p: None for p in set(self.root.get_prop_names()) if p != Condition.IMPLICIT_PROP}
 
-        for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
+        searchable_attrs = {'name'}
+        if org.is_anon:
+            searchable_attrs.update(['id'])
+
+        all_props = set(self.root.get_prop_names())
+
+        attr_props = all_props.difference(searchable_attrs)
+
+        prop_map = {p: None for p in all_props}
+
+        for field in ContactField.objects.filter(org=org, key__in=attr_props, is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
 
-        for attr in self.SEARCHABLE_ATTRIBUTES:
+        for attr in searchable_attrs:
             if attr in prop_map.keys():
                 prop_map[attr] = (self.PROP_ATTRIBUTE, attr)
 
@@ -96,6 +111,12 @@ class ContactQuery(object):
                 raise SearchException(_("Unrecognized field: %s") % prop)
 
         return prop_map
+
+    def can_be_dynamic_group(self):
+        props_not_allowed = {'name', 'id'}
+        prop_names = set(self.root.get_prop_names())
+
+        return not(prop_names.intersection(props_not_allowed))
 
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
@@ -120,11 +141,12 @@ class QueryNode(object):
     def as_query(self, org, prop_map, base_set):  # pragma: no cover
         pass
 
+    def as_text(self):  # pragma: no cover
+        pass
+
 
 @six.python_2_unicode_compatible
 class Condition(QueryNode):
-    IMPLICIT_PROP = '*'
-
     ATTR_OR_URN_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
 
     TEXT_LOOKUPS = {'=': 'iexact'}
@@ -158,10 +180,6 @@ class Condition(QueryNode):
         return [self.prop]
 
     def as_query(self, org, prop_map, base_set):
-        # a value without a prop implies query against name or URN, e.g. "bob"
-        if self.prop == self.IMPLICIT_PROP:
-            return self._build_implicit_prop_query(org, base_set)
-
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -173,24 +191,6 @@ class Condition(QueryNode):
                 return self._build_urn_query(org, prop_obj, base_set)
         else:
             return self._build_attr_query(prop_obj)
-
-    def _build_implicit_prop_query(self, org, base_set):
-        name_query = Q(name__icontains=self.value)
-
-        if org.is_anon:
-            try:
-                urn_query = Q(id=int(self.value))  # try id match for anon orgs
-            except ValueError:
-                urn_query = Q(id=-1)
-        else:
-            urns = ContactURN.objects.filter(org=org, path__icontains=self.value)
-
-            if base_set:
-                urns = urns.filter(contact__in=base_set)
-
-            urn_query = Q(id__in=urns.values('contact_id'))
-
-        return name_query | urn_query
 
     def _build_attr_query(self, attr):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
@@ -306,6 +306,17 @@ class Condition(QueryNode):
             return Decimal(val)
         except Exception:
             raise SearchException(_("%s isn't a valid number") % val)
+
+    def as_text(self):
+        try:
+            Decimal(self.value)
+            is_decimal = True
+        except Exception:
+            is_decimal = False
+
+        value = self.value if is_decimal else '"%s"' % self.value
+
+        return '%s %s %s' % (self.prop, self.comparator, value)
 
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
@@ -428,6 +439,17 @@ class BoolCombination(QueryNode):
     def as_query(self, org, prop_map, base_set):
         return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
 
+    def as_text(self):
+        op = ' OR ' if self.op == self.OR else ' AND '
+        children = []
+        for c in self.children:
+            if isinstance(c, BoolCombination):
+                children.append('(%s)' % c.as_text())
+            else:
+                children.append(c.as_text())
+
+        return op.join(children)
+
     def __eq__(self, other):
         return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
 
@@ -450,7 +472,7 @@ class SinglePropCombination(BoolCombination):
         super(SinglePropCombination, self).__init__(op, *children)
 
     def as_query(self, org, prop_map, base_set):
-        prop_type, prop_obj = prop_map[self.prop] if self.prop != Condition.IMPLICIT_PROP else (None, None)
+        prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
 
@@ -487,6 +509,9 @@ class SinglePropCombination(BoolCombination):
 
 class ContactQLVisitor(ParseTreeVisitor):
 
+    def __init__(self, as_anon):
+        self.as_anon = as_anon
+
     def visitParse(self, ctx):
         return self.visit(ctx.expression())
 
@@ -494,7 +519,18 @@ class ContactQLVisitor(ParseTreeVisitor):
         """
         expression : TEXT
         """
-        return Condition(Condition.IMPLICIT_PROP, '=', ctx.TEXT().getText())
+        value = ctx.TEXT().getText()
+
+        if self.as_anon:
+            try:
+                value = int(value)
+                return Condition('id', '=', str(value))
+            except ValueError:
+                pass
+        elif TEL_VALUE_REGEX.match(value):
+            return Condition('tel', '~', value)
+
+        return Condition('name', '~', value)
 
     def visitCondition(self, ctx):
         """
@@ -547,11 +583,21 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace('""', '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True):
+def parse_query(text, optimize=True, as_anon=False):
     from .gen.ContactQLLexer import ContactQLLexer
     from .gen.ContactQLParser import ContactQLParser
 
-    stream = InputStream(text)
+    if as_anon is False:
+        # if the search query looks like a phone number, clean it before parsing
+        cleaned_phonenumber = is_it_a_phonenumber(text)
+    else:
+        cleaned_phonenumber = None
+
+    if cleaned_phonenumber:
+        stream = InputStream(cleaned_phonenumber)
+    else:
+        stream = InputStream(text)
+
     lexer = ContactQLLexer(stream)
     tokens = CommonTokenStream(lexer)
     parser = ContactQLParser(tokens)
@@ -571,7 +617,7 @@ def parse_query(text, optimize=True):
 
         raise SearchException(message)
 
-    visitor = ContactQLVisitor()
+    visitor = ContactQLVisitor(as_anon)
 
     query = ContactQuery(visitor.visit(tree))
     return query.optimized() if optimize else query
@@ -581,19 +627,30 @@ def contact_search(org, text, base_queryset, base_set):
     """
     Performs the given contact query on the given base queryset
     """
-    parsed = parse_query(text)
+    parsed = parse_query(text, as_anon=org.is_anon)
     query = parsed.as_query(org, base_set)
 
     if base_set:
         base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
 
-    return base_queryset.filter(org=org).filter(query)
+    return base_queryset.filter(org=org).filter(query), parsed
 
 
 def extract_fields(org, text):
     """
     Extracts contact fields from the given text query
     """
-    parsed = parse_query(text)
+    parsed = parse_query(text, as_anon=org.is_anon)
     prop_map = parsed.get_prop_map(org)
     return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]
+
+
+def is_it_a_phonenumber(text):
+    """
+    Checks if query looks like a phone number and strips special characters
+    """
+
+    if TEL_VALUE_REGEX.match(text):
+        return CLEAN_SPECIAL_CHARS_REGEX.sub('', text)
+    else:
+        return None

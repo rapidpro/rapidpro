@@ -17,6 +17,7 @@ from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
@@ -30,7 +31,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
@@ -187,6 +188,8 @@ class TembaTest(SmartminTest):
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
+        self.country.update_path()
+
         self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
                                       brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
 
@@ -216,6 +219,10 @@ class TembaTest(SmartminTest):
 
         # reset our simulation to False
         Contact.set_simulation(False)
+
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
 
     def get_verbosity(self):
         for s in reversed(inspect.stack()):
@@ -298,9 +305,13 @@ class TembaTest(SmartminTest):
         self.import_file(filename, substitutions=substitutions)
 
         if last_flow:
-            return Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow.org = self.org
+            return flow
 
-        return Flow.objects.all().order_by('-created_on').first()
+        flow = Flow.objects.all().order_by('-created_on').first()
+        flow.org = self.org
+        return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
@@ -409,7 +420,13 @@ class TembaTest(SmartminTest):
                 ],
                 "rule_sets": [],
             }
-        flow.update(definition)
+
+        flow.version_number = definition['version']
+        flow.save()
+
+        json_flow = FlowRevision.migrate_definition(definition, flow)
+        flow.update(json_flow)
+
         return flow
 
     def update_destination(self, flow, source, destination):
@@ -457,6 +474,14 @@ class TembaTest(SmartminTest):
 
     def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
         return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
+
+    def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
+        self.assertEqual(len(mail.outbox), outbox_index + 1)
+        email = mail.outbox[outbox_index]
+        self.assertEqual(email.from_email, from_email)
+        self.assertEqual(email.subject, subject)
+        self.assertEqual(email.body, body)
+        self.assertEqual(email.recipients(), recipients)
 
     def assertMockedRequest(self, mock_request, data=None, **headers):
         if not mock_request.requested:
