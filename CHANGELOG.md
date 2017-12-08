@@ -1,9 +1,5 @@
 v3.0.284
 ----------
- * Fix campaign event migration
-
-v3.0.283
-----------
  * Migrate languages on campaign events
  * Rework flow path count trigger to use exit_uuid and not record incomplete segments
 
