@@ -1,9 +1,5 @@
 v3.0.285
 ----------
- * Temporarily revert removal of incomplete path counts
-
-v3.0.284
-----------
  * Migrate languages on campaign events
  * Rework flow path count trigger to use exit_uuid and not record incomplete segments
 
