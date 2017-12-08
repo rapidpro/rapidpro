@@ -1,3 +1,7 @@
+v3.0.284
+----------
+ * Fix campaign event migration
+
 v3.0.283
 ----------
  * Migrate languages on campaign events
