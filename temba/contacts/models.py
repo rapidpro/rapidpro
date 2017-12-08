@@ -1158,7 +1158,7 @@ class Contact(TembaModel):
         if language is not None and len(language) != 3:
             language = None
         if language is not None and _get_language_name_iso6393(language) is None:
-            raise SmartImportRowError('Language: \'%s\' is not defined in iso639-3 specification' % (language, ))
+            raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)

@@ -3281,7 +3281,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             response.context['results'], dict(
                 records=2, errors=1, creates=2, updates=0,
-                error_messages=[{'error': "Language: 'fre' is not defined in iso639-3 specification", 'line': 3}]
+                error_messages=[{'error': "Language: 'fre' is not a valid ISO639-3 code", 'line': 3}]
             )
         )
         self.assertEqual(Contact.objects.all().count(), 2)
@@ -3478,7 +3478,7 @@ class ContactTest(TembaTest):
 
         import_error_messages = json.loads(import_task.import_results)['error_messages']
         self.assertEqual(len(import_error_messages), 1)
-        self.assertEqual(import_error_messages[0]['error'], "Language: 'fre' is not defined in iso639-3 specification")
+        self.assertEqual(import_error_messages[0]['error'], "Language: 'fre' is not a valid ISO639-3 code")
 
     def test_import_sequential_numbers(self):
 
