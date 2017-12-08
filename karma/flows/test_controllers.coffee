@@ -426,9 +426,7 @@ describe 'Controllers:', ->
         scope.ruleset.ruleset_type = 'webhook'
         scope.formData.webhook = 'http://www.nyaruka.com'
         scope.formData.webhook_action = 'POST'
-        scope.formData.webhook_headers = [{name: '', key: ''}]
-        scope.webhook_headers_name[0] = 'Authorization'
-        scope.webhook_headers_value[0] = 'Token 12345'
+        scope.formData.webhook_headers = [{name: 'Authorization', value: 'Token 12345'}]
 
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.ruleset_type).toBe('webhook')

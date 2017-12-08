@@ -360,8 +360,7 @@ class ChannelTest(TembaTest):
 
         msg = Msg.objects.get(pk=msg.pk)
         self.assertIsNotNone(msg.channel)
-        self.assertIsNone(msg.channel.gcm_id)
-        self.assertIsNone(msg.channel.secret)
+        self.assertFalse(msg.channel.is_active)
         self.assertEqual(self.org, msg.org)
 
         # queued messages for the channel should get marked as failed
@@ -369,8 +368,7 @@ class ChannelTest(TembaTest):
 
         call = ChannelEvent.objects.get(pk=call.pk)
         self.assertIsNotNone(call.channel)
-        self.assertIsNone(call.channel.gcm_id)
-        self.assertIsNone(call.channel.secret)
+        self.assertFalse(call.channel.is_active)
 
         self.assertEqual(self.org, call.org)
 
@@ -393,7 +391,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]), self.superuser)
         self.assertContains(response, 'Test Channel')
@@ -404,7 +402,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         # add channel trigger
         from temba.triggers.models import Trigger
@@ -1211,7 +1209,7 @@ class ChannelTest(TembaTest):
 
     def test_search_nexmo(self):
         self.login(self.admin)
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
         self.channel = Channel.create(self.org, self.user, 'RW', 'NX', None, '+250788123123',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -1294,14 +1292,10 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
-        self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
         Channel.objects.all().delete()
@@ -1318,12 +1312,7 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
-
-        self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
@@ -1392,7 +1381,6 @@ class ChannelTest(TembaTest):
 
         # channel should be released now
         channel = Channel.objects.get(pk=self.unclaimed_channel.pk)
-        self.assertFalse(channel.org)
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):

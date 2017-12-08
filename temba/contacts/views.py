@@ -390,6 +390,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 export = ExportContactsTask.create(org, user, group, search)
 
+                # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
