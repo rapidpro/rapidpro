@@ -1084,32 +1084,23 @@ class Flow(TembaModel):
         totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
         return {t[0]: t[1] for t in totals if t[1]}
 
-    def get_segment_counts(self, simulation, include_incomplete=False):
+    def get_segment_counts(self, simulation):
         """
         Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
         contacts as these are not pre-calculated.
         """
         if not simulation:
-            return FlowPathCount.get_totals(self, include_incomplete)
+            return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True)
+        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
+        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
 
-        if not include_incomplete:
-            steps = steps.exclude(next_uuid=None)
+        path_counts = {}
+        for step in steps:
+            if step['count']:
+                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
 
-        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
-        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
-
-        visits = {}
-        for step in visited_actions:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['step_uuid'], step['next_uuid'])] = step['count']
-
-        for step in visited_rules:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
-
-        return visits
+        return path_counts
 
     def get_activity(self, simulation=False):
         """
@@ -1832,8 +1823,9 @@ class Flow(TembaModel):
 
         if previous_step:
             previous_step.left_on = arrived_on
+            previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'next_uuid'))
+            previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
             if not previous_step.contact.is_test:
                 FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
@@ -4032,41 +4024,26 @@ class FlowPathCount(SquashableModel):
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
-        if distinct_set.to_uuid:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-            VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {'table': cls._meta.db_table}
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" IS NULL AND "period" = date_trunc('hour', %%s) RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-            VALUES (%%s, %%s, NULL, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {'table': cls._meta.db_table}
-
-            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
-
+        params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
         return sql, params
 
     @classmethod
-    def get_totals(cls, flow, include_incomplete=False):
+    def get_totals(cls, flow):
         counts = cls.objects.filter(flow=flow)
-        if not include_incomplete:
-            counts = counts.exclude(to_uuid=None)
-
         totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
         return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 

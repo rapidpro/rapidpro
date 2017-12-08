@@ -487,14 +487,14 @@ class FlowTest(TembaTest):
         test_contact = Contact.get_test_contact(self.admin)
 
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertFalse(activity['is_starting'])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEqual(2, activity['visited'][color_prompt.uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
 
         # set the flow as inactive, shouldn't react to replies
@@ -5089,27 +5089,27 @@ class FlowsTest(FlowFileTest):
         color_question = ActionSet.objects.get(y=0, flow=flow)
         other_action = ActionSet.objects.get(y=8, flow=flow)
         beer_question = ActionSet.objects.get(y=237, flow=flow)
+        name_question = ActionSet.objects.get(y=535, flow=flow)
+        end_prompt = ActionSet.objects.get(y=805, flow=flow)
         beer = RuleSet.objects.get(label='Beer', flow=flow)
         color = RuleSet.objects.get(label='Color', flow=flow)
+        name = RuleSet.objects.get(label='Name', flow=flow)
 
         rules = color.get_rules()
         color_other_uuid = rules[-1].uuid
-        color_cyan_uuid = rules[-2].uuid
         color_blue_uuid = rules[-4].uuid
-
-        other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
-        msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
-        cyan_to_nothing = '%s:None' % (color_cyan_uuid)
-        blue_to_beer = '%s:%s' % (color_blue_uuid, beer_question.uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
         (active, visited) = flow.get_activity()
 
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, active[color.uuid])
-        self.assertEqual(1, visited[other_rule_to_msg])
-        self.assertEqual(1, visited[msg_to_color_step])
+        self.assertEqual(active, {color.uuid: 1})
+
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
@@ -5117,17 +5117,27 @@ class FlowsTest(FlowFileTest):
         # the active stats will look the same, but there should be one more journey on the path
         self.send_message(flow, 'mauve')
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, active[color.uuid])
-        self.assertEqual(2, visited[other_rule_to_msg])
-        self.assertEqual(2, visited[msg_to_color_step])
+
+        self.assertEqual(active, {color.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 2,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 2,
+        })
 
         # this time a color we know takes us elsewhere, activity will move
         # to another node, but still just one entry
         self.send_message(flow, 'blue')
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, active[beer.uuid])
+
+        self.assertEqual(active, {beer.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 2,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 2,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+        })
 
         # check recent messages
         recent = FlowPathRecentMessage.get_recent([color_question.exit_uuid], color.uuid)
@@ -5146,25 +5156,28 @@ class FlowsTest(FlowFileTest):
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
         self.send_message(flow, 'burnt sienna', contact=ryan)
         (active, visited) = flow.get_activity()
-        self.assertEqual(2, len(active))
-        self.assertEqual(1, active[color.uuid])
-        self.assertEqual(1, active[beer.uuid])
-        self.assertEqual(3, visited[other_rule_to_msg])
-        self.assertEqual(3, visited[msg_to_color_step])
+
+        self.assertEqual(active, {color.uuid: 1, beer.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 2,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 3,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 3,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 2, 'active': 2, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(2, active[beer.uuid])
+        self.assertEqual(active, {beer.uuid: 2})
 
-        # now move our first contact forward to the end, both out of the flow now
+        # now move our first contact forward to the end
         self.send_message(flow, 'Turbo King')
         self.send_message(flow, 'Ben Haggerty')
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
+        self.assertEqual(active, {beer.uuid: 1})
 
         # half of our flows are now complete
         self.assertEqual(flow.get_run_stats(),
@@ -5188,8 +5201,17 @@ class FlowsTest(FlowFileTest):
         # now we should only have one node with active runs, but the paths stay
         # the same since those are historical
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(3, visited[other_rule_to_msg])
+        self.assertEqual(active, {beer.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 2,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 3,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 3,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 2,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 2,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 1,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 1,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
+        })
 
         # no completed runs but one expired run
         self.assertEqual(flow.get_run_stats(),
@@ -5203,9 +5225,17 @@ class FlowsTest(FlowFileTest):
         # our visit path counts will go down by two since he went there twice
         self.contact.release(self.user)
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, visited[msg_to_color_step])
-        self.assertEqual(1, visited[other_rule_to_msg])
+        self.assertEqual(active, {beer.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 0,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 0,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
+        })
 
         # he was also accounting for our completion rate, back to nothing
         self.assertEqual(flow.get_run_stats(),
@@ -5215,7 +5245,17 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'Turbo King', contact=ryan)
         self.send_message(flow, 'Ryan Lewis', contact=ryan)
         (active, visited) = flow.get_activity()
-        self.assertEqual(0, len(active))
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 1,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 1,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
@@ -5235,9 +5275,17 @@ class FlowsTest(FlowFileTest):
 
         # our flow stats should be unchanged
         (active, visited) = flow.get_activity()
-        self.assertEqual(0, len(active))
-        self.assertEqual(1, visited[msg_to_color_step])
-        self.assertEqual(1, visited[other_rule_to_msg])
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 1,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 1,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
@@ -5248,22 +5296,45 @@ class FlowsTest(FlowFileTest):
         # try the same thing after squashing
         squash_flowpathcounts()
         visited = flow.get_activity()[1]
-        self.assertEqual(1, visited[msg_to_color_step])
-        self.assertEqual(1, visited[other_rule_to_msg])
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 1,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 1,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
+        })
 
         # but hammer should have created some simulation activity
         (active, visited) = flow.get_activity(simulation=True)
-        self.assertEqual(0, len(active))
-        self.assertEqual(2, visited[msg_to_color_step])
-        self.assertEqual(2, visited[other_rule_to_msg])
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 2,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 2,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 1,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 1,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
+        })
 
         # delete our last contact to make sure activity is gone without first expiring, zeros abound
         ryan.release(self.admin)
         (active, visited) = flow.get_activity()
-        self.assertEqual(0, len(active))
-        self.assertEqual(0, visited[msg_to_color_step])
-        self.assertEqual(0, visited[other_rule_to_msg])
-
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 0,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 0,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 0,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 0,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 0,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 0,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 0,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
@@ -5275,10 +5346,17 @@ class FlowsTest(FlowFileTest):
         tupac = self.create_contact('Tupac Shakur', '+12065550725')
         self.send_message(flow, 'azul', contact=tupac)
         (active, visited) = flow.get_activity()
-        self.assertEqual(1, len(active))
-        self.assertEqual(1, active[color.uuid])
-        self.assertEqual(1, visited[other_rule_to_msg])
-        self.assertEqual(1, visited[msg_to_color_step])
+        self.assertEqual(active, {color.uuid: 1})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 0,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 0,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 0,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 0,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
+        })
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
@@ -5291,7 +5369,7 @@ class FlowsTest(FlowFileTest):
         from .tasks import check_flows_task
         check_flows_task()
         (active, visited) = flow.get_activity()
-        self.assertEqual(0, len(active))
+        self.assertEqual(active, {})
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 0, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
@@ -5302,18 +5380,20 @@ class FlowsTest(FlowFileTest):
         tyler = self.create_contact('Tyler Lockett', '+12065559999')
         self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
 
-        # we should have 2 counts of the cyan rule to nothing
-        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
-        self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
-
-        # squash our counts and make sure they are still the same
         squash_flowpathcounts()
-        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
+        (active, visited) = flow.get_activity()
 
-        # but now we have a single count
-        self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
-
-        counts = len(flow.get_segment_counts(False))
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 3,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 0,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 0,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 0,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 0,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
+        })
 
         # check that flow interruption counts properly
         rawls = self.create_contact('Thomas Rawls', '+12065557777')
@@ -5323,22 +5403,19 @@ class FlowsTest(FlowFileTest):
         random_word = self.get_flow('random_word')
         self.send_message(random_word, 'blerg', contact=rawls)
 
-        # here's our count for our response path
-        self.assertEqual(1, flow.get_segment_counts(False)[blue_to_beer])
+        (active, visited) = flow.get_activity()
 
-        # let's also create a flow run that gets expired
-        pete = self.create_contact('Pete', '+12065554444')
-        self.send_message(flow, 'blue', contact=pete)
-        run = FlowRun.objects.filter(contact=pete).first()
-        run.expire()
-
-        # but there should be no additional records due to the interruption or expiration
-        # ie, there are no counts added with respect to the next question
-        self.assertEqual(counts, len(flow.get_segment_counts(False)))
-
-        # ensure no negative counts
-        for k, v in flow.get_segment_counts(False).items():
-            self.assertTrue(v >= 0)
+        self.assertEqual(active, {})
+        self.assertEqual(visited, {
+            '%s:%s' % (color_question.exit_uuid, color.uuid): 4,
+            '%s:%s' % (color_other_uuid, other_action.uuid): 1,
+            '%s:%s' % (other_action.exit_uuid, color.uuid): 1,
+            '%s:%s' % (color_blue_uuid, beer_question.uuid): 1,
+            '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
+            '%s:%s' % (beer.get_rules()[2].uuid, name_question.uuid): 0,
+            '%s:%s' % (name_question.exit_uuid, name.uuid): 0,
+            '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
+        })
 
     def test_prune_recentmessages(self):
         flow = self.get_flow('favorites')
