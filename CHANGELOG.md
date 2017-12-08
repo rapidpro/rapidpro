@@ -1,3 +1,11 @@
+v3.0.282
+----------
+ * Don't import contacts with unknown iso639-3 code
+ * Make angular bits less goofy for quick replies and webhooks
+ * Add is_active index on flowrun
+ * Don't disassociate channels from orgs when they're released
+ * Include language column in Contact export
+
 v3.0.281
 ----------
  * Set tps for nexmo and whatsapp
