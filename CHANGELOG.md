@@ -1,3 +1,8 @@
+v3.0.283
+----------
+ * Migrate languages on campaign events
+ * Rework flow path count trigger to use exit_uuid and not record incomplete segments
+
 v3.0.282
 ----------
  * Don't import contacts with unknown iso639-3 code
