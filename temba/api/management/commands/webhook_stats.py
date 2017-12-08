@@ -108,13 +108,13 @@ class Command(BaseCommand):  # pragma: no cover
         self._print_summary(items)
 
     def handle_slowest(self, max_age):
-        results = WebHookResult.objects.only('url', 'request_time').order_by('-request_time')[:25]
+        results = WebHookResult.objects.only('url', 'request_time').order_by('-request_time')
 
         if max_age > 0:
             created_after = timezone.now() - timedelta(minutes=max_age)
             results = results.filter(created_on__gt=created_after)
 
-        for result in results:
+        for result in results[:25]:
             self.stdout.write("%s => %s secs" % (result.url, self._num_style(result.request_time)))
 
     def _print_summary(self, items):
