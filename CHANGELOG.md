@@ -1,3 +1,7 @@
+v3.0.286
+----------
+ * Remove incomplete path counts
+
 v3.0.285
 ----------
  * Migrate languages on campaign events
