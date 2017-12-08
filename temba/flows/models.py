@@ -4043,7 +4043,7 @@ class FlowPathCount(SquashableModel):
 
     @classmethod
     def get_totals(cls, flow):
-        counts = cls.objects.filter(flow=flow).exclude(to_uuid=None)
+        counts = cls.objects.filter(flow=flow)
         totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
         return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 
