@@ -8,7 +8,8 @@ from django.db import migrations
 
 
 def migrate_event_languages(apps, schema_editor):
-    CampaignEvent = apps.get_model('campaigns', 'CampaignEvent')
+    from temba.campaigns.models import CampaignEvent
+
     events = CampaignEvent.objects.filter(event_type='M', is_active=True).select_related('campaign__org')
     total = len(events)
     for idx, event in enumerate(CampaignEvent.objects.filter(event_type='M', is_active=True).select_related('campaign__org')):
