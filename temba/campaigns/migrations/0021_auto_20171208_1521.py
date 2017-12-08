@@ -8,7 +8,7 @@ from django.db import migrations
 
 
 def migrate_event_languages(apps, schema_editor):
-    CampaignEvent = apps.get('campaigns', 'CampaignEvent')
+    CampaignEvent = apps.get_model('campaigns', 'CampaignEvent')
     events = CampaignEvent.objects.filter(event_type='M', is_active=True).select_related('campaign__org')
     total = len(events)
     for idx, event in enumerate(CampaignEvent.objects.filter(event_type='M', is_active=True).select_related('campaign__org')):
