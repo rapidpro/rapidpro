@@ -29,8 +29,8 @@ BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
 
-TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$')
-CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+')
+TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$', flags=regex.V0)
+CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+', flags=regex.V0)
 
 
 class Concat(Func):

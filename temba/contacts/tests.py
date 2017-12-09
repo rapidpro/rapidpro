@@ -653,10 +653,10 @@ class ContactTest(TembaTest):
         self.assertEqual(len(contact.name), 128)
 
         # create a contact with name, phone number and language
-        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fre')
+        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fra')
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
-        self.assertEqual(joe.language, 'fre')
+        self.assertEqual(joe.language, 'fra')
 
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
@@ -1226,6 +1226,10 @@ class ContactTest(TembaTest):
         self.assertEqual(str(parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
         self.assertEqual(str(parse_query('Age > 18 and Age < 30')), "AND[age](>18, <30)")
 
+        # query with UTF-8 characters (non-ascii)
+        query = parse_query('district="Kayônza"')
+        self.assertEqual(query.as_text(), 'district = "Kayônza"')
+
     def test_contact_search(self):
         self.login(self.admin)
 
@@ -1370,6 +1374,7 @@ class ContactTest(TembaTest):
         self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
         self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
+        self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters
 
     def test_omnibox(self):
         # add a group with members and an empty group
@@ -1655,7 +1660,9 @@ class ContactTest(TembaTest):
 
             self.assertEqual(len(activity), 95)
             self.assertIsInstance(activity[4]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
-            self.assertEqual(activity[4]['obj'].text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
+            self.assertEqual(activity[4]['obj'].text, {
+                'base': "What is your favorite color?", 'fra': "Quelle est votre couleur préférée?"
+            })
             self.assertEqual(activity[4]['obj'].translated_text, "What is your favorite color?")
 
             # if a new message comes in
@@ -2413,7 +2420,7 @@ class ContactTest(TembaTest):
 
         # update our language to something not on the org
         self.joe.refresh_from_db()
-        self.joe.language = 'fre'
+        self.joe.language = 'fra'
         self.joe.save()
 
         # add some languages to our org, but not french
@@ -2639,6 +2646,17 @@ class ContactTest(TembaTest):
         self.assertEqual([six.text_type(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
 
+    def test_create_instance_with_language(self):
+        contact = Contact.create_instance(dict(
+            org=self.org, created_by=self.admin, name="Bob", phone="+250788111111", language="fra"
+        ))
+        self.assertEqual(contact.language, 'fra')
+
+        # language is not defined in iso639-3
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(
+            org=self.org, created_by=self.admin, name="Mob", phone="+250788111112", language="123"
+        ))
+
     def do_import(self, user, filename):
 
         import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=[],
@@ -2649,7 +2667,7 @@ class ContactTest(TembaTest):
             csv_file='test_imports/' + filename,
             model_class="Contact", import_params=json.dumps(import_params), import_log="", task_id="A")
 
-        return Contact.import_csv(task, log=None)
+        return Contact.import_csv(task, log=None), task
 
     def assertContactImport(self, filepath, expected_results=None, task_customize=None, custom_fields_number=None):
         csv_file = open(filepath, 'rb')
@@ -2682,7 +2700,7 @@ class ContactTest(TembaTest):
         #
         # first import brings in 3 contacts
         user = self.user
-        records = self.do_import(user, 'sample_contacts.xls')
+        records, _ = self.do_import(user, 'sample_contacts.xls')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2701,7 +2719,7 @@ class ContactTest(TembaTest):
         jen_pk = Contact.objects.get(name='Jen Newcomer').pk
 
         # import again, should be no more records
-        records = self.do_import(user, 'sample_contacts.xls')
+        records, _ = self.do_import(user, 'sample_contacts.xls')
         self.assertEqual(3, len(records))
 
         # But there should be another group
@@ -2716,7 +2734,7 @@ class ContactTest(TembaTest):
         eric.unstop(self.admin)
 
         # update file changes a name, and adds one more
-        records = self.do_import(user, 'sample_contacts_update.csv')
+        records, _ = self.do_import(user, 'sample_contacts_update.csv')
 
         # now there are three groups
         self.assertEqual(3, len(ContactGroup.user_groups.all()))
@@ -2737,7 +2755,7 @@ class ContactTest(TembaTest):
         self.assertEqual(3, len(ContactGroup.user_groups.all()))
 
         # import twitter urns
-        records = self.do_import(user, 'sample_contacts_twitter.xls')
+        records, _ = self.do_import(user, 'sample_contacts_twitter.xls')
         self.assertEqual(3, len(records))
 
         # now there are four groups
@@ -2749,7 +2767,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name='Nyaruka').count())
 
         # import twitter urns with phone
-        records = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
+        records, _ = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
         self.assertEqual(3, len(records))
 
         # now there are five groups
@@ -2771,7 +2789,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts_UPPER.XLS')
+        records, _ = self.do_import(user, 'sample_contacts_UPPER.XLS')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2782,7 +2800,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        records, _ = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
         self.assertEqual(2, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -2790,7 +2808,7 @@ class ContactTest(TembaTest):
         self.assertEqual(group.name, "Sample Contacts With Filename Very Long That It Will N")
         self.assertEqual(2, group.contacts.count())
 
-        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        records, _ = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
         self.assertEqual(2, len(records))
 
         self.assertEqual(2, len(ContactGroup.user_groups.all()))
@@ -2916,7 +2934,7 @@ class ContactTest(TembaTest):
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
                                                                  "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                 "external, jiochat, fcm should be provided or a Contact UUID"),
+                                                                 "external, jiochat, fcm, whatsapp should be provided or a Contact UUID"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
         # import a spreadsheet with a name and a twitter columns only
@@ -2988,7 +3006,7 @@ class ContactTest(TembaTest):
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                "external, jiochat, fcm should be provided or a Contact UUID")]))
+                                                                "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # lock for creates only
             self.assertEqual(mock_lock.call_count, 1)
@@ -3056,7 +3074,7 @@ class ContactTest(TembaTest):
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                "external, jiochat, fcm should be provided or a Contact UUID")]))
+                                                                "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # only lock for create
             self.assertEqual(mock_lock.call_count, 1)
@@ -3150,7 +3168,7 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        records = self.do_import(user, 'sample_contacts.xlsx')
+        records, _ = self.do_import(user, 'sample_contacts.xlsx')
         self.assertEqual(3, len(records))
 
         self.assertEqual(1, len(ContactGroup.user_groups.all()))
@@ -3195,7 +3213,7 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
-                             '"Jiochat", "Fcm" or "Contact UUID" should be included.')
+                             '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -3203,7 +3221,7 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
-                             '"Jiochat", "Fcm" or "Contact UUID" should be included.')
+                             '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
@@ -3260,9 +3278,13 @@ class ContactTest(TembaTest):
         post_data['column_shoes_type'] = 'N'
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertEqual(response.context['results'], dict(records=3, errors=0, error_messages=[], creates=3,
-                                                           updates=0))
-        self.assertEqual(Contact.objects.all().count(), 3)
+        self.assertEqual(
+            response.context['results'], dict(
+                records=2, errors=1, creates=2, updates=0,
+                error_messages=[{'error': "Language: 'fre' is not a valid ISO639-3 code", 'line': 3}]
+            )
+        )
+        self.assertEqual(Contact.objects.all().count(), 2)
         self.assertEqual(ContactGroup.user_groups.all().count(), 1)
         self.assertEqual(ContactGroup.user_groups.all()[0].name, 'Sample Contacts With Extra Fields')
 
@@ -3448,11 +3470,15 @@ class ContactTest(TembaTest):
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
-        self.do_import(self.user, 'sample_contacts_with_language.xls')
+        imported_contacts, import_task = self.do_import(self.user, 'sample_contacts_with_language.xls')
 
+        self.assertEqual(2, len(imported_contacts))
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
-        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
-        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
+        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)  # no language
+
+        import_error_messages = json.loads(import_task.import_results)['error_messages']
+        self.assertEqual(len(import_error_messages), 1)
+        self.assertEqual(import_error_messages[0]['error'], "Language: 'fre' is not a valid ISO639-3 code")
 
     def test_import_sequential_numbers(self):
 
@@ -3587,7 +3613,7 @@ class ContactTest(TembaTest):
         self.assertIsNone(self.joe.get_field('birth_date').decimal_value)
         self.assertIsNone(self.joe.get_field('birth_date').datetime_value)
 
-    def test_serialize_field_value(self):
+    def test_field_values(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
                                                         None, Value.TYPE_DATETIME)
 
@@ -3601,17 +3627,37 @@ class ContactTest(TembaTest):
         joe.set_field(self.user, 'color', "green")
         joe.set_field(self.user, 'state', "kigali city")
 
+        # none value instances
+        self.assertEqual(Contact.serialize_field_value(weight_field, None), None)
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, None), None)
+        self.assertEqual(Contact.serialize_field_value(registration_field, None), None)
+        self.assertEqual(Contact.get_field_display_for_value(registration_field, None), None)
+
         value = joe.get_field(registration_field.key)
-        self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T01:04:00.000000Z')
+        self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T03:04:00+02:00')
 
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), '75.888888')
+
+        joe.set_field(self.user, 'weight', "0")
+        value = joe.get_field(weight_field.key)
+        self.assertEqual(Contact.serialize_field_value(weight_field, value), "0")
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), "0")
+
+        # passing something non-numeric to a decimal field
+        joe.set_field(self.user, 'weight', "xxx")
+        value = joe.get_field(weight_field.key)
+        self.assertEqual(Contact.serialize_field_value(weight_field, value), None)
+        self.assertEqual(Contact.get_field_display_for_value(weight_field, value), "")
 
         value = joe.get_field(state_field.key)
-        self.assertEqual(Contact.serialize_field_value(state_field, value), 'Kigali City')
+        self.assertEqual(Contact.serialize_field_value(state_field, value), 'Rwanda > Kigali City')
+        self.assertEqual(Contact.get_field_display_for_value(state_field, value), 'Kigali City')
 
         value = joe.get_field(color_field.key)
         self.assertEqual(Contact.serialize_field_value(color_field, value), 'green')
+        self.assertEqual(Contact.get_field_display_for_value(color_field, value), 'green')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
@@ -3635,7 +3681,7 @@ class ContactTest(TembaTest):
         self.assertTrue(value.location_value)
         self.assertEqual(value.location_value.name, "Kigali City")
         self.assertEqual("Kigali City", joe.get_field_display_for_value(state_field, value))
-        self.assertEqual("Kigali City", joe.serialize_field_value(state_field, value))
+        self.assertEqual("Rwanda > Kigali City", joe.serialize_field_value(state_field, value))
 
         # test that we don't normalize non-location fields
         joe.set_field(self.user, 'not_state', 'kigali city')
@@ -4074,7 +4120,7 @@ class ContactFieldTest(TembaTest):
         flow.start([], [contact])
 
         # create another contact, this should sort before Ben
-        contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
+        contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam', language='eng')
         urns = [six.text_type(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
@@ -4101,11 +4147,11 @@ class ContactFieldTest(TembaTest):
             return workbook.worksheets[0]
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export(), [
-                ["Contact UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
             ])
 
         # more contacts do not increase the queries
@@ -4114,46 +4160,46 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export(), [
-                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
-                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
-                [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
+                [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", ""],
             ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(42):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
-                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
 
         # export a search
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
             ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(42):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.assertExcelSheet(request_export(), [
-                ["ID", "Contact UUID", "Name", "First", "Second", "Third"],
-                [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""],
-                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"],
-                [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""],
-                [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""],
+                ["ID", "Contact UUID", "Name", "Language", "First", "Second", "Third"],
+                [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
+                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "", "One", "", "20-12-2015 08:30"],
+                [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", "", ""],
+                [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
             ])
 
     def test_contact_field_list(self):
@@ -4346,7 +4392,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 45)
+        self.assertEqual(len(response_json), 46)
         self.assertEqual(response_json[0]['label'], 'Full name')
         self.assertEqual(response_json[0]['key'], 'name')
         self.assertEqual(response_json[1]['label'], 'Phone number')
@@ -4371,22 +4417,24 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[10]['key'], 'jiochat')
         self.assertEqual(response_json[11]['label'], 'Firebase Cloud Messaging identifier')
         self.assertEqual(response_json[11]['key'], 'fcm')
-        self.assertEqual(response_json[12]['label'], 'Groups')
-        self.assertEqual(response_json[12]['key'], 'groups')
-        self.assertEqual(response_json[13]['label'], 'First')
-        self.assertEqual(response_json[13]['key'], 'first')
-        self.assertEqual(response_json[14]['label'], 'label0')
-        self.assertEqual(response_json[14]['key'], 'key0')
+        self.assertEqual(response_json[12]['label'], 'WhatsApp identifier')
+        self.assertEqual(response_json[12]['key'], 'whatsapp')
+        self.assertEqual(response_json[13]['label'], 'Groups')
+        self.assertEqual(response_json[13]['key'], 'groups')
+        self.assertEqual(response_json[14]['label'], 'First')
+        self.assertEqual(response_json[14]['key'], 'first')
+        self.assertEqual(response_json[15]['label'], 'label0')
+        self.assertEqual(response_json[15]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEqual(response_json[13]['label'], 'AAAA')
-        self.assertEqual(response_json[13]['key'], 'key0')
-        self.assertEqual(response_json[14]['label'], 'First')
-        self.assertEqual(response_json[14]['key'], 'first')
+        self.assertEqual(response_json[14]['label'], 'AAAA')
+        self.assertEqual(response_json[14]['key'], 'key0')
+        self.assertEqual(response_json[15]['label'], 'First')
+        self.assertEqual(response_json[15]['key'], 'first')
 
 
 class URNTest(TembaTest):
@@ -4395,6 +4443,11 @@ class URNTest(TembaTest):
         self.assertEqual('facebook:ref:asdf', URN.from_facebook(URN.path_from_fb_ref('asdf')))
         self.assertEqual('asdf', URN.fb_ref_from_path(URN.path_from_fb_ref('asdf')))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref('asdf'))))
+
+    def test_whatsapp_urn(self):
+        self.assertEqual('whatsapp:12065551212', URN.from_whatsapp('12065551212'))
+        self.assertTrue(URN.validate('whatsapp:12065551212'))
+        self.assertFalse(URN.validate('whatsapp:+12065551212'))
 
     def test_from_parts(self):
         self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")

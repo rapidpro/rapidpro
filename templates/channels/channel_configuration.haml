@@ -158,7 +158,7 @@
         The callback URL is called by Nexmo when you receive new incoming messages.
 
     %code
-      https://{{ domain }}{% url 'courier.nx' object.org.nexmo_uuid 'receive' %}
+      https://{{ domain }}{% url 'courier.nx' object.uuid 'receive' %}
 
     %h4
       -trans "Callback URL for Delivery Receipt"
@@ -168,7 +168,7 @@
         The delivery URL is called by Nexmo when a message is successfully delivered to a recipient.
 
     %code
-      https://{{ domain }}{% url 'courier.nx' object.org.nexmo_uuid 'status' %}
+      https://{{ domain }}{% url 'courier.nx' object.uuid 'status' %}
 
 
     %h4

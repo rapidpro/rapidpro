@@ -186,19 +186,11 @@ class Campaign(TembaModel):
         events = []
 
         for event in self.events.all().order_by('flow__uuid'):
-
-            message = event.message
-            if message:
-                try:
-                    message = json.loads(message)
-                except Exception:  # pragma: needs cover
-                    message = dict(base=message)
-
             event_definition = dict(uuid=event.uuid, offset=event.offset,
                                     unit=event.unit,
                                     event_type=event.event_type,
                                     delivery_hour=event.delivery_hour,
-                                    message=message,
+                                    message=event.message,
                                     relative_to=dict(label=event.relative_to.label, key=event.relative_to.key))
 
             # only include the flow definition for standalone flows
@@ -573,10 +565,8 @@ class EventFire(Model):
         # get all the groups this user is in
         groups = [g.id for g in contact.cached_user_groups]
 
-        # for each campaign that might effect us
-        for campaign in Campaign.objects.filter(group__in=groups, org=contact.org,
-                                                is_active=True, is_archived=False).distinct():
-
+        # for each campaign that might affect us
+        for campaign in Campaign.objects.filter(group__in=groups, org=contact.org, is_active=True, is_archived=False).distinct():
             # update all the events for the campaign
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
