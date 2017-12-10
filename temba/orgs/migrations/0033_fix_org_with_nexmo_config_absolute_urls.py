@@ -32,14 +32,14 @@ def update_nexmo_config(Org):
 
                 nx_client = nx.Client(key=nexmo_api_key, secret=nexmo_secret)
 
-                temba_host = settings.TEMBA_HOST.lower()
+                hostname = settings.HOSTNAME.lower()
 
-                app_name = "%s/%s" % (temba_host, nexmo_uuid)
+                app_name = "%s/%s" % (hostname, nexmo_uuid)
 
-                answer_url = "https://%s%s" % (temba_host,
+                answer_url = "https://%s%s" % (hostname,
                                                reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
 
-                event_url = "https://%s%s" % (temba_host,
+                event_url = "https://%s%s" % (hostname,
                                               reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
 
                 params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
@@ -70,7 +70,7 @@ def update_nexmo_config(Org):
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
                     nexmo_client.update_nexmo_number(six.text_type(channel.country), channel.address,
-                                                     'https://%s%s' % (temba_host, mo_path),
+                                                     'https://%s%s' % (hostname, mo_path),
                                                      app_id)
 
                     nexmo_phones = nexmo_client.get_numbers(channel.address)

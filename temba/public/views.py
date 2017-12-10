@@ -12,12 +12,20 @@ from django.views.generic import RedirectView, View
 from random import randint
 from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreateView, SmartListView, SmartTemplateView
 from temba.public.models import Lead, Video
-from temba.utils import analytics, random_string, get_anonymous_user
+from temba.utils import analytics, get_anonymous_user
+from temba.utils.text import random_string
 from urllib import urlencode
 
 
 class IndexView(SmartTemplateView):
     template_name = 'public/public_index.haml'
+
+    def pre_process(self, request, *args, **kwargs):
+        response = super(IndexView, self).pre_process(request, *args, **kwargs)
+        redirect = self.request.branding.get('redirect')
+        if redirect:
+            return HttpResponseRedirect(redirect)
+        return response
 
     def get_context_data(self, **kwargs):
         context = super(IndexView, self).get_context_data(**kwargs)
@@ -138,6 +146,7 @@ class LeadCRUDL(SmartCRUDL):
 
 
 class Blog(RedirectView):
+    # whitelabels don't have blogs, so we don't use the brand domain here
     url = "http://blog." + settings.HOSTNAME
 
 

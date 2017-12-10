@@ -1,11 +1,11 @@
--extends "smartmin/form.html"
+-extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
 -block title
-  .medium-help.icon-facebook-official.float-left
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
 
   %h2.font_normalize.header-margin
-    -trans "Connect Facebook"
+    {{ title }}
 
 -block pre-form
   .info

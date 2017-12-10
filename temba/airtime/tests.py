@@ -46,7 +46,7 @@ class AirtimeEventTest(TembaTest):
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
 
             self.assertEqual(mock_post.call_count, 1)
-            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
             self.assertTrue('action' in mock_args.keys())
             self.assertTrue('login' in mock_args.keys())
@@ -67,7 +67,7 @@ class AirtimeEventTest(TembaTest):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
             self.assertEqual(mock_post.call_count, 1)
-            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
             self.assertTrue('action' in mock_args.keys())
             self.assertTrue('login' in mock_args.keys())

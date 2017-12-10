@@ -65,6 +65,7 @@
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tooltip.js"}
+      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tab.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-pjax/jquery.pjax.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.core.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.widget.js"}
@@ -168,79 +169,81 @@
 -load smartmin
 {% block body %}
 %body#pageBody
-  <!-- Header -->
-  #print-header
-    %span.logo.icon-logo
+  .page-wrap
 
-  #header
-    &nbsp;
+    <!-- Header -->
+    #print-header
+      %span.logo.icon-logo
 
-  %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
-    .name
-      {{brand.name}}
+    #header
+      &nbsp;
 
-  -include 'includes/nav.html'
+    %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+      .name
+        {{brand.name}}
 
-  -if user_org
-    .org-header
-      -with user.get_user_orgs as orgs
-        -if orgs|length > 1
-          .pull-right.toggle
-            .icon-menu-2
+    -include 'includes/nav.html'
 
-        .org
-          {{ user_org.name|truncatechars:30 }}
+    -if user_org
+      .org-header
+        -with user.get_user_orgs as orgs
+          -if orgs|length > 1
+            .pull-right.toggle
+              .icon-menu-2
 
-        .other-orgs.hide
+          .org
+            {{ user_org.name|truncatechars:30 }}
 
-          -for org in orgs
-            -if org != user_org
-              .org
-                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                  {{ org.name }}
+          .other-orgs.hide
+
+            -for org in orgs
+              -if org != user_org
+                .org
+                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                    {{ org.name }}
 
 
-  -block post-header
-  <!-- Content -->
-  -block page-container
-    #page-container.container-fluid
-      .page-content
-        -block page-top
-          .row-fluid
-            .span9
-              -block title
-                -block title-icon
-                -block title-text
-                  .title-text
-                    %h1
-                      {{title}}
+    -block post-header
+    <!-- Content -->
+    -block page-container
+      #page-container.container-fluid
+        .page-content
+          -block page-top
+            .row-fluid
+              .span9
+                -block title
+                  -block title-icon
+                  -block title-text
+                    .title-text
+                      %h1
+                        {{title}}
 
-            .span3.top-form
-              .pull-right
+              .span3.top-form
+                .pull-right
 
-                -block above-bar
-                  -block gear-menu
-                    -include "gear_links_include.haml"
-                  -block top-form
+                  -block above-bar
+                    -block gear-menu
+                      -include "gear_links_include.haml"
+                    -block top-form
 
-          -block top-bar
-            %hr.top-bar
+            -block top-bar
+              %hr.top-bar
 
-        - if messages
-          .row
-            .span12
-              - block messages
-                - if messages
-                  -for msg in messages
-                    %div{class:"alert alert-{{ message.tags }}"}
-                      %a.close{data-dismiss:"alert"} x
-                      {{ msg }}
+          - if messages
+            .row
+              .span12
+                - block messages
+                  - if messages
+                    -for msg in messages
+                      %div{class:"alert alert-{{ message.tags }}"}
+                        %a.close{data-dismiss:"alert"} x
+                        {{ msg }}
 
-        -block content
-        -block post-content
+          -block content
+          -block post-content
 
-  #footerInnerSeperator
-  #footerOuterSeparator
+    #footerInnerSeperator
+    #footerOuterSeparator
 
   -include "includes/frame_bottom.html"
 

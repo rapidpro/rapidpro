@@ -2,6 +2,12 @@
 -load smartmin sms contacts
 -load i18n humanize
 
+-block page-title
+  -if current_group
+    {{current_group.name}}
+  -else
+    {{title}}
+  
 -block page-top
   {% render as page_top %}
     {{block.super}}
@@ -394,6 +400,7 @@
     });
 
     $('.page-content').on('click', ".add-dynamic-group", function() {
+    {% if save_dynamic_search %}
       var modal = new Modax('{% trans "Save Search as Group" %}', '{% url "contacts.contactgroup_create"%}');
       modal.setIcon('icon-users');
       modal.setListeners({
@@ -401,6 +408,12 @@
       });
       modal.setRedirectOnSuccess(true);
       modal.show();
+    {% else %}
+      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>." %}')
+      modal.setListeners({});
+      modal.show();
+    {% endif %}
+
     });
 
     {% endif %}

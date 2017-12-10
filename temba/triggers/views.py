@@ -19,7 +19,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelType
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -39,22 +39,40 @@ class BaseTriggerForm(forms.ModelForm):
         self.fields['flow'].queryset = flows.order_by('flow_type', 'name')
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword', '').strip()
+        keyword = self.cleaned_data.get('keyword')
 
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):  # pragma: needs cover
+        if keyword is None:  # pragma: no cover
+            keyword = ''
+
+        keyword = keyword.strip()
+
+        if keyword == '' or (keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0)):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
 
-        # make sure it is unique on this org
-        org = self.user.get_org()
-        if keyword and org:
-            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
-            if self.instance:
-                existing = existing.exclude(pk=self.instance.pk)
-
-            if existing:  # pragma: needs cover
-                raise forms.ValidationError(_("Another active trigger uses this keyword, keywords must be unique"))
-
         return keyword.lower()
+
+    def get_existing_triggers(self, cleaned_data):
+        keyword = cleaned_data.get('keyword')
+
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+        existing = Trigger.objects.none()
+        if keyword:
+            existing = Trigger.objects.filter(org=self.user.get_org(), is_archived=False, is_active=True,
+                                              keyword__iexact=keyword)
+
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+
+        return existing
+
+    def clean(self):
+        data = super(BaseTriggerForm, self).clean()
+        if self.get_existing_triggers(data):
+            raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
+        return data
 
     class Meta:
         model = Trigger
@@ -96,12 +114,6 @@ class GroupBasedTriggerForm(BaseTriggerForm):
 
         return existing
 
-    def clean(self):
-        data = super(GroupBasedTriggerForm, self).clean()
-        if self.get_existing_triggers(data):
-            raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
-        return data
-
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups')
 
@@ -119,12 +131,6 @@ class CatchAllTriggerForm(GroupBasedTriggerForm):
         existing = existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
         return existing
 
-    def clean(self):
-        data = super(CatchAllTriggerForm, self).clean()
-        if self.get_existing_triggers(data):  # pragma: needs cover
-            raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
-        return data
-
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups')
 
@@ -138,23 +144,17 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
-        keyword = cleaned_data.get('keyword', '').strip()
+        keyword = cleaned_data.get('keyword')
+
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+
         existing = super(KeywordTriggerForm, self).get_existing_triggers(cleaned_data)
         if keyword:
             existing = existing.filter(keyword__iexact=keyword)
         return existing
-
-    def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword', '').strip()
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
-            raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
-        return keyword.lower()
-
-    def clean(self):
-        data = super(KeywordTriggerForm, self).clean()
-        if self.get_existing_triggers(data):  # pragma: needs cover
-            raise forms.ValidationError(_("An active trigger uses this keyword in some groups, keywords must be unique for each contact group"))
-        return data
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('keyword', 'match_type', 'flow', 'groups')
@@ -259,7 +259,7 @@ class FollowTriggerForm(BaseTriggerForm):
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_FOLLOW)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_FOLLOW))
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
@@ -276,16 +276,16 @@ class NewConversationTriggerForm(BaseTriggerForm):
         super(NewConversationTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION))
 
     def clean_channel(self):
         channel = self.cleaned_data['channel']
         existing = Trigger.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False,
                                           trigger_type=Trigger.TYPE_NEW_CONVERSATION, channel=channel)
         if self.instance:
-            existing.exclude(id=self.instance.id)
+            existing = existing.exclude(id=self.instance.id)
 
-        if existing:
+        if existing.exists():
             raise forms.ValidationError(_("Trigger with this Channel already exists."))
 
         return self.cleaned_data['channel']
@@ -300,7 +300,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     """
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=False,
                                      help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"))
-    referrer_id = forms.CharField(max_length=255, required=True, label=_("Referrer Id"),
+    referrer_id = forms.CharField(max_length=255, required=False, label=_("Referrer Id"),
                                   help_text=_("The referrer id that will trigger us"))
 
     def __init__(self, user, *args, **kwargs):
@@ -308,13 +308,13 @@ class ReferralTriggerForm(BaseTriggerForm):
         super(ReferralTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_REFERRALS)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS))
 
     def get_existing_triggers(self, cleaned_data):
         ref_id = cleaned_data.get('referrer_id', '').strip()
         channel = cleaned_data.get('channel')
         existing = Trigger.objects.filter(org=self.user.get_org(), trigger_type=Trigger.TYPE_REFERRAL,
-                                          is_active=True, is_archived=False, referrer_id=ref_id)
+                                          is_active=True, is_archived=False, referrer_id__iexact=ref_id)
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
 
@@ -322,13 +322,6 @@ class ReferralTriggerForm(BaseTriggerForm):
             existing = existing.filter(channel=channel)
 
         return existing
-
-    def clean(self):
-        ref_id = self.cleaned_data.get('referrer_id', '').strip()
-        data = super(ReferralTriggerForm, self).clean()
-        if ref_id and self.get_existing_triggers(data):
-            raise forms.ValidationError(_("An active trigger uses this referrer id, referrer ids must be unique"))
-        return data
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'referrer_id', 'flow')
@@ -346,30 +339,26 @@ class UssdTriggerForm(BaseTriggerForm):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
         super(UssdTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
-        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 channel_type__in=Channel.USSD_CHANNELS)
+        self.fields['channel'].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
 
-        if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
+        if keyword == '' or (keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE)):
             raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
 
         return keyword
 
-    def clean(self):
-        data = super(UssdTriggerForm, self).clean()
-        keyword = data.get('keyword', '').strip()
-        existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False, is_active=True)
-        existing = existing.filter(channel=data['channel'])
+    def get_existing_triggers(self, cleaned_data):
+        keyword = cleaned_data.get('keyword', '').strip()
+        existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False,
+                                          is_active=True)
+        existing = existing.filter(channel=cleaned_data['channel'])
 
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
 
-        if existing:
-            raise forms.ValidationError(dict(keyword=_("An active trigger already uses this keyword on this channel.")))
-
-        return data
+        return existing
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('keyword', 'channel', 'flow')

@@ -5,6 +5,8 @@
 -block html-tag
   <html lang="en" ng-app="app">
 
+-block page-title
+  {{object.name}}
 
 -block extra-less
   -compress css
@@ -31,14 +33,21 @@
 -block extra-script
   {{ block.super }}
 
+  -if org_perms.flows.flow_delete
+    :javascript
+      $(".delete-flow").live('click', function() {    
+        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        modal.addClass("alert");
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
   -compress js
     %script{type:'text/javascript', src:'{{ STATIC_URL }}bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/jquery-autosize/jquery.autosize.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-elastic/elastic.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-ui-sortable/sortable.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}js/temba-ui-bootstrap-tpls.js"}
-
-  %script{src:"{{ STATIC_URL }}js/excellent.js"}
 
   :javascript
     window.flowId = {{ object.pk }};
@@ -79,7 +88,7 @@
         var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
         var onActions = {
           onSuccess: function(data) {
-            $('html').scope().pending = 'P';
+            $('html').scope().is_starting = true;
           },
           onFormLoaded: function() { }
         }
@@ -109,20 +118,14 @@
       });
     });
 
-    function broadcastToNode(nodeUUID) {
-      var queryString = "s=" + nodeUUID;
-
-      if (window.simulation) {
-        queryString += "&simulation=true";
-      }
-
-      showComposeInitialized(queryString);
+    function broadcastToNode(nodeUUID, nodeRecipientCount) {
+      showCompose(false, null, nodeUUID, nodeRecipientCount);
       return false;
     }
 
     $(document).ready(function() {
-      {% if starting %}
-        $("html").scope().pending = 'P';
+      {% if is_starting %}
+        $("html").scope().is_starting = true;
       {% endif %}
     })
 
@@ -215,7 +218,7 @@
           .icon-mobile
         {{ flow.name }}
 
-      #pending{ng-show:'pending == "S" || pending == "P"'}
+      #pending{ng-show:'is_starting'}
         %div{class:"alert alert-info"}
           -blocktrans
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
@@ -318,7 +321,7 @@
                ng-attr-id:'[[action_set.uuid]]', class:'action-node', ng-class:'{recents:action_set._showMessages, translate:lastActionMissingTranslation(action_set)}',
                ng-style:"{left:action_set.x, top:action_set.y}"}
 
-          .active{ng-show:'action_set._active > 0', ng-click:'broadcastToStep($event, action_set.uuid)'}
+          .active{ng-show:'action_set._active > 0', ng-click:'broadcastToStep($event, action_set.uuid,  action_set._active)'}
             [[action_set._active|number]]
 
           .flow-start{ng-show:'action_set.uuid == flow.entry'}
@@ -382,6 +385,8 @@
                   %span.reply{ng-show:'action.type == "reply" || action.type == "send"'}
 
                     .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+                    .node-attachment.icon-attachment{ng-show:'action._attachURL'}
+                    .node-attachment.viewer-button.icon-button-quick-reply{ng-show:'action.quick_replies.length > 0'}
 
                     .uploading{ng-show:'action.uploading'}
                       %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
@@ -475,7 +480,7 @@
               ng-style:"{left:ruleset.x, top:ruleset.y}",
               ng-click:'clickRuleset(ruleset)'}
 
-          .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep($event, ruleset.uuid)'}
+          .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep($event, ruleset.uuid, ruleset._active)'}
             [[ruleset._active|number]]
 
           .flow-start{ng-show:'ruleset.uuid == flow.entry'}

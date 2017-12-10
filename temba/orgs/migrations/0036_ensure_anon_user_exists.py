@@ -18,6 +18,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('orgs', '0035_auto_20170614_0915'),
+        ('auth', '0008_alter_user_username_max_length')
     ]
 
     operations = [

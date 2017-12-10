@@ -16,8 +16,8 @@ from .models import Value
 class ResultTest(FlowFileTest):
 
     def assertResult(self, result, index, category, count):
-        self.assertEquals(count, result['categories'][index]['count'])
-        self.assertEquals(category, result['categories'][index]['label'])
+        self.assertEqual(count, result['categories'][index]['count'])
+        self.assertEqual(category, result['categories'][index]['label'])
 
     def test_field_results(self):
         c1 = self.create_contact("Contact1", '0788111111')
@@ -33,9 +33,9 @@ class ResultTest(FlowFileTest):
         c3.set_field(self.user, 'gender', "Female")
 
         result = Value.get_value_summary(contact_field=gender)[0]
-        self.assertEquals(2, len(result['categories']))
-        self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
+        self.assertEqual(2, len(result['categories']))
+        self.assertEqual(3, result['set'])
+        self.assertEqual(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Female", 2)
         self.assertResult(result, 1, "Male", 1)
@@ -47,9 +47,9 @@ class ResultTest(FlowFileTest):
         c3.set_field(self.user, 'born', 1977)
 
         result = Value.get_value_summary(contact_field=born)[0]
-        self.assertEquals(2, len(result['categories']))
-        self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset'])
+        self.assertEqual(2, len(result['categories']))
+        self.assertEqual(3, result['set'])
+        self.assertEqual(2, result['unset'])
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "1977", 2)
         self.assertResult(result, 1, "1990", 1)
@@ -60,9 +60,9 @@ class ResultTest(FlowFileTest):
         c2.set_field(self.user, 'state', "Kigali City")
 
         result = Value.get_value_summary(contact_field=state)[0]
-        self.assertEquals(1, len(result['categories']))
-        self.assertEquals(2, result['set'])
-        self.assertEquals(3, result['unset'])
+        self.assertEqual(1, len(result['categories']))
+        self.assertEqual(2, result['set'])
+        self.assertEqual(3, result['unset'])
         self.assertResult(result, 0, "1708283", 2)
 
         reg_date = ContactField.get_or_create(self.org, self.admin, 'reg_date', label="Registration Date", value_type=Value.TYPE_DATETIME)
@@ -72,18 +72,18 @@ class ResultTest(FlowFileTest):
         c2.set_field(self.user, 'reg_date', now.replace(hour=4))
         c3.set_field(self.user, 'reg_date', now - timedelta(days=1))
         result = Value.get_value_summary(contact_field=reg_date)[0]
-        self.assertEquals(2, len(result['categories']))
-        self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset'])
+        self.assertEqual(2, len(result['categories']))
+        self.assertEqual(3, result['set'])
+        self.assertEqual(2, result['unset'])
         self.assertResult(result, 0, now.replace(hour=0, minute=0, second=0, microsecond=0), 2)
         self.assertResult(result, 1, (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0), 1)
 
         # make sure categories returned are sorted by count, not name
         c2.set_field(self.user, 'gender', "Male")
         result = Value.get_value_summary(contact_field=gender)[0]
-        self.assertEquals(2, len(result['categories']))
-        self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
+        self.assertEqual(2, len(result['categories']))
+        self.assertEqual(3, result['set'])
+        self.assertEqual(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 1)
@@ -150,7 +150,7 @@ class ResultTest(FlowFileTest):
 
         # categories should be in the same order as our rules, should have correct counts
         result = Value.get_value_summary(ruleset=color)[0]
-        self.assertEquals(3, len(result['categories']))
+        self.assertEqual(3, len(result['categories']))
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Red", 2)
         self.assertResult(result, 1, "Blue", 1)
@@ -158,7 +158,7 @@ class ResultTest(FlowFileTest):
 
         # check our age category as well
         result = Value.get_value_summary(ruleset=age)[0]
-        self.assertEquals(3, len(result['categories']))
+        self.assertEqual(3, len(result['categories']))
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Child", 1)
         self.assertResult(result, 1, "Adult", 2)
@@ -166,7 +166,7 @@ class ResultTest(FlowFileTest):
 
         # and our gender categories
         result = Value.get_value_summary(ruleset=gender)[0]
-        self.assertEquals(2, len(result['categories']))
+        self.assertEqual(2, len(result['categories']))
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 2)
@@ -226,7 +226,7 @@ class ResultTest(FlowFileTest):
 
         # should change our male/female breakdown since c1 now no longer has a gender
         result = Value.get_value_summary(ruleset=gender)[0]
-        self.assertEquals(2, len(result['categories']))
+        self.assertEqual(2, len(result['categories']))
         self.assertResult(result, 0, "Male", 1)
         self.assertResult(result, 1, "Female", 2)
 
@@ -275,15 +275,15 @@ class ResultTest(FlowFileTest):
         result = Value.get_value_summary(ruleset=color, segment=dict(location="State"))
 
         eastern_result = result[0]
-        self.assertEquals('171591', eastern_result['boundary'])
-        self.assertEquals('Eastern Province', eastern_result['label'])
+        self.assertEqual('171591', eastern_result['boundary'])
+        self.assertEqual('Eastern Province', eastern_result['label'])
         self.assertResult(eastern_result, 0, "Red", 0)
         self.assertResult(eastern_result, 1, "Blue", 0)
         self.assertResult(eastern_result, 2, "Green", 0)
 
         kigali_result = result[1]
-        self.assertEquals('1708283', kigali_result['boundary'])
-        self.assertEquals('Kigali City', kigali_result['label'])
+        self.assertEqual('1708283', kigali_result['boundary'])
+        self.assertEqual('Kigali City', kigali_result['label'])
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 2)
         self.assertResult(kigali_result, 2, "Green", 0)
@@ -293,15 +293,15 @@ class ResultTest(FlowFileTest):
         result = Value.get_value_summary(ruleset=color, segment=dict(location="State"))
 
         eastern_result = result[0]
-        self.assertEquals('171591', eastern_result['boundary'])
-        self.assertEquals('Eastern Province', eastern_result['label'])
+        self.assertEqual('171591', eastern_result['boundary'])
+        self.assertEqual('Eastern Province', eastern_result['label'])
         self.assertResult(eastern_result, 0, "Red", 0)
         self.assertResult(eastern_result, 1, "Blue", 1)
         self.assertResult(eastern_result, 2, "Green", 0)
 
         kigali_result = result[1]
-        self.assertEquals('1708283', kigali_result['boundary'])
-        self.assertEquals('Kigali City', kigali_result['label'])
+        self.assertEqual('1708283', kigali_result['boundary'])
+        self.assertEqual('Kigali City', kigali_result['label'])
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 1)
         self.assertResult(kigali_result, 2, "Green", 0)
@@ -310,10 +310,10 @@ class ResultTest(FlowFileTest):
         result = Value.get_value_summary(ruleset=color, segment=dict(parent="1708283", location="District"))
 
         # only on district in kigali
-        self.assertEquals(1, len(result))
+        self.assertEqual(1, len(result))
         kigali_result = result[0]
-        self.assertEquals('3963734', kigali_result['boundary'])
-        self.assertEquals('Nyarugenge', kigali_result['label'])
+        self.assertEqual('3963734', kigali_result['boundary'])
+        self.assertEqual('Nyarugenge', kigali_result['label'])
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 2)
         self.assertResult(kigali_result, 2, "Green", 0)
@@ -330,22 +330,22 @@ class ResultTest(FlowFileTest):
         self.assertTrue('breaks' in response)
 
         # should have two categories, Blue and Others
-        self.assertEquals(2, len(response['categories']))
-        self.assertEquals("Blue", response['categories'][0])
-        self.assertEquals("Others", response['categories'][1])
+        self.assertEqual(2, len(response['categories']))
+        self.assertEqual("Blue", response['categories'][0])
+        self.assertEqual("Others", response['categories'][1])
 
         # assert our kigali result
         kigali_result = response['scores']['1708283']
-        self.assertEquals(1, kigali_result['score'])
-        self.assertEquals("Kigali City", kigali_result['name'])
-        self.assertEquals("Blue", kigali_result['results'][0]['label'])
-        self.assertEquals("Others", kigali_result['results'][1]['label'])
+        self.assertEqual(1, kigali_result['score'])
+        self.assertEqual("Kigali City", kigali_result['name'])
+        self.assertEqual("Blue", kigali_result['results'][0]['label'])
+        self.assertEqual("Others", kigali_result['results'][1]['label'])
 
-        self.assertEquals(1, kigali_result['results'][0]['count'])
-        self.assertEquals(0, kigali_result['results'][1]['count'])
+        self.assertEqual(1, kigali_result['results'][0]['count'])
+        self.assertEqual(0, kigali_result['results'][1]['count'])
 
-        self.assertEquals(100, kigali_result['results'][0]['percentage'])
-        self.assertEquals(0, kigali_result['results'][1]['percentage'])
+        self.assertEqual(100, kigali_result['results'][0]['percentage'])
+        self.assertEqual(0, kigali_result['results'][1]['percentage'])
 
         with patch('temba.values.models.Value.get_value_summary') as mock:
             mock.return_value = []
@@ -357,34 +357,34 @@ class ResultTest(FlowFileTest):
             response = response.json()
 
             # should have two categories, Blue and Others
-            self.assertEquals(2, len(response['categories']))
-            self.assertEquals("", response['categories'][0])
-            self.assertEquals("", response['categories'][1])
+            self.assertEqual(2, len(response['categories']))
+            self.assertEqual("", response['categories'][0])
+            self.assertEqual("", response['categories'][1])
 
             # all counts and percentage are 0
-            self.assertEquals(0, response['totals']['count'])
-            self.assertEquals(0, response['totals']['results'][0]['count'])
-            self.assertEquals(0, response['totals']['results'][0]['percentage'])
-            self.assertEquals(0, response['totals']['results'][1]['count'])
-            self.assertEquals(0, response['totals']['results'][1]['percentage'])
+            self.assertEqual(0, response['totals']['count'])
+            self.assertEqual(0, response['totals']['results'][0]['count'])
+            self.assertEqual(0, response['totals']['results'][0]['percentage'])
+            self.assertEqual(0, response['totals']['results'][1]['count'])
+            self.assertEqual(0, response['totals']['results'][1]['percentage'])
 
             # and empty string labels
-            self.assertEquals("", response['totals']['results'][0]['label'])
-            self.assertEquals("", response['totals']['results'][1]['label'])
+            self.assertEqual("", response['totals']['results'][0]['label'])
+            self.assertEqual("", response['totals']['results'][1]['label'])
 
         # also check our analytics view
         response = self.client.get(reverse('flows.ruleset_analytics'))
 
         # make sure we have only one flow in it
         flows = json.loads(response.context['flows'])
-        self.assertEquals(1, len(flows))
-        self.assertEquals(3, len(flows[0]['rules']))
+        self.assertEqual(1, len(flows))
+        self.assertEqual(3, len(flows[0]['rules']))
 
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')
 
         def run_flow(contact, word):
-            self.assertEquals("Thank you", self.send_message(flow, word, contact=contact, restart_participants=True))
+            self.assertEqual("Thank you", self.send_message(flow, word, contact=contact, restart_participants=True))
 
         (c1, c2, c3, c4, c5, c6) = (self.create_contact("Contact1", '0788111111'),
                                     self.create_contact("Contact2", '0788222222'),
@@ -403,7 +403,7 @@ class ResultTest(FlowFileTest):
         random = RuleSet.objects.get(flow=flow, label="Random")
 
         result = Value.get_value_summary(ruleset=random)[0]
-        self.assertEquals(10, len(result['categories']))
+        self.assertEqual(10, len(result['categories']))
         self.assertTrue(result['open_ended'])
         self.assertResult(result, 0, "awesome", 2)
         self.assertResult(result, 1, "place", 2)
@@ -417,14 +417,14 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 9, "tea", 1)
 
         # add French to org languages
-        Language.create(self.org, self.admin, 'French', 'fre')
+        Language.create(self.org, self.admin, 'French', 'fra')
 
         # make sure we cleared the cache
         Value.invalidate_cache(ruleset=random)
 
         # encore is a french stop word and should not be included this time
         result = Value.get_value_summary(ruleset=random)[0]
-        self.assertEquals(9, len(result['categories']))
+        self.assertEqual(9, len(result['categories']))
         self.assertTrue(result['open_ended'])
         self.assertResult(result, 0, "awesome", 2)
         self.assertResult(result, 1, "place", 2)

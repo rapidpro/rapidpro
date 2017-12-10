@@ -1,31 +1,27 @@
 from __future__ import print_function, unicode_literals
 
 import calendar
-import json
 import datetime
+import iso8601
+import json
 import locale
-
 import pytz
-import random
 import regex
-import re
 import resource
-import string
 import six
 
-from collections import Counter
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
 
 DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
+FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?[\+\-]\d{2}:\d{2}$')
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -79,6 +75,16 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     """
     if not date_str:
         return None
+
+    # remove whitespace any trailing period
+    date_str = six.text_type(date_str).strip().rstrip('.')
+
+    # try first as full ISO string
+    if FULL_ISO8601_REGEX.match(date_str):
+        try:
+            return iso8601.parse_date(date_str).astimezone(tz)
+        except iso8601.ParseError:
+            pass
 
     try:
         if fill_time:
@@ -162,6 +168,14 @@ def json_date_to_datetime(date_str):
     return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
 
 
+def datetime_to_s(dt):
+    """
+    Converts a datetime to a fractional second epoch
+    """
+    seconds = calendar.timegm(dt.utctimetuple())
+    return seconds + dt.microsecond / float(100000)
+
+
 def datetime_to_ms(dt):
     """
     Converts a datetime to a millisecond accuracy timestamp
@@ -227,31 +241,6 @@ def format_decimal(val):
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
 
     return val
-
-
-def random_string(length):
-    """
-    Generates a random alphanumeric string
-    """
-    letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-    return ''.join([random.choice(letters) for _ in range(length)])
-
-
-def slugify_with(value, sep='_'):
-    """
-    Slugifies a value using a word separator other than -
-    """
-    return slugify(value).replace('-', sep)
-
-
-def truncate(text, max_len):
-    """
-    Truncates text to be less than max_len characters. If truncation is required, text ends with ...
-    """
-    if len(text) > max_len:
-        return "%s..." % text[:(max_len - 3)]
-    else:
-        return text
 
 
 def get_dict_from_cursor(cursor):
@@ -437,19 +426,6 @@ def get_country_code_by_name(name):
     return code if code else None
 
 
-def clean_string(string_text):
-    if string_text is None:
-        return string_text
-
-    rexp = regex.compile(r'[\000-\010]|[\013-\014]|[\016-\037]', flags=regex.MULTILINE | regex.UNICODE | regex.V0)
-
-    matches = 1
-    while matches:
-        (string_text, matches) = rexp.subn('', string_text)
-
-    return string_text
-
-
 def on_transaction_commit(func):
     """
     Requests that the given function be called after the current transaction has been committed. However function will
@@ -459,42 +435,6 @@ def on_transaction_commit(func):
         func()
     else:
         transaction.on_commit(func)
-
-
-def decode_base64(original):
-    """
-    Try to detect base64 messages by doing:
-    * Check divisible by 4
-    * check there's no whitespace
-    * check it's at least 60 characters
-    * check the decoded string contains at least 50% ascii
-
-    Returns decoded base64 or the original string
-    """
-    stripped = original.replace('\r', '').replace('\n', '').strip()
-
-    if len(stripped) < 60:
-        return original
-
-    if len(stripped) % 4 != 0:
-        return original
-
-    p = re.compile(r'^([a-zA-Z0-9+/=]{4})+$')
-    if not p.match(stripped[:-4]):
-        return original
-
-    decoded = original
-    try:
-        decoded = stripped.decode('base64', 'strict').decode('utf-8', 'ignore')
-        count = Counter(decoded)
-        letters = sum(count[letter] for letter in string.ascii_letters)
-        if float(letters) / len(decoded) < 0.5:
-            return original
-
-    except:
-        return original
-
-    return decoded
 
 
 def get_anonymous_user():

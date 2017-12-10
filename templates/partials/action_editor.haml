@@ -1,5 +1,56 @@
 -load i18n
 
+:css
+  .attach-option {
+  }
+
+  .attach-button {
+    float:left;
+    margin-right: 6px;
+  }
+
+  .attachments.active .attach-button {
+  }
+
+  .modal-body .attach-type .select2-container {
+    width: 120px;
+  }
+
+  .attach-type {
+    display: inline-block;
+    position: relative;
+    top: -3px;
+    margin-right:8px;
+  }
+
+  .attach-url input {
+    width: 217px;
+    display: inline-block;
+  }
+
+  .attachments .icon-close {
+    color: #e6e6e6;
+    visibility: hidden;
+    cursor: pointer;
+  }
+
+  .attachments:hover .icon-close {
+    visibility: visible;
+  }
+
+  .attach-options .icon-close {
+    margin-top: 3px;
+  }
+
+  .action-editor .modal-body input.url {
+    width: 385px;
+  }
+
+  .quick-reply, .quick-reply:hover {
+    transition: none;
+    -webkit-transition: none;
+  }
+
 
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
@@ -10,12 +61,34 @@
   %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}
+      -include 'partials/invalid_fields.haml'
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
-      %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
-      %span{auto-complete:"",sms:"action.msg",type:"sms",data-message:"message"}
+      %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !quickReplies.length'}
+          .attach-button{ng-show:'!showAttachOptions'}
+            .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
-        .icon-attachment.add-attachment{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();' }
+          %span.attach-options{ng-show: 'showAttachOptions && !showAttachVariable'}
+            .attach-option.btn.btn-tiny{ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();'}
+              Attach File
+            .attach-option.btn.btn-tiny{ng-click:'showAttachVariable = true'}
+              Attach URL
+
+            .icon.icon-close{ng-click:"showAttachOptions = false; showAttachVariable = false"}
+
+          .attach-variable{ng-show:'showAttachVariable'}
+            %span.attach-type
+              %select.select2{ng-model:"action._attachType"}
+                %option{value:"image"}
+                  Image
+                %option{value:"audio"}
+                  Audio
+                %option{value:"video"}
+                  Video
+            %span.attach-url
+              %input{ng-model:"action._attachURL", name:"url", type:'text', auto-complete:"", placeholder: '@extra.attachment_url', ng-required:"showAttachVariable"}
+            .icon.icon-close{ng-click:"showAttachOptions = false; showAttachVariable = false"}
 
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
           .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
@@ -25,27 +98,43 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-      %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+        .icon-button-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+
+      .quick-reply{ng-show:"!showQuickReplyButton"}
+        .modal-quick-reply-header
+          .quick-reply-title
+            -trans "Quick Replies"
+
+        .modal-quick-reply{ng-repeat:"reply in quickReplies", class:""}
+          .quick-reply-title
+            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply[base_language]", ng-required:"true"}
+
+          .icon.icon-close{ng-click:"removeQuickReply($index);"}
+        %a.add-reply{href:"javascript:;", ng-click:"addNewQuickReply()", ng-hide:"quickReplies.length == 11"}
+          -trans "Add reply"
+
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
       %button{ng-click:'saveMessage(message, "end_ussd")',class:"submit hide"}
 
     %span{ng-if:'config.type == "say"'}
+      -include 'partials/invalid_fields.haml'     
       %span{show-counter:"false",auto-complete:"",msg:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
 
     %span{ng-if:'config.type == "play"'}
-
       %h4
         Previous Recording
+      -include 'partials/invalid_fields.haml'
       %input{ng-model:"action.url", name:"value", auto-complete:"", flow:"[[flowId]]", ng-required:"true", type:"text", placeholder:'@flow.recording'}
       .help-text
-        Enter a variable that contains a recording the contact has previously recording. For example, @flow.voicemail or @contact.short_bio.
+        Enter a variable that contains a recording the contact has previously recorded. For example, @flow.voicemail or @contact.short_bio.
       %button{ng-click:"savePlay()",class:"submit hide"}
 
 
     %span{ng-if:'config.type == "send"'}
       %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
+      -include 'partials/invalid_fields.haml'
       %span{msg:"action.msg", data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
         -trans "Ok"
@@ -94,6 +183,7 @@
       .help-text
         -blocktrans
           Select an existing field, or type a name to create a new field.
+      -include 'partials/invalid_fields.haml'            
       .label
         -trans "Value"
       %input{ng-model:"action.value",name:"value",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"text"}
@@ -108,6 +198,7 @@
       .label
         -trans "To"
       %input{ng-model:"action.emails",select-email:"",name:"to",placeholder:"Enter email addresses",required:"",type:"hidden"}
+      -include 'partials/invalid_fields.haml'        
       .label
         -trans "Subject"
       %input{ng-model:"action.subject",name:"subject",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"text"}
@@ -121,7 +212,7 @@
       %p{class:"description"}
         -blocktrans
           This action starts the contacts you specify down a flow.
-          The flow variables collected up to this point will be available in @extra.
+          The flow variables collected up to this point will be available in @parent.
       %input{ng-model:"omnibox", name:"omnibox", required:"", variables:"action.variables", omnibox:'{"types":"gc", "completions":true}', contacts:"action.contacts", groups:"action.groups", type:"hidden"}
       %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected, action_editor.omnibox.selected)",class:"submit hide"}
@@ -141,7 +232,7 @@
           Using a Webhook you can fetch data from an external
           database and use it in this flow.
           Enter the URL to call out to at this point in the flow.
-
+      -include 'partials/invalid_fields.haml'            
       %select{ng-model:"action.action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
       %input{ng-model:"action.webhook",name:"url",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"url",class:"url"}
 
@@ -158,9 +249,9 @@
               -trans "Header Value"
         .modal-webhook-header-pair{ng-repeat:"header in action.webhook_headers"}
           .modal-webhook-header.modal-webhook-header-name
-            %input{type:"text",name:"webhook-name",ng-model:"action_webhook_headers_name[$index]"}
+            %input{type:"text",name:"webhook-name",ng-model:"header.name"}
           .modal-webhook-header.modal-webhook-header-value
-            %input{type:"text",name:"webhook-value",ng-model:"action_webhook_headers_value[$index]"}
+            %input{type:"text",name:"webhook-value",ng-model:"header.value"}
           .modal-webhook-header.modal-webhook-header-remove
             .icon.icon-close{ng-click:"removeActionWebhookHeader($index)"}
 

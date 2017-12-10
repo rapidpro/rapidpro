@@ -45,7 +45,7 @@ class TembaTwython(Twython):  # pragma: no cover
         params = params or {}
 
         func = getattr(self.client, method)
-        params, files = _transparent_params(params)
+        params, files = (params, None) if 'event' in params else _transparent_params(params)
 
         requests_args = {}
         for k, v in self.client_args.items():
@@ -57,8 +57,8 @@ class TembaTwython(Twython):  # pragma: no cover
             requests_args['params'] = params
         else:
             requests_args.update({
-                'data': params,
-                'files': files,
+                'data': json.dumps(params) if 'event' in params else params,
+                'files': files
             })
         try:
             if method == 'get':
@@ -157,9 +157,7 @@ class TembaTwython(Twython):  # pragma: no cover
     def delete_webhook(self, webhook_id):
         """
         Removes the webhook from the provided application's configuration.
-
         Docs: https://dev.twitter.com/webhooks/reference/del/account_activity/webhooks
-
         """
         return self.request('account_activity/webhooks/%s' % webhook_id, method='DELETE')
 
@@ -169,7 +167,7 @@ class TembaTwython(Twython):  # pragma: no cover
 
         Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
         """
-        return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+        return self.post('account_activity/webhooks/%s/subscriptions' % webhook_id)
 
 
 def generate_twitter_signature(content, consumer_secret):

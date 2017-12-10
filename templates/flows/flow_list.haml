@@ -6,6 +6,9 @@
   .title-icon
     %span.glyph.icon-tree
 
+-block page-title
+  -trans "Flows"
+
 -block page-top
   {% render as page_top %}
     {{block.super}}
@@ -131,51 +134,44 @@
               %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
                 %tbody
                   -for object in object_list
-                    -with object.get_and_clear_unread_responses as new_responses
-                      %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
-                        %td.flow.checkbox.object-row-checkbox
-                          .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
+                    %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
+                      %td.flow.checkbox.object-row-checkbox
+                        .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
 
-                        %td.value-name
-                          -if object.flow_type == 'V'
-                            .icon-phone
-                          -elif object.flow_type == 'S'
-                            .icon-mobile
+                      %td.value-name
+                        -if object.flow_type == 'V'
+                          .icon-phone
+                        -elif object.flow_type == 'S'
+                          .icon-mobile
 
-                          {{ object.name }}
+                        {{ object.name }}
 
-                          -if not object.is_archived
-                            .value-labels
-                              %nobr
-                                -if new_responses
-                                  %span.label.label-info.label-responses
-                                    - blocktrans count counter=new_responses
-                                      1 New Response
-                                      - plural
-                                      {{counter}} New Responses
+                        -if not object.is_archived
+                          .value-labels
+                            %nobr
+                              - for label in object.labels.all
+                                %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                                  %a{href:"{% url 'flows.flow_filter' label.pk%}"}
+                                    {{label.name}}
 
-                                - for label in object.labels.all
-                                  %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                    %a{href:"{% url 'flows.flow_filter' label.pk%}"}
-                                      {{label.name}}
+                      -if not object.run_stats.total
+                        %td.value-status
+                        %td.value-status
+                          -trans "No runs"
 
-                        -if not object.run_stats.total
-                          %td.value-status
-                          %td.value-status
-                            -trans "No runs"
-
-                        -else
-                          %td.value-status
-                            {% blocktrans count run_count=object.run_stats.total %}
+                      -else
+                        %td.value-status
+                          %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
+                            {% blocktrans count run_count=object.run_stats.total|intcomma %}
                               {{ run_count }} run
                             {% plural %}
-                              {{ run_count }} runs
+                              {{run_count}} runs
                             {% endblocktrans %}
 
-                          %td.value-status
-                            {% blocktrans with completed_percentage=object.run_stats.completion %}
-                              {{ completed_percentage }}% completion
-                            {% endblocktrans %}
+                        %td.value-status
+                          {% blocktrans with completed_percentage=object.run_stats.completion %}
+                            {{ completed_percentage }}% completion
+                          {% endblocktrans %}
 
                   -empty
                     %tr.flow

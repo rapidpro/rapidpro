@@ -1,6 +1,5 @@
 .msg-directive
-  %label
-    %textarea{ng-model:"message",name:"msg",auto-complete:"",required:"",flow:"[[$parent.flowId]]",ng-required:"true",class:"msg"}
+  %textarea{ng-model:"message",name:"msg",auto-complete:"",required:"",flow:"[[$parent.flowId]]",ng-required:"true",class:"msg"}
   .counter{ng-class:"{warning: characters < 20}",ng-show:"showCounter"}
     [[characters]]
     %span{ng-show:"messages > 1"}

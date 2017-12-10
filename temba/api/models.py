@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import hmac
+import iso8601
 import json
 import requests
 import six
@@ -19,12 +20,13 @@ from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
-from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import datetime_to_str, prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
+from temba.utils.http import http_headers
 from urllib import urlencode
 
 
@@ -211,31 +213,37 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, header=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
         flow = run.flow
         org = flow.org
         contact = run.contact
         api_user = get_api_user()
         json_time = datetime_to_str(timezone.now())
 
-        # get the results for this contact
-        results = run.flow.get_results(run.contact)
         values = []
-
-        if results and results[0]:
-            values = results[0]['values']
-            for value in values:
-                value['time'] = datetime_to_str(value['time'])
-                value['value'] = six.text_type(value['value'])
+        for key, result in six.iteritems(run.get_results()):
+            category = result[FlowRun.RESULT_CATEGORY]
+            values.append({
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'label': result[FlowRun.RESULT_NAME],
+                'category': category,
+                'category_localized': result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, category),
+                'text': result[FlowRun.RESULT_INPUT],
+                'value': result[FlowRun.RESULT_VALUE],
+                'rule_value': result[FlowRun.RESULT_VALUE],
+                'time': datetime_to_str(iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])),
+            })
 
         if msg:
             text = msg.text
+            attachments = msg.get_attachments()
             channel = msg.channel
             contact_urn = msg.contact_urn
         else:
             # if the action is on the first node we might not have an sms (or channel) yet
             channel = None
             text = None
+            attachments = []
             contact_urn = contact.get_urn()
 
         steps = []
@@ -256,6 +264,7 @@ class WebHookEvent(SmartModel):
                     flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
+                    attachments=[a.url for a in attachments],
                     step=six.text_type(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=contact.uuid,
@@ -263,8 +272,7 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
-                    time=json_time,
-                    header=header)
+                    time=json_time)
 
         if not action:  # pragma: needs cover
             action = 'POST'
@@ -287,11 +295,7 @@ class WebHookEvent(SmartModel):
 
             # only send webhooks when we are configured to, otherwise fail
             if settings.SEND_WEBHOOKS:
-
-                requests_headers = TEMBA_HEADERS
-
-                if header:
-                    requests_headers.update(header)
+                requests_headers = http_headers(extra=headers)
 
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == 'GET':
@@ -308,19 +312,20 @@ class WebHookEvent(SmartModel):
                 body = 'Skipped actual send'
                 status_code = 200
 
+            # process the webhook response
+            try:
+                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+
+                # only update if we got a valid JSON dictionary or list
+                if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
+
+                run.update_fields(response_json)
+                message = "Webhook called successfully."
+            except ValueError:
+                message = "Response must be a JSON dictionary, ignoring response."
+
             if 200 <= status_code < 300:
-                try:
-                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
-
-                    # only update if we got a valid JSON dictionary or list
-                    if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                        raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
-
-                    run.update_fields(response_json)
-                    message = "Webhook called successfully."
-                except ValueError:
-                    message = "Response must be a JSON dictionary, ignoring response."
-
                 webhook_event.status = cls.STATUS_COMPLETE
             else:
                 webhook_event.status = cls.STATUS_FAILED
@@ -343,7 +348,12 @@ class WebHookEvent(SmartModel):
 
             request_time = (time.time() - start) * 1000
 
+            contact = None
+            if webhook_event.run:
+                contact = webhook_event.run.contact
+
             result = WebHookResult.objects.create(event=webhook_event,
+                                                  contact=contact,
                                                   url=webhook_url,
                                                   status_code=status_code,
                                                   body=body,
@@ -378,12 +388,13 @@ class WebHookEvent(SmartModel):
         api_user = get_api_user()
 
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
-        data = dict(sms=msg.pk,
+        data = dict(sms=msg.id,
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=msg.contact.uuid,
                     contact_name=msg.contact.name,
                     urn=six.text_type(msg.contact_urn),
                     text=msg.text,
+                    attachments=[a.url for a in msg.get_attachments()],
                     time=json_time,
                     status=msg.status,
                     direction=msg.direction)
@@ -415,14 +426,14 @@ class WebHookEvent(SmartModel):
 
         api_user = get_api_user()
 
-        json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        json_time = call.occurred_on.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    duration=call.duration,
-                    time=json_time)
+                    extra=call.extra_json(),
+                    occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
@@ -495,11 +506,7 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS.copy()
-
-            # also include any user-defined headers
-            headers.update(self.org.get_webhook_headers())
+            headers = http_headers(extra=self.org.get_webhook_headers())
 
             s = requests.Session()
             prepped = requests.Request('POST', self.org.get_webhook_url(),
@@ -579,8 +586,9 @@ class WebHookResult(SmartModel):
                                help_text="A message describing the result, error messages go here")
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
-
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
+    contact = models.ForeignKey('contacts.Contact', null=True, related_name='webhook_results',
+                                help_text="The contact that generated this result")
 
     @classmethod
     def record_result(cls, event, result):

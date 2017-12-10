@@ -1,43 +1,87 @@
+# use container-based Ubuntu Trusty
+dist:
+  - trusty
+sudo:
+  - false
+
 language: python
 python:
-- '2.7.11'
-services:
-- redis-server
+  - "2.7.11"
+
 addons:
-  postgresql: '9.4'
-sudo: false
+  apt:
+    packages:
+      - postgresql-9.4-postgis-2.3
+      - python3
+      - python3-pip
+  postgresql: "9.4"
+
+services:
+  - redis-server
+
 cache:
   directories:
-  - $HOME/.cache/pip
-matrix:
-  fast_finish: true
+    - "$HOME/.cache/pip"
+
 install:
-- pip install --upgrade pip
-- pip --version
-- pip install -r pip-freeze.txt --upgrade
-- pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix: https://github.com/pypa/setuptools/issues/942
-- pip install coveralls
-- npm install
+  # install all Python dependencies
+  - pip install --upgrade pip
+  - pip --version
+  - pip install -r pip-freeze.txt --upgrade
+  - pip install coveralls
+
+  # install flake8 on Python 3
+  - export PATH=$HOME/.local/bin:$PATH
+  - python3 --version
+  - pip3 --version
+  - pip3 install flake8 --user `whoami`
+
+  # switch to Node 6 and install our node dependencies
+  - nvm install 6
+  - nvm use 6
+  - npm install
+
 before_script:
-- psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
-- psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
-- psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
-- psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
-- psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
-- psql -U temba postgres -c "CREATE DATABASE temba;"
-- ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
+  # setup test database
+  - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
+  - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
+  - psql -U temba postgres -c "CREATE DATABASE temba;"
+
+  # use dev settings file
+  - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
+
 script:
-- flake8
-- python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
-- python manage.py collectstatic --noinput
-- (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
-- node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-- coverage run manage.py test --noinput --verbosity=2
+  # any non-zero error code should be treated as an immediate failure
+  - set -e
+
+  # test PEP8 compliance on both Python 2 and 3
+  - flake8
+  - /home/travis/.local/bin/flake8
+  
+  # check for model changes not reflected in a migration
+  - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
+
+  # run our Javascript tests
+  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
+
+  # check we can collect and compress all static files
+  - python manage.py collectstatic --noinput --verbosity=0
+  - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
+    
+  # run our Python tests
+  - coverage run manage.py test --noinput --verbosity=2
+
+  - set +e
+
 after_success:
-- coveralls --rcfile .coveragerc_failcheck
-- coverage report -i --rcfile .coveragerc
-- coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
+  - pip install pyopenssl==17.4.0
+  - coveralls --rcfile .coveragerc_failcheck
+  - coverage report -i --rcfile .coveragerc
+  - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
 
 notifications:
   slack:
-    secure: b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68=
+    secure: "b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68="

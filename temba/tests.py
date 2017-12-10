@@ -5,44 +5,138 @@ import inspect
 import json
 import os
 import pytz
-import re
+import regex
 import redis
 import shutil
 import string
 import six
 import time
+import urlparse
 
+from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from HTMLParser import HTMLParser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
+from threading import Thread
 from twilio.util import RequestValidator
+from uuid import uuid4
 
 
-class ExcludeTestRunner(DiscoverRunner):
+class MockServerRequestHandler(BaseHTTPRequestHandler):
+    """
+    A simple HTTP handler which responds to a request with a matching mocked request
+    """
+    def _handle_request(self, method, data=None):
+        if not self.server.mocked_requests:
+            raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
+
+        mock = self.server.mocked_requests[0]
+        if mock.method != method or mock.path != self.path:
+            raise ValueError("expected request %s %s but received %s %s" % (mock.method, mock.path, method, self.path))
+
+        # add some stuff to the mock from the request that the caller might want to check
+        mock.requested = True
+        mock.data = data
+        mock.headers = self.headers.dict
+
+        # remove this mocked request now that it has been made
+        self.server.mocked_requests = self.server.mocked_requests[1:]
+
+        self.send_response(mock.status)
+        self.send_header("Content-type", mock.content_type)
+        self.end_headers()
+        self.wfile.write(mock.content.encode('utf-8'))
+
+    def do_GET(self):
+        return self._handle_request('GET')
+
+    def do_POST(self):
+        ctype, pdict = parse_header(self.headers['content-type'])
+        if ctype == 'multipart/form-data':
+            data = parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers['content-length'])
+            data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            data = {}
+
+        return self._handle_request('POST', data)
+
+
+class MockServer(HTTPServer):
+    """
+    Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
+    and provides a mechanism for mocking requests to particular URLs
+    """
+    @six.python_2_unicode_compatible
+    class Request(object):
+        def __init__(self, method, path, content, content_type, status):
+            self.method = method
+            self.path = path
+            self.content = content
+            self.content_type = content_type
+            self.status = status
+
+            self.requested = False
+            self.data = None
+            self.headers = None
+
+        def __str__(self):
+            return '%s %s -> %s' % (self.method, self.path, self.content)
+
+    def __init__(self):
+        HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
+
+        self.base_url = 'http://localhost:49999'
+        self.mocked_requests = []
+
+    def start(self):
+        """
+        Starts running mock server in a daemon thread which will automatically shut down when the main process exits
+        """
+        t = Thread(target=self.serve_forever)
+        t.setDaemon(True)
+        t.start()
+
+    def mock_request(self, method, path, content, content_type, status):
+        request = MockServer.Request(method, path, content, content_type, status)
+        self.mocked_requests.append(request)
+        return request
+
+
+mock_server = MockServer()
+
+
+class TembaTestRunner(DiscoverRunner):
+    """
+    Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
+    """
     def __init__(self, *args, **kwargs):
-        from django.conf import settings
         settings.TESTING = True
-        super(ExcludeTestRunner, self).__init__(*args, **kwargs)
+
+        super(TembaTestRunner, self).__init__(*args, **kwargs)
 
     def build_suite(self, *args, **kwargs):
-        suite = super(ExcludeTestRunner, self).build_suite(*args, **kwargs)
+        suite = super(TembaTestRunner, self).build_suite(*args, **kwargs)
         excluded = getattr(settings, 'TEST_EXCLUDE', [])
         if not getattr(settings, 'RUN_ALL_TESTS', False):
             tests = []
@@ -53,18 +147,19 @@ class ExcludeTestRunner(DiscoverRunner):
             suite._tests = tests
         return suite
 
+    def run_suite(self, suite, **kwargs):
+        mock_server.start()
+
+        return super(TembaTestRunner, self).run_suite(suite, **kwargs)
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def uuid(val):
-    return '00000000-0000-0000-0000-%012d' % val
-
-
 class TembaTest(SmartminTest):
-
     def setUp(self):
+        self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
         if self.get_verbosity() > 2:
@@ -92,6 +187,8 @@ class TembaTest(SmartminTest):
         self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+
+        self.country.update_path()
 
         self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
                                       brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
@@ -123,6 +220,10 @@ class TembaTest(SmartminTest):
         # reset our simulation to False
         Contact.set_simulation(False)
 
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+
     def get_verbosity(self):
         for s in reversed(inspect.stack()):
             options = s[0].f_locals.get('options')
@@ -135,7 +236,7 @@ class TembaTest(SmartminTest):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), re.DOTALL):
+        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))
@@ -165,6 +266,9 @@ class TembaTest(SmartminTest):
 
         from temba.flows.models import clear_flow_users
         clear_flow_users()
+
+        # clear any unused mock requests
+        self.mock_server.mocked_requests = []
 
     def clear_cache(self):
         """
@@ -201,9 +305,13 @@ class TembaTest(SmartminTest):
         self.import_file(filename, substitutions=substitutions)
 
         if last_flow:
-            return Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
+            flow.org = self.org
+            return flow
 
-        return Flow.objects.all().order_by('-created_on').first()
+        flow = Flow.objects.all().order_by('-created_on').first()
+        flow.org = self.org
+        return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
@@ -218,7 +326,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize(topup_size=topup_size)
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -227,6 +335,8 @@ class TembaTest(SmartminTest):
             urns.append(URN.from_tel(number))
         if twitter:
             urns.append(URN.from_twitter(twitter))
+        if twitterid:
+            urns.append(URN.from_twitterid(twitterid))
         if urn:
             urns.append(urn)
 
@@ -275,7 +385,7 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self, uuid_start=None, **kwargs):
+    def create_flow(self, definition=None, **kwargs):
         if 'org' not in kwargs:
             kwargs['org'] = self.org
         if 'user' not in kwargs:
@@ -284,40 +394,40 @@ class TembaTest(SmartminTest):
             kwargs['name'] = "Color Flow"
 
         flow = Flow.create(**kwargs)
-        flow.update(self.create_flow_definition(uuid_start))
-        return Flow.objects.get(pk=flow.pk)
+        if not definition:
+            # if definition isn't provided, generate simple single message flow
+            node_uuid = str(uuid4())
+            definition = {
+                "version": 10,
+                "flow_type": "F",
+                "base_language": "eng",
+                "entry": node_uuid,
+                "action_sets": [
+                    {
+                        "uuid": node_uuid,
+                        "x": 0,
+                        "y": 0,
+                        "actions": [
+                            {
+                                "msg": {"eng": "Hey everybody!"},
+                                "media": {},
+                                "send_all": False,
+                                "type": "reply"
+                            }
+                        ],
+                        "destination": None
+                    }
+                ],
+                "rule_sets": [],
+            }
 
-    def create_flow_definition(self, uuid_start=None):
-        """
-        Creates the "Color" flow definition
-        """
-        if uuid_start is None:
-            uuid_start = int(time.time() * 1000) % 1000000
+        flow.version_number = definition['version']
+        flow.save()
 
-        return dict(version=8,
-                    action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
-                                 dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
-                                 dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='Blue is sad. :('))]),
-                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='That is a funny color. Try again.'))])],
-                    rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
-                                    label='color',
-                                    finished_key=None,
-                                    operand=None,
-                                    response_type='',
-                                    ruleset_type='wait_message',
-                                    config={},
-                                    rules=[dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
-                                           dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
-                                           dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category=dict(base="Other")),
-                                           dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category=dict(base="Nothing"))])],  # test case with no destination
-                    entry=uuid(uuid_start + 1),
-                    base_language='base',
-                    flow_type='F',
-                    metadata=dict(author="Ryan Lewis"))
+        json_flow = FlowRevision.migrate_definition(definition, flow)
+        flow.update(json_flow)
+
+        return flow
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()
@@ -361,6 +471,32 @@ class TembaTest(SmartminTest):
             ruleset.save()
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
+
+    def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
+        return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
+
+    def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
+        self.assertEqual(len(mail.outbox), outbox_index + 1)
+        email = mail.outbox[outbox_index]
+        self.assertEqual(email.from_email, from_email)
+        self.assertEqual(email.subject, subject)
+        self.assertEqual(email.body, body)
+        self.assertEqual(email.recipients(), recipients)
+
+    def assertMockedRequest(self, mock_request, data=None, **headers):
+        if not mock_request.requested:
+            self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
+
+        if data is not None:
+            self.assertEqual(mock_request.data, data)
+
+        # check any provided header values
+        for key, val in six.iteritems(headers):
+            self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
+
+    def assertAllRequestsMade(self):
+        if self.mock_server.mocked_requests:
+            self.fail("test has %d unused mock requests: %s" % (len(mock_server.mocked_requests), mock_server.mocked_requests))
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
@@ -417,7 +553,7 @@ class FlowFileTest(TembaTest):
         response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
-        self.assertEquals(message, response.text)
+        self.assertEqual(message, response.text)
 
     def send(self, message, contact=None):
         if not contact:
@@ -465,7 +601,7 @@ class FlowFileTest(TembaTest):
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
-                    self.assertEquals(contact, replies.first().contact)
+                    self.assertEqual(contact, replies.first().contact)
                     return replies.first().text
 
                 # if it's more than one, send back a list of replies

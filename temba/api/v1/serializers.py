@@ -13,7 +13,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import get_current_export_version
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -196,7 +196,7 @@ class ContactReadSerializer(ReadSerializer):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
@@ -219,7 +219,7 @@ class ContactReadSerializer(ReadSerializer):
 
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=False, max_length=64)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=64)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
@@ -260,7 +260,7 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
-                    scheme, path = URN.to_parts(normalized)
+                    scheme, path, display = URN.to_parts(normalized)
                     # for backwards compatibility we don't validate phone numbers here
                     if scheme != TEL_SCHEME and not URN.validate(normalized):  # pragma: needs cover
                         raise ValueError()
@@ -325,8 +325,8 @@ class ContactWriteSerializer(WriteSerializer):
             country = self.org.get_country_code()
 
             for parsed_urn in self.parsed_urns:
-                normalized_urn = URN.normalize(parsed_urn, country)
-                urn = ContactURN.objects.filter(org=self.org, urn__exact=normalized_urn).first()
+                normalized_urn = URN.identity(URN.normalize(parsed_urn, country))
+                urn = ContactURN.objects.filter(org=self.org, identity__exact=normalized_urn).first()
                 if urn and urn.contact:
                     urn_contacts.add(urn.contact)
 
@@ -355,6 +355,10 @@ class ContactWriteSerializer(WriteSerializer):
         name = self.validated_data.get('name')
         fields = self.validated_data.get('fields')
         language = self.validated_data.get('language')
+
+        # treat empty names as None
+        if not name:
+            name = None
 
         changed = []
 
@@ -442,6 +446,13 @@ class ContactFieldWriteSerializer(WriteSerializer):
             if not ContactField.is_valid_key(key):
                 raise serializers.ValidationError(_("Generated key for '%s' is invalid or a reserved name") % label)
 
+        fields_count = ContactField.objects.filter(org=self.org).count()
+        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError('This org has %s contact fields and the limit is %s. '
+                                              'You must delete existing ones before '
+                                              'you can create new ones.' % (fields_count,
+                                                                            ContactField.MAX_ORG_CONTACTFIELDS))
+
         data['key'] = key
         return data
 
@@ -511,18 +522,10 @@ class FlowReadSerializer(ReadSerializer):
 class FlowRunReadSerializer(ReadSerializer):
     run = serializers.ReadOnlyField(source='id')
     flow_uuid = serializers.SerializerMethodField()
-    values = serializers.SerializerMethodField()
-    steps = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField('get_contact_uuid')
     completed = serializers.SerializerMethodField('is_completed')
     created_on = DateTimeField()
     modified_on = DateTimeField()
-    expires_on = DateTimeField()
-    expired_on = serializers.SerializerMethodField()
-    flow = serializers.SerializerMethodField()  # deprecated, use flow_uuid
-
-    def get_flow(self, obj):
-        return obj.flow_id
 
     def get_flow_uuid(self, obj):
         return obj.flow.uuid
@@ -533,32 +536,9 @@ class FlowRunReadSerializer(ReadSerializer):
     def is_completed(self, obj):
         return obj.is_completed()
 
-    def get_values(self, obj):
-        results = obj.flow.get_results(obj.contact, run=obj)
-        if results:
-            return results[0]['values']
-        else:  # pragma: needs cover
-            return []
-
-    def get_steps(self, obj):
-        steps = []
-        for step in obj.steps.all():
-            steps.append(dict(type=step.step_type,
-                              node=step.step_uuid,
-                              arrived_on=step.arrived_on,
-                              left_on=step.left_on,
-                              text=step.get_text(),
-                              value=six.text_type(step.rule_value)))
-
-        return steps
-
-    def get_expired_on(self, obj):
-        return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
-
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values',
-                  'steps', 'created_on', 'modified_on', 'expires_on', 'expired_on')
+        fields = ('flow_uuid', 'run', 'contact', 'completed', 'created_on', 'modified_on',)
 
 
 class FlowRunWriteSerializer(WriteSerializer):
@@ -581,7 +561,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     def validate_submitted_by(self, value):
         if value:
             user = User.objects.filter(username__iexact=value).first()
-            if user and self.org in user.get_user_orgs():
+            if user and self.org in user.get_user_orgs(self.org.brand):
                 self.submitted_by_obj = user
             else:  # pragma: needs cover
                 raise serializers.ValidationError("Invalid submitter id, user doesn't exist")
@@ -637,7 +617,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        definition = FlowRevision.migrate_definition(definition, self.flow_obj, self.flow_obj.version_number, CURRENT_EXPORT_VERSION)
+        definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
 
         for step in steps:
             node_obj = None
@@ -679,18 +659,14 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj, submitted_by=self.submitted_by_obj,
-                                     flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
+        run = FlowRun.objects.filter(
+            org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started
+        ).order_by('-modified_on').first()
 
-        if not run:
-            run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
+        if not run or run.submitted_by != self.submitted_by_obj:
+            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
 
-        step_objs = []
-        previous_rule = None
-        for step in steps:
-            step_obj = FlowStep.from_json(step, self.flow_obj, run, previous_rule)
-            previous_rule = step_obj.rule_uuid
-            step_objs.append(step_obj)
+        step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
 
         if completed:
             final_step = step_objs[len(step_objs) - 1] if step_objs else None
@@ -797,11 +773,11 @@ class MsgCreateSerializer(WriteSerializer):
             country = channel.country
             for urn in phones:
                 try:
-                    tel, phone = URN.to_parts(urn)
+                    tel, phone, display = URN.to_parts(urn)
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
-                except:
+                except Exception:
                     raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
 
         return data
@@ -831,5 +807,5 @@ class MsgCreateSerializer(WriteSerializer):
                                      recipients=contacts, channel=channel)
 
         # send it
-        broadcast.send()
+        broadcast.send(expressions_context={})
         return broadcast

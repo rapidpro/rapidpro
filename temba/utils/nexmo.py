@@ -45,10 +45,10 @@ class NexmoClient(nx.Client):
         try:
             response = nx.Client.get_account_numbers(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('429'):
+            if e.message.startswith('420') or e.message.startswith('429'):
                 time.sleep(1)
                 response = nx.Client.get_account_numbers(self, params=params)
-            else:
+            else:  # pragma: no cover
                 raise e
 
         if int(response.get('count', 0)):
@@ -56,7 +56,7 @@ class NexmoClient(nx.Client):
         else:
             return []
 
-    def send_message_via_nexmo(self, from_number, to_number, text):
+    def send_message_via_nexmo(self, from_number, to_number, text, callback_url=None):
         from temba.channels.models import SendException
 
         params = dict(api_key=self.api_key, api_secret=self.api_secret)
@@ -64,6 +64,9 @@ class NexmoClient(nx.Client):
         params['to'] = to_number.strip('+')
         params['text'] = text
         params['status-report-req'] = 1
+
+        if callback_url:
+            params['callback'] = callback_url
 
         # if this isn't going to work as plaintext, send as unicode instead
         if not is_gsm7(text):
@@ -82,7 +85,7 @@ class NexmoClient(nx.Client):
 
             response_json = response.json()
             messages = response_json.get('messages', [])
-        except:
+        except Exception:
             raise SendException(u"Failed sending message: %s" % response.text, event=event)
 
         if not messages or int(messages[0]['status']) != 0:
@@ -112,7 +115,7 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.buy_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('429'):
+            if e.message.startswith('420') or e.message.startswith('429'):
                 time.sleep(1)
                 nx.Client.buy_number(self, params=params)
             else:  # pragma: needs cover
@@ -125,8 +128,8 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.update_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('429'):
-                time.sleep(1)
+            if e.message.startswith('420') or e.message.startswith('429'):
+                time.sleep(2)
                 nx.Client.update_number(self, params=params)
             else:  # pragma: needs cover
                 raise e

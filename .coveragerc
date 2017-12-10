@@ -20,11 +20,13 @@ exclude_lines =
 
 omit =
     */migrations/*
+    */gen/*
     */tests*,
     *__init__*,
     *settings*,
     *management/commands*
     temba/perf_tests.py
+    temba/celery_autoscaler.py
 
 [html]
 directory = coverage_html_report

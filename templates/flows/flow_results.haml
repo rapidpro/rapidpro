@@ -1,11 +1,63 @@
 -extends "smartmin/read.html"
 -load smartmin sms compress temba contacts i18n
 
+-block page-title
+  -trans "Results"
+  \- {{object.name}}
 -block extra-less
 
   -compress css inline
     {% lessblock %}
       :plain
+
+        .nav.nav-tabs > li > a:hover {
+          margin-right: 2px;
+        }
+         
+        .after {
+          position: relative;
+        }
+
+        .tab {
+          display: inline-block;
+        }
+
+        .tab .content {
+          display: none;
+          position: absolute;
+        }
+
+        .tab.active .content {
+          display: block;
+        }
+
+        .chart {
+          width: 48%;
+          margin: 0;
+          padding: 0;
+          display: inline-block;
+        }
+
+        .chart.large {
+          width: 99% !important;
+        }
+
+        .chart.small {
+          width: 33% !important;
+        }
+
+        .chart .name {
+          padding-left: 50px;
+          padding-right: 50px;
+          font-size: 16px;
+          text-align: center;
+          position: relative;
+          top: 90px;
+          height: 50px;
+          z-index: 1;
+          text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+        }
+
         .hidden-columns {
           margin-top:10px;
         }
@@ -135,20 +187,6 @@
 
   :javascript
 
-    Highcharts.setOptions({
-        global: {
-            timezoneOffset: 5 * 60
-        }
-    });
-
-    function exportFlow(){
-      var flowIds = getCheckedIds();
-      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
-      modal.setIcon('icon-excel');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    }
-
     Intercooler.ready(function() {
       updateCols();
     });
@@ -242,62 +280,296 @@
         columns[e.val].hidden = false;
         $(this).select2('val', '');
         updateCols();
+      });
+
+      $(".download-results").on("click", function() {
+        var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+        modal.setIcon('icon-excel');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
+      Highcharts.setOptions({
+        global: {
+          timezoneOffset: -1 * {{utcoffset}}
+        },
+        lang: {
+          thousandsSep: ','
+        }
       })
     });
 
--block page-top
-  .row
-    .span9
-      %h2
-        Flow Results
-      %h3.font_normalize
-        {{ flow.name }}
+    Highcharts.setOptions({
+      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
+    });
+    var colors = Highcharts.getOptions().colors;
+    function getColor(index) {
+      return colors[index % colors.length];
+    }
 
-    .span3
-      .pull-right
-        %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
-          -trans "Download"
-        %a.btn{ href: "{% url 'flows.flow_editor' object.uuid %}" }
-          -trans "View"
+    var charts = {}
 
+    function getChart(key, name) {
+      var chart = charts[key];
+      if (!chart) {
 
+        // add our chart container
+        var ele = $('#category-charts').append('<div class="chart ' + key + '-chart"><div class="name"></div><div id="' + key + '-chart"></div></div>');
+
+        $('.' + key + '-chart').find('.name').text(name);
+
+        // and initialize it with highcharts
+        chart = Highcharts.chart(key + '-chart', {
+          chart: {
+              type: 'column',
+              margin: [25, 25, 90, 25]
+          },
+          title: {
+              text: null
+          },
+          credits: {
+             enabled: false
+          },
+          yAxis: {
+            min: 0,
+            max: 100,
+            lineWidth: 0,
+            minorGridLineWidth: 0,
+            lineColor: 'transparent',
+            minorTickLength: 0,
+            tickLength: 0,
+            gridLineColor: '#f2f2f2',
+            labels: {
+              enabled: false
+            },
+            title: {
+              text: null
+            }
+          },
+          xAxis: {
+            categories: [],
+
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
+          },
+          tooltip: {
+            formatter: function() {
+              return "<b>" + this.x + "</b>: " + this.point.count;
+            }
+          },
+          series: []
+        });
+      }
+
+      charts[key] = chart;
+      return chart;
+    }
+
+  :javascript
+
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e){
+      // reflow our charts when analytics is shown on the chance their dimensions have changed
+      if (e.currentTarget.innerText == 'Analytics') {
+        for (var key of Object.keys(charts)) {
+          charts[key].reflow();
+        }
+      }
+    });
+
+    function updateChart(chartData) {
+      var key = chartData.key;
+      var chart = getChart(key, chartData.name);
+      var seriesData = [];
+      var labels = [];
+      var totalPct = 0;
+      for (var category of chartData.categories) {
+        pointLabels = {}
+        pointLabels.enabled = true;
+        pointLabels.color = "#fff";
+        pointLabels.x = 0;
+        pointLabels.y = 0;
+        pointLabels.format = "{point.y}%";
+
+        pct = parseInt(category.pct * 100);
+
+        if (pct > 15) {
+          pointLabels.y = 25;
+        }
+
+        seriesData.push({name: category.name, count: category.count, y: pct, dataLabels: pointLabels});
+      }
+
+      seriesData.sort(function(a, b) {
+        if (a.name == 'Other') {
+          return 1;
+        } else if (b.name == 'Other') {
+          return -1;
+        }
+        return b.count - a.count;
+      });
+
+      for (var idx in seriesData) {
+        labels.push(seriesData[idx].name);
+        var color = getColor(idx);
+        if (seriesData[idx].name == 'Other') {
+          color = '#999';
+        }
+        seriesData[idx].color = color;
+      }
+
+      var series = { name: chartData.name, showInLegend: false, data: seriesData};
+
+      if (chart.series.length == 0) {
+        chart.addSeries(series);
+      } else {
+        chart.series[0].setData(seriesData, true);
+      }
+
+      chart.xAxis[0].update({categories:labels});
+
+      // if we are a larger series make sure we are wide
+      var size = chartData['size'];
+      if (size) {
+        $('.' + key + '-chart').addClass(size);
+        chart.reflow();
+        $(window).resize();
+      }
+    }
+
+    function chartLayoutChanged(counts) {
+      var keys = Object.keys(charts);
+      if (counts.length != keys.length) {
+        return true;
+      }
+
+      // check if order changed
+      for (var i=0; i<counts.length; i++) {
+        if (counts[i]['key'] != keys[i]) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function resetCharts() {
+      $('#category-charts').empty();
+      for (var key in charts){
+        charts[key].destroy();
+      }
+      charts = {};
+    }
+
+    function updatePreviousCharts(from, to, counts) {
+      var chartCount = to - from;
+      if (chartCount % 3 == 0) {
+        for (var j=from; j < to; j++) {
+          counts[j]['size'] = 'small';
+        }
+      } else if (chartCount == 1) {
+        counts[to-1]['size'] = 'large';
+      }
+    }
+
+    function updateCharts() {
+
+      $.get("/flow/category_counts/{{object.uuid}}", function(data) {
+
+        if (data.counts) {
+          // determine chart sizes
+          var lastBigChart = -1;
+          for (var i=0; i<data.counts.length; i++) {
+            data.counts[i]['size'] = 'medium';
+            if (data.counts[i].categories.length > 5) {
+              data.counts[i]['size'] = 'large';
+              updatePreviousCharts(lastBigChart + 1, i, data.counts);
+              lastBigChart = i;
+            }
+          }
+
+          // if we didn't end on a big chart, update our
+          if (lastBigChart != data.counts.length - 1) {
+            updatePreviousCharts(lastBigChart + 1, i, data.counts);
+          }
+
+          if (chartLayoutChanged(data.counts)) {
+            resetCharts();
+          }
+
+          for (var chartData of data.counts) {
+            updateChart(chartData);
+          }
+        }
+      });
+
+      // schedule our next update
+      window.setTimeout(function() {
+        updateCharts();
+      }, 5000);
+    }
+
+    $(document).ready(function() {
+      updateCharts();
+    });
 
 -block content
 
-  .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-    %i.fa.fa-spinner.fa-spin.fa-2x
+  %ul.nav.nav-tabs
+    %li.active
+      %a{href: '#overview', data-toggle:'tab'}
+        Overview
 
-  .scroll-x
-    %table
-      %tr
-        %td.header.started
-          .details
-            .add-columns.select
-              .selection
-                %input#columns{type:'hidden', style:'width:150px'}
-              .text
-                Last Activity
-        %td.header
-          .details
-            %input.contact-search{type:"text", name:"q", placeholder:"Contact",
-                                  ic-get-from:"/flow/run_table/{{object.id}}/",
-                                  ic-on-beforeSend:'$("#results_run_table").empty()',
-                                  ic-trigger-on:"keyup changed",
-                                  ic-trigger-delay:"500ms",
-                                  ic-target:"#results_run_table",
-                                  ic-indicator:"#indicator"}
+    %li
+      %a{href: '#analytics', data-toggle:'tab'}
+        Analytics
 
-        -for ruleset in rulesets
-          %td.header
-            .details{ onclick: 'toggleValue({{forloop.counter0}});'}
-              .icons
-                .icon-tree-2.category
-                .icon-bubble-2.text
-              {{ruleset.label}}
-            .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+    %li
+      %a{href: '#runs', data-toggle:'tab'}
+        Runs
 
-      %tbody{id:"results_run_table"}
-        %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+  .tab-content
+    #overview.tab-pane.active
+      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+        %i.fa.fa-spinner.fa-spin.fa-2x
+    
+    #analytics.tab-pane
+      #category-charts
+
+    #runs.tab-pane
+      .scroll-x
+        %table
+          %tr
+            %td.header.started
+              .details
+                .add-columns.select
+                  .selection
+                    %input#columns{type:'hidden', style:'width:150px'}
+                  .text
+                    Last Activity
+            %td.header
+              .details
+                %input.contact-search{type:"text", name:"q", placeholder:"Contact",
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty()',
+                                      ic-trigger-on:"keyup changed",
+                                      ic-trigger-delay:"500ms",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+
+            -for ruleset in rulesets
+              %td.header
+                .details{ onclick: 'toggleValue({{forloop.counter0}});'}
+                  .icons
+                    .icon-tree-2.category
+                    .icon-bubble-2.text
+                  {{ruleset.label}}
+                .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+
+          %tbody{id:"results_run_table"}
+            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader

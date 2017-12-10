@@ -83,7 +83,7 @@
               "destination_type": "A"
             }
           ],
-          "webhook": "http://catfacts-api.appspot.com/api/facts?number=1",
+          "webhook": "http://localhost:49999/where",
           "ruleset_type": "webhook",
           "label": "Response 1",
           "operand": "@step.value",

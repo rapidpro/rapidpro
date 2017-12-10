@@ -1,10 +1,10 @@
 from __future__ import unicode_literals
 
 import json
-
 import nexmo
 import pytz
 import six
+import stripe
 
 from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
@@ -25,20 +25,19 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, ActionSet
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.flows.models import Flow, ActionSet, AddToGroupAction
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
-from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
-from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
-from .models import WHITELISTED, SUSPENDED, RESTORED
+from uuid import uuid4
+from .models import Org, TopUp, Invitation, Language, TopUpCredits, DAYFIRST, MONTHFIRST, get_current_export_version
+from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING, WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
 
 
@@ -88,12 +87,12 @@ class OrgTest(TembaTest):
     def test_languages(self):
         self.assertEqual(self.org.get_language_codes(), set())
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
         self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fra'})
 
         self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
         self.org.refresh_from_db()
@@ -118,7 +117,7 @@ class OrgTest(TembaTest):
                                                                  currency_name='US Dollar', currency_code='USD')])
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                       address="billy_bob", role="SR", scheme='twitter')
+                       address="billy_bob", role="SR")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
@@ -138,7 +137,7 @@ class OrgTest(TembaTest):
 
         # can we see the edit page
         response = self.client.get(reverse('orgs.org_edit'))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # update the name and slug of the organization
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=DAYFIRST, slug="nice temba")
@@ -147,36 +146,11 @@ class OrgTest(TembaTest):
 
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=MONTHFIRST, slug="nice-temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
 
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals("Temba", org.name)
-        self.assertEquals("nice-temba", org.slug)
-
-    def test_recommended_channel(self):
-        self.org.timezone = pytz.timezone('Africa/Nairobi')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'africastalking')
-
-        self.org.timezone = pytz.timezone('America/Phoenix')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'twilio')
-
-        self.org.timezone = pytz.timezone('Asia/Jakarta')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'hub9')
-
-        self.org.timezone = pytz.timezone('Africa/Mogadishu')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'shaqodoon')
-
-        self.org.timezone = pytz.timezone('Europe/Amsterdam')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'nexmo')
-
-        self.org.timezone = pytz.timezone('Africa/Kigali')
-        self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'android')
+        self.assertEqual("Temba", org.name)
+        self.assertEqual("nice-temba", org.slug)
 
     def test_country(self):
         country_url = reverse('orgs.org_country')
@@ -187,7 +161,7 @@ class OrgTest(TembaTest):
         # login as admin instead
         self.login(self.admin)
         response = self.client.get(country_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
         response = self.client.post(country_url, dict(country=AdminBoundary.objects.get(name='Rwanda').pk))
@@ -210,7 +184,7 @@ class OrgTest(TembaTest):
         # assert it has been
         org = Org.objects.get(pk=self.org.pk)
         self.assertFalse(org.country)
-        self.assertEquals('RW', org.get_country_code())
+        self.assertEqual('RW', org.get_country_code())
 
         # remove all our channels so we no longer have a backdown
         org.channels.all().delete()
@@ -225,8 +199,8 @@ class OrgTest(TembaTest):
         self.create_msg(direction=INCOMING, contact=self.contact, text="Orange")
 
         # check start and end date for this plan
-        self.assertEquals(timezone.now().date(), self.org.current_plan_start())
-        self.assertEquals(timezone.now().date() + relativedelta(months=1), self.org.current_plan_end())
+        self.assertEqual(timezone.now().date(), self.org.current_plan_start())
+        self.assertEqual(timezone.now().date() + relativedelta(months=1), self.org.current_plan_end())
 
         # check our credits
         self.login(self.admin)
@@ -265,18 +239,18 @@ class OrgTest(TembaTest):
 
         # check that our user settings have changed
         settings = self.admin.get_settings()
-        self.assertEquals('pt-br', settings.language)
+        self.assertEqual('pt-br', settings.language)
 
     def test_usersettings(self):
         self.login(self.admin)
 
         post_data = dict(tel='+250788382382')
         self.client.post(reverse('orgs.usersettings_phone'), post_data)
-        self.assertEquals('+250 788 382 382', UserSettings.objects.get(user=self.admin).get_tel_formatted())
+        self.assertEqual('+250 788 382 382', UserSettings.objects.get(user=self.admin).get_tel_formatted())
 
         post_data = dict(tel='bad number')
         response = self.client.post(reverse('orgs.usersettings_phone'), post_data)
-        self.assertEquals(response.context['form'].errors['tel'][0], 'Invalid phone number, try again.')
+        self.assertEqual(response.context['form'].errors['tel'][0], 'Invalid phone number, try again.')
 
     def test_org_suspension(self):
         from temba.flows.models import FlowRun
@@ -296,16 +270,16 @@ class OrgTest(TembaTest):
         post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
         response = self.client.post(send_url, post_data, follow=True)
 
-        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
-                          response.context['form'].errors['__all__'][0])
+        self.assertEqual('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                         response.context['form'].errors['__all__'][0])
 
         # we also can't start flows
         flow = self.create_flow()
         post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
 
-        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
-                          response.context['form'].errors['__all__'][0])
+        self.assertEqual('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                         response.context['form'].errors['__all__'][0])
 
         # or use the api to do either
         def postAPI(url, data):
@@ -343,7 +317,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get(update_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # set a webhook with headers
         post_data = response.context['form'].initial
@@ -352,12 +326,12 @@ class OrgTest(TembaTest):
         post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
 
         response = self.client.post(update_url, post_data)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         # check that our webhook settings have changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals('http://webhooks.uniceflabs.org', org.get_webhook_url())
+        self.assertEqual('http://webhooks.uniceflabs.org', org.get_webhook_url())
         self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
     def test_org_administration(self):
@@ -385,7 +359,7 @@ class OrgTest(TembaTest):
         self.login(self.superuser)
 
         response = self.client.get(manage_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "(Suspended)")
 
         self.org.set_suspended()
@@ -397,7 +371,10 @@ class OrgTest(TembaTest):
 
         # and can go to that org
         response = self.client.get(update_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
+
+        parent = Org.objects.create(name="Parent", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                    brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
 
         # change to the trial plan
         post_data = {
@@ -412,7 +389,7 @@ class OrgTest(TembaTest):
             'date_format': 'D',
             'webhook': None,
             'webhook_events': 0,
-            'parent': '',
+            'parent': parent.id,
             'viewers': [self.user.id],
             'editors': [self.editor.id],
             'administrators': [self.admin.id],
@@ -421,13 +398,14 @@ class OrgTest(TembaTest):
         }
 
         response = self.client.post(update_url, post_data)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
 
         # restore
         post_data['status'] = RESTORED
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
+        self.assertEqual(parent, self.org.parent)
 
         # white list
         post_data['status'] = WHITELISTED
@@ -630,9 +608,11 @@ class OrgTest(TembaTest):
             'editors_%d' % self.user.pk: 'on',
             'surveyors_%d' % self.editor.pk: 'on',
             'invite_emails': "",
-            'invite_group': 'V'
+            'invite_group': 'V',
+            'remove_invite_%s' % response.context['invites'][2].pk: True
         })
 
+        self.assertEqual(Invitation.objects.all().count(), 2)
         # we should be redirected to chooser page
         self.assertRedirect(response, reverse('orgs.org_choose'))
 
@@ -731,12 +711,12 @@ class OrgTest(TembaTest):
         self.client.logout()
 
         response = self.client.get(admin_create_login_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        self.assertEquals(self.org.pk, response.context['org'].pk)
+        self.assertEqual(self.org.pk, response.context['org'].pk)
 
         # we have a form with 4 fields and one hidden 'loc'
-        self.assertEquals(5, len(response.context['form'].fields))
+        self.assertEqual(5, len(response.context['form'].fields))
         self.assertTrue('first_name' in response.context['form'].fields)
         self.assertTrue('last_name' in response.context['form'].fields)
         self.assertTrue('email' in response.context['form'].fields)
@@ -749,7 +729,7 @@ class OrgTest(TembaTest):
         post_data['password'] = "norbertkwizeranorbert"
 
         response = self.client.post(admin_create_login_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         new_invited_user = User.objects.get(email="norkans7@gmail.com")
         self.assertTrue(new_invited_user in self.org.administrators.all())
@@ -767,10 +747,10 @@ class OrgTest(TembaTest):
 
         post_data = dict(first_name='Surveyor', last_name='User', email='surveyor@gmail.com', password='password')
         response = self.client.post(admin_create_login_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        # as a surveyor we should have been rerourted
-        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+        # as a surveyor we should have been rerouted
+        self.assertEqual(reverse('orgs.org_surveyor'), response._request.path)
         self.assertFalse(Invitation.objects.get(pk=surveyor_invite.pk).is_active)
 
         # make sure we are a surveyor
@@ -780,8 +760,8 @@ class OrgTest(TembaTest):
         # if we login, we should be rerouted too
         self.client.logout()
         response = self.client.post('/users/login/', {'username': 'surveyor@gmail.com', 'password': 'password'}, follow=True)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(reverse('orgs.org_surveyor'), response._request.path)
 
     def test_surveyor(self):
         self.client.logout()
@@ -850,13 +830,13 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get(reverse('orgs.org_home'))
-        self.assertEquals(response.context['org'], self.org)
+        self.assertEqual(response.context['org'], self.org)
 
         # add self.manager to self.org2 viewers
         self.org2.viewers.add(self.admin)
 
         response = self.client.get(choose_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.assertTrue('organization' in response.context['form'].fields)
 
@@ -864,9 +844,20 @@ class OrgTest(TembaTest):
         post_data['organization'] = self.org2.pk
 
         response = self.client.post(choose_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         response = self.client.get(reverse('orgs.org_home'))
-        self.assertEquals(response.context_data['org'], self.org2)
+        self.assertEqual(response.context_data['org'], self.org2)
+        self.assertContains(response, "Nyaruka")
+        self.assertContains(response, "Trileet Inc")
+
+        # make org2 inactive
+        self.org2.is_active = False
+        self.org2.save(update_fields=['is_active'])
+
+        # go back to our choose url, should only show Nyaruka
+        response = self.client.get(choose_url, follow=True)
+        self.assertNotContains(response, "Trileet Inc")
+        self.assertContains(response, "Nyaruka")
 
         # a non org user get's logged out
         self.login(self.non_org_user)
@@ -898,19 +889,19 @@ class OrgTest(TembaTest):
 
         # should list our one topup
         response = self.client.get(manage_url)
-        self.assertEquals(1, len(response.context['object_list']))
+        self.assertEqual(1, len(response.context['object_list']))
 
         # create a new one
         post_data = dict(price='1000', credits='500', comment="")
         response = self.client.post(create_url, post_data)
-        self.assertEquals(2, TopUp.objects.filter(org=self.org).count())
-        self.assertEquals(1500, self.org.get_credits_remaining())
+        self.assertEqual(2, TopUp.objects.filter(org=self.org).count())
+        self.assertEqual(1500, self.org.get_credits_remaining())
 
         # update one of our topups
         post_data = dict(is_active=True, price='0', credits='5000', comment="", expires_on="2025-04-03 13:47:46")
         response = self.client.post(update_url, post_data)
 
-        self.assertEquals(5500, self.org.get_credits_remaining())
+        self.assertEqual(5500, self.org.get_credits_remaining())
 
     def test_topup_model(self):
         topup = TopUp.create(self.admin, price=None, credits=1000)
@@ -927,6 +918,34 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+    def test_topup_expiration(self):
+
+        contact = self.create_contact("Usain Bolt", "+250788123123")
+        welcome_topup = TopUp.objects.get()
+
+        # send some messages with a valid topup
+        self.create_inbound_msgs(contact, 10)
+        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
+        self.assertEqual(990, self.org.get_credits_remaining())
+
+        # now expire our topup and try sending more messages
+        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
+        welcome_topup.save(update_fields=('expires_on',))
+        self.org.clear_credit_cache()
+
+        # we should have no credits remaining since we expired
+        self.assertEqual(0, self.org.get_credits_remaining())
+        self.create_inbound_msgs(contact, 5)
+
+        # those messages are waiting to send
+        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
+
+        # so we should report -5 credits
+        self.assertEqual(-5, self.org.get_credits_remaining())
+
+        # our first 10 messages plus our 5 pending a topup
+        self.assertEqual(15, self.org.get_credits_used())
+
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
@@ -935,31 +954,28 @@ class OrgTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
-        def create_msgs(recipient, count):
-            for m in range(count):
-                self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+        self.create_inbound_msgs(contact, 10)
 
-        create_msgs(contact, 10)
-
-        with self.assertNumQueries(1):
-            self.assertEquals(150, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(2):
+            self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEquals(150, self.org.get_low_credits_threshold())
+            self.assertEqual(150, self.org.get_low_credits_threshold())
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(4):
-            self.assertEquals(990, self.org.get_credits_remaining())  # from db
+        with self.assertNumQueries(5):
+            self.assertEqual(990, self.org.get_credits_remaining())  # from db
 
         with self.assertNumQueries(0):
-            self.assertEquals(1000, self.org.get_credits_total())  # from cache
-            self.assertEquals(10, self.org.get_credits_used())
-            self.assertEquals(990, self.org.get_credits_remaining())
+            self.assertEqual(1000, self.org.get_credits_total())  # from cache
+            self.assertEqual(10, self.org.get_credits_used())
+            self.assertEqual(990, self.org.get_credits_remaining())
 
-        self.assertEquals(10, welcome_topup.msgs.count())
-        self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        welcome_topup.refresh_from_db()
+        self.assertEqual(10, welcome_topup.msgs.count())
+        self.assertEqual(10, welcome_topup.get_used())
 
-        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        # at this point we shouldn't have squashed any topup credits, so should have the same number as our used
         self.assertEqual(10, TopUpCredits.objects.all().count())
 
         # now squash
@@ -970,55 +986,57 @@ class OrgTest(TembaTest):
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
-        self.org.update_caches(OrgEvent.topup_updated, None)  # invalidates our credits remaining cache
+        self.org.clear_credit_cache()
 
-        self.assertEquals(15, self.org.get_credits_total())
-        self.assertEquals(5, self.org.get_credits_remaining())
+        self.assertEqual(15, self.org.get_credits_total())
+        self.assertEqual(5, self.org.get_credits_remaining())
 
         # create 10 more messages, only 5 of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
-        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
-        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        welcome_topup.refresh_from_db()
+        self.assertEqual(15, welcome_topup.msgs.count())
+        self.assertEqual(15, welcome_topup.get_used())
 
-        self.assertFalse(self.org._calculate_active_topup())
+        (topup, _) = self.org._calculate_active_topup()
+        self.assertFalse(topup)
 
-        with self.assertNumQueries(0):
-            self.assertEquals(15, self.org.get_credits_total())
-            self.assertEquals(20, self.org.get_credits_used())
-            self.assertEquals(-5, self.org.get_credits_remaining())
+        # we generate queries for total and used when we are near a boundary
+        with self.assertNumQueries(4):
+            self.assertEqual(15, self.org.get_credits_total())
+            self.assertEqual(20, self.org.get_credits_used())
+            self.assertEqual(-5, self.org.get_credits_remaining())
 
         # again create 10 more messages, none of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
         with self.assertNumQueries(0):
-            self.assertEquals(15, self.org.get_credits_total())
-            self.assertEquals(30, self.org.get_credits_used())
-            self.assertEquals(-15, self.org.get_credits_remaining())
+            self.assertEqual(15, self.org.get_credits_total())
+            self.assertEqual(30, self.org.get_credits_used())
+            self.assertEqual(-15, self.org.get_credits_remaining())
 
-        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
 
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # apply topups which will max out both and reduce debt to 5
         self.org.apply_topups()
 
-        self.assertEquals(20, welcome_topup.msgs.count())
-        self.assertEquals(20, TopUp.objects.get(pk=welcome_topup.pk).get_used())
-        self.assertEquals(5, new_topup.msgs.count())
-        self.assertEquals(5, TopUp.objects.get(pk=new_topup.pk).get_used())
-        self.assertEquals(25, self.org.get_credits_total())
-        self.assertEquals(30, self.org.get_credits_used())
-        self.assertEquals(-5, self.org.get_credits_remaining())
+        self.assertEqual(20, welcome_topup.msgs.count())
+        self.assertEqual(20, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        self.assertEqual(5, new_topup.msgs.count())
+        self.assertEqual(5, TopUp.objects.get(pk=new_topup.pk).get_used())
+        self.assertEqual(25, self.org.get_credits_total())
+        self.assertEqual(30, self.org.get_credits_used())
+        self.assertEqual(-5, self.org.get_credits_remaining())
 
         # create a message from our test contact, should not count against our totals
         test_msg = self.create_msg(contact=test_contact, direction='I', text="Test")
 
         self.assertIsNone(test_msg.topup_id)
-        self.assertEquals(30, self.org.get_credits_used())
+        self.assertEqual(30, self.org.get_credits_used())
 
         # test special status
         self.assertFalse(self.org.is_multi_user_tier())
@@ -1026,46 +1044,44 @@ class OrgTest(TembaTest):
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
-        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
+        self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
-        self.assertEquals(0, self.org.get_purchased_credits())
+        self.assertEqual(0, self.org.get_purchased_credits())
         self.assertFalse(self.org.is_multi_user_tier())
 
-        self.assertEquals(100025, self.org.get_credits_total())
-        self.assertEquals(30, self.org.get_credits_used())
-        self.assertEquals(99995, self.org.get_credits_remaining())
+        self.assertEqual(100025, self.org.get_credits_total())
+        self.assertEqual(99995, self.org.get_credits_remaining())
+        self.assertEqual(30, self.org.get_credits_used())
 
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
-        self.assertEquals(msg.topup, mega_topup)
-
-        self.assertEquals(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
+        self.assertEqual(msg.topup, mega_topup)
+        self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
         mega_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertIsNone(msg.topup)
 
         # check our totals
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
-        with self.assertNumQueries(3):
-            self.assertEquals(0, self.org.get_purchased_credits())
-            self.assertEquals(31, self.org.get_credits_total())
-            self.assertEquals(32, self.org.get_credits_used())
-            self.assertEquals(-1, self.org.get_credits_remaining())
+        with self.assertNumQueries(6):
+            self.assertEqual(0, self.org.get_purchased_credits())
+            self.assertEqual(31, self.org.get_credits_total())
+            self.assertEqual(32, self.org.get_credits_used())
+            self.assertEqual(-1, self.org.get_credits_remaining())
 
         # all top up expired
         TopUp.objects.all().update(expires_on=yesterday)
@@ -1075,88 +1091,83 @@ class OrgTest(TembaTest):
         next_week = timezone.now() + relativedelta(days=7)
         gift_topup.expires_on = next_week
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEquals(99, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(1):
-            self.assertEquals(15, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(4):
+            self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEquals(99, self.org.get_credits_expiring_soon())
-            self.assertEquals(15, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
+            self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        # some cedits expires but more credits will remain active
+        # some credits expires but more credits will remain active
         later_active_topup = TopUp.create(self.admin, price=0, credits=200)
         five_week_ahead = timezone.now() + relativedelta(days=35)
         later_active_topup.expires_on = five_week_ahead
         later_active_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
+            self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
-            self.assertEquals(45, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(45, self.org.get_low_credits_threshold())
+            self.assertFalse(self.org.is_nearing_expiration())
+            self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
-
-        with self.assertNumQueries(3):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(1):
-            self.assertEquals(45, self.org.get_low_credits_threshold())
+            self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(0):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(45, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(4):
+            self.assertEqual(45, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+            self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
         gift_topup.expires_on = yesterday
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
-
-        with self.assertNumQueries(3):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(1):
-            self.assertEquals(30, self.org.get_low_credits_threshold())
+            self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(0):
-            self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(30, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(4):
+            self.assertEqual(30, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+            self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
+        self.org.clear_credit_cache()
 
-        with self.assertNumQueries(1):
-            self.assertEquals(0, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(2):
+            self.assertEqual(0, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEquals(0, self.org.get_low_credits_threshold())
+            self.assertEqual(0, self.org.get_low_credits_threshold())
 
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
@@ -1172,7 +1183,7 @@ class OrgTest(TembaTest):
             self.admin.set_org(self.org)
 
             response = self.client.get(connect_url)
-            self.assertEquals(200, response.status_code)
+            self.assertEqual(200, response.status_code)
             self.assertEqual(list(response.context['form'].fields.keys()), ['account_sid', 'account_token', 'loc'])
 
             # try posting without an account token
@@ -1193,53 +1204,60 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, post_data)
 
             self.org.refresh_from_db()
-            self.assertEquals(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-            self.assertEquals(self.org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+            self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
+            self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
-                mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+                with patch('twilio.rest.resources.ListResource.get') as mock_list_resource_get:
+                    mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+                    mock_list_resource_get.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
 
-                self.client.post(connect_url, post_data)
-                self.org.refresh_from_db()
-                self.assertEquals(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-                self.assertEquals(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    response = self.client.post(connect_url, post_data)
+                    self.assertEqual(response.status_code, 302)
 
-                twilio_account_url = reverse('orgs.org_twilio_account')
-                response = self.client.get(twilio_account_url)
-                self.assertEquals("AccountSid", response.context['account_sid'])
+                    response = self.client.post(connect_url, post_data, follow=True)
+                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.claim_twilio"))
 
-                self.org.refresh_from_db()
-                config = self.org.config_json()
-                self.assertEquals('AccountSid', config['ACCOUNT_SID'])
-                self.assertEquals('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                # post without a sid or token, should get a form validation error
-                response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
-                self.assertEquals('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
-                                  response.context['form'].errors['__all__'].as_json())
+                    twilio_account_url = reverse('orgs.org_twilio_account')
+                    response = self.client.get(twilio_account_url)
+                    self.assertEqual("AccountSid", response.context['account_sid'])
 
-                # all our twilio creds should remain the same
-                self.org.refresh_from_db()
-                config = self.org.config_json()
-                self.assertEquals(config['ACCOUNT_SID'], "AccountSid")
-                self.assertEquals(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEqual('AccountSid', config['ACCOUNT_SID'])
+                    self.assertEqual('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
-                # now try with all required fields, and a bonus field we shouldn't change
-                self.client.post(twilio_account_url, dict(account_sid='AccountSid',
-                                                          account_token='SecondaryToken',
-                                                          disconnect='false',
-                                                          name='DO NOT CHANGE ME'), follow=True)
-                # name shouldn't change
-                self.org.refresh_from_db()
-                self.assertEquals(self.org.name, "Temba")
+                    # post without a sid or token, should get a form validation error
+                    response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
+                    self.assertEqual('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
+                                     response.context['form'].errors['__all__'].as_json())
 
-                # now disconnect our twilio connection
-                self.assertTrue(self.org.is_connected_to_twilio())
-                self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
+                    # all our twilio creds should remain the same
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEqual(config['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                self.org.refresh_from_db()
-                self.assertFalse(self.org.is_connected_to_twilio())
+                    # now try with all required fields, and a bonus field we shouldn't change
+                    self.client.post(twilio_account_url, dict(account_sid='AccountSid',
+                                                              account_token='SecondaryToken',
+                                                              disconnect='false',
+                                                              name='DO NOT CHANGE ME'), follow=True)
+                    # name shouldn't change
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.name, "Temba")
+
+                    # now disconnect our twilio connection
+                    self.assertTrue(self.org.is_connected_to_twilio())
+                    self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
+
+                    self.org.refresh_from_db()
+                    self.assertFalse(self.org.is_connected_to_twilio())
 
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
@@ -1349,6 +1367,62 @@ class OrgTest(TembaTest):
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
+    def test_chatbase_account(self):
+        self.login(self.admin)
+
+        self.org.refresh_from_db()
+        self.assertEqual((None, None), self.org.get_chatbase_credentials())
+
+        chatbase_account_url = reverse('orgs.org_chatbase')
+        response = self.client.get(chatbase_account_url)
+        self.assertContains(response, 'Chatbase')
+
+        payload = dict(version='1.0', not_handled=True, feedback=False, disconnect='false')
+
+        response = self.client.post(chatbase_account_url, payload, follow=True)
+        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
+        self.assertEqual((None, None), self.org.get_chatbase_credentials())
+
+        payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEqual(('api_key', '1.0'), self.org.get_chatbase_credentials())
+
+        self.assertEqual(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
+        self.assertEqual(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEqual(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+
+        with self.assertRaises(Exception):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        org_home_url = reverse('orgs.org_home')
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+
+        payload.update(dict(disconnect='true'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEqual((None, None), self.org.get_chatbase_credentials())
+
+        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+            self.assertEqual(len(mock_post.mock_calls), 0)
+
     def test_resthooks(self):
         # no hitting this page without auth
         resthook_url = reverse('orgs.org_resthooks')
@@ -1404,39 +1478,39 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.has_smtp_config())
 
         response = self.client.post(smtp_server_url, dict(disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "You must enter a from email", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "You must enter a from email", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foobar.com',
                                                           disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "Please enter a valid email address", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "Please enter a valid email address", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "You must enter the SMTP host", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           smtp_host='smtp.example.com',
                                                           disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "You must enter the SMTP username", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           smtp_host='smtp.example.com',
                                                           smtp_username='support@example.com',
                                                           disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "You must enter the SMTP password", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           smtp_host='smtp.example.com',
                                                           smtp_username='support@example.com',
                                                           smtp_password='secret',
                                                           disconnect='false'), follow=True)
-        self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
-                          response.context['form'].errors['__all__'].as_json())
+        self.assertEqual('[{"message": "You must enter the SMTP port", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           smtp_host='smtp.example.com',
@@ -1448,15 +1522,15 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
-        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], '')
+        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
+        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
-        self.assertEquals('foo@bar.com', response.context['flow_from_email'])
+        self.assertEqual('foo@bar.com', response.context['flow_from_email'])
 
         self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
                                                smtp_host='smtp.example.com',
@@ -1469,8 +1543,33 @@ class OrgTest(TembaTest):
 
         # name shouldn't change
         self.org.refresh_from_db()
-        self.assertEquals(self.org.name, "Temba")
+        self.assertEqual(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
+
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               disconnect='false'), follow=True)
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='help@example.com',
+                                                          smtp_password='',
+                                                          smtp_port='465',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        # should have error for blank password
+        self.assertEqual('[{"message": "You must enter the SMTP password", "code": ""}]',
+                         response.context['form'].errors['__all__'].as_json())
 
         self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
@@ -1487,12 +1586,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
-        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
+        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
 
     @patch('nexmo.Client.create_application')
     def test_connect_nexmo(self, mock_create_application):
@@ -1515,52 +1614,53 @@ class OrgTest(TembaTest):
                 # believe it or not nexmo returns 'error-code' 200
                 nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+                self.assertEqual(response.status_code, 302)
 
                 # nexmo should now be connected
                 self.org = Org.objects.get(pk=self.org.pk)
                 self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
-                self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+                self.assertEqual(self.org.config_json()['NEXMO_KEY'], 'key')
+                self.assertEqual(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
                 nexmo_uuid = self.org.config_json()['NEXMO_UUID']
 
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_url'],
-                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
-                                                    reverse('handlers.nexmo_call_handler', args=['answer',
-                                                                                                 nexmo_uuid])))
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['answer_url'],
+                                 "https://%s%s" % (self.org.get_brand_domain().lower(),
+                                                   reverse('handlers.nexmo_call_handler', args=['answer',
+                                                                                                nexmo_uuid])))
 
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_url'],
-                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
-                                                    reverse('handlers.nexmo_call_handler', args=['event',
-                                                                                                 nexmo_uuid])))
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['event_url'],
+                                 "https://%s%s" % (self.org.get_brand_domain().lower(),
+                                                   reverse('handlers.nexmo_call_handler', args=['event',
+                                                                                                nexmo_uuid])))
 
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_method'], 'POST')
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_method'], 'POST')
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['answer_method'], 'POST')
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['event_method'], 'POST')
 
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
-                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['name'],
-                                  "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid))
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
+                self.assertEqual(mock_create_application.call_args_list[0][1]['params']['name'],
+                                 "%s/%s" % (self.org.get_brand_domain().lower(), nexmo_uuid))
 
                 nexmo_account_url = reverse('orgs.org_nexmo_account')
                 response = self.client.get(nexmo_account_url)
-                self.assertEquals("key", response.context['api_key'])
+                self.assertEqual("key", response.context['api_key'])
 
                 self.org.refresh_from_db()
                 config = self.org.config_json()
-                self.assertEquals('key', config[NEXMO_KEY])
-                self.assertEquals('secret', config[NEXMO_SECRET])
+                self.assertEqual('key', config[NEXMO_KEY])
+                self.assertEqual('secret', config[NEXMO_SECRET])
 
                 # post without api token, should get validation error
                 response = self.client.post(nexmo_account_url, dict(disconnect='false'), follow=True)
-                self.assertEquals('[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                                  response.context['form'].errors['__all__'].as_json())
+                self.assertEqual('[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
+                                 response.context['form'].errors['__all__'].as_json())
 
                 # nexmo config should remain the same
                 self.org.refresh_from_db()
                 config = self.org.config_json()
-                self.assertEquals('key', config[NEXMO_KEY])
-                self.assertEquals('secret', config[NEXMO_SECRET])
+                self.assertEqual('key', config[NEXMO_KEY])
+                self.assertEqual('secret', config[NEXMO_SECRET])
 
                 # now try with all required fields, and a bonus field we shouldn't change
                 self.client.post(nexmo_account_url, dict(api_key='other_key',
@@ -1569,7 +1669,7 @@ class OrgTest(TembaTest):
                                                          name='DO NOT CHNAGE ME'), follow=True)
                 # name shouldn't change
                 self.org.refresh_from_db()
-                self.assertEquals(self.org.name, "Temba")
+                self.assertEqual(self.org.name, "Temba")
 
                 # should change nexmo config
                 with patch('nexmo.Client.get_balance') as mock_get_balance:
@@ -1580,8 +1680,8 @@ class OrgTest(TembaTest):
 
                     self.org.refresh_from_db()
                     config = self.org.config_json()
-                    self.assertEquals('other_key', config[NEXMO_KEY])
-                    self.assertEquals('secret-too', config[NEXMO_SECRET])
+                    self.assertEqual('other_key', config[NEXMO_KEY])
+                    self.assertEqual('secret-too', config[NEXMO_SECRET])
 
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
@@ -1621,7 +1721,7 @@ class OrgTest(TembaTest):
             self.assertEqual(response.status_code, 302)
 
             response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
+            self.assertEqual(response.request['PATH_INFO'], reverse('channels.claim_nexmo'))
 
         with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
@@ -1655,8 +1755,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
-            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
-            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
+            self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
+            self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
     def test_tiers(self):
 
@@ -1688,7 +1788,7 @@ class OrgTest(TembaTest):
         # tiers enabled, but enough credits
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
         self.assertTrue(self.org.is_import_flows_tier())
         self.assertTrue(self.org.is_multi_user_tier())
@@ -1723,13 +1823,22 @@ class OrgTest(TembaTest):
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
+        Channel.create(sub_org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                       device="Nexus 5X", secret="12355", gcm_id="145")
+        contact = self.create_contact("Joe", "+250788383444", org=sub_org)
+        msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
+        self.assertFalse(msg.topup)
+
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
         self.assertEqual(self.org.created_by, sub_org.created_by)
 
         # now allocate some credits to our sub org
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
-        self.assertEqual(700, sub_org.get_credits_remaining())
+
+        msg.refresh_from_db()
+        self.assertTrue(msg.topup)
+        self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
 
         # we should have a debit to track this transaction
@@ -1743,21 +1852,21 @@ class OrgTest(TembaTest):
 
         # try allocating more than we have
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
-        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
-        self.assertEqual(700, self.org._calculate_credits_used())
+        self.assertEqual(700, self.org._calculate_credits_used()[0])
 
         # now allocate across our remaining topups
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
-        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(1900, self.org.get_credits_used())
         self.assertEqual(100, self.org.get_credits_remaining())
 
         # now clear our cache, we ought to have proper amount still
-        self.org._calculate_credit_caches()
-        sub_org._calculate_credit_caches()
+        self.org.clear_credit_cache()
+        sub_org.clear_credit_cache()
 
-        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(100, self.org.get_credits_remaining())
 
         # this creates two more debits, for a total of three
@@ -1770,7 +1879,7 @@ class OrgTest(TembaTest):
 
         # allocate the exact number of credits remaining
         self.org.allocate_credits(self.admin, sub_org, 100)
-        self.assertEqual(2000, sub_org.get_credits_remaining())
+        self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
     def test_sub_org_ui(self):
@@ -1873,8 +1982,6 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
-        from temba.contacts.models import ContactURN
-
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1897,13 +2004,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "123123")
 
         # create a flow
-        flow = self.create_flow()
+        flow = self.get_flow('color')
 
         # start the contact down it
         flow.start([], [contact])
 
         # should have one SMS
-        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEqual(1, Msg.objects.all().count())
 
         # shouldn't show the number on the outgoing page
         response = self.client.get(reverse('msgs.msg_outbox'))
@@ -1911,13 +2018,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Blue")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Where's the beef?")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -1945,7 +2052,7 @@ class OrgCRUDLTest(TembaTest):
         self.user.groups.add(granters)
 
         response = self.client.get(grant_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # fill out the form
         post_data = dict(email='john@carmack.com', first_name="John", last_name="Carmack",
@@ -1955,7 +2062,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Oculus")
-        self.assertEquals(100000, org.get_credits_remaining())
+        self.assertEqual(100000, org.get_credits_remaining())
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
@@ -1971,7 +2078,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="id Software")
-        self.assertEquals(100000, org.get_credits_remaining())
+        self.assertEqual(100000, org.get_credits_remaining())
 
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
@@ -2069,7 +2176,7 @@ class OrgCRUDLTest(TembaTest):
 
         # should now be able to go to channels page
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # check that we have all the tabs
         self.assertContains(response, reverse('msgs.msg_inbox'))
@@ -2100,14 +2207,14 @@ class OrgCRUDLTest(TembaTest):
         self.client.login(username="myal12345678901234567890@relieves.org", password="HelloWorld1")
         response = self.client.get(reverse('orgs.org_home'))
 
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
         response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
-        self.assertEquals("http://fake.com/webhook.php", org.get_webhook_url())
+        self.assertEqual("http://fake.com/webhook.php", org.get_webhook_url())
         self.assertTrue(org.is_notified_of_mt_sms())
         self.assertFalse(org.is_notified_of_mo_sms())
         self.assertFalse(org.is_notified_of_mt_call())
@@ -2117,13 +2224,13 @@ class OrgCRUDLTest(TembaTest):
         # try changing our username, wrong password
         post_data = dict(email='myal@wr.org', current_password='HelloWorld')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertTrue('current_password' in response.context['form'].errors)
 
         # bad new password
         post_data = dict(email='myal@wr.org', current_password='HelloWorld1', new_password='passwor')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertTrue('new_password' in response.context['form'].errors)
 
         User.objects.create(username='bill@msn.com', email='bill@msn.com')
@@ -2131,7 +2238,7 @@ class OrgCRUDLTest(TembaTest):
         # dupe user
         post_data = dict(email='bill@msn.com', current_password='HelloWorld1')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertTrue('email' in response.context['form'].errors)
 
         post_data = dict(email='myal@wr.org', first_name="Myal", last_name="Greene", language="en-us", current_password='HelloWorld1')
@@ -2181,14 +2288,14 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(self.org, self.user, 'RW', 'T', "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
         self.org = Org.objects.get(pk=self.org.pk)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', 'T', "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
@@ -2196,8 +2303,8 @@ class OrgCRUDLTest(TembaTest):
         # add a twitter channel
         Channel.create(self.org, self.user, None, 'TT', "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -2205,24 +2312,24 @@ class OrgCRUDLTest(TembaTest):
         User.objects.create_superuser("superuser", "superuser@group.com", "superuser")
 
         response = self.client.post(login_url, dict(username="superuser", password="superuser"))
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.post(login_url, dict(username="superuser", password="superuser"), follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_manage'))
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_manage'))
 
         response = self.client.post(login_url, dict(username="SUPeruser", password="superuser"))
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.post(login_url, dict(username="SUPeruser", password="superuser"), follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_manage'))
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_manage'))
 
         User.objects.create_superuser("withCAPS", "with_caps@group.com", "thePASSWORD")
 
         response = self.client.post(login_url, dict(username="withcaps", password="thePASSWORD"))
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.post(login_url, dict(username="withcaps", password="thePASSWORD"), follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_manage'))
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_manage'))
 
         # passwords stay case sensitive
         response = self.client.post(login_url, dict(username="withcaps", password="thepassword"), follow=True)
@@ -2263,7 +2370,7 @@ class OrgCRUDLTest(TembaTest):
 
         # make sure that contact's created on is our cs rep
         contact = Contact.objects.get(urns__path='+250788123123', org=self.org)
-        self.assertEquals(self.csrep, contact.created_by)
+        self.assertEqual(self.csrep, contact.created_by)
 
         # make sure we can manage topups as well
         TopUp.objects.create(org=self.org, price=100, credits=1000, expires_on=timezone.now() + timedelta(days=30),
@@ -2292,7 +2399,7 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        response = self.client.post(url, dict(primary_lang='fra', languages='hat,arc'))
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -2307,17 +2414,17 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
-        self.assertContains(response, 'fre')
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic (700-300 BCE)')
+        self.assertContains(response, 'fra')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic (700-300 BCE) and Spanish')
 
         # one translation language
-        self.client.post(url, dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
         self.assertEqual(response.context['languages'], 'Haitian')
 
@@ -2328,36 +2435,35 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % url)
+        response = self.client.get('%s?search=fra' % url)
         results = response.json()['results']
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % url)
+        response = self.client.get('%s?initial=fra' % url)
         results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
-        self.assertEquals('French', languages.get_language_name('fre'))
-        self.assertEquals('Creoles and pidgins, English based', languages.get_language_name('cpe'))
+        self.assertEqual('French', languages.get_language_name('fra'))
+        self.assertEqual('Chinese Pidgin English', languages.get_language_name('cpi'))
 
         # should strip off anything after an open paren or semicolon
-        self.assertEquals('Official Aramaic', languages.get_language_name('arc'))
-        self.assertEquals('Haitian', languages.get_language_name('hat'))
+        self.assertEqual('Haitian', languages.get_language_name('hat'))
 
         # check that search returns results and in the proper order
         matches = languages.search_language_names('Fre')
-        self.assertEquals(4, len(matches))
-        self.assertEquals('Creoles and pidgins, French-based', matches[0]['text'])
-        self.assertEquals('French', matches[1]['text'])
-        self.assertEquals('French, Middle (ca.1400-1600)', matches[2]['text'])
-        self.assertEquals('French, Old (842-ca.1400)', matches[3]['text'])
+        self.assertEqual(13, len(matches))
+        self.assertEqual('Saint Lucian Creole French', matches[0]['text'])
+        self.assertEqual('Seselwa Creole French', matches[1]['text'])
+        self.assertEqual('French', matches[2]['text'])
+        self.assertEqual('Cajun French', matches[3]['text'])
 
         # try a language that doesn't exist
-        self.assertEquals(None, languages.get_language_name('xyz'))
+        self.assertEqual(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
-        text_translations = dict(eng="Hello", esp="Hola")
+        text_translations = dict(eng="Hello", spa="Hola")
 
         # null case
         self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
@@ -2366,10 +2472,38 @@ class LanguageTest(TembaTest):
         self.assertEqual(Language.get_localized_text(text_translations, ['eng'], "Hi"), "Hello")
 
         # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre'], "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra'], "Hi"), "Hi")
 
         # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre', 'esp'], "Hi"), "Hola")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra', 'spa'], "Hi"), "Hola")
+
+    def test_language_migrations(self):
+        self.assertEqual('pcm', languages.iso6392_to_iso6393('cpe', country_code='NG'))
+
+        org_languages = ['dum', 'ger', 'alb', 'ita', 'tir', 'nwc', 'tsn', 'tso', 'lua', 'jav', 'nso', 'aus', 'nor',
+                         'ada', 'fij', 'hat', 'hau', 'fil', 'amh', 'som', 'ssw', 'mon', 'him', 'hin', 'tig', 'guj',
+                         'ibo', 'afr', 'div', 'bam', 'kac', 'tel', 'tpi', 'snd', 'ara', 'lao', 'nbl', 'arm', 'abk',
+                         'kur', 'per', 'wol', 'smi', 'lug', 'tmh', 'nep', 'luo', 'run', 'rum', 'tur', 'orm', 'que',
+                         'ori', 'rus', 'asm', 'pus', 'kik', 'ace', 'syr', 'ach', 'nde', 'srp', 'zul', 'vie', 'por',
+                         'chm', 'mai', 'pol', 'sot', 'art', 'tgl', 'che', 'fre', 'kon', 'swa', 'chi', 'twi', 'swe',
+                         'ukr', 'mkh', 'heb', 'kor', 'dut', 'tog', 'bur', 'ven', 'hmn', 'enm', 'gaa', 'ben', 'bem',
+                         'xho', 'aze', 'ain', 'ful', 'ang', 'dan', 'bho', 'jpn', 'raj', 'khm', 'AAR', 'ind', 'spa',
+                         'eng', 'lin', 'afa', 'ewe', 'nyn', 'nyo', 'mis', 'nya', 'yor', 'pan', 'tam', 'phi', 'mar',
+                         'sna', 'may', 'kan', 'kal', 'kas', 'kar', 'kin', 'lat', 'mal', 'urd', 'gsw', 'cpe', 'cpf',
+                         'cpp', 'tha']
+
+        for lang in org_languages:
+            self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
+
+        # test if language is already iso-639-3
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+        # test code path when language is in cache
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+
+        # test behavior with unknown values
+        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='')
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='123')
 
 
 class BulkExportTest(TembaTest):
@@ -2404,8 +2538,8 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.filter(name='Trigger a Flow', org=self.org).first()
         definition = flow.as_json()
         actions = definition[Flow.ACTION_SETS][0]['actions']
-        self.assertEquals(1, len(actions))
-        self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
+        self.assertEqual(1, len(actions))
+        self.assertEqual('Triggered Flow', actions[0]['flow']['name'])
 
     def test_trigger_dependency(self):
         # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
@@ -2448,8 +2582,7 @@ class BulkExportTest(TembaTest):
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
 
         # replace the actions
-        from temba.flows.models import AddToGroupAction
-        actionset.set_actions_dict([AddToGroupAction([dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
+        actionset.set_actions_dict([AddToGroupAction(str(uuid4()), [dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
         actionset.save()
 
         # now let's export!
@@ -2494,7 +2627,7 @@ class BulkExportTest(TembaTest):
 
         # should have this actionset, but only one action now since one was removed
         other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
-        self.assertEquals(1, len(other_actionset.get_actions()))
+        self.assertEqual(1, len(other_actionset.get_actions()))
 
         # now make sure it does the same thing from an actionset
         self.import_file('start_missing_flow_from_actionset')
@@ -2509,7 +2642,7 @@ class BulkExportTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
+        self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
         TopUp.objects.create(org=self.org, price=1, credits=10000,
@@ -2518,20 +2651,20 @@ class BulkExportTest(TembaTest):
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEquals(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
+        self.assertEqual(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
 
         # simulate an unexpected exception during import
         with patch('temba.triggers.models.Trigger.import_triggers') as validate:
             validate.side_effect = Exception('Unexpected Error')
             post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
             response = self.client.post(reverse('orgs.org_import'), post_data)
-            self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
+            self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
@@ -2558,16 +2691,16 @@ class BulkExportTest(TembaTest):
     def test_export_import(self):
 
         def assert_object_counts():
-            self.assertEquals(8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='F').count())
-            self.assertEquals(2, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='M').count())
-            self.assertEquals(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
-            self.assertEquals(4, CampaignEvent.objects.filter(campaign__org=self.org, event_type='F').count())
-            self.assertEquals(2, CampaignEvent.objects.filter(campaign__org=self.org, event_type='M').count())
-            self.assertEquals(2, Trigger.objects.filter(org=self.org, trigger_type='K', is_archived=False).count())
-            self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='C', is_archived=False).count())
-            self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
-            self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
-            self.assertEquals(1, Label.label_objects.filter(org=self.org).count())
+            self.assertEqual(8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='F').count())
+            self.assertEqual(2, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='M').count())
+            self.assertEqual(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
+            self.assertEqual(4, CampaignEvent.objects.filter(campaign__org=self.org, event_type='F').count())
+            self.assertEqual(2, CampaignEvent.objects.filter(campaign__org=self.org, event_type='M').count())
+            self.assertEqual(2, Trigger.objects.filter(org=self.org, trigger_type='K', is_archived=False).count())
+            self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type='C', is_archived=False).count())
+            self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
+            self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
+            self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
 
         # import all our bits
         self.import_file('the_clinic')
@@ -2593,7 +2726,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.set_actions_dict(actions)
         action_set.save()
@@ -2605,11 +2738,11 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
+        self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword='patient').first()
-        self.assertEquals(Flow.objects.filter(name='Register Patient').first(), trigger.flow)
+        self.assertEqual(Flow.objects.filter(name='Register Patient').first(), trigger.flow)
 
         # our old campaign message flow should be inactive now
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
@@ -2618,7 +2751,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
         assert_object_counts()
@@ -2643,12 +2776,12 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = response.json()
-        self.assertEquals(CURRENT_EXPORT_VERSION, exported.get('version', 0))
-        self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
+        self.assertEqual(get_current_export_version(), exported.get('version', 0))
+        self.assertEqual('https://app.rapidpro.io', exported.get('site', None))
 
-        self.assertEquals(8, len(exported.get('flows', [])))
-        self.assertEquals(4, len(exported.get('triggers', [])))
-        self.assertEquals(1, len(exported.get('campaigns', [])))
+        self.assertEqual(8, len(exported.get('flows', [])))
+        self.assertEqual(4, len(exported.get('triggers', [])))
+        self.assertEqual(1, len(exported.get('campaigns', [])))
 
         # set our org language to english
         self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
@@ -2680,9 +2813,9 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         # and our objets should have the same names as before
-        self.assertEquals('Confirm Appointment', Flow.objects.get(pk=flow.pk).name)
-        self.assertEquals('Appointment Schedule', Campaign.objects.all().first().name)
-        self.assertEquals('Pending Appointments', ContactGroup.user_groups.get(pk=group.pk).name)
+        self.assertEqual('Confirm Appointment', Flow.objects.get(pk=flow.pk).name)
+        self.assertEqual('Appointment Schedule', Campaign.objects.all().first().name)
+        self.assertEqual('Pending Appointments', ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
@@ -2698,9 +2831,9 @@ class BulkExportTest(TembaTest):
         self.org.import_app(exported, self.admin, site='http://temba.io')
 
         # the newly named objects won't get updated in this case and we'll create new ones instead
-        self.assertEquals(9, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
-        self.assertEquals(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
-        self.assertEquals(4, ContactGroup.user_groups.filter(org=self.org).count())
+        self.assertEqual(9, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
+        self.assertEqual(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
+        self.assertEqual(4, ContactGroup.user_groups.filter(org=self.org).count())
 
         # now archive a flow
         register = Flow.objects.filter(name='Register Patient').first()
@@ -2721,7 +2854,7 @@ class BulkExportTest(TembaTest):
 
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
-        self.assertEquals(60, confirm_appointment.expires_after_minutes)
+        self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
         # now delete a flow
         register = Flow.objects.filter(name='Register Patient').first()
@@ -2751,9 +2884,9 @@ class CreditAlertTest(TembaTest):
                 CreditAlert.check_org_credits()
 
                 # one alert created and sent
-                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                alert_type=ORG_CREDIT_OVER).count())
-                self.assertEquals(1, len(mail.outbox))
+                self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                               alert_type=ORG_CREDIT_OVER).count())
+                self.assertEqual(1, len(mail.outbox))
 
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
@@ -2763,9 +2896,9 @@ class CreditAlertTest(TembaTest):
 
                 # no new alert if one is sent and no new email
                 CreditAlert.check_org_credits()
-                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                alert_type=ORG_CREDIT_OVER).count())
-                self.assertEquals(1, len(mail.outbox))
+                self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                               alert_type=ORG_CREDIT_OVER).count())
+                self.assertEqual(1, len(mail.outbox))
 
                 # reset alerts
                 CreditAlert.reset_for_org(self.org)
@@ -2773,9 +2906,9 @@ class CreditAlertTest(TembaTest):
 
                 # can resend a new alert
                 CreditAlert.check_org_credits()
-                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                alert_type=ORG_CREDIT_OVER).count())
-                self.assertEquals(2, len(mail.outbox))
+                self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                               alert_type=ORG_CREDIT_OVER).count())
+                self.assertEqual(2, len(mail.outbox))
 
                 mock_get_credits_remaining.return_value = 10
 
@@ -2787,9 +2920,9 @@ class CreditAlertTest(TembaTest):
                     CreditAlert.check_org_credits()
 
                     # low credit alert created and email sent
-                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                    alert_type=ORG_CREDIT_LOW).count())
-                    self.assertEquals(3, len(mail.outbox))
+                    self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                   alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEqual(3, len(mail.outbox))
 
                     # email sent
                     sent_email = mail.outbox[2]
@@ -2799,9 +2932,9 @@ class CreditAlertTest(TembaTest):
 
                     # no new alert if one is sent and no new email
                     CreditAlert.check_org_credits()
-                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                    alert_type=ORG_CREDIT_LOW).count())
-                    self.assertEquals(3, len(mail.outbox))
+                    self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                   alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEqual(3, len(mail.outbox))
 
                     # reset alerts
                     CreditAlert.reset_for_org(self.org)
@@ -2809,14 +2942,14 @@ class CreditAlertTest(TembaTest):
 
                     # can resend a new alert
                     CreditAlert.check_org_credits()
-                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                    alert_type=ORG_CREDIT_LOW).count())
-                    self.assertEquals(4, len(mail.outbox))
+                    self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                   alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEqual(4, len(mail.outbox))
 
                     mock_has_low_credits.return_value = False
 
-                    with patch('temba.orgs.models.Org.get_credits_expiring_soon') as mock_get_credits_exipiring_soon:
-                        mock_get_credits_exipiring_soon.return_value = 0
+                    with patch('temba.orgs.models.Org.is_nearing_expiration') as is_nearing_expiration:
+                        is_nearing_expiration.return_value = False
 
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
@@ -2825,14 +2958,14 @@ class CreditAlertTest(TembaTest):
                         # no alert since no expiring credits
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-                        mock_get_credits_exipiring_soon.return_value = 200
+                        is_nearing_expiration.return_value = True
 
                         CreditAlert.check_org_credits()
 
                         # expiring credit alert created and email sent
-                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-                        self.assertEquals(5, len(mail.outbox))
+                        self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                       alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEqual(5, len(mail.outbox))
 
                         # email sent
                         sent_email = mail.outbox[4]
@@ -2842,9 +2975,9 @@ class CreditAlertTest(TembaTest):
 
                         # no new alert if one is sent and no new email
                         CreditAlert.check_org_credits()
-                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-                        self.assertEquals(5, len(mail.outbox))
+                        self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                       alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEqual(5, len(mail.outbox))
 
                         # reset alerts
                         CreditAlert.reset_for_org(self.org)
@@ -2852,84 +2985,9 @@ class CreditAlertTest(TembaTest):
 
                         # can resend a new alert
                         CreditAlert.check_org_credits()
-                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-                        self.assertEquals(6, len(mail.outbox))
-
-
-class UnreadCountTest(FlowFileTest):
-
-    def test_unread_count_test(self):
-        flow = self.get_flow('favorites')
-
-        # create a trigger for 'favs'
-        Trigger.objects.create(org=self.org, flow=flow, keyword='favs', created_by=self.admin, modified_by=self.admin)
-
-        # start our flow by firing an incoming message
-        contact = self.create_contact('Anakin Skywalker', '+12067791212')
-        msg = self.create_msg(contact=contact, text="favs")
-
-        # process it
-        Msg.process_message(msg)
-
-        # our flow unread count should have gone up
-        self.assertEquals(1, flow.get_and_clear_unread_responses())
-
-        # cleared by the first call
-        self.assertEquals(0, flow.get_and_clear_unread_responses())
-
-        # at this point our flow should have started.. go to our trigger list page to see if our context is correct
-        self.login(self.admin)
-        trigger_list = reverse('triggers.trigger_list')
-        response = self.client.get(trigger_list)
-
-        self.assertEquals(0, response.context['msgs_unread_count'])
-        self.assertEquals(1, response.context['flows_unread_count'])
-
-        # answer another question in the flow
-        msg = self.create_msg(contact=contact, text="red")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEquals(0, response.context['msgs_unread_count'])
-        self.assertEquals(2, response.context['flows_unread_count'])
-
-        # finish the flow and send a message outside it
-        msg = self.create_msg(contact=contact, text="primus")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="nic")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="Hello?")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEquals(4, response.context['flows_unread_count'])
-        self.assertEquals(1, response.context['msgs_unread_count'])
-
-        # visit the msg pane
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEquals(4, response.context['flows_unread_count'])
-        self.assertEquals(0, response.context['msgs_unread_count'])
-
-        # now the flow list pane
-        response = self.client.get(reverse('flows.flow_list'))
-        self.assertEquals(0, response.context['flows_unread_count'])
-        self.assertEquals(0, response.context['msgs_unread_count'])
-
-        # make sure a test contact doesn't update our counts
-        test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
-
-        msg = self.create_msg(contact=test_contact, text="favs")
-        Msg.process_message(msg)
-
-        # assert our counts weren't updated
-        self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_INBOX_MSGS))
-        self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_FLOW_MSGS))
-
-        # wasn't counted for the individual flow
-        self.assertEquals(0, flow.get_and_clear_unread_responses())
+                        self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                       alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEqual(6, len(mail.outbox))
 
 
 class EmailContextProcessorsTest(SmartminTest):
@@ -2943,7 +3001,7 @@ class EmailContextProcessorsTest(SmartminTest):
         self.request.get_host.return_value = "rapidpro.io"
         response = self.middleware.process_request(self.request)
         self.assertIsNone(response)
-        self.assertEquals(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
+        self.assertEqual(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
 
         with self.settings(HOSTNAME="rapidpro.io"):
             forget_url = reverse('users.user_forget')
@@ -2952,7 +3010,7 @@ class EmailContextProcessorsTest(SmartminTest):
             post_data['email'] = 'nouser@nouser.com'
 
             response = self.client.post(forget_url, post_data, follow=True)
-            self.assertEquals(1, len(mail.outbox))
+            self.assertEqual(1, len(mail.outbox))
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)
             self.assertEqual(sent_email.to[0], 'nouser@nouser.com')
@@ -2961,7 +3019,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
 
-class TestStripeCredits(TembaTest):
+class StripeCreditsTest(TembaTest):
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -2974,6 +3032,7 @@ class TestStripeCredits(TembaTest):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
+        self.assertTrue(1000, self.org.get_credits_total())
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
@@ -2988,7 +3047,7 @@ class TestStripeCredits(TembaTest):
         # assert we sent our confirmation emai
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
-        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertEqual("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
@@ -3019,7 +3078,7 @@ class TestStripeCredits(TembaTest):
         # assert we sent our confirmation emai
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
-        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertEqual("RapidPro Receipt", email.subject)
         self.assertTrue('bitcoin' in email.body)
         self.assertTrue('abcde' in email.body)
         self.assertTrue('$20' in email.body)
@@ -3050,10 +3109,14 @@ class TestStripeCredits(TembaTest):
         self.assertEqual(1, self.org.topups.all().count())
         self.assertEqual(1000, self.org.get_credits_total())
 
+    @patch('stripe.Customer.create')
     @patch('stripe.Customer.retrieve')
     @patch('stripe.Charge.create')
     @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve):
+    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
+        self.admin2 = self.create_user("Administrator 2")
+        self.org.administrators.add(self.admin2)
+
         self.org.stripe_customer = 'stripe-cust-1'
         self.org.save()
 
@@ -3065,21 +3128,30 @@ class TestStripeCredits(TembaTest):
                 pass
 
         class MockCards(object):
+            def __init__(self):
+                self.throw = False
+
             def all(self):
                 return dict_to_struct('MockCardData', dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
-                return MockCard()
+                if self.throw:
+                    raise stripe.CardError("Card declined", None, 400)
+                else:
+                    return MockCard()
 
         class MockCustomer(object):
-            def __init__(self):
-                self.id = 'stripe-cust-1'
+            def __init__(self, id, email):
+                self.id = id
+                self.email = email
                 self.cards = MockCards()
 
             def save(self):
                 pass
 
-        customer_retrieve.return_value = MockCustomer()
+        customer_retrieve.return_value = MockCustomer(id='stripe-cust-1', email=self.admin.email)
+        customer_create.return_value = MockCustomer(id='stripe-cust-2', email=self.admin2.email)
+
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
@@ -3097,13 +3169,29 @@ class TestStripeCredits(TembaTest):
         org = Org.objects.get(id=self.org.id)
         self.assertEqual('stripe-cust-1', org.stripe_customer)
 
-        # assert we sent our confirmation emai
+        # assert we sent our confirmation email
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
-        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertEqual("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # try with an invalid card
+        customer_retrieve.return_value.cards.throw = True
+        try:
+            self.org.add_credits('2000', 'stripe-token', self.admin)
+            self.fail("should have thrown")
+        except ValidationError as e:
+            self.assertEqual("Sorry, your card was declined, please contact your provider or try another card.", e.message)
+
+        # do it again with a different user, should create a new stripe customer
+        self.org.add_credits('2000', 'stripe-token', self.admin2)
+        self.assertTrue(4000, self.org.get_credits_total())
+
+        # should have a different customer now
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-2', org.stripe_customer)
 
 
 class ParsingTest(TembaTest):

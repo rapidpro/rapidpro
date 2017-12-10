@@ -1,5 +1,11 @@
 -load i18n
 
+:css
+  .quick-reply, .quick-reply:hover {
+    transition: none;
+    -webkit-transition: none;
+  }
+
 %html
   %body
     .translation.modal{data-dismiss:"modal"}
@@ -10,14 +16,31 @@
           %span{id:"modal-title"}><
             -trans "Translation"
       .modal-body
-        .translate-text.translate-from{ng-show:"translation.from"}
-          [[translation.from]]
-        %h5
-          -trans "[[language.name]] Translation"
-        %label
-          %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+        %form
+          .translation{ng-repeat:'translation in translations'}
+            %h5
+              -trans "[[language.name]] [[translation.name]]"
+            .translate-text.translate-from{ng-show:"translation.from"}
+              [[translation.from]]
+            -include 'partials/invalid_fields.haml'                
+            %label
+              .large{ng-if:'!translation.input'}
+                %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+              .small{ng-if:'translation.input'}
+                %input{ng-model:"translation.to", type:"text", auto-complete:"",class:"translation"}
+
+            .quick-reply{ng-show:"translation.fromQuickReplies.length"}
+              .modal-quick-reply-header
+                .quick-reply-title
+                  -trans "Quick Replies"
+
+              .modal-quick-reply{ng-repeat:"response in translation.fromQuickReplies", class:""}
+                .quick-reply-title.center-translate
+                  .translate-from{ng-show:"translation.fromQuickReplies"}
+                    [[ response[language.from] ]]
+                  %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response[language.to]", ng-required:"true"}
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"
-        %button{ng-click:"ok(translation.to)",class:"btn btn-primary"}
+        %button{ng-click:"ok(translations)",class:"btn btn-primary"}
           -trans "Ok"

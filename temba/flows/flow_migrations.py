@@ -1,14 +1,272 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals, print_function, division
 
 import copy
 import json
 import regex
 import six
+from uuid import uuid4
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
-from uuid import uuid4
+from temba.contacts.models import ContactField
+from temba.flows.models import Flow
+from temba.utils.languages import iso6392_to_iso6393
+
+
+def _base_migrate_to_version_11_2(json_flow, country_code):
+    if 'base_language' in json_flow and json_flow['base_language'] != 'base':
+        iso_code = json_flow['base_language']
+        new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+        json_flow['base_language'] = new_iso_code
+
+    return json_flow
+
+
+def migrate_to_version_11_2(json_flow, flow=None):
+    """
+    Migrates base_language in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:  # pragma: no cover
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_2(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_2(exported_json, org, same_site=True):
+    """
+        Migrates base_language in flow exports from iso639-2 to iso639-3
+    """
+    country_code = org.get_country_code()
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_2(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
+
+
+def _base_migrate_to_version_11_1(json_flow, country_code):
+    def _is_this_a_lang_object(obj):
+        """
+        Lang objects should only have keys of length == 3
+        """
+        keys = set(obj.keys())  # py3 compatibility, keys() is an iterable
+
+        # remove the 'base' language
+        keys.discard('base')
+
+        if keys:
+            for k in keys:
+                if len(k) == 3:
+                    continue
+                else:
+                    return False
+            return True
+
+    def _traverse(obj, country_code):
+        if isinstance(obj, dict):
+
+            if _is_this_a_lang_object(obj):
+                new_obj = {}
+
+                for key, val in obj.items():
+                    if key == 'base':
+                        new_obj.update({key: val})
+                    else:
+                        new_key = iso6392_to_iso6393(key, country_code)
+                        new_obj.update({new_key: val})
+
+                value = new_obj
+            elif 'lang' in obj:
+                iso_code = obj['lang']
+                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                obj['lang'] = new_iso_code
+                value = obj
+            else:
+                value = {k: _traverse(v, country_code) for k, v in obj.items()}
+
+        elif isinstance(obj, list):
+            value = [_traverse(elem, country_code) for elem in obj]
+        else:
+            value = obj
+
+        return value
+
+    return _traverse(json_flow, country_code=country_code)
+
+
+def migrate_to_version_11_1(json_flow, flow=None):
+    """
+    Migrates translation language codes in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:  # pragma: no cover
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_1(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_1(exported_json, org, same_site=True):
+    """
+        Migrates translation language codes in flow exports from iso639-2 to iso639-3
+    """
+    country_code = org.get_country_code()
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_1(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
+
+
+def migrate_export_to_version_11_0(json_export, org, same_site=True):
+    """
+    Introduces the concept of format_location and format_date. This migration
+    wraps all references to rulesets or contact fields which are locations or dates and
+    wraps them appropriately
+    """
+    replacements = [
+        [r'@date([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)', r'@(format_date(date))\1'],
+        [r'@date\.now', r'@(format_date(date.now))']
+    ]
+
+    # get all contact fields that are date or location for this org
+    fields = (ContactField.objects
+              .filter(org=org, is_active=True, value_type__in=['D', 'S', 'I', 'W'])
+              .only('id', 'value_type', 'key'))
+
+    for cf in fields:
+        format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
+        replacements.append([
+            r'@contact\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % cf.key,
+            r'@(%s(contact.%s))\1' % (format_function, cf.key)
+        ])
+
+    for flow in json_export.get('flows', []):
+
+        # figure out which rulesets are date or location
+        for rs in flow.get('rule_sets', []):
+            rs_type = None
+            for rule in rs.get('rules', []):
+                test = rule.get('test', {}).get('type')
+                if not test:  # pragma: no cover
+                    continue
+                elif test == 'true':
+                    continue
+                elif not rs_type:
+                    rs_type = test
+                elif rs_type and test != rs_type:
+                    rs_type = 'none'
+
+            key = Flow.label_to_slug(rs['label'])
+
+            # any reference to this result value's time property needs wrapped in format_date
+            replacements.append([
+                r'@flow\.%s\.time' % key,
+                r'@(format_date(flow.%s.time))' % key
+            ])
+
+            # how we wrap the actual result value depends on its type
+            if rs_type in ['date', 'date_before', 'date_after', 'date_equal']:
+                format_function = 'format_date'
+            elif rs_type in ['state', 'district', 'ward']:
+                format_function = 'format_location'
+            else:  # pragma: no cover
+                continue
+
+            replacements.append([
+                r'@flow\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % key,
+                r'@(%s(flow.%s))\1' % (format_function, key)
+            ])
+
+        # for every action in this flow, look for replies, sends or says that use these fields and wrap them
+        for actionset in flow.get('action_sets', []):
+            for action in actionset.get('actions', []):
+                if action['type'] in ['reply', 'send', 'say']:
+                    msg = action['msg']
+                    for lang, text in msg.items():
+                        migrated_text = text
+                        for pattern, replacement in replacements:
+                            migrated_text = regex.sub(
+                                pattern,
+                                replacement,
+                                migrated_text,
+                                flags=regex.UNICODE | regex.MULTILINE
+                            )
+
+                        msg[lang] = migrated_text
+
+    return json_export
+
+
+def migrate_to_version_11_0(json_flow, flow):
+    return migrate_export_to_version_11_0({'flows': [json_flow]}, flow.org)['flows'][0]
+
+
+def migrate_to_version_10_4(json_flow, flow=None):
+    """
+    Fixes flows which don't have exit_uuids on actionsets or uuids on actions
+    """
+    for actionset in json_flow['action_sets']:
+        if not actionset.get('exit_uuid'):
+            actionset['exit_uuid'] = six.text_type(uuid4())
+
+        for action in actionset['actions']:
+            uuid = action.get('uuid')
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
+def migrate_to_version_10_3(json_flow, flow=None):
+    """
+    Adds exit_uuid to actionsets so flows can be migrated in goflow deterministically
+    """
+    for actionset in json_flow['action_sets']:
+        actionset['exit_uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
+def migrate_to_version_10_2(json_flow, flow=None):
+    """
+    Fixes malformed single message flows that have a base language but a message action that isn't localized
+    """
+    # this is a case that can only arise from malformed revisions
+    base_language = json_flow['base_language']
+    if not base_language:  # pragma: no cover
+        base_language = 'base'
+    json_flow['base_language'] = base_language
+
+    def update_action(action):
+        if action['type'] == 'reply':
+            if not isinstance(action['msg'], dict):
+                action['msg'] = {base_language: action['msg']}
+        return action
+    return map_actions(json_flow, update_action)
+
+
+def migrate_to_version_10_1(json_flow, flow):
+    """
+    Ensures all actions have uuids
+    """
+    json_flow = map_actions(json_flow, cleanse_group_names)
+    for actionset in json_flow['action_sets']:
+        for action in actionset['actions']:
+            uuid = action.get('uuid', None)
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
 
 
 def migrate_to_version_10(json_flow, flow):
@@ -57,6 +315,7 @@ def migrate_to_version_10(json_flow, flow):
 
     # if we have rulesets, we need to fix those up with our new webhook types
     base_lang = json_flow.get('base_language', 'base')
+    json_flow = map_actions(json_flow, cleanse_group_names)
     if 'rule_sets' in json_flow:
         rulesets = []
         for ruleset in json_flow['rule_sets']:
@@ -125,7 +384,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         if same_site and not obj and obj_id:
             try:
                 obj = manager.filter(pk=obj_id, org=org).first()
-            except:
+            except Exception:
                 pass
 
         # nest it if we were given a nested name
@@ -183,6 +442,8 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         replace_with_uuid(ele, Label.label_objects, label_id_map)
 
     for flow in exported_json.get('flows', []):
+        flow = map_actions(flow, cleanse_group_names)
+
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
                 if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
@@ -222,7 +483,6 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
                 del event['relative_to']['id']
             if 'flow' in event:
                 remap_flow(event['flow'])
-
     return exported_json
 
 
@@ -252,6 +512,7 @@ def migrate_to_version_8(json_flow, flow=None):
                 node[key] = migrate_node(val)
         return node
 
+    json_flow = map_actions(json_flow, cleanse_group_names)
     for rule_set in json_flow.get('rule_sets', []):
         for rule in rule_set['rules']:
             migrate_node(rule['test'])
@@ -276,6 +537,7 @@ def migrate_to_version_7(json_flow, flow=None):
 
     # don't attempt if there isn't a nested definition block
     if definition:
+        definition = map_actions(definition, cleanse_group_names)
         definition['flow_type'] = json_flow.get('flow_type', 'F')
         metadata = definition.get('metadata', None)
         if not metadata:
@@ -294,7 +556,6 @@ def migrate_to_version_7(json_flow, flow=None):
         # element which should be rule_sets instead
         if 'rulesets' in definition:
             definition.pop('rulesets')
-
         return definition
 
     return json_flow  # pragma: needs cover
@@ -307,7 +568,7 @@ def migrate_to_version_6(json_flow, flow=None):
     default language.
     """
 
-    definition = json_flow.get('definition')
+    definition = map_actions(json_flow.get('definition'), cleanse_group_names)
 
     # the name of the base language if its not set yet
     base_language = 'base'
@@ -345,6 +606,7 @@ def migrate_to_version_6(json_flow, flow=None):
                 if action['type'] == SayAction.TYPE:
                     if 'recording' in action:
                         convert_to_dict(action, 'recording')
+
     return json_flow
 
 
@@ -362,7 +624,7 @@ def migrate_to_version_5(json_flow, flow=None):
             return True
         return False
 
-    definition = json_flow.get('definition')
+    definition = map_actions(json_flow.get('definition'), cleanse_group_names)
 
     for ruleset in definition.get('rule_sets', []):
 
@@ -455,12 +717,27 @@ def migrate_to_version_5(json_flow, flow=None):
     return json_flow
 
 
+def cleanse_group_names(action):
+    from temba.contacts.models import ContactGroup
+    if action['type'] == 'add_group' or action['type'] == 'del_group':
+        if 'group' in action and 'groups' not in action:
+            action['groups'] = [action['group']]
+        for group in action['groups']:
+            if isinstance(group, dict):
+                if 'name' not in group:
+                    group['name'] = 'Unknown'
+                if not ContactGroup.is_valid_name(group['name']):
+                    group['name'] = '%s %s' % ('Contacts', group['name'])
+    return action
+
+
 # ================================ Helper methods for flow migrations ===================================
 
 def get_entry(json_flow):
     """
     Returns the entry node for the passed in flow, this is the ruleset or actionset with the lowest y
     """
+    lowest_x = None
     lowest_y = None
     lowest_uuid = None
 
@@ -468,12 +745,23 @@ def get_entry(json_flow):
         if lowest_y is None or ruleset['y'] < lowest_y:
             lowest_uuid = ruleset['uuid']
             lowest_y = ruleset['y']
+            lowest_x = ruleset['x']
+        elif lowest_y == ruleset['y']:
+            if ruleset['x'] < lowest_x:
+                lowest_uuid = ruleset['uuid']
+                lowest_y = ruleset['y']
+                lowest_x = ruleset['x']
 
     for actionset in json_flow.get('action_sets', []):
-        if lowest_y is None or actionset['y'] <= lowest_y:
+        if lowest_y is None or actionset['y'] < lowest_y:
             lowest_uuid = actionset['uuid']
             lowest_y = actionset['y']
-
+            lowest_x = actionset['x']
+        elif lowest_y == actionset['y']:
+            if actionset['x'] < lowest_x:
+                lowest_uuid = actionset['uuid']
+                lowest_y = actionset['y']
+                lowest_x = actionset['x']
     return lowest_uuid
 
 
@@ -483,7 +771,8 @@ def map_actions(json_flow, fixer_method):
     removed, otherwise the returned action is used.
     """
     action_sets = []
-    for actionset in json_flow.get('action_sets', []):
+    original_action_sets = json_flow.get('action_sets', [])
+    for actionset in original_action_sets:
         actions = []
         for action in actionset.get('actions', []):
             fixed_action = fixer_method(action)
@@ -497,7 +786,10 @@ def map_actions(json_flow, fixer_method):
             action_sets.append(actionset)
 
     json_flow['action_sets'] = action_sets
-    json_flow['entry'] = get_entry(json_flow)
+
+    # if we trimmed off an actionset, reevaluate our start node
+    if len(action_sets) < len(original_action_sets):
+        json_flow['entry'] = get_entry(json_flow)
 
     return json_flow
 

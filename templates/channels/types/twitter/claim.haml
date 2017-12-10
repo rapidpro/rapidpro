@@ -1,11 +1,11 @@
--extends "smartmin/base.html"
+-extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
 -block title
-  .medium-help.icon-twitter.float-left
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
 
   %h2.font_normalize.header-margin
-    -trans "Connect Twitter"
+    {{ title }}
 
 -block content
   .info

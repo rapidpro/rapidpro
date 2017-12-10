@@ -1,5 +1,13 @@
 -load i18n
 
+:css
+  .errors {
+    margin: 20px;
+  }
+
+  .rule-editor .modal-body input.url {
+    width: 485px;
+  }
 
 .modal-header.title
   %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
@@ -21,6 +29,8 @@
           %input{ng-model:"ruleset.label",name:"label",alphanum:"",ng-required:"true",type:"text",id:"label-name", maxlength:"64"}
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
+    .errors
+      -include 'partials/invalid_fields.haml'   
 
     .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_menu"', ussd:0}
     .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:1}
@@ -78,7 +88,7 @@
       .split-margin
         %p{class:"description"}
           -trans "Select all the groups you would like to split by below"
-        %input{style:"height:38px; width:620px",ng-model:"formData.omnibox", name:"omnibox",required:"",omnibox:'{"types":"g", "sortable":true, "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"formData.groups",type:"hidden"}
+        %input{style:"height:38px; width:620px",ng-model:"formData.omnibox", name:"omnibox",required:"",omnibox:'{"types":"g", "sortable":true, "arbitraryAdd":true, "completions":false, "allowExtra": true}',groups:"formData.groups",type:"hidden"}
 
     .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
       .split-margin
@@ -104,13 +114,14 @@
                select-server:"/api/resthooks/?_format=select2", type:"hidden"}
 
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
-      .split-margin
+      .split-margin          
         %p{class:"description"}
           -blocktrans
             Using a Webhook you can fetch data from an external database
             and use it in this flow.
             Enter the URL to call out to at this point in the flow.
-
+        
+        -include 'partials/invalid_fields.haml'
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
 
@@ -127,9 +138,9 @@
                 -trans "Header Value"
           .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_headers"}
             .modal-webhook-header.modal-webhook-header-name
-              %input{type:"text",name:"webhook-name",ng-model:"webhook_headers_name[$index]"}
+              %input{type:"text",name:"webhook-name",ng-model:"header.name"}
             .modal-webhook-header.modal-webhook-header-value
-              %input{type:"text",name:"webhook-value",ng-model:"webhook_headers_value[$index]"}
+              %input{type:"text",name:"webhook-value",ng-model:"header.value"}
             .modal-webhook-header.modal-webhook-header-remove
               .icon.icon-close{ng-click:"removeWebhookHeader($index)"}
 
