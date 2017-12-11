@@ -14,14 +14,17 @@ def get_language_name(iso_code):
         iso_code: three character iso_code
     """
     if iso_code not in iso_codes:
-        try:
-            lang_name = pycountry.languages.get(alpha_3=iso_code).name
-        except KeyError:
-            lang_name = None
-
-        iso_codes[iso_code] = lang_name
+        iso_codes[iso_code] = _get_language_name_iso6393(iso_code)
 
     return iso_codes[iso_code]
+
+
+def _get_language_name_iso6393(iso_code):
+    try:
+        lang_name = pycountry.languages.get(alpha_3=iso_code).name
+    except KeyError:
+        lang_name = None
+    return lang_name
 
 
 def search_language_names(query):

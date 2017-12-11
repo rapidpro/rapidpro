@@ -15,7 +15,7 @@ class PlivoTypeTest(TembaTest):
         self.login(self.admin)
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         connect_plivo_url = reverse('orgs.org_plivo_connect')
         claim_plivo_url = reverse('channels.claim_plivo')

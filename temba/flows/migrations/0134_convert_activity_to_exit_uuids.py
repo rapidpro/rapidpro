@@ -51,7 +51,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0132_path_trigger_update'),
+        ('flows', '0133_auto_20171208_1742'),
     ]
 
     operations = [
