@@ -2404,13 +2404,15 @@ class JioChatHandler(BaseChannelHandler):
         external_id = body.get('MsgId', None)
 
         urn = URN.from_jiochat(sender_id)
-        contact_name = None
-        if not channel.org.is_anon:
-            contact_detail = client.get_user_detail(sender_id, channel.id)
-            contact_name = contact_detail.get('nickname')
+        contact = Contact.from_urn(channel.org, urn)
+        if not contact:
+            contact_name = None
+            if not channel.org.is_anon:
+                contact_detail = client.get_user_detail(sender_id, channel.id)
+                contact_name = contact_detail.get('nickname')
 
-        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
-                                        urns=[urn], channel=channel)
+            contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
+                                            urns=[urn], channel=channel)
 
         if msg_type == 'event':
             event = body.get('Event')
