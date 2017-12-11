@@ -1000,7 +1000,7 @@ class FlowTest(TembaTest):
         # test that we don't exceed the limit on rows per sheet
         with patch('temba.flows.models.ExportFlowResultsTask.MAX_EXCEL_ROWS', 4):
             workbook = self.export_flow_results(self.flow)
-            expected_sheets = [("Runs", 3), ("Contacts", 4), ("Contacts (2)", 4), ("Messages", 4),
+            expected_sheets = [("Runs", 4), ("Runs (2)", 3), ("Contacts", 4), ("Messages", 4),
                                ("Messages (2)", 4), ("Messages (3)", 4), ("Messages (4)", 4), ("Messages (5)", 2)]
 
             for s, sheet in enumerate(workbook.worksheets):
