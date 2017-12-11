@@ -124,10 +124,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER temba_flowrun_path_change
   AFTER INSERT OR DELETE OR UPDATE OF path, is_active ON flows_flowrun
   FOR EACH ROW EXECUTE PROCEDURE temba_flowrun_path_change();
-
-CREATE TRIGGER temba_flowrun_truncate
-  AFTER INSERT OR DELETE OR UPDATE OF path, is_active ON flows_flowrun
-  FOR EACH ROW EXECUTE PROCEDURE temba_flowrun_path_change();
 """
 
 
