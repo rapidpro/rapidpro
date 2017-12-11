@@ -3180,7 +3180,9 @@ class TwitterHandler(BaseChannelHandler):
 
                 urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+                contact = Contact.from_urn(channel.org, urn)
+                if not contact:
+                    contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 
                 external_id = dm_event['id']
                 created_on = ms_to_datetime(int(dm_event['created_timestamp']))

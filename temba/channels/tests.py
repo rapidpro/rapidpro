@@ -6960,6 +6960,20 @@ class TwitterTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Msg.objects.count(), 1)
 
+        # check we do not overwrite the existing contact name
+        data = self.webhook_payload('ext3', "Awesome!",
+                                    dict(id='10002', name="Davis", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 2)
+        msg = Msg.objects.filter(text='Awesome!').first()
+        self.assertEqual(msg.contact, self.joe)
+        self.assertEqual(msg.contact.name, "Joe")  # name should not be updated to Davis
+        self.assertEqual(msg.contact_urn, self.joe.get_urns()[0])
+        self.assertEqual(msg.external_id, 'ext3')
+
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         msg = self.joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
