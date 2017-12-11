@@ -8102,10 +8102,6 @@ class TimeoutTest(FlowFileTest):
         flow2 = self.get_flow('multi_timeout')
         flow2.start([], [self.contact])
 
-        # reactivate our first run (not usually possible to have both active)
-        run1.is_active = True
-        run1.save(update_fields=('is_active',))
-
         # remove our timeout rule on our second flow
         flow_json = flow2.as_json()
         del flow_json['rule_sets'][0]['rules'][-1]
