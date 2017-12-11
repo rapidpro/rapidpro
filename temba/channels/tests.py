@@ -6974,6 +6974,16 @@ class TwitterTest(TembaTest):
         self.assertEqual(msg.contact_urn, self.joe.get_urns()[0])
         self.assertEqual(msg.external_id, 'ext3')
 
+        # we create a contact if it does not exist yet
+        data = self.webhook_payload('ext4', "Hello!",
+                                    dict(id='10003', name="Kelly", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 3)
+        msg = Msg.objects.filter(text='Hello!').first()
+        self.assertEqual(msg.contact.name, "Kelly")
+
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         msg = self.joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
