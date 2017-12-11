@@ -2418,9 +2418,10 @@ class Flow(TembaModel):
 
             self.update_dependencies()
 
+        except FlowUserConflictException as e:
+            raise e
         except Exception as e:
-            # note that badness happened
-            logger = logging.getLogger(__name__)
+            # user will see an error in the editor but log exception so we know we got something to fix
             logger.exception(six.text_type(e))
             traceback.print_exc(e)
             raise e
