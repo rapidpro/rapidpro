@@ -660,7 +660,6 @@ class FlowTest(TembaTest):
         contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
         contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        time.sleep(1)
         with self.assertNumQueries(48):
             workbook = self.export_flow_results(flow)
 
@@ -806,8 +805,6 @@ class FlowTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
-        time.sleep(1)
-
         # simulate two runs each for two contacts...
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
         Flow.find_and_handle(contact1_in1)
@@ -818,11 +815,7 @@ class FlowTest(TembaTest):
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
         Flow.find_and_handle(contact2_in1)
 
-        time.sleep(1)
-
         contact1_run2, contact2_run2 = self.flow.start([], [self.contact, self.contact2], restart_participants=True)
-
-        time.sleep(1)
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
         Flow.find_and_handle(contact1_in3)
@@ -1016,8 +1009,6 @@ class FlowTest(TembaTest):
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
 
-        time.sleep(1)
-
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="Red")
         Flow.find_and_handle(contact1_in1)
 
@@ -1050,8 +1041,6 @@ class FlowTest(TembaTest):
 
     def test_export_results_remove_control_characters(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
-
-        time.sleep(1)
 
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="ngert\x07in.")
         Flow.find_and_handle(contact1_in1)
