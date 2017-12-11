@@ -51,6 +51,13 @@
     -webkit-transition: none;
   }
 
+  label[for="new_format"] {
+    display: inline-block;
+  }
+
+  .modal.api .modal-body input {
+    margin-left: 0px;
+  }
 
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
@@ -262,36 +269,64 @@
           %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
             -trans "Add header"
 
-      .help-text
-        -blocktrans
-          We'll include the message text along with data specified
-          in the
-          %a{href:"/webhooks/webhook/#flow"}<
-            Webhook Flow Event API
-          .
+      .div{ng-show:'formData.supportsLegacy'}
+        .div.warning
 
-      .help-text
-        -blocktrans
-          This step will be identified as [[action.uuid]]
+          .div{ng-show:'formData.newFormat'}
+            %p
+              This webhook is set to use the
+              %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
+                new version
+              of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
+              box below. Keep in mind that the deprecated format will be removed January 31, 2018.
 
-      %p{class:"description response"}
-        -blocktrans
-          If your server responds with JSON, each property will be
-          added to the flow.
+          .div{ng-hide:'formData.newFormat'}
+            %p
+              This webhook is using a
+              %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
+                deprecated version
+              of the POST Webhook API which will be removed on January 31, 2018.
+              Prior to that date, you will need to update any services depending on the deprecated API format.
 
-      .code
-        &#x7B;
-        %br
-        &nbsp;&nbsp;product: "Solar charging kit",
-        %br
-        &nbsp;&nbsp;stock_level: 32
-        %br
-        &#x7D;
+            %p
+              Review the
+              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+                new version
+              and check the box below when this webhook is ready to start receiving the new format.
 
-      .help-text
-        -blocktrans
-          In this example @extra.product and @extra.stock_level
-          would be added for all future steps.
+          .div{style:'margin-top:10px'}
+            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+              %label{for:'new_format'}
+                Use the new webhook format
+
+      .div{ng-hide:'formData.supportsLegacy'}
+        .help-text
+          -blocktrans
+            We'll include the message text along with data specified in the
+            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+              Webhook Flow Event API
+            . This step will be identified as [[ruleset.uuid]]
+
+        %p
+        %p{class:"description response"}
+          -blocktrans
+            If your server responds with JSON, each property will be added
+            to the flow.
+
+        .example
+          .code
+            &#x7B;
+            %br
+            &nbsp;&nbsp;product: "Solar charging kit",
+            %br
+            &nbsp;&nbsp;stock_level: 32
+            %br
+            &#x7D;
+
+        .help-text
+          -blocktrans
+            In this example @extra.product and @extra.stock_level would be
+            added for all future steps
 
       %button{ng-click:"saveWebhook(action.action, action.webhook)",class:"submit hide"}
         -trans "Ok"

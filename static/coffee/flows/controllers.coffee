@@ -1097,6 +1097,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
     formData.isWebhookAdditionalOptionsVisible = formData.webhook_headers.length > 0
+
+    if 'legacy_format' of ruleset.config
+      formData.newFormat = !ruleset.config.legacy_format
+      formData.supportsLegacy = true
+
   else
     formData.webhook_headers = []
     formData.isWebhookAdditionalOptionsVisible = false
@@ -1745,6 +1750,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           webhook_action: formData.webhook_action
           webhook_headers: webhook_headers
 
+        if formData.supportsLegacy and formData.webhook_action == 'POST'
+          ruleset.config.legacy_format = !formData.newFormat
+
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
         ruleset.operand = '@contact.' + contactField.id
@@ -1824,6 +1832,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action = utils.clone(action)
   $scope.showAttachOptions = false
   $scope.showAttachVariable = false
+
+  if 'legacy_format' of $scope.action
+    formData.newFormat = !$scope.action.legacy_format
+    formData.supportsLegacy = true
+    console.log("supports legacy:", formData.supportsLegacy)
   
   if $scope.action._attachURL
     $scope.showAttachOptions = true
@@ -2080,9 +2093,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # don't include headers without name
     webhook_headers = []
-    for header in $scope.action.webhook_headers
-      if header.name
-        webhook_headers.push(header)
+    if $scope.action.webhook_headers
+      for header in $scope.action.webhook_headers
+        if header.name
+          webhook_headers.push(header)
 
     $scope.action.type = 'api'
     $scope.action.action = method

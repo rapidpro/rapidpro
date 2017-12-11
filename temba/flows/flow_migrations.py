@@ -21,13 +21,14 @@ def migrate_to_version_11_3(json_flow, flow=None):
     """
     for actionset in json_flow['action_sets']:
         for action in actionset['actions']:
-            if action['type'] == 'api':
+            if action['type'] == 'api' and action['action'] == 'POST':
                 action['legacy_format'] = True
+
     for ruleset in json_flow['rule_sets']:
         if ruleset['ruleset_type'] == 'webhook':
-            ruleset['config']['legacy_format'] = True
+            if ruleset['config']['webhook_action'] == 'POST':
+                ruleset['config']['legacy_format'] = True
 
-    # print(json.dumps(json_flow, indent=1))
     return json_flow
 
 
