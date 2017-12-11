@@ -4483,7 +4483,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # a new contact
                 if last_contact != run_step.contact.pk:
-                    if not contacts_sheet or contacts_sheet._max_row >= self.MAX_EXCEL_ROWS:
+                    if not contacts_sheet or contacts_sheet._max_row >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                         contacts_sheet = self._add_contacts_sheet(book, runs_headers, runs_col_widths)
 
                     merged_earliest = run_step.arrived_on
