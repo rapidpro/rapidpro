@@ -14,7 +14,7 @@ class TwimlAPITypeTest(TembaTest):
         self.login(self.admin)
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         claim_url = reverse('channels.claim_twiml_api')
 
@@ -52,7 +52,7 @@ class TwimlAPITypeTest(TembaTest):
             )
         )
 
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         response = self.client.post(claim_url, dict(country='US', number='8080', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
         channel = self.org.channels.all().first()

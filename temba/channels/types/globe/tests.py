@@ -8,7 +8,7 @@ from ...models import Channel
 class GlobeTypeTest(TembaTest):
     def test_claim(self):
         # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
+        self.org.channels.all().update(is_active=False)
 
         self.login(self.admin)
         claim_url = reverse('channels.claim_globe')
