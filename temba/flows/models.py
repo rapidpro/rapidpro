@@ -4445,7 +4445,7 @@ class ExportFlowResultsTask(BaseExportTask):
         last_contact = None
 
         # the current sheets
-        runs_sheet = self._add_contacts_sheet(book, runs_headers, runs_col_widths) if include_runs else None
+        runs_sheet = self._add_runs_sheet(book, runs_headers, runs_col_widths) if include_runs else None
         contacts_sheet = self._add_contacts_sheet(book, runs_headers, runs_col_widths)
         msgs_sheet = None
 
