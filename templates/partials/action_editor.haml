@@ -269,7 +269,7 @@
           %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
             -trans "Add header"
 
-      .div{ng-show:'formData.supportsLegacy'}
+      .div{ng-show:'formData.supportsLegacy && action.action == "POST"'}
         .div.warning
 
           .div{ng-show:'formData.newFormat'}
@@ -299,7 +299,7 @@
               %label{for:'new_format'}
                 Use the new webhook format
 
-      .div{ng-hide:'formData.supportsLegacy'}
+      .div{ng-hide:'formData.supportsLegacy && action.action == "POST"'}
         .help-text
           -blocktrans
             We'll include the message text along with data specified in the

@@ -1750,7 +1750,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           webhook_action: formData.webhook_action
           webhook_headers: webhook_headers
 
-        if formData.supportsLegacy and formData.webhook_action == 'POST'
+        if formData.supportsLegacy
           ruleset.config.legacy_format = !formData.newFormat
 
       # update our operand if they selected a contact field explicitly
@@ -1836,8 +1836,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if 'legacy_format' of $scope.action
     formData.newFormat = !$scope.action.legacy_format
     formData.supportsLegacy = true
-    console.log("supports legacy:", formData.supportsLegacy)
-  
+
   if $scope.action._attachURL
     $scope.showAttachOptions = true
     $scope.showAttachVariable = true
@@ -2102,6 +2101,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.action = method
     $scope.action.webhook = url
     $scope.action.webhook_headers = webhook_headers
+
+    if $scope.formData.supportsLegacy
+      $scope.action.legacy_format = !$scope.formData.newFormat
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
