@@ -26,7 +26,7 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
-from temba.utils.languages import iso6392_to_iso6393
+from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -1142,8 +1142,10 @@ class Contact(TembaModel):
             urns.append(urn)
 
         if not urns and not (org.is_anon or uuid):
-            error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
+            urn_headers = ", ".join(possible_urn_headers)
+            error_str = "Missing any valid URNs; at least one among %s should be provided or a Contact UUID" % (
+                urn_headers,
+            )
 
             raise SmartImportRowError(error_str)
 
@@ -1154,13 +1156,9 @@ class Contact(TembaModel):
 
         language = field_dict.get(Contact.LANGUAGE)
         if language is not None and len(language) != 3:
-            language = None  # ignore anything that's not a 3-letter code
-        else:
-            try:
-                # convert every language to the iso639-3
-                language = iso6392_to_iso6393(language, org.get_country_code())
-            except ValueError:
-                language = None
+            language = None
+        if language is not None and _get_language_name_iso6393(language) is None:
+            raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
@@ -1610,10 +1608,9 @@ class Contact(TembaModel):
         if not contacts:
             return
 
-        # get our contact fields
-        fields = ContactField.objects.filter(org=org)
+        fields = org.cached_contact_fields
         if for_show_only:
-            fields = fields.filter(show_in_table=True)
+            fields = [f for f in fields if f.show_in_table]
 
         # build id maps to avoid re-fetching contact objects
         key_map = {f.id: f.key for f in fields}
@@ -1647,6 +1644,7 @@ class Contact(TembaModel):
 
         # set the cache initialize as correct
         for contact in contacts:
+            contact.org = org
             setattr(contact, '__cache_initialized', True)
 
     def build_expressions_context(self):
@@ -2029,6 +2027,8 @@ class ContactURN(models.Model):
         # not found? create it
         if not urn:
             urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+            if contact:
+                contact.clear_urn_cache()
 
         return urn
 
@@ -2224,7 +2224,7 @@ class ContactGroup(TembaModel):
         existing = None
 
         if group_uuid is not None:
-            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
+            existing = org.get_group(group_uuid)
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
@@ -2526,9 +2526,11 @@ class ExportContactsTask(BaseExportTask):
         return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
 
     def get_export_fields_and_schemes(self):
-
-        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
-                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+        fields = [
+            dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+            dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None),
+            dict(label='Language', key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None)
+        ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
@@ -2601,6 +2603,8 @@ class ExportContactsTask(BaseExportTask):
                         field_value = contact.name
                     elif field['key'] == Contact.UUID:
                         field_value = contact.uuid
+                    elif field['key'] == Contact.LANGUAGE:
+                        field_value = contact.language
                     elif field['key'] == Contact.ID:
                         field_value = six.text_type(contact.id)
                     elif field['urn_scheme'] is not None:

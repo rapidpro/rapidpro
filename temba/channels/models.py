@@ -534,7 +534,10 @@ class Channel(TembaModel):
         """
         Generates a secret value used for command signing
         """
-        return random_string(length)
+        code = random_string(length)
+        while cls.objects.filter(secret=code):  # pragma: no cover
+            code = random_string(length)
+        return code
 
     @classmethod
     def determine_encoding(cls, text, replace=False):
@@ -724,7 +727,7 @@ class Channel(TembaModel):
         cached = cache.get(key, None)
 
         if cached is None:
-            channel = Channel.objects.filter(pk=channel_id).exclude(org=None).first()
+            channel = Channel.objects.filter(pk=channel_id, is_active=True).first()
 
             # channel has been disconnected, ignore
             if not channel:  # pragma: no cover
@@ -905,19 +908,14 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
+        fcm_id = config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
         else:
             registration_id = self.gcm_id
 
-        # remove all identifying bits from the client
-        self.org = None
-        self.gcm_id = None
-        self.config = json.dumps(config)
-        self.secret = None
-        self.claim_code = None
+        # make the channel inactive
         self.is_active = False
         self.save()
 

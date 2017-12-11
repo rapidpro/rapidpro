@@ -1,3 +1,31 @@
+v3.0.286
+----------
+ * Remove incomplete path counts
+
+v3.0.285
+----------
+ * Migrate languages on campaign events
+ * Rework flow path count trigger to use exit_uuid and not record incomplete segments
+
+v3.0.282
+----------
+ * Don't import contacts with unknown iso639-3 code
+ * Make angular bits less goofy for quick replies and webhooks
+ * Add is_active index on flowrun
+ * Don't disassociate channels from orgs when they're released
+ * Include language column in Contact export
+
+v3.0.281
+----------
+ * Set tps for nexmo and whatsapp
+ * Dont overwrite name when receiving a message from a contact that already exists
+ * Flow start performance improvements
+
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
 v3.0.279
 ----------
  * Update Nexmo channels to use new Courier URLs

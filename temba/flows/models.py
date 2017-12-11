@@ -1084,32 +1084,23 @@ class Flow(TembaModel):
         totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
         return {t[0]: t[1] for t in totals if t[1]}
 
-    def get_segment_counts(self, simulation, include_incomplete=False):
+    def get_segment_counts(self, simulation):
         """
         Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
         contacts as these are not pre-calculated.
         """
         if not simulation:
-            return FlowPathCount.get_totals(self, include_incomplete)
+            return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True)
+        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
+        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
 
-        if not include_incomplete:
-            steps = steps.exclude(next_uuid=None)
+        path_counts = {}
+        for step in steps:
+            if step['count']:
+                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
 
-        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
-        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
-
-        visits = {}
-        for step in visited_actions:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['step_uuid'], step['next_uuid'])] = step['count']
-
-        for step in visited_rules:
-            if step['next_uuid'] and step['count']:
-                visits['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
-
-        return visits
+        return path_counts
 
     def get_activity(self, simulation=False):
         """
@@ -1484,8 +1475,8 @@ class Flow(TembaModel):
             return runs
 
         for contact_id in all_contact_ids:
-
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1559,7 +1550,7 @@ class Flow(TembaModel):
             if not contact or not contact_urn or not channel:  # pragma: no cover
                 continue
 
-            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
@@ -1656,10 +1647,11 @@ class Flow(TembaModel):
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
 
-        simulation = False
-        if len(batch_contact_ids) == 1:
-            if Contact.objects.filter(pk=batch_contact_ids[0], org_id=self.org_id, is_test=True).first():
-                simulation = True
+        batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
+        Contact.bulk_cache_initialize(self.org, batch_contacts)
+        contact_map = {c.id: c for c in batch_contacts}
+
+        simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
         # these fields are the initial state for our flow run
         run_fields = None
@@ -1673,15 +1665,16 @@ class Flow(TembaModel):
         now = timezone.now()
 
         for contact_id in batch_contact_ids:
-            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
+            contact = contact_map[contact_id]
+            run = FlowRun.create(self, contact, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
-
             batch.append(run)
-        FlowRun.objects.bulk_create(batch)
+
+        runs = FlowRun.objects.bulk_create(batch)
 
         # build a map of contact to flow run
         run_map = dict()
-        for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now).select_related('contact'):
+        for run in runs:
             run.flow = self
             run.org = self.org
 
@@ -1694,8 +1687,7 @@ class Flow(TembaModel):
 
         # if we have more than one run, update the others to the same expiration
         if len(run_map) > 1:
-            FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
-                                                                                         modified_on=timezone.now())
+            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on, modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1707,8 +1699,9 @@ class Flow(TembaModel):
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
+                broadcast.org = self.org
                 # provide the broadcast with a partial recipient list
-                partial_recipients = list(), Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
+                partial_recipients = list(), batch_contacts
 
                 # create the sms messages
                 created_on = timezone.now()
@@ -1717,7 +1710,8 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel'):
+                    msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:  # pragma: needs cover
@@ -1735,16 +1729,15 @@ class Flow(TembaModel):
             if entry_rules:
                 entry_rules.flow = self
 
-        runs = []
         msgs = []
         optimize_sending_action = len(broadcasts) > 0
 
-        for contact_id in batch_contact_ids:
+        for run in runs:
+            contact = run.contact
+
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
-
-            run = run_map[contact_id]
-            run_msgs = message_map.get(contact_id, [])
+            run_msgs = message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
             try:
@@ -1762,7 +1755,7 @@ class Flow(TembaModel):
 
                         next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                                                      is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
@@ -1780,7 +1773,7 @@ class Flow(TembaModel):
                     # if we didn't get an incoming message, see if we need to evaluate it passively
                     elif not entry_rules.is_pause():
                         # create an empty placeholder message
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
@@ -1789,14 +1782,13 @@ class Flow(TembaModel):
 
                 # set the msgs that were sent by this run so that any caller can deal with them
                 run.start_msgs = run_msgs
-                runs.append(run)
 
                 # add these messages as ones that are ready to send
                 for msg in run_msgs:
                     msgs.append(msg)
 
             except Exception:
-                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact.id), exc_info=1, extra={'stack': True})
 
                 # mark this flow as interrupted
                 run.set_interrupted()
@@ -1831,8 +1823,9 @@ class Flow(TembaModel):
 
         if previous_step:
             previous_step.left_on = arrived_on
+            previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'next_uuid'))
+            previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
             if not previous_step.contact.is_test:
                 FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
@@ -2636,10 +2629,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
+    def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
-        args = dict(org_id=flow.org_id, flow=flow, contact_id=contact_id, start=start,
+        args = dict(org_id=flow.org_id, flow=flow, contact=contact, start=start,
                     session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
@@ -2649,9 +2642,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             parent.clear_cached_child()
 
         if db_insert:
-            return FlowRun.objects.create(**args)
+            run = FlowRun.objects.create(**args)
         else:
-            return FlowRun(**args)
+            run = FlowRun(**args)
+
+        run.contact = contact
+        return run
 
     def build_expressions_context(self, contact_context=None):
         """
@@ -4028,41 +4024,26 @@ class FlowPathCount(SquashableModel):
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
-        if distinct_set.to_uuid:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-            VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {'table': cls._meta.db_table}
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" IS NULL AND "period" = date_trunc('hour', %%s) RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-            VALUES (%%s, %%s, NULL, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {'table': cls._meta.db_table}
-
-            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
-
+        params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
         return sql, params
 
     @classmethod
-    def get_totals(cls, flow, include_incomplete=False):
+    def get_totals(cls, flow):
         counts = cls.objects.filter(flow=flow)
-        if not include_incomplete:
-            counts = counts.exclude(to_uuid=None)
-
         totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
         return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 

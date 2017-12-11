@@ -61,6 +61,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel.create(org, user, data['country'], 'WA',
                                      name="WhatsApp: %s" % data['number'],
                                      address=data['number'],
-                                     config=config)
+                                     config=config,
+                                     tps=15)
 
         return super(ClaimView, self).form_valid(form)

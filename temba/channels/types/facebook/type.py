@@ -104,7 +104,7 @@ class FacebookType(ChannelType):
             except Exception as e:
                 raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # pragma: no cover
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
                                 event=event, start=start)
 
