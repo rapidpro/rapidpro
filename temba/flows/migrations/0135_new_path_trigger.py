@@ -4,13 +4,11 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
-DROPS_SQL = """
+SQL = """
 DROP TRIGGER temba_flowstep_truncate_flowpathcount ON flows_flowstep;
 DROP TRIGGER temba_flowstep_update_flowpathcount ON flows_flowstep;
 DROP FUNCTION temba_update_flowpathcount();
-"""
 
-UPDATE_SQL = """
 ----------------------------------------------------------------------
 -- Handles changes relating to a flow run's path
 ----------------------------------------------------------------------
@@ -132,9 +130,9 @@ CREATE TRIGGER temba_flowrun_path_change
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0133_convert_activity_to_exit_uuids'),
+        ('flows', '0134_convert_activity_to_exit_uuids'),
     ]
 
     operations = [
-        migrations.RunSQL(DROPS_SQL + UPDATE_SQL)
+        migrations.RunSQL(SQL)
     ]
