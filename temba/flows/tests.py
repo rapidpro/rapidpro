@@ -834,7 +834,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(47):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -927,7 +927,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(45):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -954,7 +954,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -4898,14 +4898,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(replies.count(), 4)
         self.assertEqual(replies.filter(contact_urn__path='stephen').count(), 2)
         self.assertEqual(replies.filter(contact_urn__path='+12078778899').count(), 2)
-
-    def test_get_columns_order(self):
-        flow = self.get_flow('columns_order')
-
-        export_columns = flow.get_columns()
-        self.assertEqual(export_columns[0], RuleSet.objects.filter(flow=flow, label='Beer').first())
-        self.assertEqual(export_columns[1], RuleSet.objects.filter(flow=flow, label='Name').first())
-        self.assertEqual(export_columns[2], RuleSet.objects.filter(flow=flow, label='Color').first())
 
     def test_recent_messages(self):
         flow = self.get_flow('favorites')

@@ -1276,14 +1276,6 @@ class Flow(TembaModel):
             'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
         }
 
-    def get_columns(self):
-        node_order = []
-        for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
-            if ruleset.uuid:
-                node_order.append(ruleset)
-
-        return node_order
-
     def build_expressions_context(self, contact, msg, run=None):
         contact_context = contact.build_expressions_context() if contact else dict()
 
@@ -4375,12 +4367,16 @@ class ExportFlowResultsTask(BaseExportTask):
 
         contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
 
-        # merge the columns for all of our flows
+        # get rulesets across all flows being exported
         show_submitted_by = False
-        columns = []
-        flows = list(self.flows.filter(is_active=True, is_archived=False))
+        rulesets = []
+        flows = list(self.flows.filter(is_active=True, is_archived=False).prefetch_related(
+            Prefetch('rule_sets', RuleSet.objects.exclude(label=None).order_by('y', 'id'))
+        ))
         for flow in flows:
-            columns += flow.get_columns()
+            for ruleset in flow.rule_sets.all():
+                ruleset.flow = flow
+                rulesets.append(ruleset)
 
             if flow.flow_type == Flow.SURVEY:
                 show_submitted_by = True
@@ -4391,10 +4387,10 @@ class ExportFlowResultsTask(BaseExportTask):
                 label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get('label', '')
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
-        # create a mapping of column id to index
-        column_map = dict()
-        for col in range(len(columns)):
-            column_map[columns[col].uuid] = 6 + len(extra_urn_columns) + len(contact_fields) + col * 3
+        # create a mapping of rulesets to column indexes
+        ruleset_col_indexes = {}
+        for r, ruleset in enumerate(rulesets):
+            ruleset_col_indexes[rulesets[r].uuid] = 6 + len(extra_urn_columns) + len(contact_fields) + (r * 3)
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -4426,7 +4422,7 @@ class ExportFlowResultsTask(BaseExportTask):
         step_ids = array(str('l'), all_steps)
 
         runs_headers, runs_col_widths = self._get_runs_headers(show_submitted_by, extra_urn_columns, contact_fields,
-                                                               columns)
+                                                               rulesets)
 
         book = Workbook(write_only=True)
         book.num_runs_sheets = 0
@@ -4581,7 +4577,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 merged_sheet_row[padding + 5 + extra_urn_padding + cf_padding] = merged_latest
 
                 # write the step data
-                col = column_map.get(run_step.step_uuid, 0) + padding
+                col = ruleset_col_indexes.get(run_step.step_uuid, 0) + padding
                 if col:
                     category = category_map.get(run_step.rule_uuid, None)
                     if category:
