@@ -19,12 +19,13 @@ def migrate_to_version_11_3(json_flow, flow=None):
     """
     Migrates webhooks to support legacy format
     """
-    for actionset in json_flow['action_sets']:
+    for actionset in json_flow.get('action_sets', []):
         for action in actionset['actions']:
-            if action['type'] == 'api' and action['action'] == 'POST':
+            if action['type'] == 'api' and action.get('action', 'POST') == 'POST':
+                action['action'] = 'POST'
                 action['legacy_format'] = True
 
-    for ruleset in json_flow['rule_sets']:
+    for ruleset in json_flow.get('rule_sets', []):
         if ruleset['ruleset_type'] == 'webhook':
             if ruleset['config']['webhook_action'] == 'POST':
                 ruleset['config']['legacy_format'] = True

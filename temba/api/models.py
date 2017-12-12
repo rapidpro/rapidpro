@@ -214,7 +214,119 @@ class WebHookEvent(SmartModel):
 
     @classmethod
     def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
-        pass
+
+        flow = run.flow
+        contact = run.contact
+        org = flow.org
+        channel = msg.channel if msg else None
+
+        post_data = {}
+        post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
+        post_data['contact'] = dict(
+            uuid=contact.uuid,
+            name=contact.name,
+            groups=[dict(name=g.name, uuid=g.uuid) for g in contact.user_groups.all()],
+            fields={f.key: contact.get_field_raw(f.key) for f in org.cached_contact_fields if contact.get_field(f.key)}
+        )
+        post_data['path'] = json.loads(run.path if run.path else '[]')
+        post_data['results'] = json.loads(run.results if run.results else '{}')
+
+        api_user = get_api_user()
+        if not action:  # pragma: needs cover
+            action = 'POST'
+
+        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(post_data),
+                                           run=run, try_count=1, action=action, resthook=resthook,
+                                           created_by=api_user, modified_by=api_user)
+
+        status_code = -1
+        message = "None"
+        body = None
+
+        start = time.time()
+
+        # webhook events fire immediately since we need the results back
+        try:
+            # no url, bail!
+            if not webhook_url:
+                raise Exception("No webhook_url specified, skipping send")
+
+            # only send webhooks when we are configured to, otherwise fail
+            if settings.SEND_WEBHOOKS:
+                requests_headers = http_headers(extra=headers)
+
+                # some hosts deny generic user agents, use Temba as our user agent
+                if action == 'GET':
+                    response = requests.get(webhook_url, headers=requests_headers, timeout=10)
+                else:
+                    response = requests.post(webhook_url, data=json.dumps(post_data), headers=requests_headers, timeout=10)
+
+                body = response.text
+                if body:
+                    body = body.strip()
+                status_code = response.status_code
+            else:
+                print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+                body = 'Skipped actual send'
+                status_code = 200
+
+            # process the webhook response
+            try:
+                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+
+                # only update if we got a valid JSON dictionary or list
+                if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
+
+                run.update_fields(response_json)
+                message = "Webhook called successfully."
+            except ValueError:
+                message = "Response must be a JSON dictionary, ignoring response."
+
+            if 200 <= status_code < 300:
+                webhook_event.status = cls.STATUS_COMPLETE
+            else:
+                webhook_event.status = cls.STATUS_FAILED
+                message = "Got non 200 response (%d) from webhook." % response.status_code
+                raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+            webhook_event.status = cls.STATUS_FAILED
+            message = "Error calling webhook: %s" % six.text_type(e)
+
+        finally:
+            webhook_event.save()
+
+            # make sure our message isn't too long
+            if message:
+                message = message[:255]
+
+            request_time = (time.time() - start) * 1000
+
+            contact = None
+            if webhook_event.run:
+                contact = webhook_event.run.contact
+
+            result = WebHookResult.objects.create(event=webhook_event,
+                                                  contact=contact,
+                                                  url=webhook_url,
+                                                  status_code=status_code,
+                                                  body=body,
+                                                  message=message,
+                                                  data=urlencode(post_data, doseq=True),
+                                                  request_time=request_time,
+                                                  created_by=api_user,
+                                                  modified_by=api_user)
+
+            # if this is a test contact, add an entry to our action log
+            if run.contact.is_test:
+                log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (reverse('api.log_read', args=[webhook_event.pk]), status_code)
+                ActionLog.create(run, log_txt, safe=True)
+
+        return result
 
     @classmethod
     def trigger_flow_event_legacy(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):

@@ -3592,8 +3592,10 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
-                if resthook:
-                    # resthooks trigger legacy api for now
+                # resthooks trigger legacy api for now
+                legacy_format = resthook or self.config_json().get('legacy_format', False)
+
+                if legacy_format:
                     result = WebHookEvent.trigger_flow_event_legacy(run, value, self, msg, action, resthook=resthook,
                                                                     headers=header)
                 else:

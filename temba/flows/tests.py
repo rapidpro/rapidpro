@@ -7670,10 +7670,6 @@ class WebhookLoopTest(FlowFileTest):
         self.mockRequest('GET', '/msg', '{ "text": "first message" }')
         self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
 
-        flow_def = flow.as_json()
-        flow_def['action_sets'][0]['actions'][0]['webhook'] = 'http://localhost:49999/msg'
-        flow.update(flow_def)
-
         self.mockRequest('GET', '/msg', '{ "text": "second message" }')
         self.assertEqual("second message", self.send_message(flow, "second"))
 
