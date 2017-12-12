@@ -371,7 +371,8 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance.name = name
                 changed.append('name')
         else:
-            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.parsed_urns, language=language)
+            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.parsed_urns, language=language,
+                                                  force_attr_update=True)
 
         # Contact.get_or_create doesn't nullify language so do that here
         if 'language' in self.validated_data and language is None:
