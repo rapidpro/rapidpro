@@ -4395,7 +4395,12 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .prefetch_related('contact', 'steps__messages__contact_urn', 'steps__messages__channel')  # TODO limit step columns
+                .prefetch_related(
+                    'contact',
+                    Prefetch('steps', FlowStep.objects.only('id', 'run')),
+                    'steps__messages__contact_urn',
+                    'steps__messages__channel'
+                )
                 .order_by('contact', 'id')
             )
 
