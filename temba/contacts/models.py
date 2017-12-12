@@ -853,7 +853,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
+    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_attr_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -916,7 +916,7 @@ class Contact(TembaModel):
                     if contact_has_all_urns:
                         # update contact name if provided
                         updated_attrs = []
-                        if name:
+                        if name and force_attr_update:
                             contact.name = name
                             updated_attrs.append(Contact.NAME)
                         if language:  # pragma: needs cover
@@ -944,7 +944,7 @@ class Contact(TembaModel):
                 existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
 
                 if existing_urn:
-                    if existing_urn.contact and not force_urn_update:
+                    if existing_urn.contact and not force_attr_update:
                         existing_owned_urns[urn] = existing_urn
                         if contact and contact != existing_urn.contact:
                             raise ValueError(_("Provided URNs belong to different existing contacts"))
@@ -964,7 +964,7 @@ class Contact(TembaModel):
             if contact:
                 # update contact name if provided
                 updated_attrs = []
-                if name:
+                if name and force_attr_update:
                     contact.name = name
                     updated_attrs.append(Contact.NAME)
                 if language:
@@ -1161,7 +1161,7 @@ class Contact(TembaModel):
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
+        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_attr_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:

@@ -3061,10 +3061,7 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-
-            contact = Contact.from_urn(channel.org, urn)
-            if not contact:
-                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)
@@ -3180,9 +3177,7 @@ class TwitterHandler(BaseChannelHandler):
 
                 urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
-                contact = Contact.from_urn(channel.org, urn)
-                if not contact:
-                    contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 
                 external_id = dm_event['id']
                 created_on = ms_to_datetime(int(dm_event['created_timestamp']))

@@ -661,6 +661,12 @@ class ContactTest(TembaTest):
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
         self.assertEqual(contact, joe)
+        self.assertEqual(contact.name, "Joe")
+        self.assertEqual(contact.language, 'eng')
+
+        # calling again with same URN updates and returns existing contact
+        contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng', force_attr_update=True)
+        self.assertEqual(contact, joe)
         self.assertEqual(contact.name, "Joey")
         self.assertEqual(contact.language, 'eng')
 
