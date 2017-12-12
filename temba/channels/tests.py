@@ -9499,6 +9499,34 @@ class JiochatTest(TembaTest):
         self.assertEqual(msg.text, "Test")
         self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
+        mock_get.return_value = MockResponse(200, '{"nickname":"Kendrick"}')
+        other_data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'text',
+            'MsgId': '1234567',
+            "Content": "Hello",
+        }
+
+        response = self.client.post(callback_url, json.dumps(other_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
+
+        msg = Msg.objects.all().last()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.name, "Shinonda")  # the name should not change to Kendrick
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Hello")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
         Msg.objects.all().delete()
         Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
@@ -9522,6 +9550,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         data = {
@@ -9566,6 +9595,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(mock_get.call_count, 3)
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         with patch('requests.get') as mock_get:
