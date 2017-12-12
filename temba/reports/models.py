@@ -10,7 +10,7 @@ from temba.orgs.models import Org
 
 
 @six.python_2_unicode_compatible
-class Report(SmartModel):
+class Report(SmartModel):  # pragma: needs cover
     TITLE = 'title'
     DESCRIPTION = 'description'
     CONFIG = 'config'
@@ -56,7 +56,7 @@ class Report(SmartModel):
     def as_json(self):
         return dict(text=self.title, id=self.pk, description=self.description, config=self.config, public=self.is_published)
 
-    def __str__(self):  # pragma: needs cover
+    def __str__(self):
         return "%s - %s" % (self.pk, self.title)
 
     class Meta:
