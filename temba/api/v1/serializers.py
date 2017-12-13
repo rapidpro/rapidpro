@@ -659,9 +659,12 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(
-            org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started, is_active=True
-        ).order_by('-modified_on').first()
+        run = (
+            FlowRun.objects
+            .filter(org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started, is_active=True)
+            .order_by('-modified_on')
+            .first()
+        )
 
         if not run or run.submitted_by != self.submitted_by_obj:
             run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
