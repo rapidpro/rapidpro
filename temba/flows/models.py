@@ -40,7 +40,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.orgs.models import Org, Language, get_current_export_version
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
@@ -1830,7 +1830,7 @@ class Flow(TembaModel):
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
             self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=exit_uuid, rule_category=category)
+                                                                  rule_uuid=exit_uuid)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -2755,12 +2755,18 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
+    def get_messages(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return Msg.objects.filter(steps__run=self)
+
     def get_last_msg(self, direction=INCOMING):
         """
         Returns the last incoming msg on this run
-        :param direction: the direction of the messge to fetch, default INCOMING
+        :param direction: the direction of the message to fetch, default INCOMING
         """
-        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
+        return self.get_messages().filter(direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -3185,7 +3191,6 @@ class FlowStep(models.Model):
         if node.is_ruleset() and json_obj['rule']:
             rule_uuid = json_obj['rule']['uuid']
             rule_value = json_obj['rule']['value']
-            rule_category = json_obj['rule']['category']
 
             # update the value if we have an existing ruleset
             ruleset = RuleSet.objects.filter(flow=flow, uuid=node.uuid).first()
@@ -3205,22 +3210,13 @@ class FlowStep(models.Model):
                         raise ValueError("No such rule with UUID %s" % rule_uuid)
 
                     rule_uuid = rule.uuid
-                    rule_category = rule.get_category_name(run.flow.base_language)
                     rule_value = value
 
                 ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
             step.rule_uuid = rule_uuid
-            step.rule_category = rule_category
-            step.rule_value = rule_value
-
-            try:
-                step.rule_decimal_value = Decimal(json_obj['rule']['value'])
-            except Exception:
-                pass
-
-            step.save(update_fields=('rule_uuid', 'rule_category', 'rule_value', 'rule_decimal_value'))
+            step.save(update_fields=('rule_uuid',))
 
         return step
 
@@ -3249,23 +3245,8 @@ class FlowStep(models.Model):
         self.delete()
 
     def save_rule_match(self, rule, value):
-        self.rule_category = rule.get_category_name(self.run.flow.base_language)
         self.rule_uuid = rule.uuid
-
-        if value is None:
-            value = ''
-
-        # format our rule value appropriately
-        if isinstance(value, datetime):
-            (date_format, time_format) = get_datetime_format(self.run.flow.org.get_dayfirst())
-            self.rule_value = datetime_to_str(value, tz=self.run.flow.org.timezone, format=time_format, ms=False)
-        else:
-            self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
-
-        if isinstance(value, Decimal):
-            self.rule_decimal_value = value
-
-        self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
+        self.save(update_fields=('rule_uuid',))
 
     def get_text(self, run=None):
         """

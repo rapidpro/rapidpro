@@ -18,7 +18,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import FlowLabel, FlowRun, RuleSet, ActionSet, FlowStep
+from temba.flows.models import FlowLabel, FlowRun, RuleSet, ActionSet, Flow
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
@@ -436,7 +436,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = FlowStep.TYPE_RULE_SET
+        flow.entry_type = Flow.RULES_ENTRY
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
@@ -463,18 +463,9 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-
-        steps = list(run.steps.order_by('pk'))
-        self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].step_uuid, flow.entry_uuid)
-        self.assertEqual(steps[0].step_type, 'R')
-        self.assertEqual(steps[0].rule_uuid, None)
-        self.assertEqual(steps[0].rule_category, None)
-        self.assertEqual(steps[0].rule_value, None)
-        self.assertEqual(steps[0].rule_decimal_value, None)
-        self.assertEqual(steps[0].arrived_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].left_on, None)
-        self.assertEqual(steps[0].next_uuid, None)
+        self.assertEqual(run.get_path(), [
+            {'node_uuid': flow.entry_uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
+        ])
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
@@ -557,25 +548,18 @@ class APITest(TembaTest):
             response = self.postJSON(url, data)
             self.assertEqual(201, response.status_code)
 
-        from temba.flows.models import FlowStep
         run = FlowRun.objects.get(flow=flow)
-        self.assertEqual(4, FlowStep.objects.filter(run=run).count())
 
         # check our gps coordinates showed up properly, sooouie.
-        step = FlowStep.objects.filter(step_uuid=ruleset_location.uuid).first()
-        msg = step.messages.all().first()
-        self.assertEqual('47.7579804,-121.0821648', msg.text)
-        self.assertEqual(['geo:47.7579804,-121.0821648'], msg.attachments)
-
-        step = FlowStep.objects.filter(step_uuid=ruleset_photo.uuid).first()
-        msg = step.messages.all().first()
-        self.assertTrue(msg.attachments[0].startswith('image/jpeg:http'))
-        self.assertTrue(msg.attachments[0].endswith('.jpg'))
-
-        step = FlowStep.objects.filter(step_uuid=ruleset_video.uuid).first()
-        msg = step.messages.all().first()
-        self.assertTrue(msg.attachments[0].startswith('video/mp4:http'))
-        self.assertTrue(msg.attachments[0].endswith('.mp4'))
+        msgs = run.get_messages().order_by('id')
+        self.assertEqual(len(msgs), 4)
+        self.assertEqual(msgs[0].text, "Marshawn")
+        self.assertEqual(msgs[1].text, '47.7579804,-121.0821648')
+        self.assertEqual(msgs[1].attachments, ['geo:47.7579804,-121.0821648'])
+        self.assertTrue(msgs[2].attachments[0].startswith('image/jpeg:http'))
+        self.assertTrue(msgs[2].attachments[0].endswith('.jpg'))
+        self.assertTrue(msgs[3].attachments[0].startswith('video/mp4:http'))
+        self.assertTrue(msgs[3].attachments[0].endswith('.mp4'))
 
     def test_api_steps(self):
         url = reverse('api.v1.steps')
@@ -598,17 +582,22 @@ class APITest(TembaTest):
 
         # add an update action
         definition = flow.as_json()
-        new_node_uuid = str(uuid4())
+        new_node = {
+            'uuid': str(uuid4()),
+            'x': 100, 'y': 4,
+            'actions': [
+                {'type': 'save', 'field': 'tel_e164', 'value': '+12065551212'},
+                {'type': 'del_group', 'group': {'name': 'Remove Me'}}
+            ],
+            'exit_uuid': str(uuid4()),
+            'destination': None
+        }
 
         # add a new action set
-        definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
-                                              actions=[
-                                                  dict(type='save', field='tel_e164', value='+12065551212'),
-                                                  dict(type='del_group', group=dict(name='Remove Me'))
-                                              ]))
+        definition['action_sets'].append(new_node)
 
         # point one of our nodes to it
-        definition['action_sets'][1]['destination'] = new_node_uuid
+        definition['action_sets'][1]['destination'] = new_node['uuid']
 
         flow.update(definition)
         data = dict(flow=flow.uuid,
@@ -641,18 +630,9 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-
-        steps = list(run.steps.order_by('pk'))
-        self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].step_uuid, color_prompt.uuid)
-        self.assertEqual(steps[0].step_type, 'A')
-        self.assertEqual(steps[0].rule_uuid, None)
-        self.assertEqual(steps[0].rule_category, None)
-        self.assertEqual(steps[0].rule_value, None)
-        self.assertEqual(steps[0].rule_decimal_value, None)
-        self.assertEqual(steps[0].arrived_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].left_on, None)
-        self.assertEqual(steps[0].next_uuid, None)
+        self.assertEqual(run.get_path(), [
+            {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
+        ])
 
         # outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
@@ -686,7 +666,7 @@ class APITest(TembaTest):
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
                              ]),
-                        dict(node=new_node_uuid,
+                        dict(node=new_node['uuid'],
                              arrived_on='2015-08-25T11:15:30.088Z',
                              actions=[
                                  dict(type="save", field="tel_e164", value="+12065551212"),
@@ -705,25 +685,15 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.steps.count(), 4)
+        self.assertEqual(run.get_path(), [
+            {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00', 'exit_uuid': color_prompt.exit_uuid},
+            {'node_uuid': color_ruleset.uuid, 'arrived_on': '2015-08-25T11:11:30.088000+00:00', 'exit_uuid': orange_rule.uuid},
+            {'node_uuid': color_reply.uuid, 'arrived_on': '2015-08-25T11:13:30.088000+00:00', 'exit_uuid': color_reply.exit_uuid},
+            {'node_uuid': new_node['uuid'], 'arrived_on': '2015-08-25T11:15:30.088000+00:00'}
+        ])
 
         # joe should have an urn now
         self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
-
-        steps = list(run.steps.order_by('pk'))
-        self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].next_uuid, color_ruleset.uuid)
-
-        self.assertEqual(steps[1].step_uuid, color_ruleset.uuid)
-        self.assertEqual(steps[1].step_type, 'R')
-        self.assertEqual(steps[1].rule_uuid, orange_rule.uuid)
-        self.assertEqual(steps[1].rule_category, 'Orange')
-        self.assertEqual(steps[1].rule_value, "orange")
-        self.assertEqual(steps[1].rule_decimal_value, None)
-        self.assertEqual(steps[1].next_uuid, color_reply.uuid)
-        self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[1].messages.count(), 1)
 
         # check results
         results = run.get_results()
@@ -735,29 +705,20 @@ class APITest(TembaTest):
         self.assertEqual(results['color']['input'], "I like orange")
         self.assertIsNotNone(results['color']['created_on'])
 
-        step1_msgs = list(steps[1].messages.order_by('pk'))
-        self.assertEqual(step1_msgs[0].contact, self.joe)
-        self.assertEqual(step1_msgs[0].contact_urn, None)
-        self.assertEqual(step1_msgs[0].text, "I like orange")
-
-        self.assertEqual(steps[2].step_uuid, color_reply.uuid)
-        self.assertEqual(steps[2].step_type, 'A')
-        self.assertEqual(steps[2].rule_uuid, color_reply.exit_uuid)
-        self.assertEqual(steps[2].rule_category, None)
-        self.assertEqual(steps[2].rule_value, None)
-        self.assertEqual(steps[2].rule_decimal_value, None)
-        self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 15, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].next_uuid, new_node_uuid)
-
-        # new outgoing message for reply
-        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
-        self.assertEqual(len(out_msgs), 2)
-        self.assertEqual(out_msgs[1].contact, self.joe)
-        self.assertEqual(out_msgs[1].contact_urn, None)
-        self.assertEqual(out_msgs[1].text, "I love orange too!")
-        self.assertEqual(out_msgs[1].created_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
+        # check messages
+        msgs = run.get_messages().order_by('pk')
+        self.assertEqual(len(msgs), 3)
+        self.assertEqual(msgs[0].direction, 'O')
+        self.assertEqual(msgs[0].text, "What is your favorite color?")
+        self.assertEqual(msgs[1].direction, 'I')
+        self.assertEqual(msgs[1].contact, self.joe)
+        self.assertEqual(msgs[1].contact_urn, None)
+        self.assertEqual(msgs[1].text, "I like orange")
+        self.assertEqual(msgs[2].direction, 'O')
+        self.assertEqual(msgs[2].contact, self.joe)
+        self.assertEqual(msgs[2].contact_urn, None)
+        self.assertEqual(msgs[2].text, "I love orange too!")
+        self.assertEqual(msgs[2].response_to, msgs[1])
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
@@ -765,7 +726,7 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {color_reply.exit_uuid + ':' + new_node_uuid: 1,
+                                               {color_reply.exit_uuid + ':' + new_node['uuid']: 1,
                                                 orange_rule.uuid + ':' + color_reply.uuid: 1,
                                                 color_prompt.exit_uuid + ':' + color_ruleset.uuid: 1}))
 
@@ -780,7 +741,7 @@ class APITest(TembaTest):
                     contact=self.joe.uuid,
                     started='2015-08-26T11:09:29.088Z',
                     steps=[
-                        dict(node=new_node_uuid,
+                        dict(node=new_node['uuid'],
                              arrived_on='2015-08-26T11:15:30.088Z',
                              actions=[
                                  dict(type="save", field="tel_e164", value="+13605551212")
@@ -794,7 +755,7 @@ class APITest(TembaTest):
             data['revision'] = 3
             response = self.postJSON(url, data)
             self.assertEqual(400, response.status_code)
-            self.assertResponseError(response, 'non_field_errors', "No such node with UUID %s in flow 'Color Flow'" % new_node_uuid)
+            self.assertResponseError(response, 'non_field_errors', "No such node with UUID %s in flow 'Color Flow'" % new_node['uuid'])
 
             # this version doesn't exist
             data['revision'] = 12
@@ -836,7 +797,7 @@ class APITest(TembaTest):
                                  actions=[
                                      dict(type="reply", msg="I love orange too!")
                                  ]),
-                            dict(node=new_node_uuid,
+                            dict(node=new_node['uuid'],
                                  arrived_on='2015-08-25T11:15:30.088Z',
                                  actions=[
                                      dict(type="save", field="tel_e164", value="+12065551212"),

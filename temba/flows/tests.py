@@ -403,7 +403,6 @@ class FlowTest(TembaTest):
         color_prompt = ActionSet.objects.get(x=1, y=1)
         color_ruleset = RuleSet.objects.get(label="color")
         orange_rule = color_ruleset.get_rules()[0]
-        color_reply = ActionSet.objects.get(x=2, y=2)
 
         # how many people in the flow?
         self.assertEqual(self.flow.get_run_stats(),
@@ -537,10 +536,6 @@ class FlowTest(TembaTest):
 
         # it should contain what rule matched and what came next
         self.assertEqual(orange_rule.uuid, step.rule_uuid)
-        self.assertEqual("Orange", step.rule_category)
-        self.assertEqual("orange", step.rule_value)
-        self.assertFalse(step.rule_decimal_value)
-        self.assertEqual(color_reply.uuid, step.next_uuid)
         self.assertTrue(incoming in step.messages.all())
 
         # we should also have a result for this RuleSet
@@ -1815,10 +1810,10 @@ class FlowTest(TembaTest):
         self.assertEqual(SendAction, Action.from_json(org, dict(type='send', msg=dict(base="hello world"), contacts=[], groups=[], variables=[])).__class__)
 
     def test_decimal_values(self):
-        rules = RuleSet.objects.get(label="color")
+        color_ruleset = RuleSet.objects.get(label="color")
 
         # update our rule to include decimal parsing
-        rules.set_rules_dict([
+        color_ruleset.set_rules_dict([
             Rule(
                 "1c75fd71-027b-40e8-a819-151a0f8140e6",
                 {self.flow.base_language: "< 10"},
@@ -1835,30 +1830,24 @@ class FlowTest(TembaTest):
             ).as_json()
         ])
 
-        rules.save()
+        color_ruleset.save()
 
         # start the flow
         self.flow.start([], [self.contact])
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="My answer is 15")
         self.assertTrue(Flow.find_and_handle(sms)[0])
 
-        step = FlowStep.objects.get(step_uuid=rules.uuid)
-        self.assertEqual("> 10", step.rule_category)
-        self.assertEqual("40cc7c36-b7c8-4f05-ae82-25275607e5aa", step.rule_uuid)
-        self.assertEqual("15", step.rule_value)
-        self.assertEqual(Decimal("15"), step.rule_decimal_value)
-
         # get our run and assert our value is saved (as a string)
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
         results = run.get_results()
-        self.assertEqual("15", results['color']['value'])
-        self.assertEqual(rules.uuid, results['color']['node_uuid'])
-        self.assertEqual("> 10", results['color']['category'])
-        self.assertEqual("color", results['color']['name'])
+        self.assertEqual(results['color']['value'], "15")
+        self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
+        self.assertEqual(results['color']['category'], "> 10")
+        self.assertEqual(results['color']['name'], "color")
         self.assertIsNotNone(results['color']['created_on'])
 
         # and that the category counts have been updated
-        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid=rules.uuid, category_name='> 10',
+        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid=color_ruleset.uuid, category_name='> 10',
                                                               result_name='color', result_key='color', count=1).first())
 
     def test_location_entry_test(self):
