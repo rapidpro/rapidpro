@@ -668,7 +668,8 @@ class MsgTest(TembaTest):
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe],
+                                     quick_replies=[{'base': "Yes"}, {'base': "No"}])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -701,7 +702,7 @@ class MsgTest(TembaTest):
             self.assertNotContains(response, reverse('channels.channellog_read', args=[log.id]))
 
         # let's resend some messages
-        self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
+        self.client.post(failed_url, dict(action='resend', objects=msg2.id), follow=True)
 
         # check for the resent message and the new one being resent
         self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
@@ -712,9 +713,10 @@ class MsgTest(TembaTest):
 
         resent_msg = broadcast.get_messages()[0]
         self.assertNotEqual(msg2, resent_msg)
-        self.assertEqual(msg2.text, resent_msg.text)
-        self.assertEqual(msg2.contact, resent_msg.contact)
-        self.assertEqual(PENDING, resent_msg.status)
+        self.assertEqual(resent_msg.text, msg2.text)
+        self.assertEqual(resent_msg.contact, msg2.contact)
+        self.assertEqual(resent_msg.status, PENDING)
+        self.assertEqual(resent_msg.get_metadata(), {'quick_replies': ["Yes", "No"]})
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):
