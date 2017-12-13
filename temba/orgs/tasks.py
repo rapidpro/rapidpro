@@ -26,6 +26,7 @@ def check_credits_task():  # pragma: needs cover
 def apply_topups_task(org_id):
     org = Org.objects.get(id=org_id)
     org.apply_topups()
+    org.trigger_send()
 
 
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key='squash_topupcredits')
