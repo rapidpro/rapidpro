@@ -81,10 +81,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])
+        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=['tel:123'])
         self.joe.set_field(self.user, 'age', 20)
         self.joe.set_field(self.user, 'home', 'Kigali')
-        self.frank = Contact.get_or_create(self.org, self.user, name='Frank', urns=['tel:124'])
+        self.frank = Contact.get_or_create_by_urns(self.org, self.user, name='Frank', urns=['tel:124'])
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
@@ -115,7 +115,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual(response.context['search_error'], "Search query contains an error")
 
     def testRead(self):
-        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])
+        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=['tel:123'])
 
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(read_url)
@@ -181,9 +181,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=["tel:1234"])
-        self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
+        self.joe = Contact.get_or_create_by_urns(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
+        self.frank = Contact.get_or_create_by_urns(self.org, self.admin, name="Frank Smith", urns=["tel:1234"])
+        self.mary = Contact.get_or_create_by_urns(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
 
     def test_create_static(self):
         group = ContactGroup.create_static(self.org, self.admin, " group one ")
@@ -455,8 +455,8 @@ class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super(ContactGroupCRUDLTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
+        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name="Joe Blow", urns=["tel:123"])
+        self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
@@ -630,60 +630,60 @@ class ContactTest(TembaTest):
 
         # can't create without org or user
         with self.assertRaises(ValueError):
-            Contact.get_or_create(None, None, name='Joe', urns=['tel:123'])
+            Contact.get_or_create_by_urns(None, None, name='Joe', urns=['tel:123'])
 
         # incoming channel with no urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=None)
+            Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, name='Joe', urns=None)
 
         # incoming channel with two urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=['tel:123', 'tel:456'])
+            Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, name='Joe', urns=['tel:123', 'tel:456'])
 
         # missing scheme
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, name='Joe', urns=[':123'])
+            Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=[':123'])
 
         # missing path
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:'])
+            Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=['tel:'])
 
         # name too long gets truncated
-        contact = Contact.get_or_create(self.org, self.user, name='Roger ' + 'xxxxx' * 100)
+        contact = Contact.get_or_create_by_urns(self.org, self.user, name='Roger ' + 'xxxxx' * 100)
         self.assertEqual(len(contact.name), 128)
 
         # create a contact with name, phone number and language
-        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fra')
+        joe = Contact.get_or_create_by_urns(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fra')
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
         self.assertEqual(joe.language, 'fra')
 
         # calling again with same URN updates and returns existing contact
-        contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
+        contact = Contact.get_or_create_by_urns(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
         self.assertEqual(contact, joe)
         self.assertEqual(contact.name, "Joe")
         self.assertEqual(contact.language, 'eng')
 
         # calling again with same URN updates and returns existing contact
-        contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng', force_attr_update=True)
+        contact = Contact.get_or_create_by_urns(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng', force_attr_update=True)
         self.assertEqual(contact, joe)
         self.assertEqual(contact.name, "Joey")
         self.assertEqual(contact.language, 'eng')
 
         # create a URN-less contact and try to update them with a taken URN
-        snoop = Contact.get_or_create(self.org, self.user, name='Snoop')
+        snoop = Contact.get_or_create_by_urns(self.org, self.user, name='Snoop')
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:+250781111111'])
+            Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, urns=['tel:+250781111111'])
 
         # now give snoop his own urn
-        Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
+        Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
 
         self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
+        snoop = Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEqual(1, snoop.urns.all().count())
 
         # create contact with new urns one normalized and the other not
-        jimmy = Contact.get_or_create(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
+        jimmy = Contact.get_or_create_by_urns(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
         self.assertEqual(1, jimmy.urns.all().count())
 
     def test_get_test_contact(self):
@@ -702,7 +702,7 @@ class ContactTest(TembaTest):
         self.assertTrue(test_contact_user2 == test_contact_user)
 
         # assign this URN to another contact
-        other_contact = Contact.get_or_create(self.org, self.admin)
+        other_contact = Contact.get_or_create_by_urns(self.org, self.admin)
         test_urn = test_contact_user2.get_urn(TEL_SCHEME)
         test_urn.contact = other_contact
         test_urn.save()

@@ -1013,7 +1013,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key.split('__')[1]
                     urns.append(URN.from_parts(scheme, value))
 
-            Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
+            Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm

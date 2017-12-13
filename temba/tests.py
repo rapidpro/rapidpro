@@ -352,7 +352,7 @@ class TembaTest(SmartminTest):
         if 'user' not in kwargs:
             kwargs['user'] = self.user
 
-        return Contact.get_or_create(**kwargs)
+        return Contact.get_or_create_by_urns(**kwargs)
 
     def create_group(self, name, contacts=(), query=None):
         if contacts and query:

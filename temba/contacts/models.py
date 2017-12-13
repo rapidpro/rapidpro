@@ -853,7 +853,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_attr_update=False, auth=None):
+    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_attr_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -1052,7 +1052,7 @@ class Contact(TembaModel):
                 test_urn_path += 1
                 existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
+            test_contact = Contact.get_or_create_by_urns(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
         return test_contact
 
     @classmethod
@@ -1161,7 +1161,7 @@ class Contact(TembaModel):
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_attr_update=True)
+        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language, force_attr_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:

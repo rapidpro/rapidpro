@@ -1294,7 +1294,7 @@ class Msg(models.Model):
 
         contact_urn = None
         if not contact:
-            contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
+            contact = Contact.get_or_create_by_urns(org, user, name=None, urns=[urn], channel=channel)
             contact_urn = contact.urn_objects[urn]
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
@@ -1570,7 +1570,7 @@ class Msg(models.Model):
         elif isinstance(recipient, six.string_types):
             scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
-                contact = Contact.get_or_create(org, user, urns=[recipient])
+                contact = Contact.get_or_create_by_urns(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:  # pragma: no cover
             raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")

@@ -206,7 +206,7 @@ class VerboiceClient:  # pragma: needs cover
             raise IVRException("SEND_CALLS set to False, skipping call start")
 
         channel = call.channel
-        Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
+        Contact.get_or_create_by_urns(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = six.text_type(Flow.handle_call(call))
