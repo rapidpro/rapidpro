@@ -790,9 +790,6 @@ class Contact(TembaModel):
             if not importing:
                 self.handle_update(field=field)
 
-            # invalidate our value cache for this contact field
-            Value.invalidate_cache(contact_field=field)
-
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
 
@@ -2355,10 +2352,7 @@ class ContactGroup(TembaModel):
                 changed.add(contact.pk)
                 contact.handle_update(group=self)
 
-        # invalidate our result cache for anybody depending on this group if it changed
         if changed:
-            Value.invalidate_cache(group=self)
-
             # update modified on in small batches to avoid long table lock, and having too many non-unique values for
             # modified_on which is the primary ordering for the API
             for batch in chunk_list(changed, 100):
@@ -2446,8 +2440,6 @@ class ContactGroup(TembaModel):
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
-
-        Value.invalidate_cache(group=self)
 
     @property
     def is_dynamic(self):

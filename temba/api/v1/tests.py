@@ -725,18 +725,15 @@ class APITest(TembaTest):
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
 
-        # check value
-        value = Value.objects.get(org=self.org)
-        self.assertEqual(value.contact, self.joe)
-        self.assertEqual(value.run, run)
-        self.assertEqual(value.ruleset, RuleSet.objects.get(label="color"))
-        self.assertEqual(value.rule_uuid, orange_rule.uuid)
-        self.assertEqual(value.string_value, 'orange')
-        self.assertEqual(value.decimal_value, None)
-        self.assertEqual(value.datetime_value, None)
-        self.assertEqual(value.location_value, None)
-        self.assertEqual(value.media_value, None)
-        self.assertEqual(value.category, 'Orange')
+        # check results
+        results = run.get_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
+        self.assertEqual(results['color']['name'], "color")
+        self.assertEqual(results['color']['category'], "Orange")
+        self.assertEqual(results['color']['value'], "orange")
+        self.assertEqual(results['color']['input'], "I like orange")
+        self.assertIsNotNone(results['color']['created_on'])
 
         step1_msgs = list(steps[1].messages.order_by('pk'))
         self.assertEqual(step1_msgs[0].contact, self.joe)
