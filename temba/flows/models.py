@@ -3451,33 +3451,6 @@ class RuleSet(models.Model):
     def set_config(self, config):
         self.config = json.dumps(config)
 
-    def build_uuid_to_category_map(self):
-        flow_language = self.flow.base_language
-
-        uuid_to_category = dict()
-        ordered_categories = []
-        unique_categories = set()
-
-        for rule in self.get_rules():
-            label = rule.get_category_name(flow_language) if rule.category else six.text_type(_("Valid"))
-
-            # ignore "Other" labels
-            if label == "Other":
-                continue
-
-            # we only want to represent each unique label once
-            if not label.lower() in unique_categories:
-                unique_categories.add(label.lower())
-                ordered_categories.append(dict(label=label, count=0))
-
-            uuid_to_category[rule.uuid] = label
-
-            # this takes care of results that were categorized with different rules that may not exist anymore
-            for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
-                uuid_to_category[value.rule_uuid] = label
-
-        return ordered_categories, uuid_to_category
-
     def get_value_type(self):
         """
         Determines the value type that this ruleset will generate.
