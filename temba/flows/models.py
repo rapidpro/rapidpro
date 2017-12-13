@@ -12,7 +12,7 @@ import traceback
 import urllib2
 
 from array import array
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
@@ -4244,22 +4244,6 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, headers)
         return sheet
 
-    def _get_contact_urn_display(self, contact, scheme=None):
-        """
-        Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
-        """
-        scheme_key = '__default__' if scheme is None else scheme
-
-        if not hasattr(self, '_urn_display_cache'):
-            self._urn_display_cache = defaultdict(dict)
-
-        urn_display = self._urn_display_cache.get(contact.id, {}).get(scheme_key)
-        if urn_display:
-            return urn_display
-        urn_display = contact.get_urn_display(org=self.org, scheme=scheme, formatted=False)
-        self._urn_display_cache[contact.id][scheme_key] = urn_display
-        return urn_display
-
     def _get_contact_groups_display(self, contact):
         group_names = []
         for group in contact.all_groups.all():
@@ -4359,11 +4343,12 @@ class ExportFlowResultsTask(BaseExportTask):
                     # generate current contact info columns
                     current_contact_values = [
                         run.contact.uuid,
-                        run.contact.id if self.org.is_anon else self._get_contact_urn_display(run.contact)
+                        run.contact.id if self.org.is_anon else run.contact.get_urn_display(org=self.org, formatted=False)
                     ]
 
                     for extra_urn_column in extra_urn_columns:
-                        current_contact_values.append(self._get_contact_urn_display(run.contact, extra_urn_column['scheme']))
+                        urn_display = run.contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column['scheme'])
+                        current_contact_values.append(urn_display)
 
                     current_contact_values.append(self.prepare_value(run.contact.name))
                     current_contact_values.append(self._get_contact_groups_display(run.contact))
