@@ -2894,15 +2894,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for step in self.steps.all():
             step.release()
 
-        # lastly delete ourselves
-        self.delete()
-
-        # clear analytics results cache
-        for ruleset in self.flow.rule_sets.all():
-            Value.invalidate_cache(ruleset=ruleset)
-
         # clear any recent messages
         self.recent_messages.all().delete()
+
+        # lastly delete ourselves
+        self.delete()
 
     def set_completed(self, final_step=None, completed_on=None):
         """
@@ -3455,33 +3451,6 @@ class RuleSet(models.Model):
     def set_config(self, config):
         self.config = json.dumps(config)
 
-    def build_uuid_to_category_map(self):
-        flow_language = self.flow.base_language
-
-        uuid_to_category = dict()
-        ordered_categories = []
-        unique_categories = set()
-
-        for rule in self.get_rules():
-            label = rule.get_category_name(flow_language) if rule.category else six.text_type(_("Valid"))
-
-            # ignore "Other" labels
-            if label == "Other":
-                continue
-
-            # we only want to represent each unique label once
-            if not label.lower() in unique_categories:
-                unique_categories.add(label.lower())
-                ordered_categories.append(dict(label=label, count=0))
-
-            uuid_to_category[rule.uuid] = label
-
-            # this takes care of results that were categorized with different rules that may not exist anymore
-            for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
-                uuid_to_category[value.rule_uuid] = label
-
-        return ordered_categories, uuid_to_category
-
     def get_value_type(self):
         """
         Determines the value type that this ruleset will generate.
@@ -3682,48 +3651,14 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, raw_value, raw_input):
-        value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
-        location_value = None
-        dec_value = None
-        dt_value = None
-        media_value = None
-
-        if isinstance(raw_value, AdminBoundary):
-            location_value = raw_value
-
-        elif isinstance(raw_value, datetime):
-            dt_value = raw_value
-            (date_format, time_format) = get_datetime_format(run.org.get_dayfirst())
-            value = datetime_to_str(dt_value, tz=run.org.timezone, format=time_format, ms=False)
-
-        else:
-            dt_value = run.flow.org.parse_date(value)
-            dec_value = run.flow.org.parse_decimal(value)
-
-        # if its a media value, only store the path as the value
-        if ':' in value:
-            (media_type, media_path) = value.split(':', 1)
-            if media_type in Msg.MEDIA_TYPES:  # pragma: needs cover
-                media_value = value
-                value = media_path
-
-        # delete any existing values for this ruleset, run and contact, we only store the latest
-        Value.objects.filter(contact=run.contact, run=run, ruleset=self).delete()
-
-        Value.objects.create(contact=run.contact, run=run, ruleset=self, rule_uuid=rule.uuid,
-                             category=rule.get_category_name(run.flow.base_language),
-                             string_value=value, decimal_value=dec_value, datetime_value=dt_value,
-                             location_value=location_value, media_value=media_value, org=run.flow.org)
-
-        run.save_run_result(name=self.label,
-                            node_uuid=self.uuid,
-                            category=rule.get_category_name(run.flow.base_language),
-                            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
-                            raw_value=raw_value,
-                            raw_input=raw_input)
-
-        # invalidate any cache on this ruleset
-        Value.invalidate_cache(ruleset=self)
+        run.save_run_result(
+            name=self.label,
+            node_uuid=self.uuid,
+            category=rule.get_category_name(run.flow.base_language),
+            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
+            raw_value=raw_value,
+            raw_input=raw_input
+        )
 
     def get_step_type(self):
         return FlowStep.TYPE_RULE_SET
