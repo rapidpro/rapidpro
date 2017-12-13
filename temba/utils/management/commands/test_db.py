@@ -121,8 +121,8 @@ class Command(BaseCommand):
                                            parser_class=lambda **kw: CommandParser(cmd, **kw))
 
         gen_parser = subparsers.add_parser('generate', help='Generates a clean testing database')
-        gen_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=100)
-        gen_parser.add_argument('--contacts', type=int, action='store', dest='num_contacts', default=1000000)
+        gen_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=10)
+        gen_parser.add_argument('--contacts', type=int, action='store', dest='num_contacts', default=10000)
         gen_parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
         sim_parser = subparsers.add_parser('simulate', help='Simulates activity on an existing database')
@@ -241,8 +241,11 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES['default']
         try:
-            check_call('export PGPASSWORD=%s && pg_restore -U%s -w -d %s %s' %
-                       (db_config['PASSWORD'], db_config['USER'], db_config['NAME'], path), shell=True)
+            check_call(
+                'export PGPASSWORD=%s && pg_restore -h %s -U%s -w -d %s %s' %
+                (db_config['PASSWORD'], db_config['HOST'], db_config['USER'], db_config['NAME'], path),
+                shell=True
+            )
         except CalledProcessError:  # pragma: no cover
             raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 

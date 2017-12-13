@@ -3,8 +3,8 @@ from __future__ import unicode_literals, absolute_import
 import requests
 import telegram
 import time
+import json
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
@@ -39,7 +39,7 @@ class TelegramType(ChannelType):
     def activate(self, channel):
         config = channel.config_json()
         bot = telegram.Bot(config['auth_token'])
-        bot.set_webhook("https://" + settings.TEMBA_HOST + reverse('courier.tg', args=[channel.uuid]))
+        bot.set_webhook("https://" + channel.callback_domain + reverse('courier.tg', args=[channel.uuid]))
 
     def deactivate(self, channel):
         config = channel.config_json()
@@ -50,6 +50,14 @@ class TelegramType(ChannelType):
         auth_token = channel.config['auth_token']
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = {'chat_id': msg.urn_path, 'text': text}
+
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True,
+                                            keyboard=[[dict(text=item[:self.quick_reply_text_size])] for item in quick_replies]))
+
+        if quick_replies:
+            post_body['reply_markup'] = formatted_replies
 
         start = time.time()
 

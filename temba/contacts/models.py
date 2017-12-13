@@ -597,7 +597,7 @@ class Contact(TembaModel):
         channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.order_by('-event__created_on').select_related('event__campaign')[:MAX_HISTORY]
+        event_fires = event_fires.order_by('-fired').select_related('event__campaign')[:MAX_HISTORY]
 
         webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
         webhook_results = webhook_results.order_by('-created_on').select_related('event')[:MAX_HISTORY]
@@ -669,8 +669,6 @@ class Contact(TembaModel):
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.name
-        elif value.category:
-            return value.category
         else:
             return value.string_value
 
@@ -688,8 +686,6 @@ class Contact(TembaModel):
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
             return value.location_value.name
-        elif value.category:
-            return value.category
         else:
             return value.string_value
 
@@ -1879,7 +1875,7 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, expressions_context=None, connection=None,
-             attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
+             quick_replies=None, attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
@@ -1893,9 +1889,10 @@ class Contact(TembaModel):
         for recipient in recipients:
             try:
                 msg = Msg.create_outgoing(self.org, user, recipient, text,
-                                          response_to=response_to, expressions_context=expressions_context, connection=connection,
-                                          attachments=attachments, msg_type=msg_type or INBOX, status=status,
-                                          created_on=created_on, high_priority=high_priority)
+                                          response_to=response_to, expressions_context=expressions_context,
+                                          connection=connection, attachments=attachments, msg_type=msg_type or INBOX,
+                                          status=status, quick_replies=quick_replies, created_on=created_on,
+                                          high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
             except UnreachableException:
