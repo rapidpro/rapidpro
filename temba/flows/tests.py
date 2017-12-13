@@ -28,7 +28,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
@@ -403,6 +403,7 @@ class FlowTest(TembaTest):
         color_prompt = ActionSet.objects.get(x=1, y=1)
         color_ruleset = RuleSet.objects.get(label="color")
         orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
 
         # how many people in the flow?
         self.assertEqual(self.flow.get_run_stats(),
@@ -438,41 +439,14 @@ class FlowTest(TembaTest):
         self.assertFalse(contact1_run.responded)
         self.assertFalse(contact2_run.responded)
 
-        # should have two steps, one for the outgoing message, another for the rule set we are now waiting on
-        contact1_steps = list(FlowStep.objects.filter(run__contact=self.contact).order_by('pk'))
-        contact2_steps = list(FlowStep.objects.filter(run__contact=self.contact2).order_by('pk'))
-
-        self.assertEqual(len(contact1_steps), 2)
-        self.assertEqual(len(contact2_steps), 2)
-
-        # check our steps for contact #1
-        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:" + color_prompt.uuid)
-        self.assertEqual(contact1_steps[0].step_uuid, color_prompt.uuid)
-        self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
-        self.assertEqual(contact1_steps[0].contact, self.contact)
-        self.assertTrue(contact1_steps[0].arrived_on)
-        self.assertTrue(contact1_steps[0].left_on)
-        self.assertEqual(set(contact1_steps[0].broadcasts.all()), {broadcast})
-        self.assertEqual(set(contact1_steps[0].messages.all()), {contact1_msg})
-        self.assertEqual(contact1_steps[0].next_uuid, color_prompt.destination)
-
-        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:" + color_ruleset.uuid)
-        self.assertEqual(contact1_steps[1].step_uuid, color_ruleset.uuid)
-        self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
-        self.assertEqual(contact1_steps[1].contact, self.contact)
-        self.assertTrue(contact1_steps[1].arrived_on)
-        self.assertEqual(contact1_steps[1].left_on, None)
-        self.assertEqual(set(contact1_steps[1].messages.all()), set())
-        self.assertEqual(contact1_steps[1].next_uuid, None)
-
-        # check equivalent "steps" in the path fields
+        # check the path for contact 1
         contact1_path = contact1_run.get_path()
         self.assertEqual(len(contact1_path), 2)
         self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
-        self.assertEqual(contact1_path[0]['arrived_on'], contact1_steps[0].arrived_on.isoformat())
+        self.assertIsNotNone(contact1_path[0]['arrived_on'])
         self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
         self.assertEqual(contact1_path[1]['node_uuid'], color_ruleset.uuid)
-        self.assertEqual(contact1_path[1]['arrived_on'], contact1_steps[1].arrived_on.isoformat())
+        self.assertIsNotNone(contact1_path[1]['arrived_on'])
         self.assertNotIn('exit_uuid', contact1_path[1])
 
         # test our message context
@@ -506,9 +480,10 @@ class FlowTest(TembaTest):
 
         # no reply, our flow isn't active
         self.assertFalse(Msg.objects.filter(response_to=incoming))
-        step = FlowStep.objects.get(pk=contact1_steps[1].pk)
-        self.assertFalse(step.left_on)
-        self.assertFalse(step.messages.all())
+
+        contact1_run.refresh_from_db()
+        self.assertEqual(len(contact1_run.get_messages()), 1)
+        self.assertEqual(len(contact1_run.get_path()), 2)
 
         # ok, make our flow active again
         self.flow.is_archived = False
@@ -518,28 +493,41 @@ class FlowTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
         self.assertTrue(Flow.find_and_handle(incoming)[0])
 
-        contact1_run.refresh_from_db()
-        self.assertTrue(contact1_run.responded)
-
         # our message should have gotten a reply
         reply = Msg.objects.get(response_to=incoming)
-        self.assertEqual(self.contact, reply.contact)
-        self.assertEqual("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
+        self.assertEqual(reply.contact, self.contact)
+        self.assertEqual(reply.text, "I love orange too! You said: orange which is category: "
+                                     "Orange You are: 0788 382 382 SMS: orange Flow: color: orange")
+        self.assertEqual(reply.msg_type, 'F')
+        self.assertTrue(reply.high_priority)  # should be high priority as this is a reply
 
-        # should be high priority as this is a reply
-        self.assertTrue(reply.high_priority)
+        contact1_run.refresh_from_db()
+        contact1_run_msgs = contact1_run.get_messages()
 
-        # our previous state should be executed
-        step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
-        self.assertTrue(step.left_on)
-        self.assertEqual(step.messages.all()[0].msg_type, 'F')
+        self.assertTrue(contact1_run.responded)
+        self.assertEqual(len(contact1_run_msgs), 3)
+        self.assertIn(incoming, contact1_run_msgs)
+        self.assertIn(reply, contact1_run_msgs)
 
-        # it should contain what rule matched and what came next
-        self.assertEqual(orange_rule.uuid, step.rule_uuid)
-        self.assertTrue(incoming in step.messages.all())
+        # check our completion percentages
+        self.assertEqual(self.flow.get_run_stats(),
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
+
+        # at this point there are no more steps to take in the flow, so we shouldn't match anymore
+        extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
+        self.assertFalse(Flow.find_and_handle(extra)[0])
+
+        contact1_path = contact1_run.get_path()
+        self.assertEqual(len(contact1_path), 3)
+        self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
+        self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
+        self.assertEqual(contact1_path[1]['node_uuid'], color_ruleset.uuid)
+        self.assertEqual(contact1_path[1]['exit_uuid'], orange_rule.uuid)
+        self.assertEqual(contact1_path[2]['node_uuid'], color_reply.uuid)
+        self.assertNotIn('exit_uuid', contact1_path[2])
 
         # we should also have a result for this RuleSet
-        results = step.run.get_results()
+        results = contact1_run.get_results()
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")
@@ -576,34 +564,6 @@ class FlowTest(TembaTest):
 
         # this is drawn from the message which didn't change
         self.assertEqual('orange', context['flow']['color']['text'])
-
-        # revert above change
-        results = contact1_run.get_results()
-        results['color']['value'] = 'orange'
-        contact1_run.results = json.dumps(results)
-        contact1_run.save(update_fields=('results',))
-
-        # finally we should have our final step which was our outgoing reply
-        step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[2]
-
-        self.assertEqual(FlowStep.TYPE_ACTION_SET, step.step_type)
-        self.assertEqual(self.contact, step.run.contact)
-        self.assertEqual(self.contact, step.contact)
-        self.assertEqual(self.flow, step.run.flow)
-        self.assertTrue(step.arrived_on)
-
-        # we have left the flow
-        self.assertTrue(step.left_on)
-        self.assertTrue(step.run.is_completed)
-        self.assertFalse(step.next_uuid)
-
-        # check our completion percentages
-        self.assertEqual(self.flow.get_run_stats(),
-                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
-
-        # at this point there are no more steps to take in the flow, so we shouldn't match anymore
-        extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
-        self.assertFalse(Flow.find_and_handle(extra)[0])
 
     def test_anon_export_results(self):
         self.org.is_anon = True
@@ -2586,27 +2546,19 @@ class FlowTest(TembaTest):
         self.assertEqual(response.json()['description'], 'Your flow could not be saved. Please refresh your browser.')
 
     def test_flow_start_with_start_msg(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
-        self.flow.start([], [self.contact], start_msg=sms)
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        run, = self.flow.start([], [self.contact], start_msg=msg)
 
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
-        run = FlowRun.objects.filter(contact=self.contact).first()
+        out = Msg.objects.get(direction='O')
 
-        self.assertEqual(run.steps.all().count(), 2)
-        actionset_step = run.steps.filter(step_type=FlowStep.TYPE_ACTION_SET).first()
-        ruleset_step = run.steps.filter(step_type=FlowStep.TYPE_RULE_SET).first()
+        run.refresh_from_db()
+        run_msgs = run.get_messages().order_by('created_on')
 
-        # no messages on the ruleset step
-        self.assertFalse(ruleset_step.messages.all())
+        self.assertEqual(len(run.get_path()), 2)
+        self.assertEqual(list(run_msgs), [msg, out])
 
-        # should have 2 messages on the actionset step
-        self.assertEqual(actionset_step.messages.all().count(), 2)
-
-        # one is the start msg
-        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
-
-        # sms msg_type should be FLOW
-        self.assertEqual(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+        msg.refresh_from_db()
+        self.assertEqual(msg.msg_type, 'F')
 
     def test_flow_start_with_quick_replies(self):
         flow = self.get_flow('quick_replies')
@@ -2633,49 +2585,61 @@ class FlowTest(TembaTest):
         self.assertTrue(FlowRun.objects.filter(contact=contact_test))
 
     def test_multiple(self):
-        self.flow.start([], [self.contact])
+        run1, = self.flow.start([], [self.contact])
 
-        # create a second flow
-        self.flow2 = Flow.create(self.org, self.admin, "Color Flow 2")
-
-        # broadcast to one user
+        # create a second flow and start our same contact
         self.flow2 = self.flow.copy(self.flow, self.flow.created_by)
-        self.flow2.start([], [self.contact])
+        run2, = self.flow2.start([], [self.contact])
 
-        # each flow should have two events
-        self.assertEqual(2, FlowStep.objects.filter(run__flow=self.flow).count())
-        self.assertEqual(2, FlowStep.objects.filter(run__flow=self.flow2).count())
+        run1.refresh_from_db()
+        run2.refresh_from_db()
+
+        # only the second run should be active
+        self.assertFalse(run1.is_active)
+        self.assertEqual(len(run1.get_path()), 2)
+
+        self.assertTrue(run2.is_active)
+        self.assertEqual(len(run2.get_path()), 2)
 
         # send in a message
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange", created_on=timezone.now())
         self.assertTrue(Flow.find_and_handle(incoming)[0])
 
+        run1.refresh_from_db()
+        run2.refresh_from_db()
+
         # only the second flow should get it
-        self.assertEqual(2, FlowStep.objects.filter(run__flow=self.flow).count())
-        self.assertEqual(3, FlowStep.objects.filter(run__flow=self.flow2).count())
+        self.assertEqual(len(run1.get_path()), 2)
+        self.assertEqual(len(run2.get_path()), 3)
 
         # start the flow again for our contact
-        self.flow.start([], [self.contact], restart_participants=True)
+        run3, = self.flow.start([], [self.contact], restart_participants=True)
+
+        run1.refresh_from_db()
+        run3.refresh_from_db()
 
         # should have two flow runs for this contact and flow
-        runs = FlowRun.objects.filter(flow=self.flow, contact=self.contact).order_by('-created_on')
-        self.assertTrue(runs[0].is_active)
-        self.assertFalse(runs[1].is_active)
+        self.assertFalse(run1.is_active)
+        self.assertTrue(run3.is_active)
 
-        self.assertEqual(2, runs[0].steps.all().count())
-        self.assertEqual(2, runs[1].steps.all().count())
+        self.assertEqual(len(run1.get_path()), 2)
+        self.assertEqual(len(run3.get_path()), 2)
 
         # send in a message, this should be handled by our first flow, which has a more recent run active
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
         self.assertTrue(Flow.find_and_handle(incoming)[0])
 
-        self.assertEqual(3, runs[0].steps.all().count())
+        run1.refresh_from_db()
+        run3.refresh_from_db()
+
+        self.assertEqual(len(run1.get_path()), 2)
+        self.assertEqual(len(run3.get_path()), 3)
 
         # if we exclude existing and try starting again, nothing happens
         self.flow.start([], [self.contact], restart_participants=False)
 
         # no new runs
-        self.assertEqual(2, self.flow.runs.all().count())
+        self.assertEqual(self.flow.runs.count(), 2)
 
         # check our run results
         results = self.flow.runs.order_by('-id').first().get_results()
@@ -3425,7 +3389,7 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, sms, started_flows=[])
 
         # our contact should now be in the flow
-        self.assertTrue(FlowStep.objects.filter(run__flow=new_flow, run__contact=self.contact))
+        self.assertTrue(FlowRun.objects.filter(flow=new_flow, contact=self.contact))
         self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='You chose Blue'))
 
     def test_group_actions(self):
@@ -5105,8 +5069,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(flow.get_run_stats(),
                          {'total': 2, 'active': 1, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
-        # check that we have the right number of steps and runs
-        self.assertEqual(17, FlowStep.objects.filter(run__flow=flow).count())
+        # check that we have the right number of runs
         self.assertEqual(2, FlowRun.objects.filter(flow=flow).count())
 
         # now let's delete our contact, we'll still have one active node, but
@@ -5226,8 +5189,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(flow.get_run_stats(),
                          {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
-        # runs and steps all gone too
-        self.assertEqual(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
+        # runs all gone too
         self.assertEqual(0, FlowRun.objects.filter(flow=flow, contact__is_test=False).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
@@ -6018,14 +5980,14 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_expiration(self):
         flow = self.get_flow('favorites')
-        self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
-        self.assertEqual("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
-        self.assertEqual(1, flow.runs.count())
 
-        # pretend our step happened 10 minutes ago
-        step = FlowStep.objects.filter(run=flow.runs.all()[0], left_on=None)[0]
-        step.arrived_on = timezone.now() - timedelta(minutes=10)
-        step.save()
+        # run our flow like it was 10 mins ago
+        with patch.object(timezone, 'now') as mock_now:
+            mock_now.side_effect = lambda: datetime.datetime.now(tz=timezone.utc) - timedelta(minutes=10)
+
+            self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
+            self.assertEqual("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
+            self.assertEqual(1, flow.runs.count())
 
         # now let's expire them out of the flow prematurely
         flow.expires_after_minutes = 5
@@ -6154,6 +6116,11 @@ class FlowsTest(FlowFileTest):
         """
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
+        parent_prompt = ActionSet.objects.get(flow=parent, y=0)
+        kind_ruleset = RuleSet.objects.get(flow=parent, label='kind')
+        subflow_ruleset = RuleSet.objects.get(flow=parent, ruleset_type='subflow')
+        subflow_reply = ActionSet.objects.get(flow=parent, y=386, x=341)
+
         parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "001122")], restart_participants=True)
 
         msg = Msg.objects.filter(contact=self.contact).first()
@@ -6162,28 +6129,42 @@ class FlowsTest(FlowFileTest):
 
         # this should launch the child flow
         self.send_message(parent, "color", assert_reply=False)
+
         msg = Msg.objects.filter(contact=self.contact).order_by('-created_on').first()
-
-        subflow_ruleset = RuleSet.objects.filter(flow=parent, ruleset_type='subflow').first()
-
-        # should have one step on the subflow ruleset
-        self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
         self.assertEqual("What color do you like?", msg.text)
         self.assertTrue(msg.high_priority)
 
-        # we should now have two active flows
-        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+        # should have a run for each flow
+        parent_run, child_run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('created_on')
+
+        # should have made it to the subflow ruleset on the parent flow
+        parent_path = parent_run.get_path()
+        self.assertEqual(len(parent_path), 3)
+        self.assertEqual(parent_path[0]['node_uuid'], parent_prompt.uuid)
+        self.assertEqual(parent_path[0]['exit_uuid'], parent_prompt.exit_uuid)
+        self.assertEqual(parent_path[1]['node_uuid'], kind_ruleset.uuid)
+        self.assertEqual(parent_path[1]['exit_uuid'], kind_ruleset.get_rules()[0].uuid)
+        self.assertEqual(parent_path[2]['node_uuid'], subflow_ruleset.uuid)
+        self.assertNotIn('exit_uuid', parent_path[2])
 
         # complete the child flow
         self.send('Red')
 
-        # should still only have one step on our subflow ruleset
-        self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
+        child_run.refresh_from_db()
+        self.assertFalse(child_run.is_active)
 
         # now we are back to a single active flow, the parent
-        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-        active_run = FlowRun.objects.filter(contact=self.contact, is_active=True).first()
-        self.assertEqual(parent.name, active_run.flow.name)
+        parent_run.refresh_from_db()
+        self.assertTrue(parent_run.is_active)
+
+        parent_path = parent_run.get_path()
+        self.assertEqual(len(parent_path), 5)
+        self.assertEqual(parent_path[2]['node_uuid'], subflow_ruleset.uuid)
+        self.assertEqual(parent_path[2]['exit_uuid'], subflow_ruleset.get_rules()[0].uuid)
+        self.assertEqual(parent_path[3]['node_uuid'], subflow_reply.uuid)
+        self.assertEqual(parent_path[3]['exit_uuid'], subflow_reply.exit_uuid)
+        self.assertEqual(parent_path[4]['node_uuid'], kind_ruleset.uuid)
+        self.assertNotIn('exit_uuid', parent_path[4])
 
         # we should have a new outbound message from the the parent flow
         msg = Msg.objects.filter(contact=self.contact, direction='O').order_by('-created_on').first()
