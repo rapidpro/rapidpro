@@ -305,19 +305,12 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.text, "Yes, 3.")
         self.assertEqual(six.text_type(msg), "Yes, 3.")
 
-        # assert there are 3 unread msgs for this org
-        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
-
-        # second go shouldn't hit DB
-        with self.assertNumQueries(0):
-            self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
-
         # Can't send incoming messages
         with self.assertRaises(Exception):
             msg.send()
 
         # can't create outgoing messages against an unassigned channel
-        unassigned_channel = Channel.create(None, self.admin, None, 'A', None, secret="67890", gcm_id="456")
+        unassigned_channel = Channel.create(None, self.admin, None, 'A', None, secret=Channel.generate_secret(), gcm_id="456")
 
         with self.assertRaises(Exception):
             Msg.create_incoming(unassigned_channel, "tel:250788382382", "No dice")
@@ -334,8 +327,6 @@ class MsgTest(TembaTest):
         # hit the inbox page, that should reset our unread count
         self.login(self.admin)
         self.client.get(reverse('msgs.msg_inbox'))
-
-        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
         # test that invalid chars are stripped from message text
         msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
@@ -432,7 +423,9 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        response = self.client.get(reverse('msgs.msg_outbox'))
+        with self.assertNumQueries(43):
+            response = self.client.get(reverse('msgs.msg_outbox'))
+
         self.assertContains(response, "Outbox (1)")
         self.assertEqual(set(response.context_data['object_list']), {msg1})
 
@@ -443,7 +436,8 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2))
 
-        response = self.client.get(reverse('msgs.msg_outbox'))
+        with self.assertNumQueries(38):
+            response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
         self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
@@ -497,7 +491,8 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        response = self.fetch_protected(inbox_url, self.admin)
+        with self.assertNumQueries(60):
+            response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 5)
         self.assertEqual(response.context['folders'][0]['url'], '/msg/inbox/')
@@ -518,16 +513,16 @@ class MsgTest(TembaTest):
 
         # test labeling a messages
         self.do_msg_action(inbox_url, [msg1, msg2], 'label', label1)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1, msg2})
 
         # test removing a label
         self.do_msg_action(inbox_url, [msg2], 'label', label1, label_add=False)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
 
         # label more messages
         self.do_msg_action(inbox_url, [msg1, msg2, msg3], 'label', label3)
-        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
-        self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
+        self.assertEqual(set(label1.msgs.all()), {msg1})
+        self.assertEqual(set(label3.msgs.all()), {msg1, msg2, msg3})
 
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
@@ -573,7 +568,8 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        response = self.fetch_protected(archive_url, self.admin)
+        with self.assertNumQueries(54):
+            response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
         self.assertEqual(response.context['actions'], ['restore', 'label', 'delete'])
@@ -648,6 +644,8 @@ class MsgTest(TembaTest):
         url = reverse('msgs.msg_flow')
 
         msg1 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 1", msg_type='F')
+        msg2 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 2", msg_type='F')
+        msg3 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 3", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -655,9 +653,11 @@ class MsgTest(TembaTest):
 
         # org viewer can
         self.login(self.admin)
-        response = self.client.get(url)
 
-        self.assertEqual(set(response.context['object_list']), {msg1})
+        with self.assertNumQueries(41):
+            response = self.client.get(url)
+
+        self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
         self.assertEqual(response.context['actions'], ['label'])
 
     def test_failed(self):
@@ -689,8 +689,9 @@ class MsgTest(TembaTest):
         response = self.client.get(failed_url)
         self.assertEqual(302, response.status_code)
 
-        # visit inbox page as an administrator
-        response = self.fetch_protected(failed_url, self.admin)
+        # visit failed page as an administrator
+        with self.assertNumQueries(61):
+            response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 3)
         self.assertEqual(response.context['actions'], ['resend'])
@@ -971,11 +972,11 @@ class BroadcastTest(TembaTest):
 
     def test_broadcast_model(self):
 
-        def assertBroadcastStatus(sms, new_sms_status, broadcast_status):
-            sms.status = new_sms_status
-            sms.save()
-            sms.broadcast.update()
-            self.assertEqual(sms.broadcast.status, broadcast_status)
+        def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
+            msg.status = new_msg_status
+            msg.save(update_fields=('status',))
+            msg.broadcast.update()
+            self.assertEqual(msg.broadcast.status, broadcast_status)
 
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEqual('I', broadcast.status)
@@ -993,7 +994,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.status, 'Q')
 
         # test errored broadcast logic now that all sms status are queued
-        msgs = broadcast.get_messages()
+        msgs = broadcast.get_messages().order_by('-id')
         assertBroadcastStatus(msgs[0], 'E', 'Q')
         assertBroadcastStatus(msgs[1], 'E', 'Q')
         assertBroadcastStatus(msgs[2], 'E', 'E')  # now more than half are errored
@@ -1006,19 +1007,19 @@ class BroadcastTest(TembaTest):
         assertBroadcastStatus(msgs[3], 'F', 'F')
 
         # first make sure there are no failed messages
-        for msg in broadcast.get_messages():
+        for msg in broadcast.get_messages().order_by('-id'):
             msg.status = 'S'
-            msg.save()
+            msg.save(update_fields=('status',))
 
-        assertBroadcastStatus(broadcast.get_messages()[0], 'Q', 'Q')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'Q', 'Q')
         # test queued broadcast logic
 
         # test sent broadcast logic
         broadcast.get_messages().update(status='D')
-        assertBroadcastStatus(broadcast.get_messages()[0], 'S', 'S')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'S', 'S')
 
         # test delivered broadcast logic
-        assertBroadcastStatus(broadcast.get_messages()[0], 'D', 'D')
+        assertBroadcastStatus(broadcast.get_messages().order_by('-id')[0], 'D', 'D')
 
         self.assertEqual("Temba (%d)" % broadcast.id, str(broadcast))
 
@@ -1052,8 +1053,8 @@ class BroadcastTest(TembaTest):
         Broadcast.objects.all()[0].delete()
 
         # test when we have many channels
-        Channel.create(self.org, self.user, None, "A", secret="123456", gcm_id="1234")
-        Channel.create(self.org, self.user, None, "A", secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="1234")
+        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="123")
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
@@ -1074,7 +1075,7 @@ class BroadcastTest(TembaTest):
         for channel in Channel.objects.all():
             channel.release()
 
-        Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, 'A', None, secret=Channel.generate_secret(), gcm_id="123")
 
         response = self.client.get(send_url)
         self.assertEqual(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
@@ -1178,10 +1179,12 @@ class BroadcastTest(TembaTest):
 
         # remove twitter relayer
         self.twitter.release(trigger_sync=False)
+        self.org.clear_cached_channels()
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
+        self.assertEqual(3, broadcast.recipient_count)
 
         # should have only one message created to Ryan
         msgs = broadcast.msgs.all()
@@ -1227,6 +1230,8 @@ class BroadcastTest(TembaTest):
     def test_substitute_variables(self):
         ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_DECIMAL)
         self.joe.set_field(self.user, 'goats', "3 ")
+        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_DECIMAL)
+        self.joe.set_field(self.user, 'temp', "37.45")
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
@@ -1247,6 +1252,9 @@ class BroadcastTest(TembaTest):
         self.assertEqual(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
         self.assertEqual(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
         self.assertEqual(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
+        self.assertEqual(("Hello 37.45000000", []), substitute("Hello @(contact.temp)", dict()))
+        self.assertEqual(("Hello 37", []), substitute("Hello @(INT(contact.temp))", dict()))
+        self.assertEqual(("Hello 37.45", []), substitute("Hello @(FIXED(contact.temp))", dict()))
 
         self.assertEqual(("Email is: foo@bar.com", []),
                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))))
@@ -1256,16 +1264,20 @@ class BroadcastTest(TembaTest):
         # check date variables
         text, errors = substitute("Today is @date.today", dict())
         self.assertEqual(errors, [])
-        self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d")
+        self.assertRegex(text, "Today is \d{2}-\d{2}-\d{4}")
 
         text, errors = substitute("Today is @date.now", dict())
+        self.assertEqual(errors, [])
+        self.assertRegex(text, "Today is \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
+
+        text, errors = substitute("Today is @(format_date(date.now))", dict())
         self.assertEqual(errors, [])
         self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
         text, errors = substitute("Your DOB is @contact.dob", dict())
         self.assertEqual(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
-        self.assertRegex(text, "Your DOB is 28-05-1981 \d\d:\d\d")
+        self.assertRegex(text, "Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
 
         # unicode tests
         self.joe.name = u"شاملیدل عمومی"
@@ -1981,46 +1993,47 @@ class BroadcastLanguageTest(TembaTest):
         super(BroadcastLanguageTest, self).setUp()
 
         self.francois = self.create_contact('Francois', '+12065551213')
-        self.francois.language = 'fre'
+        self.francois.language = 'fra'
         self.francois.save()
 
         self.greg = self.create_contact('Greg', '+12065551212')
 
         self.wilbert = self.create_contact('Wilbert', '+12065551214')
-        self.wilbert.language = 'fre'
+        self.wilbert.language = 'fra'
         self.wilbert.save()
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fra')
         self.org.primary_language = eng
         self.org.save()
 
         eng_msg = "This is my message"
-        fre_msg = "Ceci est mon message"
+        fra_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fra=fra_msg),
                                  [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
         # assert the right language was used for each contact
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.francois).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.francois).text)
         self.assertEqual(eng_msg, Msg.objects.get(contact=self.greg).text)
-        self.assertEqual(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+        self.assertEqual(fra_msg, Msg.objects.get(contact=self.wilbert).text)
 
         eng_msg = "Please see attachment"
-        fre_msg = "SVP regardez l'attachement."
+        fra_msg = "SVP regardez l'attachement."
 
         eng_attachment = 'image/jpeg:attachments/eng_picture.jpg'
-        fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
+        fra_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
-                                 [self.francois, self.greg, self.wilbert], base_language='eng',
-                                 media=dict(eng=eng_attachment, fre=fre_attachment))
+        bcast = Broadcast.create(
+            self.org, self.admin, dict(eng=eng_msg, fra=fra_msg), [self.francois, self.greg, self.wilbert],
+            base_language='eng', media=dict(eng=eng_attachment, fra=fra_attachment)
+        )
 
         bcast.send()
 
@@ -2028,18 +2041,18 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
 
-        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
         greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1])
-        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(':', 1)[1])
 
         # assert the right language was used for each contact on both text and media
-        self.assertEqual(francois_media.text, fre_msg)
+        self.assertEqual(francois_media.text, fra_msg)
         self.assertEqual(francois_media.attachments, [francois_media_url])
 
         self.assertEqual(greg_media.text, eng_msg)
         self.assertEqual(greg_media.attachments, [greg_media_url])
 
-        self.assertEqual(wilbert_media.text, fre_msg)
+        self.assertEqual(wilbert_media.text, fra_msg)
         self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
 
 

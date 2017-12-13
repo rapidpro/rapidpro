@@ -54,7 +54,7 @@ httplib2==0.10.3          # via twilio
 idna==2.5                 # via cryptography, requests
 ipaddress==1.0.18         # via cryptography
 iptools==0.6.1
-iso639==0.1.4
+iso-639==0.4.5
 iso8601==0.1.12
 isoweek==1.3.3
 jdcal==1.3                # via openpyxl
@@ -96,7 +96,7 @@ python-magic==0.4.13
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
-rapidpro-expressions==1.2
+rapidpro-expressions==1.5
 raven==6.1.0
 rcssmin==1.0.6            # via django-compressor
 redis==2.10.5

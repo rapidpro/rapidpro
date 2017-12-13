@@ -44,7 +44,7 @@ class LineTypeTest(TembaTest):
         response = self.client.post(url, payload, follow=True)
         self.assertContains(response, "A channel with this configuration already exists.")
 
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         mock_get.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
         payload = {'access_token': 'abcdef123456', 'secret': '123456'}
