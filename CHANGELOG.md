@@ -1,3 +1,13 @@
+v3.0.289
+----------
+ * Stop writing values in flows to values_value
+
+v3.0.287
+----------
+ * Performance improvements and simplications to flow result exports
+ * Add some extra options to webhook_stats
+ * Migration to convert old recent message records
+
 v3.0.286
 ----------
  * Remove incomplete path counts

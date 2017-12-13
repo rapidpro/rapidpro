@@ -11,6 +11,7 @@ import time
 import traceback
 import urllib2
 
+from array import array
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
 from decimal import Decimal
@@ -28,6 +29,7 @@ from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
 from django_redis import get_redis_connection
 from enum import Enum
+from openpyxl import Workbook
 from six.moves import range
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
@@ -44,7 +46,6 @@ from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, RequireUpdateFieldsMixin, generate_uuid
-from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
 from temba_expressions.utils import tokenize
@@ -2417,9 +2418,10 @@ class Flow(TembaModel):
 
             self.update_dependencies()
 
+        except FlowUserConflictException as e:
+            raise e
         except Exception as e:
-            # note that badness happened
-            logger = logging.getLogger(__name__)
+            # user will see an error in the editor but log exception so we know we got something to fix
             logger.exception(six.text_type(e))
             traceback.print_exc(e)
             raise e
@@ -2892,15 +2894,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for step in self.steps.all():
             step.release()
 
-        # lastly delete ourselves
-        self.delete()
-
-        # clear analytics results cache
-        for ruleset in self.flow.rule_sets.all():
-            Value.invalidate_cache(ruleset=ruleset)
-
         # clear any recent messages
         self.recent_messages.all().delete()
+
+        # lastly delete ourselves
+        self.delete()
 
     def set_completed(self, final_step=None, completed_on=None):
         """
@@ -3453,33 +3451,6 @@ class RuleSet(models.Model):
     def set_config(self, config):
         self.config = json.dumps(config)
 
-    def build_uuid_to_category_map(self):
-        flow_language = self.flow.base_language
-
-        uuid_to_category = dict()
-        ordered_categories = []
-        unique_categories = set()
-
-        for rule in self.get_rules():
-            label = rule.get_category_name(flow_language) if rule.category else six.text_type(_("Valid"))
-
-            # ignore "Other" labels
-            if label == "Other":
-                continue
-
-            # we only want to represent each unique label once
-            if not label.lower() in unique_categories:
-                unique_categories.add(label.lower())
-                ordered_categories.append(dict(label=label, count=0))
-
-            uuid_to_category[rule.uuid] = label
-
-            # this takes care of results that were categorized with different rules that may not exist anymore
-            for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
-                uuid_to_category[value.rule_uuid] = label
-
-        return ordered_categories, uuid_to_category
-
     def get_value_type(self):
         """
         Determines the value type that this ruleset will generate.
@@ -3687,48 +3658,14 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, raw_value, raw_input):
-        value = six.text_type(raw_value)[:Value.MAX_VALUE_LEN]
-        location_value = None
-        dec_value = None
-        dt_value = None
-        media_value = None
-
-        if isinstance(raw_value, AdminBoundary):
-            location_value = raw_value
-
-        elif isinstance(raw_value, datetime):
-            dt_value = raw_value
-            (date_format, time_format) = get_datetime_format(run.org.get_dayfirst())
-            value = datetime_to_str(dt_value, tz=run.org.timezone, format=time_format, ms=False)
-
-        else:
-            dt_value = run.flow.org.parse_date(value)
-            dec_value = run.flow.org.parse_decimal(value)
-
-        # if its a media value, only store the path as the value
-        if ':' in value:
-            (media_type, media_path) = value.split(':', 1)
-            if media_type in Msg.MEDIA_TYPES:  # pragma: needs cover
-                media_value = value
-                value = media_path
-
-        # delete any existing values for this ruleset, run and contact, we only store the latest
-        Value.objects.filter(contact=run.contact, run=run, ruleset=self).delete()
-
-        Value.objects.create(contact=run.contact, run=run, ruleset=self, rule_uuid=rule.uuid,
-                             category=rule.get_category_name(run.flow.base_language),
-                             string_value=value, decimal_value=dec_value, datetime_value=dt_value,
-                             location_value=location_value, media_value=media_value, org=run.flow.org)
-
-        run.save_run_result(name=self.label,
-                            node_uuid=self.uuid,
-                            category=rule.get_category_name(run.flow.base_language),
-                            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
-                            raw_value=raw_value,
-                            raw_input=raw_input)
-
-        # invalidate any cache on this ruleset
-        Value.invalidate_cache(ruleset=self)
+        run.save_run_result(
+            name=self.label,
+            node_uuid=self.uuid,
+            category=rule.get_category_name(run.flow.base_language),
+            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
+            raw_value=raw_value,
+            raw_input=raw_input
+        )
 
     def get_step_type(self):
         return FlowStep.TYPE_RULE_SET
@@ -4257,10 +4194,119 @@ class ExportFlowResultsTask(BaseExportTask):
         context['flows'] = self.flows.all()
         return context
 
-    def write_export(self):
-        from openpyxl import Workbook
-        book = Workbook(write_only=True)
+    def _get_runs_headers(self, show_submitted_by, extra_urn_columns, contact_fields, result_columns):
+        headers = []
+        col_widths = []
 
+        if show_submitted_by:
+            headers.append("Surveyor")
+            col_widths.append(self.WIDTH_MEDIUM)
+
+        headers.append("Contact UUID")
+        col_widths.append(self.WIDTH_MEDIUM)
+
+        if self.org.is_anon:
+            headers.append("ID")
+            col_widths.append(self.WIDTH_SMALL)
+        else:
+            headers.append("URN")
+            col_widths.append(self.WIDTH_SMALL)
+
+        for extra_urn in extra_urn_columns:
+            headers.append(extra_urn['label'])
+            col_widths.append(self.WIDTH_SMALL)
+
+        headers.append("Name")
+        col_widths.append(self.WIDTH_MEDIUM)
+
+        headers.append("Groups")
+        col_widths.append(self.WIDTH_MEDIUM)
+
+        # add our contact fields
+        for cf in contact_fields:
+            headers.append(cf.label)
+            col_widths.append(self.WIDTH_MEDIUM)
+
+        headers.append("First Seen")
+        col_widths.append(self.WIDTH_MEDIUM)
+
+        headers.append("Last Seen")
+        col_widths.append(self.WIDTH_MEDIUM)
+
+        for col in range(len(result_columns)):
+            ruleset = result_columns[col]
+
+            headers.append("%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+            col_widths.append(self.WIDTH_SMALL)
+            headers.append("%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+            col_widths.append(self.WIDTH_SMALL)
+            headers.append("%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+            col_widths.append(self.WIDTH_SMALL)
+
+        return headers, col_widths
+
+    def _add_runs_sheet(self, book, headers, col_widths):
+        name = "Runs (%d)" % (book.num_runs_sheets + 1) if book.num_runs_sheets > 0 else "Runs"
+        sheet = book.create_sheet(name, index=book.num_runs_sheets)
+        book.num_runs_sheets += 1
+
+        self.set_sheet_column_widths(sheet, col_widths)
+        self.append_row(sheet, headers)
+        return sheet
+
+    def _add_contacts_sheet(self, book, headers, col_widths):
+        name = "Contacts (%d)" % (book.num_contacts_sheets + 1) if book.num_contacts_sheets > 0 else "Contacts"
+        sheet = book.create_sheet(name, index=(book.num_runs_sheets + book.num_contacts_sheets))
+        book.num_contacts_sheets += 1
+
+        self.set_sheet_column_widths(sheet, col_widths)
+        self.append_row(sheet, headers)
+        return sheet
+
+    def _add_msgs_sheet(self, book):
+        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
+        index = book.num_runs_sheets + book.num_contacts_sheets + book.num_msgs_sheets
+        sheet = book.create_sheet(name, index)
+        book.num_msgs_sheets += 1
+
+        if self.org.is_anon:
+            headers = ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"]
+        else:
+            headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+
+        self.set_sheet_column_widths(sheet, [
+            self.WIDTH_MEDIUM, self.WIDTH_SMALL, self.WIDTH_MEDIUM, self.WIDTH_MEDIUM, self.WIDTH_SMALL,
+            self.WIDTH_LARGE, self.WIDTH_MEDIUM
+        ])
+        self.append_row(sheet, headers)
+        return sheet
+
+    def _get_contact_urn_display(self, contact, scheme=None):
+        """
+        Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
+        """
+        scheme_key = '__default__' if scheme is None else scheme
+
+        if not hasattr(self, '_urn_display_cache'):
+            self._urn_display_cache = defaultdict(dict)
+
+        urn_display = self._urn_display_cache.get(contact.id, {}).get(scheme_key)
+        if urn_display:
+            return urn_display
+        urn_display = contact.get_urn_display(org=self.org, scheme=scheme, formatted=False)
+        self._urn_display_cache[contact.id][scheme_key] = urn_display
+        return urn_display
+
+    def _get_contact_groups_display(self, contact):
+        group_names = []
+        for group in contact.all_groups.all():
+            if group.group_type == ContactGroup.TYPE_USER_DEFINED:
+                group_names.append(group.name)
+
+        group_names.sort()
+        return ", ".join(group_names)
+
+    def write_export(self):
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
@@ -4269,29 +4315,20 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         broadcast_only_flow = False
 
-        contact_fields = []
-        for cf_id in contact_field_ids:
-            cf = ContactField.objects.filter(id=cf_id, org=self.org, is_active=True).first()
-            if cf:
-                contact_fields.append(cf)
+        contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
 
         # merge the columns for all of our flows
         show_submitted_by = False
         columns = []
-        flows = self.flows.all()
-        with SegmentProfiler("get columns"):
-            for flow in flows:
-                columns += flow.get_columns()
+        flows = list(self.flows.filter(is_active=True, is_archived=False))
+        for flow in flows:
+            columns += flow.get_columns()
 
-                if flow.flow_type == Flow.SURVEY:
-                    show_submitted_by = True
-
-        org = None
-        if flows:
-            org = flows[0].org
+            if flow.flow_type == Flow.SURVEY:
+                show_submitted_by = True
 
         extra_urn_columns = []
-        if not org.is_anon:
+        if not self.org.is_anon:
             for extra_urn in extra_urns:
                 label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get('label', '')
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
@@ -4305,126 +4342,42 @@ class ExportFlowResultsTask(BaseExportTask):
         # if possible and back down to the cached rule_category only when necessary
         category_map = dict()
 
-        with SegmentProfiler("rule uuid to category to name"):
-            for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
+        for flow in flows:
+            for ruleset in flow.rule_sets.all():
                 for rule in ruleset.get_rules():
-                    category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
+                    category_map[rule.uuid] = rule.get_category_name(flow.base_language)
 
         runs = FlowRun.objects.filter(flow__in=flows)
 
         if responded_only:
             runs = runs.filter(responded=True)
 
-        # count of unique flow runs
-        with SegmentProfiler("# of runs"):
-            all_runs_count = runs.count()
-
-        # count of unique contacts
-        with SegmentProfiler("# of contacts"):
-            contacts_count = runs.distinct('contact').count()
-
         # grab the ids for all our steps so we don't have to ever calculate them again
-        with SegmentProfiler("calculate step ids"):
-            node_uuids = list(RuleSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
-            node_uuids += list(ActionSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+        node_uuids = list(RuleSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+        node_uuids += list(ActionSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
 
-            all_steps = FlowStep.objects.filter(step_uuid__in=node_uuids)\
-                                        .order_by('contact', 'run', 'arrived_on', 'pk')\
-                                        .values('id')
+        all_steps = FlowStep.objects.filter(step_uuid__in=node_uuids) \
+            .order_by('contact', 'run', 'arrived_on', 'pk') \
+            .values_list('id', flat=True)
 
-            if responded_only:
-                all_steps = all_steps.filter(run__in=runs)
-            else:
-                broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
+        if responded_only:
+            all_steps = all_steps.filter(run__in=runs)
+        else:
+            broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
 
-            step_ids = [s['id'] for s in all_steps]
+        step_ids = array(str('l'), all_steps)
 
-        # build our sheets
-        run_sheets = []
-        total_run_sheet_count = 0
+        runs_headers, runs_col_widths = self._get_runs_headers(show_submitted_by, extra_urn_columns, contact_fields,
+                                                               columns)
 
-        # the full sheets we need for runs
-        if include_runs:
-            for i in range(all_runs_count / self.MAX_EXCEL_ROWS + 1):
-                total_run_sheet_count += 1
-                name = "Runs" if (i + 1) <= 1 else "Runs (%d)" % (i + 1)
-                book.create_sheet(name)
-                run_sheets.append(name)
+        book = Workbook(write_only=True)
+        book.num_runs_sheets = 0
+        book.num_contacts_sheets = 0
+        book.num_msgs_sheets = 0
 
-        total_merged_run_sheet_count = 0
-
-        # the full sheets we need for contacts
-        for i in range(contacts_count / self.MAX_EXCEL_ROWS + 1):
-            total_merged_run_sheet_count += 1
-            name = "Contacts" if (i + 1) <= 1 else "Contacts (%d)" % (i + 1)
-            book.create_sheet(name)
-            run_sheets.append(name)
-
-        sheet_row = []
-        # then populate their header columns
-        for (sheet_num, sheet_name) in enumerate(run_sheets):
-            sheet = book[sheet_name]
-
-            # build up our header row
-            sheet_row = []
-            col_widths = []
-
-            if show_submitted_by:
-                sheet_row.append("Surveyor")
-                col_widths.append(self.WIDTH_MEDIUM)
-
-            sheet_row.append("Contact UUID")
-            col_widths.append(self.WIDTH_MEDIUM)
-
-            if org.is_anon:
-                sheet_row.append("ID")
-                col_widths.append(self.WIDTH_SMALL)
-            else:
-                sheet_row.append("URN")
-                col_widths.append(self.WIDTH_SMALL)
-
-            for extra_urn in extra_urn_columns:
-                sheet_row.append(extra_urn['label'])
-                col_widths.append(self.WIDTH_SMALL)
-
-            sheet_row.append("Name")
-            col_widths.append(self.WIDTH_MEDIUM)
-
-            sheet_row.append("Groups")
-            col_widths.append(self.WIDTH_MEDIUM)
-
-            # add our contact fields
-            for cf in contact_fields:
-                sheet_row.append(cf.label)
-                col_widths.append(self.WIDTH_MEDIUM)
-
-            sheet_row.append("First Seen")
-            col_widths.append(self.WIDTH_MEDIUM)
-
-            sheet_row.append("Last Seen")
-            col_widths.append(self.WIDTH_MEDIUM)
-
-            for col in range(len(columns)):
-                ruleset = columns[col]
-
-                sheet_row.append("%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(self.WIDTH_SMALL)
-                sheet_row.append("%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(self.WIDTH_SMALL)
-                sheet_row.append("%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(self.WIDTH_SMALL)
-
-            self.set_sheet_column_widths(sheet, col_widths)
-            self.append_row(sheet, sheet_row)
-
-        run_row = 1
-        merged_row = 1
-        msg_row = 1
-
-        sheet_columns_number = len(sheet_row)
-
-        runs_sheet_row = [None] * sheet_columns_number
-        merged_sheet_row = [None] * sheet_columns_number
+        num_run_columns = len(runs_headers)
+        runs_sheet_row = [None] * num_run_columns
+        merged_sheet_row = [None] * num_run_columns
 
         latest = None
         earliest = None
@@ -4434,38 +4387,14 @@ class ExportFlowResultsTask(BaseExportTask):
         last_run = 0
         last_contact = None
 
-        # index of sheets that we are currently writing to
-        run_sheet_index = 0
-        merged_run_sheet_index = total_run_sheet_count
-        msg_sheet_index = 0
-
-        # get our initial runs and merged runs to write to
-        runs = book[run_sheets[run_sheet_index]]
-        merged_runs = book[run_sheets[merged_run_sheet_index]]
-        msgs = None
+        # the current sheets
+        runs_sheet = self._add_runs_sheet(book, runs_headers, runs_col_widths) if include_runs else None
+        contacts_sheet = self._add_contacts_sheet(book, runs_headers, runs_col_widths)
+        msgs_sheet = None
 
         processed_steps = 0
-        total_steps = len(step_ids)
         start = time.time()
-        flow_names = ", ".join([f['name'] for f in self.flows.values('name')])
-
-        urn_display_cache = defaultdict(dict)
-
         seen_msgs = set()
-
-        def get_contact_urn_display(contact, scheme=None):
-            """
-            Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
-            """
-
-            scheme_key = '__default__' if scheme is None else scheme
-
-            urn_display = urn_display_cache.get(contact.pk, dict()).get(scheme_key, None)
-            if urn_display:
-                return urn_display
-            urn_display = contact.get_urn_display(org=org, scheme=scheme, formatted=False)
-            urn_display_cache[contact.pk][scheme_key] = urn_display
-            return urn_display
 
         for run_step in ChunkIterator(FlowStep, step_ids,
                                       order_by=['contact', 'run', 'arrived_on', 'pk'],
@@ -4481,14 +4410,14 @@ class ExportFlowResultsTask(BaseExportTask):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:  # pragma: needs cover
-                print("Export of %s - %d%% complete in %0.2fs" %
-                      (flow_names, processed_steps * 100 / total_steps, time.time() - start))
+                print("Result export of for org #%d - %d%% complete in %0.2fs" %
+                      (self.org.id, processed_steps * 100 / len(step_ids), time.time() - start))
 
             # skip over test contacts
             if run_step.contact.is_test:  # pragma: needs cover
                 continue
 
-            contact_urn_display = get_contact_urn_display(run_step.contact)
+            contact_urn_display = self._get_contact_urn_display(run_step.contact)
             contact_uuid = run_step.contact.uuid
             contact_name = self.prepare_value(run_step.contact.name)
 
@@ -4497,18 +4426,14 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # a new contact
                 if last_contact != run_step.contact.pk:
+                    if not contacts_sheet or contacts_sheet._max_row >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                        contacts_sheet = self._add_contacts_sheet(book, runs_headers, runs_col_widths)
+
                     merged_earliest = run_step.arrived_on
                     merged_latest = None
-                    if merged_sheet_row != [None] * sheet_columns_number:
-                        self.append_row(merged_runs, merged_sheet_row)
-                    merged_sheet_row = [None] * sheet_columns_number
-                    merged_row += 1
-
-                    if merged_row > self.MAX_EXCEL_ROWS:  # pragma: needs cover
-                        # get the next sheet to use for Contacts
-                        merged_row = 1
-                        merged_run_sheet_index += 1
-                        merged_runs = book[run_sheets[merged_run_sheet_index]]
+                    if merged_sheet_row != [None] * num_run_columns:
+                        self.append_row(contacts_sheet, merged_sheet_row)
+                    merged_sheet_row = [None] * num_run_columns
 
                 # a new run
                 if last_run != run_step.run.pk:
@@ -4516,34 +4441,20 @@ class ExportFlowResultsTask(BaseExportTask):
                     latest = None
 
                     if include_runs:
+                        if not runs_sheet or runs_sheet._max_row >= self.MAX_EXCEL_ROWS:
+                            runs_sheet = self._add_runs_sheet(book, runs_headers, runs_col_widths)
 
-                        if runs_sheet_row != [None] * sheet_columns_number:
-                            self.append_row(runs, runs_sheet_row)
-                        runs_sheet_row = [None] * sheet_columns_number
-                        run_row += 1
-
-                        if run_row > self.MAX_EXCEL_ROWS:  # pragma: needs cover
-                            # get the next sheet to use for Runs
-                            run_row = 1
-                            run_sheet_index += 1
-                            runs = book[run_sheets[run_sheet_index]]
+                        if runs_sheet_row != [None] * num_run_columns:
+                            self.append_row(runs_sheet, runs_sheet_row)
+                        runs_sheet_row = [None] * num_run_columns
 
                     # build up our group names
-                    group_names = []
-                    for group in run_step.contact.all_groups.all():
-                        if group.group_type == ContactGroup.TYPE_USER_DEFINED:
-                            group_names.append(group.name)
-
-                    group_names.sort()
-                    groups = ", ".join(group_names)
+                    groups = self._get_contact_groups_display(run_step.contact)
 
                     padding = 0
                     if show_submitted_by:
-                        submitted_by = ''
-
                         # use the login as the submission user
-                        if run_step.run.submitted_by:
-                            submitted_by = run_step.run.submitted_by.username
+                        submitted_by = run_step.run.submitted_by.username if run_step.run.submitted_by else ''
 
                         if include_runs:
                             runs_sheet_row[0] = submitted_by
@@ -4552,13 +4463,13 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     if include_runs:
                         runs_sheet_row[padding + 0] = contact_uuid
-                        if org.is_anon:
+                        if self.org.is_anon:
                             runs_sheet_row[padding + 1] = run_step.contact.id
                         else:
                             runs_sheet_row[padding + 1] = contact_urn_display
 
                     merged_sheet_row[padding + 0] = contact_uuid
-                    if org.is_anon:
+                    if self.org.is_anon:
                         merged_sheet_row[padding + 1] = run_step.contact.id
                     else:
                         merged_sheet_row[padding + 1] = contact_urn_display
@@ -4566,7 +4477,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     extra_urn_padding = 0
 
                     for extra_urn_column in extra_urn_columns:
-                        urn_value = get_contact_urn_display(run_step.contact, extra_urn_column['scheme'])
+                        urn_value = self._get_contact_urn_display(run_step.contact, extra_urn_column['scheme'])
 
                         merged_sheet_row[padding + 2 + extra_urn_padding] = urn_value
                         if include_runs:
@@ -4584,7 +4495,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     # write our contact fields if any
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()), org)
+                        field_value = Contact.get_field_display_for_value(cf,
+                                                                          run_step.contact.get_field(cf.key.lower()),
+                                                                          self.org)
                         if field_value is None:
                             field_value = ''
 
@@ -4644,31 +4557,16 @@ class ExportFlowResultsTask(BaseExportTask):
                 step_msgs = list(run_step.messages.all())
                 step_msgs = sorted(step_msgs, key=lambda msg: msg.created_on)
                 for msg in step_msgs:
-                    msg_row += 1
+                    if msg.id not in seen_msgs:
+                        if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
+                            msgs_sheet = self._add_msgs_sheet(book)
 
-                    if msg.pk not in seen_msgs:
-                        if msg_row > self.MAX_EXCEL_ROWS or not msgs:
-                            msg_row = 2
+                        urn_display = msg.contact_urn.get_display(org=self.org,
+                                                                  formatted=False) if msg.contact_urn else ''
 
-                            name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
-                            msgs = book.create_sheet(name)
-                            if org.is_anon:
-                                headers = ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"]
-                            else:
-                                headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
-
-                            col_widths = [self.WIDTH_MEDIUM, self.WIDTH_SMALL, self.WIDTH_MEDIUM, self.WIDTH_MEDIUM,
-                                          self.WIDTH_SMALL, self.WIDTH_LARGE, self.WIDTH_MEDIUM]
-                            msg_sheet_index += 1
-
-                            self.set_sheet_column_widths(msgs, col_widths)
-                            self.append_row(msgs, headers)
-
-                        urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
-
-                        self.append_row(msgs, [
+                        self.append_row(msgs_sheet, [
                             run_step.contact.uuid,
-                            run_step.contact.id if org.is_anon else urn_display,
+                            run_step.contact.id if self.org.is_anon else urn_display,
                             contact_name,
                             msg.created_on,
                             "IN" if msg.direction == INCOMING else "OUT",
@@ -4678,11 +4576,11 @@ class ExportFlowResultsTask(BaseExportTask):
 
                         seen_msgs.add(msg.pk)
 
-        if runs_sheet_row != [None] * sheet_columns_number:
-            self.append_row(runs, runs_sheet_row)
+        if runs_sheet_row != [None] * num_run_columns:
+            self.append_row(runs_sheet, runs_sheet_row)
 
-        if merged_sheet_row != [None] * sheet_columns_number:
-            self.append_row(merged_runs, merged_sheet_row)
+        if merged_sheet_row != [None] * num_run_columns:
+            self.append_row(contacts_sheet, merged_sheet_row)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
