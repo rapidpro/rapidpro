@@ -231,7 +231,6 @@ INSTALLED_APPS = (
     'temba.channels',
     'temba.msgs',
     'temba.flows',
-    'temba.reports',
     'temba.triggers',
     'temba.utils',
     'temba.campaigns',
@@ -435,7 +434,6 @@ PERMISSIONS = {
     'flows.flow': ('activity',
                    'activity_chart',
                    'activity_list',
-                   'analytics',
                    'api',
                    'archived',
                    'broadcast',
@@ -456,12 +454,6 @@ PERMISSIONS = {
                    'upload_action_recording',
                    'upload_media_action',
                    ),
-
-    'flows.ruleset': ('analytics',
-                      'choropleth',
-                      'map',
-                      'results',
-                      ),
 
     'msgs.msg': ('api',
                  'archive',
@@ -641,8 +633,6 @@ GROUP_PERMISSIONS = {
         'channels.channellog_read',
         'channels.channellog_session',
 
-        'reports.report.*',
-
         'flows.flow.*',
         'flows.flowstart_api',
         'flows.flowlabel.*',
@@ -745,8 +735,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_update',
         'channels.channelevent.*',
 
-        'reports.report.*',
-
         'flows.flow.*',
         'flows.flowstart_api',
         'flows.flowlabel.*',
@@ -821,9 +809,6 @@ GROUP_PERMISSIONS = {
         'flows.flow_results',
         'flows.flow_run_table',
         'flows.flow_simulate',
-        'flows.ruleset_analytics',
-        'flows.ruleset_results',
-        'flows.ruleset_choropleth',
 
         'msgs.broadcast_schedule_list',
         'msgs.broadcast_schedule_read',
