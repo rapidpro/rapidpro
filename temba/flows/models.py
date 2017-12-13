@@ -4344,16 +4344,16 @@ class ExportFlowResultsTask(BaseExportTask):
 
         contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
 
-        # get rulesets across all flows being exported
+        # get all result saving nodes across all flows being exported
         show_submitted_by = False
-        rulesets = []
+        result_nodes = []
         flows = list(self.flows.filter(is_active=True, is_archived=False).prefetch_related(
             Prefetch('rule_sets', RuleSet.objects.exclude(label=None).order_by('y', 'id'))
         ))
         for flow in flows:
-            for ruleset in flow.rule_sets.all():
-                ruleset.flow = flow
-                rulesets.append(ruleset)
+            for node in flow.rule_sets.all():
+                node.flow = flow
+                result_nodes.append(node)
 
             if flow.flow_type == Flow.SURVEY:
                 show_submitted_by = True
@@ -4364,15 +4364,15 @@ class ExportFlowResultsTask(BaseExportTask):
                 label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get('label', '')
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
-        runs_columns = self._get_runs_columns(extra_urn_columns, contact_fields, rulesets, show_submitted_by=show_submitted_by, show_time=True)
-        contacts_columns = self._get_runs_columns(extra_urn_columns, contact_fields, rulesets)
+        runs_columns = self._get_runs_columns(extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by, show_time=True)
+        contacts_columns = self._get_runs_columns(extra_urn_columns, contact_fields, result_nodes)
 
         book = Workbook(write_only=True)
         book.num_runs_sheets = 0
         book.num_contacts_sheets = 0
         book.num_msgs_sheets = 0
 
-        merged_result_values = [None, None, None] * len(rulesets)
+        merged_result_values = [None, None, None] * len(result_nodes)
 
         current_contact = None
         current_contact_values = None
@@ -4417,7 +4417,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                         self.append_row(contacts_sheet, merged_sheet_row)
 
-                        merged_result_values = [None, None, None] * len(rulesets)
+                        merged_result_values = [None, None, None] * len(result_nodes)
 
                     current_contact = run.contact
 
@@ -4441,7 +4441,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.get_results().values()}
 
                 result_values = []
-                for n, node in enumerate(rulesets):
+                for n, node in enumerate(result_nodes):
                     node_result = results_by_node.get(node.uuid, {})
                     node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
                     node_value = node_result.get(FlowRun.RESULT_VALUE, "")
@@ -4471,29 +4471,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    run_msgs = set()
-                    for step in run.steps.all():
-                        run_msgs.update(step.messages.all())
-                    run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
-
-                    for msg in run_msgs:
-                        if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
-                            msgs_sheet = self._add_msgs_sheet(book)
-
-                        if self.org.is_anon:
-                            urn_display = run.contact.id
-                        else:
-                            urn_display = msg.contact_urn.get_display(org=self.org, formatted=False) if msg.contact_urn else ''
-
-                        self.append_row(msgs_sheet, [
-                            run.contact.uuid,
-                            urn_display,
-                            self.prepare_value(run.contact.name),
-                            msg.created_on,
-                            "IN" if msg.direction == INCOMING else "OUT",
-                            msg.text,
-                            msg.channel.name if msg.channel else ''
-                        ])
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -4510,6 +4488,36 @@ class ExportFlowResultsTask(BaseExportTask):
         book.save(temp)
         temp.flush()
         return temp, 'xlsx'
+
+    def _write_run_messages(self, book, msgs_sheet, run):
+        """
+        Writes out any messages associated with the given run
+        """
+        run_msgs = set()
+        for step in run.steps.all():
+            run_msgs.update(step.messages.all())
+        run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
+
+        for msg in run_msgs:
+            if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
+                msgs_sheet = self._add_msgs_sheet(book)
+
+            if self.org.is_anon:
+                urn_display = run.contact.id
+            else:
+                urn_display = msg.contact_urn.get_display(org=self.org, formatted=False) if msg.contact_urn else ''
+
+            self.append_row(msgs_sheet, [
+                run.contact.uuid,
+                urn_display,
+                self.prepare_value(run.contact.name),
+                msg.created_on,
+                "IN" if msg.direction == INCOMING else "OUT",
+                msg.text,
+                msg.channel.name if msg.channel else ''
+            ])
+
+        return msgs_sheet
 
 
 @register_asset_store
