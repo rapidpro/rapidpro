@@ -81,13 +81,11 @@ def interrupt_flow_runs_task(flow_id):
 
 
 @task(track_started=True, name='export_flow_results_task')
-def export_flow_results_task(id):
+def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user
     """
-    export_task = ExportFlowResultsTask.objects.filter(pk=id).first()
-    if export_task:
-        export_task.perform()
+    ExportFlowResultsTask.objects.select_related('org').get(id=export_id).perform()
 
 
 @task(track_started=True, name='start_flow_task')

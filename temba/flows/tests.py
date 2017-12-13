@@ -543,13 +543,15 @@ class FlowTest(TembaTest):
         self.assertEqual(color_reply.uuid, step.next_uuid)
         self.assertTrue(incoming in step.messages.all())
 
-        # we should also have a Value for this RuleSet
-        value = Value.objects.get(run=step.run, ruleset__label="color")
-        self.assertEqual(orange_rule.uuid, value.rule_uuid)
-        self.assertEqual("Orange", value.category)
-        self.assertEqual("orange", value.string_value)
-        self.assertEqual(None, value.decimal_value)
-        self.assertEqual(None, value.datetime_value)
+        # we should also have a result for this RuleSet
+        results = step.run.get_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
+        self.assertEqual(results['color']['name'], "color")
+        self.assertEqual(results['color']['category'], "Orange")
+        self.assertEqual(results['color']['value'], "orange")
+        self.assertEqual(results['color']['input'], "orange")
+        self.assertIsNotNone(results['color']['created_on'])
 
         # check what our message context looks like now
         context = self.flow.build_expressions_context(self.contact, incoming)
@@ -608,15 +610,6 @@ class FlowTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(Flow.find_and_handle(extra)[0])
 
-        # check our run results
-        results = contact1_run.get_results()
-
-        self.assertEqual(results['color']['name'], 'color')
-        self.assertEqual(results['color']['category'], 'Orange')
-        self.assertEqual(results['color']['value'], 'orange')
-        self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
-        self.assertEqual(results['color']['input'], incoming.text)
-
     def test_anon_export_results(self):
         self.org.is_anon = True
         self.org.save()
@@ -660,8 +653,7 @@ class FlowTest(TembaTest):
         contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
         contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        time.sleep(1)
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(48):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -783,7 +775,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(37):
             workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -806,8 +798,6 @@ class FlowTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
-        time.sleep(1)
-
         # simulate two runs each for two contacts...
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
         Flow.find_and_handle(contact1_in1)
@@ -818,11 +808,7 @@ class FlowTest(TembaTest):
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
         Flow.find_and_handle(contact2_in1)
 
-        time.sleep(1)
-
         contact1_run2, contact2_run2 = self.flow.start([], [self.contact, self.contact2], restart_participants=True)
-
-        time.sleep(1)
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
         Flow.find_and_handle(contact1_in3)
@@ -841,7 +827,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -934,7 +920,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(47):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -961,7 +947,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(59):
+        with self.assertNumQueries(54):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -1004,10 +990,17 @@ class FlowTest(TembaTest):
                                             "Devs", "36", c1_run1_first, c1_run1_last, "Orange", "orange",
                                             "orange"], tz)
 
+        # test that we don't exceed the limit on rows per sheet
+        with patch('temba.flows.models.ExportFlowResultsTask.MAX_EXCEL_ROWS', 4):
+            workbook = self.export_flow_results(self.flow)
+            expected_sheets = [("Runs", 4), ("Runs (2)", 3), ("Contacts", 4), ("Messages", 4),
+                               ("Messages (2)", 4), ("Messages (3)", 4), ("Messages (4)", 4), ("Messages (5)", 2)]
+
+            for s, sheet in enumerate(workbook.worksheets):
+                self.assertEqual((sheet.title, len(list(sheet.rows))), expected_sheets[s])
+
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
-
-        time.sleep(1)
 
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="Red")
         Flow.find_and_handle(contact1_in1)
@@ -1041,8 +1034,6 @@ class FlowTest(TembaTest):
 
     def test_export_results_remove_control_characters(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
-
-        time.sleep(1)
 
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="ngert\x07in.")
         Flow.find_and_handle(contact1_in1)
@@ -4767,52 +4758,9 @@ class FlowsTest(FlowFileTest):
             response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
             self.assertEqual(len(response.context['runs']), 2)
 
-            rulesets = favorites.rule_sets.all().order_by('-y')
-            results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
-            results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
-            results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
-
-            self.assertEqual(results0['set'], 1)
-            self.assertEqual(results0['unset'], 1)
-            self.assertEqual(len(results0['categories']), 1)
-            self.assertEqual(results0['categories'], [{'count': 1, 'label': u'pete'}])
-
-            self.assertEqual(results1['set'], 2)
-            self.assertEqual(results1['unset'], 0)
-            self.assertEqual(len(results1['categories']), 4)
-            self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 1, 'label': u'Primus'},
-                                                      {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
-
-            self.assertEqual(results2['set'], 2)
-            self.assertEqual(results2['unset'], 0)
-            self.assertEqual(len(results2['categories']), 4)
-            self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
-                                                      {'count': 1, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
-
             self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
             response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
             self.assertEqual(len(response.context['runs']), 1)
-
-            results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
-            results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
-            results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
-
-            self.assertEqual(results0['set'], 0)
-            self.assertEqual(results0['unset'], 1)
-            self.assertEqual(len(results0['categories']), 0)
-            self.assertEqual(results0['categories'], [])
-
-            self.assertEqual(results1['set'], 1)
-            self.assertEqual(results1['unset'], 0)
-            self.assertEqual(len(results1['categories']), 4)
-            self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 0, 'label': u'Primus'},
-                                                      {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
-
-            self.assertEqual(results2['set'], 1)
-            self.assertEqual(results2['unset'], 0)
-            self.assertEqual(len(results2['categories']), 4)
-            self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
-                                                      {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
 
         with patch('temba.flows.views.FlowCRUDL.RunTable.paginate_by', 1):
 
@@ -7592,7 +7540,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertTrue(ContactGroup.user_groups.filter(name='Unknown').exists())
 
 
-class DuplicateValueTest(FlowFileTest):
+class DuplicateResultTest(FlowFileTest):
 
     def test_duplicate_value_test(self):
         flow = self.get_flow('favorites')
@@ -7601,16 +7549,20 @@ class DuplicateValueTest(FlowFileTest):
         # get the run for our contact
         run = FlowRun.objects.get(contact=self.contact, flow=flow)
 
-        # we should have one value for this run, "Other"
-        value = Value.objects.get(run=run)
-        self.assertEqual("Other", value.category)
+        # we should have one result for this run, "Other"
+        results = run.get_results()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['color']['category'], "Other")
 
         # retry with "red" as an aswer
         self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "red"))
 
         # we should now still have only one value, but the category should be Red now
-        value = Value.objects.get(run=run)
-        self.assertEqual("Red", value.category)
+        run.refresh_from_db()
+        results = run.get_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['color']['category'], "Red")
 
 
 class ChannelSplitTest(FlowFileTest):
@@ -8507,7 +8459,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=164, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=158, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
