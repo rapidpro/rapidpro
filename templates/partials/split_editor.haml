@@ -155,31 +155,34 @@
             %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
               -trans "Add header"
 
-        [[formData.webhook_action]]
         .div{ng-show:'formData.supportsLegacy && formData.webhook_action == "POST"'}
-          .div.warning
 
-            .div{ng-show:'formData.newFormat'}
-              %p
-                This webhook is set to use the
-                %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
-                  new version
-                of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
-                box below. Keep in mind that the deprecated format will be removed January 31, 2018.
+          .success{ng-show:'formData.newFormat'}
+            %p
+              This webhook is set to use the
+              %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
+                new version
+              of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
+              box below. Keep in mind that the deprecated format will be removed January 31, 2018.
 
-            .div{ng-hide:'formData.newFormat'}
-              %p
-                This webhook is using a
-                %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
-                  deprecated version
-                of the POST Webhook API which will be removed on January 31, 2018.
-                Prior to that date, you will need to update any services depending on the deprecated API format.
+            .div{style:'margin-top:10px'}
+              %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+                %label{for:'new_format'}
+                  Use the new webhook format
 
-              %p
-                Review the
-                %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-                  new version
-                and check the box below when this webhook is ready to start receiving the new format.
+          .warning{ng-hide:'formData.newFormat'}
+            %p
+              This webhook is using a
+              %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
+                deprecated version
+              of the POST Webhook API which will be removed on January 31, 2018.
+              Prior to that date, you will need to update any services depending on the deprecated API format.
+
+            %p
+              Review the
+              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+                new version
+              and check the box below when this webhook is ready to start receiving the new format.
 
             .div{style:'margin-top:10px'}
               %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}

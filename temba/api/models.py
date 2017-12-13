@@ -222,14 +222,11 @@ class WebHookEvent(SmartModel):
 
         post_data = {}
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
-        post_data['contact'] = dict(
-            uuid=contact.uuid,
-            name=contact.name,
-            groups=[dict(name=g.name, uuid=g.uuid) for g in contact.user_groups.all()],
-            fields={f.key: contact.get_field_raw(f.key) for f in org.cached_contact_fields if contact.get_field(f.key)}
-        )
+        post_data['contact'] = dict(uuid=contact.uuid, name=contact.name)
         post_data['path'] = json.loads(run.path if run.path else '[]')
         post_data['results'] = json.loads(run.results if run.results else '{}')
+        if channel:
+            post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
 
         api_user = get_api_user()
         if not action:  # pragma: needs cover

@@ -195,6 +195,15 @@
     If you choose to POST to a webhook when a user reaches a particular point in a flow, the following
     JSON payload will be included as the body
 
+    <table class="table table-params">
+        <tr><td>flow</td><td>The name and uuid of the flow that triggered the webhook</td></tr>
+        <tr><td>contact</td><td>The name and uuid of the contact in the flow</td></tr>
+        <tr><td>path</td><td>A list of node uuids along with when the contact arrived there and where they whent next</td></tr>
+        <tr><td>path</td><td>A map of result keys to values collected during the flow</td></tr>
+    </table>
+
+    For example, the webhook POST body will look something similar to the following:
+
         {
             "flow": {
                 "name": "Water Survey",
@@ -202,17 +211,7 @@
             },
             "contact": {
                 "uuid": "dc2b3709-3261-465f-b39a-fc7312b2ab95",
-                "name": "Ben Haggerty",
-                "groups": [
-                    {
-                        "name": "Customers",
-                        "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"
-                    }
-                ],
-                "fields": {
-                    "nickname": "Macklemore",
-                    "side_kick": "Ryan Lewis"
-                }
+                "name": "Ben Haggerty"
             },
             "path": [
                 {
@@ -221,7 +220,7 @@
                     "exit_uuid": "207d919d-ac4d-451a-9892-3ceca16430ff"
                 },
                 {
-                    "node_uuid": "e0d8507a-4af1-4cc3-978a-08f368d5fcd7",
+                    "node_uuid": "207d919d-ac4d-451a-9892-3ceca16430ff",
                     "arrived_on": "2014-06-03T08:21:09.865526+00:00"
                 }
             ],
@@ -236,8 +235,7 @@
                 }
             }
         }
-
-  %a{ name:"legacy_flow" }
+  %a{ name:"flow_legacy" }
   :markdown
     ### Legacy Flow Events
 
