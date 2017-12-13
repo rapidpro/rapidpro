@@ -735,8 +735,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_update',
         'channels.channelevent.*',
 
-        'reports.report.*',
-
         'flows.flow.*',
         'flows.flowstart_api',
         'flows.flowlabel.*',
