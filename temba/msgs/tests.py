@@ -365,38 +365,35 @@ class MsgTest(TembaTest):
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
     def test_broadcast_metadata(self):
-        contact = self.create_contact('Stephen', '+12078778899')
-        contact2 = self.create_contact('Maaaarcos', '+12078778888')
-        ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
-        ContactURN.get_or_create(self.org, contact2, 'tel:+12078778888')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
-        broadcast.send(True, partial_recipients=partial_recipients)
+        Channel.create(self.org, self.admin, None, channel_type='TT')
+        contact1 = self.create_contact('Stephen', '+12078778899', language='fra')
+        contact2 = self.create_contact('Maaaarcos', number='+12078778888', twitter='marky65')
 
-        self.assertTrue(broadcast.metadata)
-        self.assertEqual(3, broadcast.msgs.all().count())
+        # can't create quick replies if you don't include base translation
+        with self.assertRaises(ValueError):
+            Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?",
+                             [contact1], quick_replies=[dict(eng='Yes'), dict(eng='No')])
 
-        # should not create a broadcast recipient if a similar one exists
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
-        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact2.id)
+        eng = Language.create(self.org, self.admin, "English", "eng")
+        Language.create(self.org, self.admin, "French", "fra")
+        self.org.primary_language = eng
+        self.org.save()
 
-        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
-        broadcast.send(True, partial_recipients=partial_recipients)
+        broadcast = Broadcast.create(self.org, self.admin,
+                                     "If a broadcast is sent and nobody receives it, does it still send?",
+                                     [contact1, contact2], send_all=True,
+                                     quick_replies=[dict(eng='Yes', fra='Oui'), dict(eng='No')])
 
-        self.assertEqual(2, broadcast.recipients.all().count())
-        self.assertEqual(3, broadcast.msgs.all().count())
+        # check metadata was set on the broadcast
+        self.assertEqual(broadcast.get_metadata(), {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
 
-        contact3 = self.create_contact('Leandro', '+12078778877', is_test=True)
-        ContactURN.get_or_create(self.org, contact3, 'tel:+12078778877')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact3], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        partial_recipients = list(), Contact.objects.filter(pk=contact3.pk)
-        broadcast.send(True, partial_recipients=partial_recipients)
-        self.assertTrue(broadcast.metadata)
-        self.assertEqual(1, broadcast.msgs.all().count())
+        broadcast.send()
+        msg1, msg2, msg3 = broadcast.msgs.order_by('contact', 'id')
+
+        # message quick_replies are translated according to contact language
+        self.assertEqual(msg1.get_metadata(), {'quick_replies': ['Oui', 'No']})
+        self.assertEqual(msg2.get_metadata(), {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg3.get_metadata(), {'quick_replies': ['Yes', 'No']})
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
