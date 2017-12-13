@@ -872,17 +872,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       else
         # our visited counts for actions
-
         count = 0
         if activity and activity.visited
-          # TODO convert all path counts to be exit based and remove this
-          by_node_key = node.uuid + ':' + node.destination
-          if by_node_key of activity.visited
-            count += activity.visited[by_node_key]
-
-          by_exit_key = node.exit_uuid + ':' + node.destination
-          if by_exit_key of activity.visited
-            count += activity.visited[by_exit_key]
+          key = node.exit_uuid + ':' + node.destination
+          if key of activity.visited
+            count = activity.visited[key]
         node._visited = count
 
       return
