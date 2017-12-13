@@ -1294,7 +1294,7 @@ class Msg(models.Model):
 
         contact_urn = None
         if not contact:
-            contact = Contact.get_or_create_by_urns(org, user, name=None, urns=[urn], channel=channel)
+            contact = Contact.get_or_create(org, urn, channel, user=user)
             contact_urn = contact.urn_objects[urn]
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)

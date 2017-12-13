@@ -89,7 +89,7 @@ class USSDSession(ChannelSession):
         urn = URN.from_tel(urn)
 
         if not contact:
-            contact = Contact.get_or_create_by_urns(channel.org, channel.created_by, urns=[urn], channel=channel)
+            contact = Contact.get_or_create(channel.org, urn, channel)
             contact_urn = contact.urn_objects[urn]
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)

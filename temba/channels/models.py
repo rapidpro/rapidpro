@@ -1446,7 +1446,7 @@ class ChannelEvent(models.Model):
         org = channel.org
         user = get_anonymous_user()
 
-        contact = Contact.get_or_create_by_urns(org, user, name=None, urns=[urn], channel=channel)
+        contact = Contact.get_or_create(org, urn, channel, name=None, user=user)
         contact_urn = contact.urn_objects[urn]
 
         extra_json = None if not extra else json.dumps(extra)

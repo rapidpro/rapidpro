@@ -853,6 +853,74 @@ class Contact(TembaModel):
             return None
 
     @classmethod
+    def get_or_create(cls, org, urn, channel, name=None, auth=None, user=None):
+        """
+        Gets or creates a contact with the given URN
+        """
+
+        if not user and not channel:
+            raise ValueError("Attempt to create contact without channel and without user")
+
+        if not user:
+            user = channel.created_by
+
+        # get country from channel or org
+        if channel:
+            country = channel.country.code
+        else:
+            country = org.get_country_code()
+
+        contact = None
+
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
+        normalized = URN.normalize(urn, country)
+        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
+
+        if existing_urn and existing_urn.contact:
+            contact = existing_urn.contact
+            ContactURN.update_auth(existing_urn, auth)
+
+            # return our contact, mapping our existing urn appropriately
+            contact.urn_objects = {urn: existing_urn}
+            return contact
+        else:
+            kwargs = dict(org=org, name=name, created_by=user, modified_by=user)
+            contact = Contact.objects.create(**kwargs)
+            updated_attrs = kwargs.keys()
+
+            if existing_urn:
+                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
+                urn_obj = existing_urn
+            else:
+                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
+
+            updated_urns = [urn]
+
+            # add attribute which allows import process to track new vs existing
+            contact.is_new = True
+            contact.urn_objects = {urn: urn_obj}
+
+        # record contact creation in analytics
+        if getattr(contact, 'is_new', False):
+            params = dict(name=name)
+
+            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
+            # assign them property names with added count
+            urns_for_scheme_counts = defaultdict(int)
+            scheme, path, display = URN.to_parts(urn)
+            urns_for_scheme_counts[scheme] += 1
+            params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
+
+            analytics.gauge('temba.contact_created')
+
+        # handle group and campaign updates
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
+        return contact
+
+    @classmethod
     def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_attr_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
