@@ -437,16 +437,16 @@ def on_transaction_commit(func):
         transaction.on_commit(func)
 
 
-_anon_user_id = None
+_anon_user = None
 
 
-def get_anonymous_user_id():
+def get_anonymous_user():
     """
     Returns the anonymous user id, originally created by django-guardian
     """
 
-    global _anon_user_id
-    if _anon_user_id is None:
+    global _anon_user
+    if _anon_user is None:
         from django.contrib.auth.models import User
-        _anon_user_id = User.objects.get(username=settings.ANONYMOUS_USER_NAME).id
-    return _anon_user_id
+        _anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+    return _anon_user
