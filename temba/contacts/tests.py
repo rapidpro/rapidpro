@@ -713,6 +713,11 @@ class ContactTest(TembaTest):
         self.assertEqual(1, snoop.urns.all().count())
         self.assertEqual(snoop.urns.first().auth, "12345")
 
+        snoop = Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, channel=self.channel,
+                                              urns=['tel:456'], auth='12345678')
+        self.assertEqual(1, snoop.urns.all().count())
+        self.assertEqual(snoop.urns.first().auth, "12345678")
+
         # create contact with new urns one normalized and the other not
         jimmy = Contact.get_or_create_by_urns(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
         self.assertEqual(1, jimmy.urns.all().count())
