@@ -7917,10 +7917,10 @@ class TimeoutTest(FlowFileTest):
         flow = self.get_flow('timeout_loop')
 
         # start the flow
-        flow.start([], [self.contact])
+        run, = flow.start([], [self.contact])
 
         # mark our last message as sent
-        run = FlowRun.objects.all().first()
+        run.refresh_from_db()
         last_msg = run.get_last_msg(OUTGOING)
         last_msg.sent_on = timezone.now() - timedelta(minutes=2)
         last_msg.save()
@@ -7930,6 +7930,8 @@ class TimeoutTest(FlowFileTest):
 
         FlowRun.objects.all().update(timeout_on=timeout)
         check_flow_timeouts_task()
+
+        run.refresh_from_db()
 
         # should have a new outgoing message
         last_msg = run.get_last_msg(OUTGOING)
