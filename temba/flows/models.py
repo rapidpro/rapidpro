@@ -2756,6 +2756,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
     def add_messages(self, msgs, step=None):
+        """
+        Associates the given messages with this run
+        """
         if self.message_ids is None:
             self.message_ids = []
 
