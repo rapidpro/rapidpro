@@ -148,26 +148,27 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
     from temba.contacts.models import Contact
     from temba.orgs.models import Org
-    from temba.flows.models import FlowStep
+    from temba.flows.models import FlowRun
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
     simulation = kwargs.get('simulation', 'false') == 'true'
-    step_uuid = kwargs.get('s', None)
+    node_uuid = kwargs.get('s', None)
 
-    qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+    runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
-    steps = FlowStep.objects.filter(run__is_active=True, step_uuid=step_uuid,
-                                    left_on=None, run__flow__org=org).distinct('contact').select_related('contact')
-    contact_uuids = [f.contact.uuid for f in steps]
-    contacts = qs.filter(uuid__in=contact_uuids).order_by('name')
+    contact_ids = (
+        Contact.objects
+        .filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+        .filter(id__in=runs.values_list('contact', flat=True))
+        .values_list('id', flat=True)
+    )
 
-    recipients = list(contacts)
-    broadcast = Broadcast.create(org, user, text, recipients)
+    broadcast = Broadcast.create(org, user, text, recipients=[])
+    broadcast.update_contacts(contact_ids)
     broadcast.send(expressions_context={})
 
-    analytics.track(user.username, 'temba.broadcast_created',
-                    dict(contacts=len(contacts), groups=0, urns=0))
+    analytics.track(user.username, 'temba.broadcast_created', dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
 @task(track_started=True, name='send_spam')
