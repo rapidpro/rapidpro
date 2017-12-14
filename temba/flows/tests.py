@@ -2597,8 +2597,8 @@ class FlowTest(TembaTest):
         self.assertEqual(response.json()['description'], 'Your flow could not be saved. Please refresh your browser.')
 
     def test_flow_start_with_start_msg(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
-        self.flow.start([], [self.contact], start_msg=sms)
+        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        self.flow.start([], [self.contact], start_msg=msg_in)
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact))
         run = FlowRun.objects.filter(contact=self.contact).first()
@@ -2607,6 +2607,15 @@ class FlowTest(TembaTest):
         actionset_step = run.steps.filter(step_type=FlowStep.TYPE_ACTION_SET).first()
         ruleset_step = run.steps.filter(step_type=FlowStep.TYPE_RULE_SET).first()
 
+        msg_in.refresh_from_db()
+        msg_out = Msg.objects.get(direction='O')
+
+        # both msgs should be of type FLOW
+        self.assertEqual(msg_in.msg_type, FLOW)
+        self.assertEqual(msg_out.msg_type, FLOW)
+
+        self.assertEqual(set(run.message_ids), {long(msg_in.id), long(msg_out.id)})
+
         # no messages on the ruleset step
         self.assertFalse(ruleset_step.messages.all())
 
@@ -2614,10 +2623,7 @@ class FlowTest(TembaTest):
         self.assertEqual(actionset_step.messages.all().count(), 2)
 
         # one is the start msg
-        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
-
-        # sms msg_type should be FLOW
-        self.assertEqual(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+        self.assertTrue(actionset_step.messages.filter(pk=msg_in.pk))
 
     def test_quick_replies(self):
         flow = self.get_flow('quick_replies')
@@ -7704,7 +7710,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=298, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=308, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -7722,7 +7728,7 @@ class FlowBatchTest(FlowFileTest):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
         # make sure that adding a msg more than once doesn't blow up
-        step.add_message(step.messages.all()[0])
+        step.run.add_messages(list(step.messages.all()), step=step)
         self.assertEqual(step.messages.all().count(), 2)
         self.assertEqual(step.broadcasts.all().count(), 1)
 
@@ -8393,7 +8399,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=158, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=163, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

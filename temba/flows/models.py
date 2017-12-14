@@ -21,6 +21,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
+from django.contrib.postgres.fields import ArrayField
 from django.db import models, connection as db_connection
 from django.db.models import Q, Count, QuerySet, Sum, Max, Prefetch
 from django.utils import timezone
@@ -794,9 +795,7 @@ class Flow(TembaModel):
 
         # actually execute all the actions in our actionset
         msgs = actionset.execute_actions(run, msg, started_flows)
-
-        for msg in msgs:
-            step.add_message(msg)
+        run.add_messages(msgs, step=step)
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -830,7 +829,7 @@ class Flow(TembaModel):
                     extra['flow'] = message_context.get('flow', {})
 
                     if msg.id > 0:
-                        step.add_message(msg)
+                        run.add_messages([msg], step=step)
                         run.update_expiration(timezone.now())
 
                     if flow:
@@ -856,7 +855,7 @@ class Flow(TembaModel):
 
         # add the message to our step
         if msg.id > 0:
-            step.add_message(msg)
+            run.add_messages([msg], step=step)
             run.update_expiration(timezone.now())
 
         if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.attachments:
@@ -897,8 +896,7 @@ class Flow(TembaModel):
         context = run.flow.build_expressions_context(run.contact, msg)
         msgs = action.execute(run, context, ruleset.uuid, msg)
 
-        for msg in msgs:
-            step.add_message(msg)
+        run.add_messages(msgs, step=step)
 
         return dict(handled=True, destination=None, step=step, msgs=msgs)
 
@@ -1771,7 +1769,7 @@ class Flow(TembaModel):
                         run_msgs += step_msgs
 
                 if start_msg:
-                    step.add_message(start_msg)
+                    run.add_messages([start_msg], step=step)
 
                 # set the msgs that were sent by this run so that any caller can deal with them
                 run.start_msgs = run_msgs
@@ -1837,8 +1835,7 @@ class Flow(TembaModel):
                                        step_uuid=node.uuid, arrived_on=arrived_on)
 
         # for each message, associate it with this step and set the label on it
-        for msg in msgs:
-            step.add_message(msg)
+        run.add_messages(msgs, step=step)
 
         path = run.get_path()
 
@@ -2609,6 +2606,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     path = models.TextField(null=True,
                             help_text=_("The path taken during this flow run in JSON format"))
 
+    message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
+                             help_text=_("The IDs of messages associated with this run"))
+
     @cached_property
     def cached_child(self):
         child = FlowRun.objects.filter(parent=self).order_by('-created_on').select_related('flow').first()
@@ -2754,6 +2754,42 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
+
+    def add_messages(self, msgs, step=None):
+        if self.message_ids is None:
+            self.message_ids = []
+
+        needs_update = False
+
+        for msg in msgs:
+            # no-op for no msg or mock msgs
+            if not msg or not msg.id:
+                continue
+
+            if msg.id not in self.message_ids:
+                self.message_ids.append(msg.id)
+                needs_update = True
+
+            if step:
+                step.messages.add(msg)
+
+                # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
+                if msg.broadcast:
+                    step.broadcasts.add(msg.broadcast)
+
+            # incoming non-IVR messages won't have a type yet so update that
+            if not msg.msg_type or msg.msg_type == INBOX:
+                msg.msg_type = FLOW
+                msg.save(update_fields=['msg_type'])
+
+            # if message is from contact, mark run as responded
+            if msg.direction == INCOMING:
+                if not self.responded:
+                    self.responded = True
+                    needs_update = True
+
+        if needs_update:
+            self.save(update_fields=('responded', 'message_ids'))
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -3284,30 +3320,6 @@ class FlowStep(models.Model):
             return broadcasts[0].get_translated_text(run.contact, org=run.org)
 
         return None
-
-    def add_message(self, msg):
-        # no-op for no msg or mock msgs
-        if not msg or not msg.id:
-            return
-
-        self.messages.add(msg)
-
-        # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-        if msg.broadcast:
-            self.broadcasts.add(msg.broadcast)
-
-        # incoming non-IVR messages won't have a type yet so update that
-        if not msg.msg_type or msg.msg_type == INBOX:
-            msg.msg_type = FLOW
-            msg.save(update_fields=['msg_type'])
-
-        # if message is from contact, mark run as responded
-        if not self.run.responded and msg.direction == INCOMING:
-            # update our local run's responded state and it's expiration
-            self.run.responded = True
-
-            # and make sure the db is up to date
-            FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
     def get_node(self):
         """
