@@ -1851,7 +1851,8 @@ class Flow(TembaModel):
             path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
 
         run.path = json.dumps(path)
-        run.save(update_fields=('path',))
+        run.current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
+        run.save(update_fields=('path', 'current_node_uuid'))
 
         return step
 
@@ -2608,6 +2609,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
                              help_text=_("The IDs of messages associated with this run"))
+
+    current_node_uuid = models.UUIDField(null=True,
+                                         help_text=_("The current node location of this run in the flow"))
 
     @cached_property
     def cached_child(self):

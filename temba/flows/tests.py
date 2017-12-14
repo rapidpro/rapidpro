@@ -6599,6 +6599,7 @@ class FlowsTest(FlowFileTest):
             (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
             (colorRuleSet.uuid, None),
         ])
+        self.assertEqual(str(run.current_node_uuid), colorRuleSet.uuid)
 
         self.send_message(flow, "red")
 
@@ -6615,6 +6616,7 @@ class FlowsTest(FlowFileTest):
             (beerPrompt.uuid, beerPrompt.exit_uuid),
             (beerRuleSet.uuid, None),
         ])
+        self.assertEqual(str(run.current_node_uuid), beerRuleSet.uuid)
 
 
 class FlowMigrationTest(FlowFileTest):
