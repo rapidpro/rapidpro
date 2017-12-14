@@ -802,7 +802,7 @@ class Contact(TembaModel):
         """
         dynamic_group_change = False
 
-        if Contact.NAME in attrs or field or urns:
+        if field or urns:
             # ensure dynamic groups are up to date
             dynamic_group_change = self.reevaluate_dynamic_groups(field)
 

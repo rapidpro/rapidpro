@@ -1194,6 +1194,10 @@ COURIER_CHANNELS = set(['DK', 'WA'])
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = 'https://chatbase.com/api/message'
 
-
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
+
+# -----------------------------------------------------------------------------------
+# Disable server side cursors so we work with PG Bouncer
+# -----------------------------------------------------------------------------------
+DISABLE_SERVER_SIDE_CURSORS = True
