@@ -1133,7 +1133,7 @@ class Contact(TembaModel):
         from .search import contact_search
 
         if not base_group:
-            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
+            base_group = org.cached_all_contacts_group
 
         return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
@@ -1606,7 +1606,7 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
-        self.clear_all_groups(get_anonymous_user())
+        self.clear_all_groups(user)
 
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1931,6 +1931,7 @@ class Contact(TembaModel):
 
         group_change = False
         for group in affected_dynamic_groups:
+            group.org = self.org
             changed = group.reevaluate_contacts([self])
             if changed:
                 group_change = True

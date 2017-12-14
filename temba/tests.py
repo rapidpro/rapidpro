@@ -217,6 +217,10 @@ class TembaTest(SmartminTest):
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
                                       device="Nexus 5X", secret="12345", gcm_id="123")
 
+        # don't cache anon user between tests
+        from temba import utils
+        utils._anon_user = None
+
         # reset our simulation to False
         Contact.set_simulation(False)
 
@@ -732,8 +736,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = get_anonymous_user()
-        channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
+        channel = Channel.create(None, get_anonymous_user(), 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
         # and claim it

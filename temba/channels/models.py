@@ -1444,9 +1444,7 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        user = get_anonymous_user()
-
-        contact = Contact.get_or_create(org, urn, channel, name=None, user=user)
+        contact = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
         contact_urn = contact.urn_objects[urn]
 
         extra_json = None if not extra else json.dumps(extra)
