@@ -139,7 +139,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0136_flowrun_message_ids'),
+        ('flows', '0136_flowrun_message_and_current_node'),
     ]
 
     operations = [
