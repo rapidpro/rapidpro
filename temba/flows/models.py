@@ -1828,7 +1828,7 @@ class Flow(TembaModel):
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
             self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=exit_uuid, rule_category=category)
+                                                                  rule_uuid=exit_uuid)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -2791,12 +2791,18 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update:
             self.save(update_fields=('responded', 'message_ids'))
 
+    def get_messages(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return Msg.objects.filter(steps__run=self)
+
     def get_last_msg(self, direction=INCOMING):
         """
         Returns the last incoming msg on this run
-        :param direction: the direction of the messge to fetch, default INCOMING
+        :param direction: the direction of the message to fetch, default INCOMING
         """
-        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
+        return self.get_messages().filter(direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -3221,7 +3227,6 @@ class FlowStep(models.Model):
         if node.is_ruleset() and json_obj['rule']:
             rule_uuid = json_obj['rule']['uuid']
             rule_value = json_obj['rule']['value']
-            rule_category = json_obj['rule']['category']
 
             # update the value if we have an existing ruleset
             ruleset = RuleSet.objects.filter(flow=flow, uuid=node.uuid).first()
@@ -3241,22 +3246,14 @@ class FlowStep(models.Model):
                         raise ValueError("No such rule with UUID %s" % rule_uuid)
 
                     rule_uuid = rule.uuid
-                    rule_category = rule.get_category_name(run.flow.base_language)
                     rule_value = value
 
                 ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
 
             # update our step with our rule details
             step.rule_uuid = rule_uuid
-            step.rule_category = rule_category
             step.rule_value = rule_value
-
-            try:
-                step.rule_decimal_value = Decimal(json_obj['rule']['value'])
-            except Exception:
-                pass
-
-            step.save(update_fields=('rule_uuid', 'rule_category', 'rule_value', 'rule_decimal_value'))
+            step.save(update_fields=('rule_uuid', 'rule_value'))
 
         return step
 
@@ -3285,7 +3282,6 @@ class FlowStep(models.Model):
         self.delete()
 
     def save_rule_match(self, rule, value):
-        self.rule_category = rule.get_category_name(self.run.flow.base_language)
         self.rule_uuid = rule.uuid
 
         if value is None:
@@ -3298,10 +3294,7 @@ class FlowStep(models.Model):
         else:
             self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
-        if isinstance(value, Decimal):
-            self.rule_decimal_value = value
-
-        self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
+        self.save(update_fields=('rule_uuid', 'rule_value'))
 
     def get_text(self, run=None):
         """
@@ -3643,7 +3636,7 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
-        return None, None
+        return None, None  # pragma: no cover
 
     def find_interrupt_rule(self, step, run, msg):
         rules = self.get_rules()
@@ -3693,7 +3686,7 @@ class RuleSet(models.Model):
     def __str__(self):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:
+        else:  # pragma: no cover
             return "RuleSet: %s" % (self.uuid,)
 
 
