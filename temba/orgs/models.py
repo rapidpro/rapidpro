@@ -435,6 +435,11 @@ class Org(SmartModel):
             return channel
 
     @cached_property
+    def cached_all_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
+
+    @cached_property
     def cached_channels(self):
         channels = [c for c in self.channels.filter(is_active=True)]
         for ch in channels:
