@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
-from temba.utils import dict_to_struct, get_anonymous_user_id
+from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
 from threading import Thread
 from twilio.util import RequestValidator
@@ -732,7 +732,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        channel = Channel.create(None, get_anonymous_user_id(), 'RW', 'A', name="Test Channel", address="0785551212",
+        channel = Channel.create(None, get_anonymous_user(), 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
         # and claim it

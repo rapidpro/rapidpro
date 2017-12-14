@@ -25,7 +25,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user_id
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
@@ -1549,7 +1549,7 @@ class Contact(TembaModel):
 
     def ensure_unstopped(self, user=None):
         if user is None:
-            user = get_anonymous_user_id()
+            user = get_anonymous_user()
         self.unstop(user)
 
     def release(self, user):
@@ -2308,11 +2308,11 @@ class ContactGroup(TembaModel):
         if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't re-evaluate contacts against system or static groups")
 
-        user_id = get_anonymous_user_id()
+        user = get_anonymous_user()
         changed = set()
         for contact in contacts:
             qualifies = self._check_dynamic_membership(contact)
-            changed = self._update_contacts(user_id, [contact], qualifies)
+            changed = self._update_contacts(user, [contact], qualifies)
             if changed:
                 changed.add(contact)
         return changed
