@@ -3952,14 +3952,7 @@ class FlowLabelTest(FlowFileTest):
 
 class WebhookTest(TembaTest):
 
-    def setUp(self):
-        super(WebhookTest, self).setUp()
-        settings.SEND_WEBHOOKS = True
-
-    def tearDown(self):
-        super(WebhookTest, self).tearDown()
-        settings.SEND_WEBHOOKS = False
-
+    @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_subflow_extra(self):
         # import out flow that triggers another flow
         contact1 = self.create_contact("Marshawn", "+14255551212")
@@ -3980,188 +3973,108 @@ class WebhookTest(TembaTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_webhook(self):
-        self.flow = self.get_flow('color')
-        self.contact = self.create_contact("Ben Haggerty", '+250788383383')
-
-        run = FlowRun.create(self.flow, self.contact)
-
-        split_uuid = str(uuid4())
-        valid_uuid = str(uuid4())
-
-        # webhook ruleset comes first
-        webhook = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
-        config = {RuleSet.CONFIG_WEBHOOK: "http://localhost:49999/check_order.php?phone=@step.contact.tel_e164",
-                  RuleSet.CONFIG_WEBHOOK_ACTION: "GET",
-                  RuleSet.CONFIG_WEBHOOK_HEADERS: [{"name": "Authorization", "value": "Token 12345"}]}
-        webhook.config = json.dumps(config)
-        webhook.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), split_uuid, 'R', TrueTest()).as_json()])
-        webhook.save()
-
-        # and a ruleset to split off the results
-        rules = RuleSet.objects.create(flow=self.flow, uuid=split_uuid, x=0, y=200, ruleset_type=RuleSet.TYPE_EXPRESSION)
-        rules.set_rules_dict([Rule(valid_uuid, dict(base="Valid"), "7d40faea-723b-473d-8999-59fb7d3c3ca2", 'A', ContainsTest(dict(base="valid"))).as_json(),
-                              Rule(str(uuid4()), dict(base="Invalid"), "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'A', ContainsTest(dict(base="invalid"))).as_json()])
-        rules.save()
-
-        webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
-                                               step_uuid=webhook.uuid, arrived_on=timezone.now())
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="1001")
-
-        (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-
-        rules.operand = "@extra.text @extra.blank"
-        rules.save()
+        flow = self.get_flow('webhook')
+        contact = self.create_contact("Ben Haggerty", '+250788383383')
 
         self.mockRequest('GET', '/check_order.php?phone=%2B250788383383', '{ "text": "Get", "blank": "" }')
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Post", "blank": "" }')
 
-        # first do a GET
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        self.assertEqual(dict(text="Get", blank=""), run.field_dict())
+        run1, = flow.start([], [contact])
+        run1.refresh_from_db()
+        self.assertEqual(run1.field_dict(), {'text': "Get", 'blank': ""})
 
-        # now do a POST
+        results = run1.get_results()
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results['response_1']['name'], 'Response 1')
+        self.assertEqual(results['response_1']['value'], '{ "text": "Get", "blank": "" }')
+        self.assertEqual(results['response_1']['category'], 'Success')
+        self.assertEqual(results['order_status']['name'], 'Order Status')
+        self.assertEqual(results['order_status']['value'], 'Get ')
+        self.assertEqual(results['order_status']['category'], 'Other')
+
+        # change our webhook to a POST
+        webhook = RuleSet.objects.get(flow=flow, label="Response 1")
         config = webhook.config_json()
         config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
         webhook.config = json.dumps(config)
         webhook.save()
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        self.assertEqual(dict(text="Post", blank=""), run.field_dict())
 
-        # remove @extra.blank from our text
-        rules.operand = "@extra.text"
-        rules.save()
+        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Post", "blank": "" }')
 
-        # clear our run's field dict
-        run.fields = json.dumps(dict())
-        run.save(update_fields=('fields',))
+        run2, = flow.start([], [contact], restart_participants=True)
+        run2.refresh_from_db()
 
-        rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
-                                            step_uuid=rules.uuid, arrived_on=timezone.now())
+        results = run2.get_results()
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results['response_1']['name'], 'Response 1')
+        self.assertEqual(results['response_1']['value'], '{ "text": "Post", "blank": "" }')
+        self.assertEqual(results['response_1']['category'], 'Success')
+        self.assertEqual(results['order_status']['name'], 'Order Status')
+        self.assertEqual(results['order_status']['value'], 'Post ')
+        self.assertEqual(results['order_status']['category'], 'Other')
 
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid" }')
-
-        (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-
-        self.assertEqual(valid_uuid, match.uuid)
-        self.assertEqual("Valid", value)
-        self.assertEqual(dict(text="Valid"), run.field_dict())
-
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "order_number": "PX1001" }')
-
-        (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-
-        self.assertEqual(valid_uuid, match.uuid)
-        self.assertEqual("Valid", value)
-        self.assertEqual(dict(text="Valid", order_number="PX1001"), run.field_dict())
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual(dict(text="Valid", order_number="PX1001"), message_context['extra'])
-
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "order_number": "PX1002" }')
-
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-
-        self.assertEqual(valid_uuid, match.uuid)
-        self.assertEqual("Valid", value)
-        self.assertEqual(dict(text="Valid", order_number="PX1002"), run.field_dict())
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual(dict(text="Valid", order_number="PX1002"), message_context['extra'])
-
+        # check parsing of a JSON array response from a webhook
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '["zero", "one", "two"]')
 
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
+        run3, = flow.start([], [contact], restart_participants=True)
+        run3.refresh_from_db()
+        self.assertEqual(run3.field_dict(), {'0': 'zero', '1': 'one', '2': 'two'})
 
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-        self.assertEqual("1001", incoming.text)
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
+        # which is also how it will appear in the expressions context
+        message_context = flow.build_expressions_context(contact, None)
         self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', json.dumps(range(300)))
+        # check that we limit JSON responses to 256 values
+        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', json.dumps(['x'] * 300))
 
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
+        run4, = flow.start([], [contact], restart_participants=True)
+        run4.refresh_from_db()
+        self.assertEqual(run4.field_dict(), {str(n): 'x' for n in range(256)})
 
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-        self.assertEqual("1001", incoming.text)
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        extra = message_context['extra']
-
-        # should only keep first 256 values
-        self.assertEqual(256, len(extra))
-        self.assertFalse('256' in extra)
-
+        # check we handle a non-JSON response
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
 
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
+        run5, = flow.start([], [contact], restart_participants=True)
+        run5.refresh_from_db()
+        self.assertEqual(run5.field_dict(), {})
 
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-        self.assertEqual("1001", incoming.text)
+        results = run5.get_results()
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results['response_1']['name'], 'Response 1')
+        self.assertEqual(results['response_1']['value'], 'asdfasdfasdf')
+        self.assertEqual(results['response_1']['category'], 'Success')
 
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual({}, message_context['extra'])
-
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
-
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
-
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-        self.assertEqual("1001", incoming.text)
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual({}, message_context['extra'])
-
+        # check a webhook that responds with a 500 error
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "Server Error", status=500)
 
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
+        run6, = flow.start([], [contact], restart_participants=True)
+        run6.refresh_from_db()
+        self.assertEqual(run6.field_dict(), {})
 
-        webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertIsNone(match)
-        self.assertIsNone(value)
-        self.assertEqual("1001", incoming.text)
+        results = run6.get_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['response_1']['name'], 'Response 1')
+        self.assertEqual(results['response_1']['value'], 'Server Error')
+        self.assertEqual(results['response_1']['category'], 'Failure')
 
+        # check a webhook that responds with a 400 error
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "error": "400", "message": "Missing field in request" }', status=400)
 
-        rule_step.run.fields = None
-        rule_step.run.save(update_fields=('fields',))
+        run7, = flow.start([], [contact], restart_participants=True)
+        run7.refresh_from_db()
+        self.assertEqual(run7.field_dict(), {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
-        (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
-        (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-        self.assertEqual(valid_uuid, match.uuid)
-        self.assertEqual("Valid", value)
-        self.assertEqual(dict(text="Valid", error="400", message="Missing field in request"), run.field_dict())
-
-        message_context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual(dict(text="Valid", error="400", message="Missing field in request"), message_context['extra'])
+        results = run7.get_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results['response_1']['name'], 'Response 1')
+        self.assertEqual(results['response_1']['value'], '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
+        self.assertEqual(results['response_1']['category'], 'Failure')
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_resthook(self):
         self.contact = self.create_contact("Macklemore", "+12067799294")
         webhook_flow = self.get_flow('resthooks')
