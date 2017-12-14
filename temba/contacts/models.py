@@ -922,7 +922,7 @@ class Contact(TembaModel):
         return contact
 
     @classmethod
-    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_attr_update=False, auth=None):
+    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -985,7 +985,7 @@ class Contact(TembaModel):
                     if contact_has_all_urns:
                         # update contact name if provided
                         updated_attrs = []
-                        if name and force_attr_update:
+                        if name:
                             contact.name = name
                             updated_attrs.append(Contact.NAME)
                         if language:  # pragma: needs cover
@@ -1013,7 +1013,7 @@ class Contact(TembaModel):
                 existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
 
                 if existing_urn:
-                    if existing_urn.contact and not force_attr_update:
+                    if existing_urn.contact and not force_urn_update:
                         existing_owned_urns[urn] = existing_urn
                         if contact and contact != existing_urn.contact:
                             raise ValueError(_("Provided URNs belong to different existing contacts"))
@@ -1033,7 +1033,7 @@ class Contact(TembaModel):
             if contact:
                 # update contact name if provided
                 updated_attrs = []
-                if name and force_attr_update:
+                if name:
                     contact.name = name
                     updated_attrs.append(Contact.NAME)
                 if language:
