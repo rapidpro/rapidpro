@@ -22,7 +22,7 @@ def gauge(event, value=None):
         value = 1
 
     if _librato:
-        _librato.gauge(event, value, settings.HOSTNAME)  # pragma: needs cover
+        _librato.gauge(event, value, settings.MACHINE_HOSTNAME)  # pragma: needs cover
 
 
 def identify(username, attributes):
@@ -45,7 +45,7 @@ def track(user, event, properties=None, context=None):  # pragma: needs cover
     if context is None:
         context = dict()
 
-    # set our source according to our hostname
+    # set our source according to our hostname (name of the platform instance, and not machine hostname)
     context['source'] = settings.HOSTNAME
 
     # create properties if none were passed in
