@@ -217,6 +217,10 @@ class TembaTest(SmartminTest):
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
                                       device="Nexus 5X", secret="12345", gcm_id="123")
 
+        # don't cache anon user between tests
+        from temba import utils
+        utils._anon_user = None
+
         # reset our simulation to False
         Contact.set_simulation(False)
 
