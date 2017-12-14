@@ -4271,19 +4271,27 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         message_sets = [r.get_messages() for r in runs]
 
+        from collections import defaultdict
+        from six.moves import reduce
         import operator
-        messages = operator.or_(message_sets)
 
-        import pdb; pdb.set_trace()
+        messages = (
+            reduce(operator.or_, message_sets)
+            .filter(visibility=Msg.VISIBILITY_VISIBLE)
+            .select_related('channel', 'contact_urn')
+            .order_by('created_on')
+        )
 
-        # for run in runs:
-        #        message_ids += run.message_ids
+        msgs_by_id = {m.id: m for m in messages}
 
-        # msgs = {m.id : m for m in Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)}
+        msgs_by_run = defaultdict(list)
+        for run in runs:
+            for msg_id in (run.message_ids or []):
+                msg = msgs_by_id.get(msg_id)
+                if msg:
+                    msgs_by_run[run].append(msg)
 
-
-        #for run in runs:
-        #    if run.message_ids:
+        return msgs_by_run
 
     def write_export(self):
         config = json.loads(self.config) if self.config else dict()
@@ -4346,12 +4354,7 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .prefetch_related(
-                    'contact',
-                    Prefetch('steps', FlowStep.objects.only('id', 'run')),
-                    'steps__messages__contact_urn',
-                    'steps__messages__channel'
-                )
+                .select_related('contact')
                 .order_by('contact', 'id')
             )
 
@@ -4425,7 +4428,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run, msgs_by_run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -4443,16 +4446,11 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, 'xlsx'
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _write_run_messages(self, book, msgs_sheet, run, msgs_by_run):
         """
         Writes out any messages associated with the given run
         """
-        run_msgs = set()
-        for step in run.steps.all():
-            run_msgs.update(step.messages.all())
-        run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
-
-        for msg in run_msgs:
+        for msg in msgs_by_run.get(run, []):
             if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
