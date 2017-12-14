@@ -2614,7 +2614,7 @@ class FlowTest(TembaTest):
         self.assertEqual(msg_in.msg_type, FLOW)
         self.assertEqual(msg_out.msg_type, FLOW)
 
-        self.assertEqual(set(run.message_ids), {long(msg_in.id), long(msg_out.id)})
+        self.assertEqual({int(m) for m in run.message_ids}, {msg_in.id, msg_out.id})
 
         # no messages on the ruleset step
         self.assertFalse(ruleset_step.messages.all())
