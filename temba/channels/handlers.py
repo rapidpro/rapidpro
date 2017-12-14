@@ -34,7 +34,7 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import get_anonymous_user_id, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils.jiochat import JiochatClient
@@ -1469,7 +1469,7 @@ class VumiHandler(BaseChannelHandler):
                 message.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
             if status == 'nack':
                 if body.get('nack_reason') == "Unknown address.":
-                    message[0].contact.stop(get_anonymous_user())
+                    message[0].contact.stop(get_anonymous_user_id())
                 # TODO: deal with other nack_reasons after VUMI hands them over
             elif status == 'delivery_report':
                 message = message.first()

@@ -34,7 +34,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, CHATBASE_TYPE_AGENT
-from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
+from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user_id
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from temba.utils.http import HttpEvent, http_headers
@@ -513,7 +513,7 @@ class Channel(TembaModel):
         # generate random secret and claim code
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
-        anon = get_anonymous_user()
+        anon = get_anonymous_user_id()
         config = {Channel.CONFIG_FCM_ID: fcm_id}
 
         return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
@@ -1444,9 +1444,8 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        user = get_anonymous_user()
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
+        contact = Contact.get_or_create(org, get_anonymous_user_id(), name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         extra_json = None if not extra else json.dumps(extra)
@@ -1682,10 +1681,10 @@ class SyncEvent(SmartModel):
         args['retry_message_count'] = len(cmd.get('retry', cmd.get('retry_messages')))
         args['incoming_command_count'] = max(len(incoming_commands) - 2, 0)
 
-        anon_user = get_anonymous_user()
+        anon_user_id = get_anonymous_user_id()
         args['channel'] = channel
-        args['created_by'] = anon_user
-        args['modified_by'] = anon_user
+        args['created_by'] = anon_user_id
+        args['modified_by'] = anon_user_id
 
         sync_event = SyncEvent.objects.create(**args)
         sync_event.pending_messages = cmd.get('pending', cmd.get('pending_messages'))

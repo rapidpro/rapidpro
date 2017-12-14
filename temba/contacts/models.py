@@ -25,7 +25,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user_id
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
@@ -1060,7 +1060,7 @@ class Contact(TembaModel):
         from .search import contact_search
 
         if not base_group:
-            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
+            base_group = org.cached_all_contacts_group
 
         return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
@@ -1532,7 +1532,7 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
-        self.clear_all_groups(get_anonymous_user())
+        self.clear_all_groups(user)
 
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1549,7 +1549,7 @@ class Contact(TembaModel):
 
     def ensure_unstopped(self, user=None):
         if user is None:
-            user = get_anonymous_user()
+            user = get_anonymous_user_id()
         self.unstop(user)
 
     def release(self, user):
@@ -1857,6 +1857,7 @@ class Contact(TembaModel):
 
         group_change = False
         for group in affected_dynamic_groups:
+            group.org = self.org
             changed = group.reevaluate_contacts([self])
             if changed:
                 group_change = True
@@ -2307,11 +2308,11 @@ class ContactGroup(TembaModel):
         if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't re-evaluate contacts against system or static groups")
 
-        user = get_anonymous_user()
+        user_id = get_anonymous_user_id()
         changed = set()
         for contact in contacts:
             qualifies = self._check_dynamic_membership(contact)
-            changed = self._update_contacts(user, [contact], qualifies)
+            changed = self._update_contacts(user_id, [contact], qualifies)
             if changed:
                 changed.add(contact)
         return changed
