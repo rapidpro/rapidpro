@@ -372,7 +372,7 @@ class ContactWriteSerializer(WriteSerializer):
                 changed.append('name')
         else:
             self.instance = Contact.get_or_create_by_urns(self.org, self.user, name, urns=self.parsed_urns, language=language,
-                                                          force_attr_update=True)
+                                                          force_urn_update=True)
 
         # Contact.get_or_create doesn't nullify language so do that here
         if 'language' in self.validated_data and language is None:

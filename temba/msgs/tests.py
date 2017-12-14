@@ -1156,7 +1156,7 @@ class BroadcastTest(TembaTest):
     def test_unreachable(self):
         no_urns = Contact.get_or_create_by_urns(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
-        twitter_contact = self.create_contact("Lucy", twitter='lucy', force_attr_update=True)
+        twitter_contact = self.create_contact("Lucy", twitter='lucy', force_urn_update=True)
         recipients = [no_urns, tel_contact, twitter_contact]
 
         # send a broadcast to all (org has a tel and a twitter channel)
@@ -1923,7 +1923,7 @@ class ConsoleTest(TembaTest):
         self.console = MessageConsole(self.org, "tel:+250788123123")
 
         # a few test contacts
-        self.john = self.create_contact("John Doe", "0788123123", force_attr_update=True)
+        self.john = self.create_contact("John Doe", "0788123123", force_urn_update=True)
 
         # create a flow and set "color" as its trigger
         self.flow = self.get_flow('color')

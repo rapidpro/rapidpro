@@ -1230,7 +1230,7 @@ class Contact(TembaModel):
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language, force_attr_update=True)
+        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
