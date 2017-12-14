@@ -338,9 +338,6 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
         url = "https://" + request.get_host() + "%s" % request.get_full_path()
 
         action = kwargs['action']
-        if action == 'status':
-            return HttpResponse("", status=200)
-
         channel_uuid = kwargs['uuid']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TMS').first()
