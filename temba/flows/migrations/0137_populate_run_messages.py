@@ -12,6 +12,7 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.utils import chunk_list
+from uuid import UUID
 
 CACHE_KEY_HIGHPOINT = 'msgs_mig_highpoint'
 CACHE_KEY_MAX_RUN_ID = 'msgs_mig_max_run_id'
@@ -40,11 +41,12 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
 
     max_run_id = cache.get(CACHE_KEY_MAX_RUN_ID)
     if max_run_id is None:
-        print("Getting if of last run which will need migrated...")
         max_run = FlowRun.objects.filter(flow__is_active=True).order_by('-id').first()
         if max_run:
             max_run_id = max_run.id
             cache.set(CACHE_KEY_MAX_RUN_ID, max_run_id, 60 * 60 * 24 * 7)
+        else:
+            return  # no work to do here
     else:
         max_run_id = int(max_run_id)
 
@@ -94,7 +96,7 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
                 path = json.loads(run.path) if run.path else []
                 current_node_uuid = path[-1]['node_uuid'] if path else None
 
-                run.current_node_uuid = current_node_uuid
+                run.current_node_uuid = UUID(current_node_uuid) if current_node_uuid else None
                 run.message_ids = sorted(msg_ids)
                 run.save(update_fields=('current_node_uuid', 'message_ids'))
 
