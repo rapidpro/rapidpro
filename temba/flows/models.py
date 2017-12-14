@@ -3258,7 +3258,7 @@ class FlowStep(models.Model):
         else:
             self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
-        self.save(update_fields=('rule_uuid',))
+        self.save(update_fields=('rule_uuid', 'rule_value'))
 
     def get_text(self, run=None):
         """

@@ -606,11 +606,13 @@ class APITest(TembaTest):
                     submitted_by=self.surveyor.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
-                        dict(node=color_prompt.uuid,
-                             arrived_on='2015-08-25T11:09:30.088Z',
-                             actions=[
-                                 dict(type="reply", msg="What is your favorite color?")
-                             ])
+                        dict(
+                            node=color_prompt.uuid,
+                            arrived_on='2015-08-25T11:09:30.088Z',
+                            actions=[
+                                dict(type="reply", msg="What is your favorite color?")
+                            ]
+                        )
                     ],
                     completed=False)
 
@@ -649,31 +651,41 @@ class APITest(TembaTest):
         # check flow activity
         self.assertEqual(flow.get_activity(), ({color_prompt.uuid: 1}, {}))
 
-        data = dict(flow=flow.uuid,
-                    revision=2,
-                    contact=self.joe.uuid,
-                    started='2015-08-25T11:09:29.088Z',
-                    submitted_by=self.surveyor.username,
-                    steps=[
-                        dict(node=color_ruleset.uuid,
-                             arrived_on='2015-08-25T11:11:30.088Z',
-                             rule=dict(uuid=orange_rule.uuid,
-                                       value="orange",
-                                       category="Orange",
-                                       text="I like orange")),
-                        dict(node=color_reply.uuid,
-                             arrived_on='2015-08-25T11:13:30.088Z',
-                             actions=[
-                                 dict(type="reply", msg="I love orange too!")
-                             ]),
-                        dict(node=new_node['uuid'],
-                             arrived_on='2015-08-25T11:15:30.088Z',
-                             actions=[
-                                 dict(type="save", field="tel_e164", value="+12065551212"),
-                                 dict(type="del_group", group=dict(name="Remove Me"))
-                             ]),
-                    ],
-                    completed=True)
+        data = dict(
+            flow=flow.uuid,
+            revision=2,
+            contact=self.joe.uuid,
+            started='2015-08-25T11:09:29.088Z',
+            submitted_by=self.surveyor.username,
+            steps=[
+                dict(
+                    node=color_ruleset.uuid,
+                    arrived_on='2015-08-25T11:11:30.088Z',
+                    rule=dict(
+                        uuid=orange_rule.uuid,
+                        value="orange",
+                        category="Orange",
+                        text="I like orange"
+                    )
+                ),
+                dict(
+                    node=color_reply.uuid,
+                    arrived_on='2015-08-25T11:13:30.088Z',
+                    actions=[
+                        dict(type="reply", msg="I love orange too!")
+                    ]
+                ),
+                dict(
+                    node=new_node['uuid'],
+                    arrived_on='2015-08-25T11:15:30.088Z',
+                    actions=[
+                        dict(type="save", field="tel_e164", value="+12065551212"),
+                        dict(type="del_group", group=dict(name="Remove Me"))
+                    ]
+                ),
+            ],
+            completed=True
+        )
 
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
             self.postJSON(url, data)
@@ -736,18 +748,22 @@ class APITest(TembaTest):
         flow.update(definition)
 
         # update a value for our missing node
-        data = dict(flow=flow.uuid,
-                    revision=2,
-                    contact=self.joe.uuid,
-                    started='2015-08-26T11:09:29.088Z',
-                    steps=[
-                        dict(node=new_node['uuid'],
-                             arrived_on='2015-08-26T11:15:30.088Z',
-                             actions=[
-                                 dict(type="save", field="tel_e164", value="+13605551212")
-                             ]),
-                    ],
-                    completed=True)
+        data = dict(
+            flow=flow.uuid,
+            revision=2,
+            contact=self.joe.uuid,
+            started='2015-08-26T11:09:29.088Z',
+            steps=[
+                dict(
+                    node=new_node['uuid'],
+                    arrived_on='2015-08-26T11:15:30.088Z',
+                    actions=[
+                        dict(type="save", field="tel_e164", value="+13605551212")
+                    ]
+                ),
+            ],
+            completed=True
+        )
 
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
@@ -780,31 +796,41 @@ class APITest(TembaTest):
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
             # rule uuid not existing we should find the actual matching rule
-            data = dict(flow=flow.uuid,
-                        revision=2,
-                        contact=self.joe.uuid,
-                        started='2015-08-25T11:09:29.088Z',
-                        submitted_by=self.admin.username,
-                        steps=[
-                            dict(node=color_ruleset.uuid,
-                                 arrived_on='2015-08-25T11:11:30.088Z',
-                                 rule=dict(uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
-                                           value="orange",
-                                           category="Orange",
-                                           text="I like orange")),
-                            dict(node=color_reply.uuid,
-                                 arrived_on='2015-08-25T11:13:30.088Z',
-                                 actions=[
-                                     dict(type="reply", msg="I love orange too!")
-                                 ]),
-                            dict(node=new_node['uuid'],
-                                 arrived_on='2015-08-25T11:15:30.088Z',
-                                 actions=[
-                                     dict(type="save", field="tel_e164", value="+12065551212"),
-                                     dict(type="del_group", group=dict(name="Remove Me"))
-                                 ]),
-                        ],
-                        completed=True)
+            data = dict(
+                flow=flow.uuid,
+                revision=2,
+                contact=self.joe.uuid,
+                started='2015-08-25T11:09:29.088Z',
+                submitted_by=self.admin.username,
+                steps=[
+                    dict(
+                        node=color_ruleset.uuid,
+                        arrived_on='2015-08-25T11:11:30.088Z',
+                        rule=dict(
+                            uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
+                            value="orange",
+                            category="Orange",
+                            text="I like orange"
+                        )
+                    ),
+                    dict(
+                        node=color_reply.uuid,
+                        arrived_on='2015-08-25T11:13:30.088Z',
+                        actions=[
+                            dict(type="reply", msg="I love orange too!")
+                        ]
+                    ),
+                    dict(
+                        node=new_node['uuid'],
+                        arrived_on='2015-08-25T11:15:30.088Z',
+                        actions=[
+                            dict(type="save", field="tel_e164", value="+12065551212"),
+                            dict(type="del_group", group=dict(name="Remove Me"))
+                        ]
+                    ),
+                ],
+                completed=True
+            )
 
             response = self.postJSON(url, data)
             self.assertEqual(201, response.status_code)
