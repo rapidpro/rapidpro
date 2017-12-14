@@ -858,7 +858,11 @@ class Contact(TembaModel):
         Gets or creates a contact with the given URN
         """
 
-        if not user and not channel:
+        # if we don't have an org blow up, this is required
+        if not org:
+            raise ValueError("Attempt to create contact without org")
+
+        if not channel and not user:
             raise ValueError("Attempt to create contact without channel and without user")
 
         if not user:

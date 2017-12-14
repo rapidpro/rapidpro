@@ -628,6 +628,36 @@ class ContactTest(TembaTest):
 
     def test_get_or_create(self):
 
+        # can't create without org
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(None, "tel:+250781111111", self.channel)
+
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, "tel:+250781111111", None)
+
+        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel)
+        self.assertEqual(contact.pk, self.joe.pk)
+
+        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
+        self.assertEqual(contact.name, "Joe Blow")  # should not change the name for existing contact
+
+        contact = Contact.get_or_create(self.org, "tel:124", self.channel, name="Kendrick")
+        self.assertEqual(contact.name, "Kendrick")
+
+        contact = Contact.get_or_create(self.org, "tel:+250781111111", None, None, user=self.user)
+        self.assertEqual(contact.pk, self.joe.pk)
+
+        urn = ContactURN.get_or_create(self.org, contact, "tel:+250781111111", self.channel)
+        urn.contact = None
+        urn.save()
+
+        # existing urn without a contact should be used on the new contact
+        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
+        self.assertEqual(contact.name, "Kendrick")  # should not change the name for existing contact
+        self.assertEqual(1, contact.urns.all().count())
+
+    def test_get_or_create_by_urns(self):
+
         # can't create without org or user
         with self.assertRaises(ValueError):
             Contact.get_or_create_by_urns(None, None, name='Joe', urns=['tel:123'])
@@ -679,8 +709,9 @@ class ContactTest(TembaTest):
         Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
 
         self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, urns=['tel:456'])
+        snoop = Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, urns=['tel:456'], auth='12345')
         self.assertEqual(1, snoop.urns.all().count())
+        self.assertEqual(snoop.urns.first().auth, "12345")
 
         # create contact with new urns one normalized and the other not
         jimmy = Contact.get_or_create_by_urns(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
