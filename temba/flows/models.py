@@ -2798,7 +2798,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return Msg.objects.filter(steps__run=self)
+        return Msg.objects.filter(id__in=self.message_ids) if self.message_ids else Msg.objects.none()
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -4261,6 +4261,26 @@ class ExportFlowResultsTask(BaseExportTask):
         group_names.sort()
         return ", ".join(group_names)
 
+    def _get_messages_for_runs(self, runs):
+        """
+        Batch fetches messages for the given runs and returns a dict of runs to messages
+        """
+        message_sets = [r.get_messages() for r in runs]
+
+        import operator
+        messages = operator.or_(message_sets)
+
+        import pdb; pdb.set_trace()
+
+        # for run in runs:
+        #        message_ids += run.message_ids
+
+        # msgs = {m.id : m for m in Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)}
+
+
+        #for run in runs:
+        #    if run.message_ids:
+
     def write_export(self):
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -4330,6 +4350,8 @@ class ExportFlowResultsTask(BaseExportTask):
                 )
                 .order_by('contact', 'id')
             )
+
+            msgs_by_run = self._get_messages_for_runs(run_batch)
 
             for run in run_batch:
                 # is this a new contact?
