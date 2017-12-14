@@ -3624,7 +3624,7 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
-        return None, None
+        return None, None  # pragma: no cover
 
     def find_interrupt_rule(self, step, run, msg):
         rules = self.get_rules()
@@ -3674,7 +3674,7 @@ class RuleSet(models.Model):
     def __str__(self):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:
+        else:  # pragma: no cover
             return "RuleSet: %s" % (self.uuid,)
 
 

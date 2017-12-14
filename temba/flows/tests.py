@@ -4032,14 +4032,21 @@ class WebhookTest(TembaTest):
         run4.refresh_from_db()
         self.assertEqual(run4.field_dict(), {str(n): 'x' for n in range(256)})
 
-        # check we handle a non-JSON response
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
+        # check we handle a non-dict or list response
+        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
 
         run5, = flow.start([], [contact], restart_participants=True)
         run5.refresh_from_db()
         self.assertEqual(run5.field_dict(), {})
 
-        results = run5.get_results()
+        # check we handle a non-JSON response
+        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
+
+        run6, = flow.start([], [contact], restart_participants=True)
+        run6.refresh_from_db()
+        self.assertEqual(run6.field_dict(), {})
+
+        results = run6.get_results()
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'asdfasdfasdf')
@@ -4048,11 +4055,11 @@ class WebhookTest(TembaTest):
         # check a webhook that responds with a 500 error
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "Server Error", status=500)
 
-        run6, = flow.start([], [contact], restart_participants=True)
-        run6.refresh_from_db()
-        self.assertEqual(run6.field_dict(), {})
+        run7, = flow.start([], [contact], restart_participants=True)
+        run7.refresh_from_db()
+        self.assertEqual(run7.field_dict(), {})
 
-        results = run6.get_results()
+        results = run7.get_results()
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'Server Error')
@@ -4061,11 +4068,11 @@ class WebhookTest(TembaTest):
         # check a webhook that responds with a 400 error
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "error": "400", "message": "Missing field in request" }', status=400)
 
-        run7, = flow.start([], [contact], restart_participants=True)
-        run7.refresh_from_db()
-        self.assertEqual(run7.field_dict(), {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
+        run8, = flow.start([], [contact], restart_participants=True)
+        run8.refresh_from_db()
+        self.assertEqual(run8.field_dict(), {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
-        results = run7.get_results()
+        results = run8.get_results()
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
