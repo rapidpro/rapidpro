@@ -1,0 +1,456 @@
+{
+  "campaigns": [], 
+  "version": "11.2", 
+  "site": "https://rapidpro.io",
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "69b2fca2-d0c8-436e-9590-04339eb734ac", 
+          "exit_uuid": "b1aaa55f-e5b9-41d5-89e5-8c4119e32776", 
+          "y": 99, 
+          "x": 625, 
+          "destination": "bdcfce65-b499-41b8-b159-e161926088de", 
+          "actions": [
+            {
+              "field": "total_calls_made", 
+              "type": "save", 
+              "uuid": "237a15bd-d531-449b-8ca6-f85dabb933d6", 
+              "value": "0", 
+              "label": "Total Calls Made"
+            }, 
+            {
+              "lang": "eng", 
+              "type": "lang", 
+              "name": "English", 
+              "uuid": "b4282c49-e863-4fff-9605-8016e6530822"
+            }
+          ]
+        }, 
+        {
+          "uuid": "21054cde-0cfa-46f1-8230-e085023ab70e", 
+          "exit_uuid": "8222515d-9cda-41ff-b223-020f654ce5f5", 
+          "y": 373, 
+          "x": 626, 
+          "destination": "2195fd97-9f91-4271-ad70-dd5746838f09", 
+          "actions": [
+            {
+              "field": "total_emails_sent", 
+              "type": "save", 
+              "uuid": "2c34f543-4bf0-4dba-913f-dbf51f89811b", 
+              "value": "0", 
+              "label": "Total Emails Sent"
+            }
+          ]
+        }, 
+        {
+          "uuid": "dde41c65-39fe-41ee-b3ca-3e3b276fe807", 
+          "exit_uuid": "8d31e35a-b7be-4594-9f60-185b27a5d4a3", 
+          "y": 674, 
+          "x": 627, 
+          "destination": "6647e214-51fc-4896-8f76-314d118ee08f", 
+          "actions": [
+            {
+              "field": "total_faxes_sent", 
+              "type": "save", 
+              "uuid": "b951300e-b89c-4c37-a34e-1539b5114ba5", 
+              "value": "0", 
+              "label": "Total Faxes Sent"
+            }
+          ]
+        }, 
+        {
+          "uuid": "ea7a8b1a-2494-45ed-b7c2-13eec364ac6d", 
+          "exit_uuid": "56cf5246-ed36-48a5-a815-6491bbfe516c", 
+          "y": 1000, 
+          "x": 626, 
+          "destination": "70824918-e458-4b63-b834-7d13fa3b99cc", 
+          "actions": [
+            {
+              "field": "total_letters_mailed", 
+              "type": "save", 
+              "uuid": "b16637bb-a1bc-4f8a-bffb-f18f3894c69b", 
+              "value": "0", 
+              "label": "Total Letters Mailed"
+            }
+          ]
+        }, 
+        {
+          "uuid": "1d93b501-8e75-46f9-aec0-4b8a26a5c5d6", 
+          "exit_uuid": "31cc4679-5b43-486e-a823-ecccfff5a562", 
+          "y": 1248, 
+          "x": 628, 
+          "destination": "8f2b47e9-66d1-4d19-987e-900313e63c08", 
+          "actions": [
+            {
+              "field": "address_changes", 
+              "type": "save", 
+              "uuid": "15be64aa-8416-4dbc-bd6a-d31ebe029797", 
+              "value": "0", 
+              "label": "Address Changes"
+            }
+          ]
+        }, 
+        {
+          "uuid": "49d8a984-22a7-46e9-97cb-c04477d2c94f", 
+          "exit_uuid": "38531c38-79f9-4173-97a1-96a401c01f1a", 
+          "y": 1599, 
+          "x": 627, 
+          "destination": "a42c4500-19fd-4a1e-848c-9b3c1410b904", 
+          "actions": [
+            {
+              "field": "name_changes", 
+              "type": "save", 
+              "uuid": "3c16771d-93ec-499b-acf1-2d491bf80374", 
+              "value": "0", 
+              "label": "Name Changes"
+            }
+          ]
+        }, 
+        {
+          "uuid": "6c4d0890-377c-4a0d-9fb1-9442f91269e1", 
+          "exit_uuid": "a7d491b1-cadb-454f-8a93-b11eb92f2f25", 
+          "y": 1899, 
+          "x": 626, 
+          "destination": "6c706dc7-cb22-4213-bf87-ceefb688ff89", 
+          "actions": [
+            {
+              "field": "total_editorials_submitted", 
+              "type": "save", 
+              "uuid": "71350e47-ece4-47b1-926f-0c96efdd45d8", 
+              "value": "0", 
+              "label": "Total Editorials Submitted"
+            }
+          ]
+        }, 
+        {
+          "uuid": "17f7bc00-f52a-41c2-90a4-a0c098f0867c", 
+          "exit_uuid": "c933abad-c9f2-4fbe-bfe0-cfc9c2bdc03c", 
+          "y": 2124, 
+          "x": 627, 
+          "destination": null, 
+          "actions": [
+            {
+              "field": "invitations", 
+              "type": "save", 
+              "uuid": "7a389781-53bb-43e6-acf4-8442a7db4c94", 
+              "value": "0", 
+              "label": "Invitations"
+            }
+          ]
+        }
+      ], 
+      "version": "11.2", 
+      "flow_type": "F", 
+      "entry": "78a54879-5aad-4422-9ffd-3d6473815405", 
+      "rule_sets": [
+        {
+          "uuid": "78a54879-5aad-4422-9ffd-3d6473815405", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Calls Made"
+              }, 
+              "uuid": "78b168c1-3211-41cf-9ce3-e93b979289f4", 
+              "destination": "bdcfce65-b499-41b8-b159-e161926088de", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "38ea2c55-cee5-44a0-a376-0337828d8aa1", 
+              "destination": "69b2fca2-d0c8-436e-9590-04339eb734ac", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 1", 
+          "operand": "@contact.total_calls_made", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {}
+        }, 
+        {
+          "uuid": "bdcfce65-b499-41b8-b159-e161926088de", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Emails Sent"
+              }, 
+              "uuid": "f50909f5-2264-4c60-a1c1-06025608fa1b", 
+              "destination": "2195fd97-9f91-4271-ad70-dd5746838f09", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "ed54622c-6b3e-4896-b73d-b4a3b21c19ce", 
+              "destination": "21054cde-0cfa-46f1-8230-e085023ab70e", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 2", 
+          "operand": "@contact.total_emails_sent", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 249, 
+          "x": 101, 
+          "config": {}
+        }, 
+        {
+          "uuid": "2195fd97-9f91-4271-ad70-dd5746838f09", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Faxes Sent"
+              }, 
+              "uuid": "d7381681-4eb7-481f-a16e-d89207f6e50c", 
+              "destination": "6647e214-51fc-4896-8f76-314d118ee08f", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "759fc9e8-0819-4ed6-9e21-9e4dd6c7563f", 
+              "destination": "dde41c65-39fe-41ee-b3ca-3e3b276fe807", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 3", 
+          "operand": "@contact.total_faxes_sent", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 549, 
+          "x": 100, 
+          "config": {}
+        }, 
+        {
+          "uuid": "6647e214-51fc-4896-8f76-314d118ee08f", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Letters Mailed"
+              }, 
+              "uuid": "e8afcc83-9e31-41ea-b5a9-dce966d48a1a", 
+              "destination": "70824918-e458-4b63-b834-7d13fa3b99cc", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "caa766ac-31c9-4a0d-938b-cf6d3f9ab6aa", 
+              "destination": "ea7a8b1a-2494-45ed-b7c2-13eec364ac6d", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 4", 
+          "operand": "@contact.total_letters_mailed", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 849, 
+          "x": 101, 
+          "config": {}
+        }, 
+        {
+          "uuid": "70824918-e458-4b63-b834-7d13fa3b99cc", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Address Changes"
+              }, 
+              "uuid": "d4462d52-ddb7-4135-bb88-65dcff83620d", 
+              "destination": "8f2b47e9-66d1-4d19-987e-900313e63c08", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "3a642276-c297-4515-860f-fca4defd9fc2", 
+              "destination": "1d93b501-8e75-46f9-aec0-4b8a26a5c5d6", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 5", 
+          "operand": "@contact.address_changes", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1173, 
+          "x": 100, 
+          "config": {}
+        }, 
+        {
+          "uuid": "8f2b47e9-66d1-4d19-987e-900313e63c08", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Name Changes"
+              }, 
+              "uuid": "cacc2382-015c-438c-ba78-c665f6da07ae", 
+              "destination": "a42c4500-19fd-4a1e-848c-9b3c1410b904", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "c60fc6ad-f017-4ded-9f5c-715221045861", 
+              "destination": "49d8a984-22a7-46e9-97cb-c04477d2c94f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 6", 
+          "operand": "@contact.name_changes", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1549, 
+          "x": 101, 
+          "config": {}
+        }, 
+        {
+          "uuid": "a42c4500-19fd-4a1e-848c-9b3c1410b904", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Letters Submitted"
+              }, 
+              "uuid": "142d996c-6ad9-4003-895a-5d42dafa79df", 
+              "destination": "6c706dc7-cb22-4213-bf87-ceefb688ff89", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "c6e6cd55-fc71-4381-9cfe-4ce4be6e64d7", 
+              "destination": "6c4d0890-377c-4a0d-9fb1-9442f91269e1", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 7", 
+          "operand": "@contact.total_editorials_submitted", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1798, 
+          "x": 101, 
+          "config": {}
+        }, 
+        {
+          "uuid": "6c706dc7-cb22-4213-bf87-ceefb688ff89", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Invitations Sent"
+              }, 
+              "uuid": "01d6ad73-d456-4e87-80d1-f45365821f1b", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "53381a6b-dc39-44bb-bf1e-3b83835831ec", 
+              "destination": "17f7bc00-f52a-41c2-90a4-a0c098f0867c", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 8", 
+          "operand": "@contact.invitations", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 2039, 
+          "x": 50, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "uuid": "d767cb7f-ece8-4615-9836-13ca9d35fd31",
+        "notes": [],
+        "expires": 10, 
+        "name": "Initialize Stats", 
+        "saved_on": "2017-12-10T11:00:10.885321Z", 
+        "revision": 114
+      }
+    }
+  ], 
+  "triggers": []
+}
