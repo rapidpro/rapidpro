@@ -81,10 +81,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=['tel:123'])
+        self.joe = Contact.get_or_create(self.org, 'tel:123', user=self.user, name='Joe')
         self.joe.set_field(self.user, 'age', 20)
         self.joe.set_field(self.user, 'home', 'Kigali')
-        self.frank = Contact.get_or_create_by_urns(self.org, self.user, name='Frank', urns=['tel:124'])
+        self.frank = Contact.get_or_create(self.org, "tel:124", user=self.user, name='Frank')
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
@@ -115,7 +115,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual(response.context['search_error'], "Search query contains an error")
 
     def testRead(self):
-        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name='Joe', urns=['tel:123'])
+        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.user, name='Joe')
 
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(read_url)
@@ -181,9 +181,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
 
-        self.joe = Contact.get_or_create_by_urns(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create_by_urns(self.org, self.admin, name="Frank Smith", urns=["tel:1234"])
-        self.mary = Contact.get_or_create_by_urns(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
+        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
+        self.frank = Contact.get_or_create(self.org, "tel:1234", user=self.admin, name="Frank Smith")
+        self.mary = Contact.get_or_create(self.org, "tel:345", user=self.admin, name="Mary Mo")
 
     def test_create_static(self):
         group = ContactGroup.create_static(self.org, self.admin, " group one ")
@@ -455,7 +455,7 @@ class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super(ContactGroupCRUDLTest, self).setUp()
 
-        self.joe = Contact.get_or_create_by_urns(self.org, self.user, name="Joe Blow", urns=["tel:123"])
+        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
         self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])

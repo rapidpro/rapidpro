@@ -371,8 +371,8 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance.name = name
                 changed.append('name')
         else:
-            self.instance = Contact.get_or_create_by_urns(self.org, self.user, name, urns=self.parsed_urns, language=language,
-                                                          force_urn_update=True)
+            self.instance = Contact.get_or_create_by_urns(self.org, self.user, name, urns=self.parsed_urns,
+                                                          language=language, force_urn_update=True)
 
         # Contact.get_or_create doesn't nullify language so do that here
         if 'language' in self.validated_data and language is None:
@@ -796,7 +796,7 @@ class MsgCreateSerializer(WriteSerializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create_by_urns(channel.org, self.user, urns=[urn]))
+            contacts.append(Contact.get_or_create(channel.org, urn, user=self.user))
 
         # add any contacts specified by uuids
         uuid_contacts = self.validated_data.get('contact', [])

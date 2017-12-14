@@ -5587,7 +5587,7 @@ class VariableContactAction(Action):
                     country = run.flow.org.get_country_code()
                     (number, valid) = URN.normalize_number(variable, country)
                     if number and valid:
-                        contact = Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contact = Contact.get_or_create(run.org, URN.from_tel(number), user=get_flow_user(run.org))
                         contacts.append(contact)
 
         return groups, contacts

@@ -29,7 +29,7 @@ class OmniboxWidget(widgets.TextInput):
         if not org.is_anon:
             for number in raw_numbers:
                 urn = URN.from_tel(number)
-                contact = Contact.get_or_create_by_urns(org, user, urns=[urn])
+                contact = Contact.get_or_create(org, urn, user=user)
                 urn_obj = contact.urn_objects[urn]
                 urn_ids.append(urn_obj.pk)
 
