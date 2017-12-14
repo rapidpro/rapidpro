@@ -12,7 +12,7 @@ from django.views.generic import RedirectView, View
 from random import randint
 from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreateView, SmartListView, SmartTemplateView
 from temba.public.models import Lead, Video
-from temba.utils import analytics, get_anonymous_user
+from temba.utils import analytics, get_anonymous_user_id
 from temba.utils.text import random_string
 from urllib import urlencode
 
@@ -132,7 +132,7 @@ class LeadCRUDL(SmartCRUDL):
             return HttpResponseRedirect(url + "?errors=%s" % email)
 
         def pre_save(self, obj):
-            anon = get_anonymous_user()
+            anon = get_anonymous_user_id()
             obj = super(LeadCRUDL.Create, self).pre_save(obj)
             obj.created_by = anon
             obj.modified_by = anon
