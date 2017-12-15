@@ -420,7 +420,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (1)")
@@ -433,7 +433,7 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2))
 
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
@@ -488,7 +488,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(61):
+        with self.assertNumQueries(60):
             response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 5)
@@ -565,7 +565,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(54):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
@@ -651,7 +651,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
@@ -688,7 +688,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(62):
+        with self.assertNumQueries(61):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 3)
