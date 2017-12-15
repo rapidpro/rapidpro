@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         Channel = apps.get_model('channels', 'Channel')
 
         if settings.IS_PROD:
-            nexmo_channels = Channel.objects.filter(channel_type='NX', is_active=True)
+            nexmo_channels = Channel.objects.filter(channel_type='NX', is_active=True, role='S')
             for channel in nexmo_channels:
                 try:
                     org = Org.objects.get(pk=channel.org_id)
