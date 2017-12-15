@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -2024,9 +2024,12 @@ class ContactURN(models.Model):
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-            if contact:
-                contact.clear_urn_cache()
+            try:
+                urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                if contact:
+                    contact.clear_urn_cache()
+            except IntegrityError:
+                urn = cls.lookup(org, urn_as_string)
 
         return urn
 
