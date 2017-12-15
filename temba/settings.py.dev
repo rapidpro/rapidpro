@@ -66,6 +66,9 @@ _database_config = {
     'OPTIONS': {}
 }
 
+_direct_database_config = _database_config.copy()
+_database_config['DISABLE_SERVER_SIDE_CURSORS'] = True
+
 DATABASES = {'default': _database_config, 'direct': _database_config}
 
 INTERNAL_IPS = ('127.0.0.1',)
