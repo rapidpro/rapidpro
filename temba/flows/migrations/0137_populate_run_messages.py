@@ -72,7 +72,7 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('id', 'run'))
     steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.only('id'))
 
-    for run_batch in chunk_list(runs.iterator(), 1000):
+    for run_batch in chunk_list(runs.using('direct').iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
