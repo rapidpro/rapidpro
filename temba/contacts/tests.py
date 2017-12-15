@@ -243,7 +243,7 @@ class ContactGroupTest(TembaTest):
 
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
-        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
+        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
 
         from temba.utils.profiler import QueryTracker
         fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
