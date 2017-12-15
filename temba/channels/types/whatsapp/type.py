@@ -38,6 +38,7 @@ class WhatsAppType(ChannelType):
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
 
+        # first set our callbacks
         body = {
             'payload': {
                 'set_settings': {
@@ -57,3 +58,19 @@ class WhatsAppType(ChannelType):
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %s", resp.content))
+
+        # then make sure group chats are disabled (this has to be two requests, whatsapp doesn't allow
+        # multiple settings to be set in one call)
+        body = {
+            "payload": {
+                "set_allow_unsolicited_group_add": False
+            }
+        }
+
+        resp = requests.post(channel.config_json()[Channel.CONFIG_BASE_URL] + '/api/control.php',
+                             json=body,
+                             auth=(channel.config_json()[Channel.CONFIG_USERNAME],
+                                   channel.config_json()[Channel.CONFIG_PASSWORD]))
+
+        if resp.status_code != 200:
+            raise ValidationError(_("Unable to configure channel: %s", resp.content))
