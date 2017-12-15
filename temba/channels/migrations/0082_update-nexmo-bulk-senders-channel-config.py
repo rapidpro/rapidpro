@@ -39,6 +39,9 @@ class Migration(migrations.Migration):
                     traceback.print_exc(e)
                     pass
 
+    def noop(apps, schema_editor):
+        pass
+
     operations = [
-        migrations.RunPython(update_nexmo_bulk_sender_channels_config)
+        migrations.RunPython(update_nexmo_bulk_sender_channels_config, noop)
     ]
