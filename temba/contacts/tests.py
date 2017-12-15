@@ -241,6 +241,19 @@ class ContactGroupTest(TembaTest):
         response = self.client.get(filter_url)
         self.assertFalse('unlabel' in response.context['actions'])
 
+    def test_evaluate_dynamic_groups_from_flow(self):
+        flow = self.get_flow('initialize')
+        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
+
+        from temba.utils.profiler import QueryTracker
+        fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
+        for key in fields:
+            ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
+            ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
+
+        with QueryTracker(assert_query_count=230, stack_count=16, skip_unique_queries=False):
+            flow.start([], [self.joe])
+
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
         self.assertEqual(group.name, "first")
@@ -3973,6 +3986,10 @@ class ContactURNTest(TembaTest):
 
         urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
         self.assertEqual(urn, urn2)
+
+        with patch('temba.contacts.models.ContactURN.lookup') as mock_lookup:
+            mock_lookup.side_effect = [None, urn]
+            ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
 
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', priority=50)

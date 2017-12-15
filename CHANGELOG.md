@@ -1,3 +1,23 @@
+v3.0.292
+----------
+ * Add support for 'direct' db connection
+ * Stop updating count and triggered on on triggers
+ * Add FlowRun.current_node_uuid and message_ids
+ * Catch IntegrityError and lookup again when creating contact URN
+ * Make sure we dont allow group chats in whatsapp
+
+v3.0.291
+----------
+ * ignore tms callbacks
+
+v3.0.289
+----------
+ * ignore tms callbacks
+
+v3.0.289
+----------
+ * ignore tms callbacks
+
 v3.0.289
 ----------
  * Stop writing values in flows to values_value
