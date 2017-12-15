@@ -62,13 +62,24 @@ class WhatsAppTypeTest(TembaTest):
 
         # test activating the channel
         with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(200, '{ "error": "false" }')
+            mock_post.side_effect = [MockResponse(200, '{ "error": "false" }'), MockResponse(200, '{ "error": "false" }')]
             WhatsAppType().activate(channel)
-            self.assertEqual(mock_post.call_args[1]['json']['payload']['set_settings']['webcallbacks']["1"],
+            self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['set_settings']['webcallbacks']["1"],
                              'https://%s%s' % (channel.org.get_brand_domain(), reverse('courier.wa', args=[channel.uuid, 'receive'])))
+            self.assertEqual(mock_post.call_args_list[1][1]['json']['payload']['set_allow_unsolicited_group_add'],
+                             False)
 
         with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(400, '{ "error": "true" }')
+            mock_post.side_effect = [MockResponse(400, '{ "error": "true" }')]
+
+            try:
+                WhatsAppType().activate(channel)
+                self.fail("Should have thrown error activating channel")
+            except ValidationError:
+                pass
+
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [MockResponse(200, '{ "error": "false" }'), MockResponse(400, '{ "error": "true" }')]
 
             try:
                 WhatsAppType().activate(channel)

@@ -539,7 +539,7 @@ class TriggerCRUDL(SmartCRUDL):
     class BaseList(TriggerActionMixin, OrgMixin, OrgPermsMixin, SmartListView):
         fields = ('name', 'modified_on')
         default_template = 'triggers/trigger_list.html'
-        default_order = ('-last_triggered', '-modified_on')
+        default_order = ('-modified_on',)
         search_fields = ('keyword__icontains', 'flow__name__icontains', 'channel__name__icontains')
 
         def get_context_data(self, **kwargs):
@@ -558,7 +558,7 @@ class TriggerCRUDL(SmartCRUDL):
             return folders
 
     class List(BaseList):
-        fields = ('keyword', 'flow', 'trigger_count', 'last_triggered')
+        fields = ('keyword', 'flow', 'trigger_count')
         link_fields = ('keyword', 'flow')
         actions = ('archive',)
         title = _("Triggers")
