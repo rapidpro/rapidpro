@@ -6226,6 +6226,12 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('Welcome message.', msgs[8].text)
         self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
 
+    def test_subflow_with_startflow(self):
+        self.get_flow('subflow_with_startflow')
+
+        parent = Flow.objects.get(name='Subflow 1')
+        parent.start(groups=[], contacts=[self.contact])
+
     def test_trigger_flow_complete(self):
         contact2 = self.create_contact(name='Jason Tatum', number='+250788123123')
 
@@ -8290,7 +8296,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=163, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=164, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

@@ -836,6 +836,12 @@ class Flow(TembaModel):
                         child_runs = flow.start([], [run.contact], started_flows=started_flows,
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
+
+                        # it's possible that one of our children interrupted us with a start flow action
+                        run.refresh_from_db(fields=('is_active',))
+                        if not run.is_active:
+                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+
                         if child_runs:
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
@@ -2816,7 +2822,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Hands flow control back to our parent run if we have one
         """
-        runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
+        runs = (
+            runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False, parent__is_active=True)
+            .select_related('parent__flow')
+        )
         for run in runs:
             cls.continue_parent_flow_run(run)
 
