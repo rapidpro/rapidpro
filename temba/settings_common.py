@@ -847,6 +847,29 @@ TEST_RUNNER = 'temba.tests.TembaTestRunner'
 TEST_EXCLUDE = ('smartmin',)
 
 # -----------------------------------------------------------------------------------
+# Need a PostgreSQL database on localhost with postgis extension installed.
+# -----------------------------------------------------------------------------------
+_default_database_config = {
+    'ENGINE': 'django.contrib.gis.db.backends.postgis',
+    'NAME': 'temba',
+    'USER': 'temba',
+    'PASSWORD': 'temba',
+    'HOST': 'localhost',
+    'PORT': '',
+    'ATOMIC_REQUESTS': True,
+    'CONN_MAX_AGE': 60,
+    'OPTIONS': {}
+}
+
+_direct_database_config = _default_database_config.copy()
+_default_database_config['DISABLE_SERVER_SIDE_CURSORS'] = True
+
+DATABASES = {
+    'default': _default_database_config,
+    'direct': _direct_database_config
+}
+
+# -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
 INTERNAL_IPS = iptools.IpRangeList(

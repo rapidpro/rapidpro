@@ -72,7 +72,7 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('id', 'run'))
     steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.only('id'))
 
-    for run_batch in chunk_list(runs.iterator(), 1000):
+    for run_batch in chunk_list(runs.using('direct').iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
@@ -83,8 +83,10 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
             else:
                 run_ids = [r.id for r in run_batch]
 
-            batch = FlowRun.objects.filter(id__in=run_ids).order_by('id').prefetch_related(
-                steps_prefetch, steps_messages_prefetch
+            batch = (
+                FlowRun.objects
+                .filter(id__in=run_ids).order_by('id')
+                .prefetch_related(steps_prefetch, steps_messages_prefetch)
             )
 
             for run in batch:
@@ -97,8 +99,10 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
                 current_node_uuid = path[-1]['node_uuid'] if path else None
 
                 run.current_node_uuid = UUID(current_node_uuid) if current_node_uuid else None
-                run.message_ids = sorted(msg_ids)
-                run.save(update_fields=('current_node_uuid', 'message_ids'))
+                run.message_ids = sorted(msg_ids) if msg_ids else None
+
+                if run.current_node_uuid or run.message_ids:
+                    run.save(update_fields=('current_node_uuid', 'message_ids'))
 
                 highpoint = run.id
                 if partition is not None:

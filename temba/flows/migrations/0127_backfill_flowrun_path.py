@@ -95,7 +95,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     # we want to prefetch steps with each flow run, in chronological order
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('id'))
 
-    for run_batch in chunk_list(runs.iterator(), 1000):
+    for run_batch in chunk_list(runs.using('direct').iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
