@@ -118,6 +118,13 @@ class ContactQuery(object):
 
         return not(prop_names.intersection(props_not_allowed))
 
+    def has_is_set_condition(self):
+        return self.root.HAS_IS_SET_CONDITION
+
+    def has_urn_condition(self):
+        urn_search = set(self.root.get_prop_names()).intersection(self.SEARCHABLE_SCHEMES)
+        return bool(urn_search)
+
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -132,6 +139,9 @@ class QueryNode(object):
     """
     A search query node which is either a condition or a boolean combination of other conditions
     """
+
+    HAS_IS_SET_CONDITION = False
+
     def simplify(self):
         return self
 
@@ -335,6 +345,7 @@ class IsSetCondition(Condition):
     IS_NOT_SET_LOOKUPS = ('is', '=')
 
     def __init__(self, prop, comparator):
+        self.HAS_IS_SET_CONDITION = True
         super(IsSetCondition, self).__init__(prop, comparator, "")
 
     def as_query(self, org, prop_map, base_set):
