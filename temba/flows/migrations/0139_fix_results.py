@@ -30,7 +30,7 @@ def fix_value_results(FlowRun, RuleSet, Value):
 
     # problematic ruleset values are those which have a decimal and datetime value, as this implies that the input
     # was numeric, but was still erroneously parsed as a datetime
-    values = Value.objects.exclude(decimal_value=None).exclude(datetime_value=None).filter(contact_field=None)
+    values = Value.objects.exclude(decimal_value=None).exclude(datetime_value=None).exclude(run=None)
 
     # get all flow runs we need to fix
     run_ids = values.values_list('run_id', flat=True).order_by('run_id').distinct('run_id')
