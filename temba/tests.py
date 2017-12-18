@@ -46,6 +46,7 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
     A simple HTTP handler which responds to a request with a matching mocked request
     """
     def _handle_request(self, method, data=None):
+
         if not self.server.mocked_requests:
             raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
 
@@ -76,6 +77,9 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         elif ctype == 'application/x-www-form-urlencoded':
             length = int(self.headers['content-length'])
             data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        elif ctype == 'application/json':
+            length = int(self.headers['content-length'])
+            data = json.loads(self.rfile.read(length))
         else:
             data = {}
 
@@ -487,9 +491,12 @@ class TembaTest(SmartminTest):
         self.assertEqual(email.body, body)
         self.assertEqual(email.recipients(), recipients)
 
-    def assertMockedRequest(self, mock_request, data=None, **headers):
+    def assertMockedRequest(self, mock_request, data=None, body=None, **headers):
         if not mock_request.requested:
             self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
+
+        if body is not None:
+            self.assertEqual(mock_request.data, body)
 
         if data is not None:
             self.assertEqual(mock_request.data, data)

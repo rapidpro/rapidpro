@@ -213,7 +213,7 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
+    def trigger_flow_webhook(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
 
         flow = run.flow
         contact = run.contact
@@ -256,6 +256,7 @@ class WebHookEvent(SmartModel):
                 if action == 'GET':
                     response = requests.get(webhook_url, headers=requests_headers, timeout=10)
                 else:
+                    requests_headers['Content-type'] = 'application/json'
                     response = requests.post(webhook_url, data=json.dumps(post_data), headers=requests_headers, timeout=10)
 
                 body = response.text
@@ -326,7 +327,7 @@ class WebHookEvent(SmartModel):
         return result
 
     @classmethod
-    def trigger_flow_event_legacy(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
+    def trigger_flow_webhook_legacy(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):
         flow = run.flow
         org = flow.org
         contact = run.contact

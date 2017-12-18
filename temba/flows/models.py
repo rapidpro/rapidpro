@@ -3571,11 +3571,13 @@ class RuleSet(models.Model):
                 legacy_format = resthook or self.config_json().get('legacy_format', False)
 
                 if legacy_format:
-                    result = WebHookEvent.trigger_flow_event_legacy(run, value, self, msg, action, resthook=resthook,
-                                                                    headers=header)
+                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
+                                                                      resthook=resthook,
+                                                                      headers=header)
                 else:
-                    result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
-                                                             headers=header)
+                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                               resthook=resthook,
+                                                               headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4890,9 +4892,9 @@ class WebhookAction(Action):
                 headers[item.get('name')] = item.get('value')
 
         if self.legacy_format:
-            WebHookEvent.trigger_flow_event_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
+            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
         else:
-            WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, headers=headers)
+            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 

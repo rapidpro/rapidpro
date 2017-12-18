@@ -3637,12 +3637,12 @@ class ActionTest(TembaTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
-    def test_webhook_action(self, mock_timezone_now):
+    def test_webhook_action_legacy(self, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
 
         action = WebhookAction(str(uuid4()), 'http://localhost:49999/token',
-                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}])
+                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}], legacy_format=True)
 
         # check to and from JSON
         action_json = action.as_json()
@@ -4256,6 +4256,39 @@ class SimulationTest(FlowFileTest):
 
 
 class FlowsTest(FlowFileTest):
+
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_webhook_payload(self):
+        flow = self.get_flow('webhook_payload')
+
+        # we call as an action, and then again as a ruleset
+        ctype = 'application/json'
+        ruleset_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+        action_post = self.mockRequest('POST', '/send_results', '{"received":"action"}', content_type=ctype)
+        action_get = self.mockRequest('GET', '/send_results', '{"received":"action"}', content_type=ctype)
+        ruleset_get = self.mockRequest('GET', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+
+        self.assertEqual("What is your favorite natural disaster?", self.send_message(flow, "39"))
+        self.assertEqual("Hey, so should I send it as a ruleset too?", self.send_message(flow, "tornado"))
+        self.assertEqual("Great work.", self.send_message(flow, "yes"))
+
+        def assert_payload(payload, path_length, result_count, results):
+            self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid), payload['contact'])
+            self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
+            self.assertEqual(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
+            self.assertEqual(path_length, len(payload['path']))
+            self.assertEqual(result_count, len(payload['results']))
+
+            for key, value in six.iteritems(results):
+                self.assertEqual(value, payload['results'].get(key).get('value'))
+
+        # we arrived at our ruleset webhook first
+        assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
+        assert_payload(action_post.data, 7, 3, dict(send_action="yes"))
+
+        # gets shouldn't have payloads
+        self.assertIsNone(action_get.data)
+        self.assertIsNone(ruleset_get.data)
 
     def test_validate_flow_definition(self):
 
