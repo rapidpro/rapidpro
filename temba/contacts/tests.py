@@ -1406,7 +1406,7 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(33):
             contact = Contact.get_or_create(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
-        self.assertListEqual(
+        self.assertItemsEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
         )
 
@@ -1414,7 +1414,7 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'gender', 'male')
         contact.set_field(self.user, 'age', 20)
 
-        self.assertListEqual(
+        self.assertItemsEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['cannon fodder', 'urn group']
         )
 
@@ -3963,6 +3963,16 @@ class ContactTest(TembaTest):
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
 
+        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
+
+        ContactGroup.create_dynamic(
+            self.org, self.admin, 'simple group',
+            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+        )
+        ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "macklemore"')
+
         # create some channels of various types
         twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
         Channel.create(self.org, self.user, None, 'TG', name="Twitter Channel", address="@rapidpro")
@@ -3986,14 +3996,32 @@ class ContactTest(TembaTest):
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
         # simulate an incoming message from Mage on Twitter
-        msg = Msg.objects.create(org=self.org, channel=twitter, contact=self.joe,
-                                 contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
-                                 text="Incoming twitter DM", created_on=timezone.now())
+        msg = Msg.objects.create(
+            org=self.org, channel=twitter, contact=self.joe,
+            contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+            text="Incoming twitter DM", created_on=timezone.now()
+        )
 
-        process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
+        with self.assertNumQueries(12):
+            process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
+
+        # simulate an incoming message from Mage on Twitter, for a new contact
+        msg = Msg.objects.create(
+            org=self.org, channel=twitter, contact=self.joe,
+            contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+            text="Incoming twitter DM", created_on=timezone.now()
+        )
+
+        with self.assertNumQueries(20):
+            process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
+
+        self.assertItemsEqual(
+            [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
+            ['Empty age field', 'urn group']
+        )
 
 
 class ContactURNTest(TembaTest):

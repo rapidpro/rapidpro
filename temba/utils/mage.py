@@ -90,11 +90,11 @@ def handle_new_message(org, msg):
     analytics.gauge('temba.msg_incoming_%s' % msg.channel.channel_type.lower())
 
 
-def handle_new_contact(org, contact):
+def handle_new_contact(org, contact, is_new=False):
     """
     Contacts created by mage or courier are only saved to the database. Here we take care of the other stuff
     """
     # possible to have dynamic groups based on name
-    contact.handle_update(attrs=('name',))
+    contact.handle_update(attrs=('name',), is_new=is_new)
 
     analytics.gauge('temba.contact_created')

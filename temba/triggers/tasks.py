@@ -20,7 +20,7 @@ def fire_follow_triggers(channel_id, contact_urn_id, new_mage_contact=False):
     # * its dynamic groups won't have been initialized
     # * we need to update our cached contact counts
     if new_mage_contact:
-        handle_new_contact(contact.org, contact)
+        handle_new_contact(contact.org, contact, is_new=new_mage_contact)
 
     if channel.is_active and channel.org:
         event = ChannelEvent.create(channel, urn.identity, ChannelEvent.TYPE_FOLLOW, timezone.now())

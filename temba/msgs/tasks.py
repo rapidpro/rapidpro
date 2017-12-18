@@ -87,7 +87,7 @@ def process_message(msg, new_message=False, new_contact=False):
     if new_message:
         handle_new_message(msg.org, msg)
         if new_contact:
-            handle_new_contact(msg.org, msg.contact)
+            handle_new_contact(msg.org, msg.contact, is_new=new_contact)
 
     Msg.process_message(msg)
     print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
