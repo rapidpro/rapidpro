@@ -1105,6 +1105,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.channel_type, 'NX')
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
+        self.assertEqual(nexmo.tps, 1)
+        channel_config = nexmo.config_json()
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'private-key')
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type='NX').first()
