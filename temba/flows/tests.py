@@ -8317,6 +8317,7 @@ class AndroidChildStatus(FlowFileTest):
 
 class QueryTest(FlowFileTest):
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_num_queries(self):
 
         self.get_flow('query_test')
