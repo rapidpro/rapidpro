@@ -43,7 +43,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
-from temba.utils.dates import datetime_to_str
+from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
 from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
@@ -1866,7 +1866,6 @@ class ChannelTest(TembaTest):
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
-        from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
         now = now.replace(microsecond=now.microsecond / 1000 * 1000)
 

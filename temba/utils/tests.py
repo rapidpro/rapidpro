@@ -235,8 +235,8 @@ class DatesTest(TembaTest):
     def test_str_to_time(self):
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))):
-            self.assertEqual(datetime.time(3, 4), str_to_time('03:04'))  # zero padded
-            self.assertEqual(datetime.time(3, 4), str_to_time('3:4'))  # not zero padded
+            self.assertEqual(datetime.time(3, 4), str_to_time('03:04'))  # hour zero padded
+            self.assertEqual(datetime.time(3, 4), str_to_time('3:04'))  # hour not zero padded
             self.assertEqual(datetime.time(3, 4), str_to_time('01-02-2013 03:04'))  # with date
             self.assertEqual(datetime.time(15, 4), str_to_time('3:04 PM'))  # as PM
 

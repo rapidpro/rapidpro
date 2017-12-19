@@ -7,20 +7,22 @@ import pytz
 import regex
 import six
 
-from dateutil.parser import parse
 from django.utils import timezone
 
-DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
-MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
+# max offset postgres supports for a timezone
+MAX_UTC_OFFSET = 14 * 60 * 60
+
+# pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
 FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?([\+\-]\d{2}:\d{2}|Z)$')
 
+# patterns for date and time formats supported for human-entered data
 DD_MM_YYYY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4,5})')
 DD_MM_YY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{2,3})')
 MM_DD_YYYY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4,5})')
 MM_DD_YY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{2,3})')
 YYYY_MM_DD = regex.compile(r'([0-9]{4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,4})')
 YY_MM_DD = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,4})')
-HH_MM_SS = regex.compile(r'([0-9]{1,4}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?')
+HH_MM_SS = regex.compile(r'([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?')
 
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
@@ -90,43 +92,12 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     # can we pull out a time?
-    time = None
-    for match in HH_MM_SS.finditer(date_str):
-        hour = _atoi(match[1])
+    time = str_to_time(date_str)
 
-        # do we have an AM/PM
-        if match[7] and match[7].lower() == "pm":
-            hour += 12
-
-        # is this a valid hour?
-        if hour > 24:
-            continue
-
-        minute = _atoi(match[2])
-        if minute > 60:
-            continue
-
-        seconds = 0
-        if match[4]:
-            seconds = _atoi(match[4])
-            if seconds > 60:
-                continue
-
-        micro = 0
-        if match[6]:
-            micro = _atoi(match[6])
-
-            if len(match[6]) == 3:
-                # these are milliseconds, multi by 1,000,000 for micro
-                micro *= 1000
-
-        time = datetime.time(hour, minute, seconds, micro)
-        break
-
-    if time:
+    if time is not None:
         parsed = datetime.datetime.combine(parsed, time)
     elif fill_time:
-        parsed = datetime.datetime.combine(parsed, timezone.now().time())
+        parsed = datetime.datetime.combine(parsed, timezone.now().astimezone(tz).time())
     else:
         parsed = datetime.datetime.combine(parsed, datetime.time(0, 0, 0))
 
@@ -134,11 +105,17 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     if tz and parsed:
         parsed = tz.localize(parsed)
 
+    # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
+    if parsed and abs(parsed.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
+        parsed = None
+
     return parsed
 
 
 def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
-
+    """
+    Parses a human-entered date which should be in the org display format
+    """
     # four digit year comes first
     for match in four_digit.finditer(date_str):
         # does our day look believable?
@@ -179,75 +156,42 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
     return None
 
 
-def str_to_datetime_old(date_str, tz, dayfirst=True, fill_time=True):
-    """
-    Parses a datetime from the given text value
-    :param date_str: the string containing a date
-    :param tz: the timezone of the date
-    :param dayfirst: whether the date has been entered date first or month first
-    :param fill_time: whether or not to fill missing time with the current time
-    :return: the parsed datetime
-    """
-    if not date_str:
-        return None
-
-    # remove whitespace any trailing period
-    date_str = six.text_type(date_str).strip().rstrip('.')
-
-    # try first as full ISO string
-    if FULL_ISO8601_REGEX.match(date_str):
-        try:
-            return iso8601.parse_date(date_str).astimezone(tz)
-        except iso8601.ParseError:
-            pass
-
-    try:
-        if fill_time:
-            date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
-
-            # get the local time and hour
-            default = timezone.now().astimezone(tz).replace(tzinfo=None)
-
-            # we parsed successfully
-            if date.tzinfo or date != DEFAULT_DATE:
-                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-
-                # localize it if we don't have a timezone
-                if not output_date.tzinfo:
-                    output_date = tz.localize(output_date)
-
-                # if we aren't UTC, normalize to take care of any DST weirdnesses
-                elif output_date.tzinfo.tzname(output_date) != 'UTC':
-                    output_date = tz.normalize(output_date)
-
-            else:
-                output_date = None
-        else:
-            default = DEFAULT_DATE
-            output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-            output_date = tz.localize(output_date)
-
-            # only return date if it actually got parsed
-            if output_date.year == 1:
-                output_date = None
-
-    except Exception:
-        output_date = None
-
-    # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
-    if output_date and abs(output_date.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
-        output_date = None
-
-    return output_date
-
-
 def str_to_time(value):
     """
     Parses a time value from the given text value
     """
-    default = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
-    parsed = parse(value, fuzzy=True, default=default)
-    return parsed.time()
+    for match in HH_MM_SS.finditer(value):
+        hour = _atoi(match[1])
+
+        # do we have an AM/PM
+        if match[7] and match[7].lower() == "pm":
+            hour += 12
+
+        # is this a valid hour?
+        if hour > 24:
+            continue
+
+        minute = _atoi(match[2])
+        if minute > 60:
+            continue
+
+        seconds = 0
+        if match[4]:
+            seconds = _atoi(match[4])
+            if seconds > 60:
+                continue
+
+        micro = 0
+        if match[6]:
+            micro = _atoi(match[6])
+
+            if len(match[6]) == 3:
+                # these are milliseconds, multi by 1,000,000 for micro
+                micro *= 1000
+
+        return datetime.time(hour, minute, seconds, micro)
+
+    return None
 
 
 def get_datetime_format(dayfirst):

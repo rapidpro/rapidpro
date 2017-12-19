@@ -6696,8 +6696,6 @@ class DateTest(Test):
         day_first = org.get_dayfirst()
         tz = org.timezone
 
-        text = text.replace(' ', "-")
-
         test, errors = Msg.evaluate_template(self.test, context, org=org)
         if not errors:
             date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
