@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import iptools
 import os
 import sys
+import socket
 
 from celery.schedules import crontab
 from datetime import timedelta
@@ -1220,3 +1221,7 @@ CHATBASE_API_URL = 'https://chatbase.com/api/message'
 
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
+
+# When reporting metrics we use the hostname of the physical machine, not the hostname of the service
+system_hostname = socket.gethostname().split('.')[0]
+MACHINE_HOSTNAME = '%s.%s' % (system_hostname, HOSTNAME)
