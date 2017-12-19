@@ -24,7 +24,8 @@ from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils import dict_to_struct
+from temba.utils.dates import datetime_to_str
 from temba.utils.queues import push_task
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value

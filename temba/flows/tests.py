@@ -32,7 +32,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, O
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
