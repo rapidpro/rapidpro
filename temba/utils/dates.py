@@ -16,12 +16,9 @@ MAX_UTC_OFFSET = 14 * 60 * 60
 FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?([\+\-]\d{2}:\d{2}|Z)$')
 
 # patterns for date and time formats supported for human-entered data
-DD_MM_YYYY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4,5})')
-DD_MM_YY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{2,3})')
-MM_DD_YYYY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4,5})')
-MM_DD_YY = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{2,3})')
-YYYY_MM_DD = regex.compile(r'([0-9]{4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,4})')
-YY_MM_DD = regex.compile(r'([0-9]{1,4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,4})')
+DD_MM_YYYY = regex.compile(r'([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})')
+MM_DD_YYYY = regex.compile(r'([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})')
+YYYY_MM_DD = regex.compile(r'([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})')
 HH_MM_SS = regex.compile(r'([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?')
 
 
@@ -83,9 +80,9 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     current_year = datetime.datetime.now().year
 
     if dayfirst:
-        parsed = _date_from_formats(date_str, current_year, DD_MM_YYYY, DD_MM_YY, 1, 2, 3)
+        parsed = _date_from_formats(date_str, current_year, DD_MM_YYYY, 1, 2, 3)
     else:
-        parsed = _date_from_formats(date_str, current_year, MM_DD_YYYY, MM_DD_YY, 2, 1, 3)
+        parsed = _date_from_formats(date_str, current_year, MM_DD_YYYY, 2, 1, 3)
 
     # couldn't find a date? bail
     if not parsed:
@@ -112,31 +109,14 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     return parsed
 
 
-def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
+def _date_from_formats(date_str, current_year, pattern, d, m, y):
     """
     Parses a human-entered date which should be in the org display format
     """
-    # four digit year comes first
-    for match in four_digit.finditer(date_str):
+    for match in pattern.finditer(date_str):
         # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:  # pragma: no cover
-            continue
-
-        month = _atoi(match[m])
-        if month == 0 or month > 12:
-            continue
-
-        year = _atoi(match[y])
-
-        # looks believable, let's return it
-        return datetime.date(year, month, day)
-
-    # then two digit
-    for match in two_digit.finditer(date_str):
-        # does our day look believable?
-        day = _atoi(match[d])
-        if day == 0 or day > 31:  # pragma: no cover
+        if day == 0 or day > 31:
             continue
 
         month = _atoi(match[m])
@@ -145,12 +125,13 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
 
         # convert to four digit year
         year = _atoi(match[y])
-        if year > current_year % 1000:  # pragma: no cover
-            year += 1900
-        else:
-            year += 2000
+        if len(match[y]) == 2:
+            if year > current_year % 1000:
+                year += 1900
+            else:
+                year += 2000
 
-        # looks believable, go for it
+        # looks believable, let's return it
         return datetime.date(year, month, day)
 
     return None

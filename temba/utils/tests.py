@@ -194,14 +194,29 @@ class DatesTest(TembaTest):
             self.assertIsNone(str_to_datetime('', tz))  # empty string
             self.assertIsNone(str_to_datetime('xxx', tz))  # unparseable string
             self.assertIsNone(str_to_datetime('xxx', tz, fill_time=False))  # unparseable string
+            self.assertIsNone(str_to_datetime('41-12-2017', tz))
+            self.assertIsNone(str_to_datetime('03-13-2017', tz))
+            self.assertIsNone(str_to_datetime('41-12-17', tz))
+            self.assertIsNone(str_to_datetime('03-13-17', tz))
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 3, 4, 5, 6)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True))  # day first
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 1, 2, 3, 4, 5, 6)),
                              str_to_datetime('01-02-2013', tz, dayfirst=False))  # month first
+
+            # two digit years
+            self.assertEqual(tz.localize(datetime.datetime(2013, 1, 2, 3, 4, 5, 6)),
+                             str_to_datetime('01-02-13', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(1999, 1, 2, 3, 4, 5, 6)),
+                             str_to_datetime('01-02-99', tz, dayfirst=False))
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
+
             self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000, tzinfo=pytz.UTC),
                              str_to_datetime('2013-02-01T07:08:09.100000Z', tz, dayfirst=True))  # Z marker
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
