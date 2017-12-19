@@ -233,12 +233,21 @@ class DatesTest(TembaTest):
                          str_to_datetime('2016-11-21T20:36:51.215681Z', tz))
 
     def test_str_to_time(self):
+        self.assertEqual(str_to_time(""), None)
+        self.assertEqual(str_to_time("x"), None)
+        self.assertEqual(str_to_time("32:01"), None)
+        self.assertEqual(str_to_time("12:61"), None)
+        self.assertEqual(str_to_time("12:30:61"), None)
+
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))):
-            self.assertEqual(datetime.time(3, 4), str_to_time('03:04'))  # hour zero padded
-            self.assertEqual(datetime.time(3, 4), str_to_time('3:04'))  # hour not zero padded
-            self.assertEqual(datetime.time(3, 4), str_to_time('01-02-2013 03:04'))  # with date
-            self.assertEqual(datetime.time(15, 4), str_to_time('3:04 PM'))  # as PM
+            self.assertEqual(str_to_time('03:04'), datetime.time(3, 4))  # hour zero padded
+            self.assertEqual(str_to_time('3:04'), datetime.time(3, 4))  # hour not zero padded
+            self.assertEqual(str_to_time('01-02-2013 03:04'), datetime.time(3, 4))  # with date
+            self.assertEqual(str_to_time('3:04 PM'), datetime.time(15, 4))  # as PM
+            self.assertEqual(str_to_time('03:04:30'), datetime.time(3, 4, 30))  # with seconds
+            self.assertEqual(str_to_time('03:04:30.123'), datetime.time(3, 4, 30, 123000))  # with milliseconds
+            self.assertEqual(str_to_time('03:04:30.123000'), datetime.time(3, 4, 30, 123000))  # with microseconds
 
     def test_date_to_utc_range(self):
         self.assertEqual(date_to_utc_range(datetime.date(2017, 2, 20), self.org), (

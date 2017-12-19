@@ -1686,10 +1686,11 @@ class FlowTest(TembaTest):
                 test = DateBeforeTest('@(date.today - 1)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-
                 if dayfirst:
-                    self.assertDateTest(True, three_days_ago, test)
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
+                self.assertDateTest(True, three_days_ago, test)
 
                 sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
                 self.assertDateTest(False, None, test)
@@ -1697,10 +1698,11 @@ class FlowTest(TembaTest):
                 test = DateEqualTest('@(date.today - 3)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-
                 if dayfirst:
-                    self.assertDateTest(True, three_days_ago, test)
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
+                self.assertDateTest(True, three_days_ago, test)
 
                 test = DateAfterTest('@(date.today + 3)')
                 self.assertDateTest(False, None, test)

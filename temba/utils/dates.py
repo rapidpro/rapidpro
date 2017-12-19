@@ -43,7 +43,7 @@ def datetime_to_str(date_obj, format=None, ms=True, tz=None):
     if type(date_obj) == datetime.date:
         date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
 
-    if date_obj.year < 1900:
+    if date_obj.year < 1900:  # pragma: no cover
         return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
 
     if isinstance(date_obj, datetime.datetime):
@@ -77,7 +77,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     if FULL_ISO8601_REGEX.match(date_str):
         try:
             return iso8601.parse_date(date_str)
-        except iso8601.ParseError:
+        except iso8601.ParseError:  # pragma: no cover
             pass
 
     current_year = datetime.datetime.now().year
@@ -106,7 +106,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         parsed = tz.localize(parsed)
 
     # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
-    if parsed and abs(parsed.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
+    if parsed and abs(parsed.utcoffset().total_seconds()) > MAX_UTC_OFFSET:  # pragma: no cover
         parsed = None
 
     return parsed
@@ -120,7 +120,7 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
     for match in four_digit.finditer(date_str):
         # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:
+        if day == 0 or day > 31:  # pragma: no cover
             continue
 
         month = _atoi(match[m])
@@ -136,7 +136,7 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
     for match in two_digit.finditer(date_str):
         # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:
+        if day == 0 or day > 31:  # pragma: no cover
             continue
 
         month = _atoi(match[m])
@@ -145,7 +145,7 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
 
         # convert to four digit year
         year = _atoi(match[y])
-        if year > current_year % 1000:
+        if year > current_year % 1000:  # pragma: no cover
             year += 1900
         else:
             year += 2000
@@ -274,7 +274,7 @@ def datetime_decoder(d):
     datetimes and converting them back to datetimes.
     """
     if isinstance(d, list):
-        pairs = enumerate(d)
+        pairs = enumerate(d)  # pragma: no cover
     elif isinstance(d, dict):
         pairs = d.items()
     result = []
@@ -289,10 +289,10 @@ def datetime_decoder(d):
             except ValueError:
                 pass
         elif isinstance(v, (dict, list)):
-            v = datetime_decoder(v)
+            v = datetime_decoder(v)  # pragma: no cover
         result.append((k, v))
     if isinstance(d, list):
-        return [x[1] for x in result]
+        return [x[1] for x in result]  # pragma: no cover
     elif isinstance(d, dict):
         return dict(result)
 
@@ -300,5 +300,5 @@ def datetime_decoder(d):
 def _atoi(s):
     try:
         return int(s)
-    except ValueError:
+    except ValueError:  # pragma: no cover
         return 0
