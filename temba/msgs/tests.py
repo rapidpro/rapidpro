@@ -30,7 +30,7 @@ from temba.utils.queues import push_task
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task, process_message_task
 from .templatetags.sms import as_icon
 from temba.locations.models import AdminBoundary
 from temba.msgs import models
@@ -320,6 +320,9 @@ class MsgTest(TembaTest):
         msg2.refresh_from_db()
         self.assertEqual(HANDLED, msg2.status)
         self.assertEqual(0, len(r.zrange(contact_queue, 0, 1)))
+
+        # calling it again shouldn't do anything, but should return
+        process_message_task(dict(contact_id=contact_id))
 
     def test_create_incoming(self):
         Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
