@@ -120,7 +120,7 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
     for match in four_digit.finditer(date_str):
         # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:  # pragma: no cover
+        if day == 0 or day > 31:
             continue
 
         month = _atoi(match[m])
@@ -136,7 +136,7 @@ def _date_from_formats(date_str, current_year, four_digit, two_digit, d, m, y):
     for match in two_digit.finditer(date_str):
         # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:  # pragma: no cover
+        if day == 0 or day > 31:
             continue
 
         month = _atoi(match[m])
