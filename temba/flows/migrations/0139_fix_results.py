@@ -12,6 +12,8 @@ from django.db import migrations, transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.utils import chunk_list
+from temba.utils.dates import str_to_datetime
+
 
 CACHE_KEY_HIGHPOINT = 'res_fix_mig_highpoint'
 
@@ -48,24 +50,24 @@ def fix_value_results(FlowRun, RuleSet, Value):
 
     for id_batch in chunk_list(run_ids, 1000):
         with transaction.atomic():
-            batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').prefetch_related('values')
+            batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').select_related('org').prefetch_related('values')
 
             for run in batch:
-                # find values with string_values which are integers
-                int_values = {}
-                for v in run.values.all():
-                    try:
-                        int(v.string_value)
-                        int_values[ruleset_id_to_uuid[v.ruleset_id]] = v.string_value
-                    except ValueError:
-                        pass
+                day_first = run.org.date_format == 'D'
 
-                if int_values:
+                # find result values with which are no longer parsed as dates
+                no_longer_dates = {}
+                for v in run.values.all():
+                    parsed_new = str_to_datetime(v.string_value, tz=run.org.timezone, dayfirst=day_first)
+                    if not parsed_new and v.datetime_value:
+                        no_longer_dates[ruleset_id_to_uuid[v.ruleset_id]] = v.string_value
+
+                if no_longer_dates:
                     results = json.loads(run.results) if run.results else {}
                     for key, result in six.iteritems(results):
                         node_uuid = result['node_uuid']
-                        if node_uuid in int_values:
-                            result['value'] = int_values[node_uuid]
+                        if node_uuid in no_longer_dates:
+                            result['value'] = no_longer_dates[node_uuid]
 
                     run.results = json.dumps(run.results)
                     run.save(update_fields=('results',))
