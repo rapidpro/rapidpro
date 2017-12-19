@@ -20,11 +20,12 @@ from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLo
 from temba.flows.models import RuleSet
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK, HANDLER_QUEUE
+from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK
+from temba.msgs.models import HANDLER_QUEUE, MSG_EVENT
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils import dict_to_struct, datetime_to_str, datetime_to_s, dict_to_json
 from temba.utils.queues import push_task
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
@@ -296,6 +297,29 @@ class MsgTest(TembaTest):
         # now that we have 10 same messages then,
         must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
+
+    def test_contact_queue_flushing(self):
+
+        # change our channel type to one that uses the queue
+        self.channel.channel_type = 'T'
+        self.channel.save(update_fields=('channel_type',))
+
+        msg1 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 1")
+        contact_id = msg1.contact_id
+
+        r = get_redis_connection()
+        contact_queue = Msg.CONTACT_HANDLING_QUEUE % contact_id
+
+        # even though we already handled it, push it back on our queue to test flushing
+        payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
+        r.zadd(contact_queue, datetime_to_s(timezone.now()), dict_to_json(payload))
+
+        msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
+
+        # our new message should be handled and queue should be empty
+        msg2.refresh_from_db()
+        self.assertEqual(HANDLED, msg2.status)
+        self.assertEqual(0, len(r.zrange(contact_queue, 0, 1)))
 
     def test_create_incoming(self):
         Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
