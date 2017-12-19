@@ -1,3 +1,8 @@
+v3.0.294
+----------
+ * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
+ * Define MACHINE_HOSTNAME for librato metrics
+
 v3.0.293
 ----------
  * Fix handle_ruleset so we don't continue the run if a child has exited us

@@ -14,7 +14,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
 from temba.orgs.models import get_current_export_version
-from temba.utils import datetime_to_json_date
+from temba.utils.dates import datetime_to_json_date
 from temba.values.models import Value
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
