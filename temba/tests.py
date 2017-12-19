@@ -170,9 +170,7 @@ class TembaTest(SmartminTest):
             settings.DEBUG = True
 
         # make sure we start off without any service users
-        service_group = Group.objects.filter(name='Service Users').first()
-        if service_group:
-            service_group.user_set.all().delete()
+        Group.objects.get(name='Service Users').user_set.clear()
 
         self.clear_cache()
 
