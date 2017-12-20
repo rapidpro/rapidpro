@@ -22,7 +22,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookEvent, Resthook
+from temba.api.models import WebHookEvent, WebHookResult, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
@@ -4272,6 +4272,8 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Hey, so should I send it as a ruleset too?", self.send_message(flow, "tornado"))
         self.assertEqual("Great work.", self.send_message(flow, "yes"))
 
+        msg = Msg.objects.all().order_by('-id').first()
+
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid), payload['contact'])
             self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
@@ -4300,6 +4302,11 @@ class FlowsTest(FlowFileTest):
         # gets shouldn't have payloads
         self.assertIsNone(action_get.data)
         self.assertIsNone(ruleset_get.data)
+
+        # make sure triggering without a url fails properly
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), None, '', msg)
+        result = WebHookResult.objects.all().order_by('-id').first()
+        self.assertIn('No webhook_url specified, skipping send', result.message)
 
     def test_validate_flow_definition(self):
 

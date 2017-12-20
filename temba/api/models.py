@@ -314,7 +314,7 @@ class WebHookEvent(SmartModel):
                                                   status_code=status_code,
                                                   body=body,
                                                   message=message,
-                                                  data=urlencode(post_data, doseq=True),
+                                                  data=json.dumps(post_data),
                                                   request_time=request_time,
                                                   created_by=api_user,
                                                   modified_by=api_user)
