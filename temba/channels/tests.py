@@ -42,7 +42,8 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils import dict_to_struct, get_anonymous_user
+from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
 from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
@@ -1105,6 +1106,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.channel_type, 'NX')
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
+        self.assertEqual(nexmo.tps, 1)
+        channel_config = nexmo.config_json()
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'private-key')
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type='NX').first()
@@ -1865,7 +1872,6 @@ class ChannelTest(TembaTest):
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
-        from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
         now = now.replace(microsecond=now.microsecond / 1000 * 1000)
 

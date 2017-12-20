@@ -2,7 +2,7 @@
 import time
 import json
 from django_redis import get_redis_connection
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 
 
 def push_courier_msgs(channel, msgs, high_priority=False):
