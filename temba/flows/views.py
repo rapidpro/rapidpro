@@ -238,7 +238,7 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(revision.get_definition_json())
             else:
                 revisions = []
-                for revision in flow.revisions.all().order_by('-created_on')[:125]:
+                for revision in flow.revisions.all().order_by('-created_on')[:25]:
                     # validate the flow definition before presenting it to the user
                     try:
                         FlowRevision.validate_flow_definition(revision.get_definition_json())
@@ -246,14 +246,11 @@ class FlowCRUDL(SmartCRUDL):
 
                     except ValueError:
                         # "expected" error in the def, silently cull it
-                        print("skipping for valueerror: %s" % revision.created_on)
                         pass
 
-                    except Exception as e:
+                    except Exception:
                         # something else, we still cull, but report it to sentry
                         logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
-                        print("skipping for exception: %s" % revision.created_on)
-                        traceback.print_exc(e)
                         pass
 
                 return JsonResponse(revisions, safe=False)

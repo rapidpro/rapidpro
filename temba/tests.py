@@ -495,12 +495,9 @@ class TembaTest(SmartminTest):
         self.assertEqual(email.body, body)
         self.assertEqual(email.recipients(), recipients)
 
-    def assertMockedRequest(self, mock_request, data=None, body=None, **headers):
+    def assertMockedRequest(self, mock_request, data=None, **headers):
         if not mock_request.requested:
             self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
-
-        if body is not None:
-            self.assertEqual(mock_request.data, body)
 
         if data is not None:
             self.assertEqual(mock_request.data, data)
