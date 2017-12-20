@@ -34,7 +34,8 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import get_anonymous_user, on_transaction_commit
+from temba.utils.dates import json_date_to_datetime, ms_to_datetime
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils.jiochat import JiochatClient

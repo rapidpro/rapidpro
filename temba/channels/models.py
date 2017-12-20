@@ -33,7 +33,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, CHATBASE_TYPE_AGENT
+from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
@@ -448,7 +448,16 @@ class Channel(TembaModel):
         parsed = phonenumbers.parse(channel.address, None)
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(user.get_org(), user, channel.country, 'NX', name="Nexmo Sender",
+        org = user.get_org()
+        org_config = org.config_json()
+
+        config = {Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
+                  Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
+                  Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
+                  Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
+
+        return Channel.create(user.get_org(), user, channel.country, 'NX', name="Nexmo Sender", config=config, tps=1,
                               address=channel.address, role=Channel.ROLE_SEND, parent=channel, bod=nexmo_phone_number)
 
     @classmethod

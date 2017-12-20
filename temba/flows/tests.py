@@ -32,7 +32,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, O
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -1248,7 +1248,7 @@ class FlowTest(TembaTest):
         # return our run for later inspection
         return run
 
-    def assertDateTest(self, expected_test, expected_value, test):
+    def assertDateTest(self, expected_result, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.timezone
         context = run.flow.build_expressions_context(run.contact, None)
@@ -1257,15 +1257,17 @@ class FlowTest(TembaTest):
         test_json = test.as_json()
         test = test.__class__.from_json(run.org, test_json)
 
-        tuple = test.evaluate(run, self.sms, context, self.sms.text)
-        if expected_test:
-            self.assertTrue(tuple[0])
+        result, value = test.evaluate(run, self.sms, context, self.sms.text)
+
+        if expected_result:
+            self.assertTrue(result)
         else:
-            self.assertFalse(tuple[0])
-        if expected_test and expected_value:
+            self.assertFalse(result)
+
+        if expected_result and expected_value:
             # convert our expected date time the right timezone
             expected_tz = expected_value.astimezone(tz)
-            self.assertTrue(abs((expected_tz - tuple[1]).total_seconds()) < 60, "%s does not match expected %s" % (tuple[1], expected_tz))
+            self.assertTrue(abs((expected_tz - value).total_seconds()) < 60, "%s does not match expected %s" % (value, expected_tz))
 
     def test_location_tests(self):
         sms = self.create_msg(contact=self.contact, text="")
@@ -1655,7 +1657,7 @@ class FlowTest(TembaTest):
             Performs a set of date tests in either day-first or month-first mode
             """
             self.org.date_format = 'D' if dayfirst else 'M'
-            self.org.save()
+            self.org.save(update_fields=('date_format',))
 
             # perform all date tests as if it were 2014-01-02 03:04:05.6 UTC - a date which when localized to DD-MM-YYYY
             # or MM-DD-YYYY is ambiguous
@@ -1670,10 +1672,7 @@ class FlowTest(TembaTest):
                 self.assertDateTest(False, None, test)
 
                 sms.text = "1980"
-                self.assertDateTest(True, now.replace(year=1980), test)
-
-                sms.text = "December 14, 1982"
-                self.assertDateTest(True, now.replace(year=1982, month=12, day=14), test)
+                self.assertDateTest(False, None, test)
 
                 if dayfirst:
                     sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
@@ -1687,7 +1686,10 @@ class FlowTest(TembaTest):
                 test = DateBeforeTest('@(date.today - 1)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
                 sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
@@ -1696,7 +1698,10 @@ class FlowTest(TembaTest):
                 test = DateEqualTest('@(date.today - 3)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
                 test = DateAfterTest('@(date.today + 3)')
@@ -1709,8 +1714,8 @@ class FlowTest(TembaTest):
                 self.assertDateTest(True, five_days_next, test)
 
         # check date tests in both date modes
-        perform_date_tests(sms, True)
-        perform_date_tests(sms, False)
+        perform_date_tests(sms, dayfirst=True)
+        perform_date_tests(sms, dayfirst=False)
 
     def test_length(self):
         org = self.org
@@ -2546,19 +2551,22 @@ class FlowTest(TembaTest):
         self.assertEqual(response.json()['description'], 'Your flow could not be saved. Please refresh your browser.')
 
     def test_flow_start_with_start_msg(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
-        run, = self.flow.start([], [self.contact], start_msg=msg)
+        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        run, = self.flow.start([], [self.contact], start_msg=msg_in)
 
-        out = Msg.objects.get(direction='O')
+        msg_in.refresh_from_db()
+        msg_out = Msg.objects.get(direction='O')
 
-        run.refresh_from_db()
+        # both msgs should be of type FLOW
+        self.assertEqual(msg_in.msg_type, 'F')
+        self.assertEqual(msg_out.msg_type, 'F')
+
+        self.assertEqual({int(m) for m in run.message_ids}, {msg_in.id, msg_out.id})
+
         run_msgs = run.get_messages().order_by('created_on')
+        self.assertEqual(list(run_msgs), [msg_in, msg_out])
 
         self.assertEqual(len(run.get_path()), 2)
-        self.assertEqual(list(run_msgs), [msg, out])
-
-        msg.refresh_from_db()
-        self.assertEqual(msg.msg_type, 'F')
 
     def test_quick_replies(self):
         flow = self.get_flow('quick_replies')
@@ -6223,6 +6231,12 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('Welcome message.', msgs[8].text)
         self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
 
+    def test_subflow_with_startflow(self):
+        self.get_flow('subflow_with_startflow')
+
+        parent = Flow.objects.get(name='Subflow 1')
+        parent.start(groups=[], contacts=[self.contact])
+
     def test_trigger_flow_complete(self):
         contact2 = self.create_contact(name='Jason Tatum', number='+250788123123')
 
@@ -6596,6 +6610,7 @@ class FlowsTest(FlowFileTest):
             (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
             (colorRuleSet.uuid, None),
         ])
+        self.assertEqual(str(run.current_node_uuid), colorRuleSet.uuid)
 
         self.send_message(flow, "red")
 
@@ -6612,6 +6627,7 @@ class FlowsTest(FlowFileTest):
             (beerPrompt.uuid, beerPrompt.exit_uuid),
             (beerRuleSet.uuid, None),
         ])
+        self.assertEqual(str(run.current_node_uuid), beerRuleSet.uuid)
 
 
 class FlowMigrationTest(FlowFileTest):
@@ -7594,7 +7610,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=298, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=308, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -7612,7 +7628,7 @@ class FlowBatchTest(FlowFileTest):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
         # make sure that adding a msg more than once doesn't blow up
-        step.add_message(step.messages.all()[0])
+        step.run.add_messages(list(step.messages.all()), step=step)
         self.assertEqual(step.messages.all().count(), 2)
         self.assertEqual(step.broadcasts.all().count(), 1)
 
@@ -8283,7 +8299,7 @@ class QueryTest(FlowFileTest):
         flow = Flow.objects.filter(name="Query Test").first()
 
         from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=158, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=164, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
@@ -8392,7 +8408,7 @@ class TypeTest(TembaTest):
         self.assertEqual('not a date', results['date']['input'])
         self.assertEqual('Other', results['date']['category'])
 
-        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 06/23/1977")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 23/06/1977")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="The number is 10")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="I'm in Eastern Province")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
@@ -8407,7 +8423,7 @@ class TypeTest(TembaTest):
 
         self.assertEqual('Date', results['date']['name'])
         self.assertTrue(results['date']['value'].startswith("1977-06-23T"))
-        self.assertEqual('Born 06/23/1977', results['date']['input'])
+        self.assertEqual('Born 23/06/1977', results['date']['input'])
         self.assertEqual('is a date', results['date']['category'])
 
         self.assertEqual('Number', results['number']['name'])

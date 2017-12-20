@@ -1,3 +1,21 @@
+v3.0.294
+----------
+ * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
+ * Define MACHINE_HOSTNAME for librato metrics
+
+v3.0.293
+----------
+ * Fix handle_ruleset so we don't continue the run if a child has exited us
+ * Migration to backfill FlowRun.message_ids and .current_node_uuid (recommend faking and running manually)
+
+v3.0.292
+----------
+ * Add support for 'direct' db connection
+ * Stop updating count and triggered on on triggers
+ * Add FlowRun.current_node_uuid and message_ids
+ * Catch IntegrityError and lookup again when creating contact URN
+ * Make sure we dont allow group chats in whatsapp
+
 v3.0.291
 ----------
  * ignore tms callbacks

@@ -24,8 +24,9 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
-from temba.utils import datetime_to_str, prepped_request_to_str, on_transaction_commit
+from temba.utils import prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
+from temba.utils.dates import datetime_to_str
 from temba.utils.http import http_headers
 from urllib import urlencode
 
