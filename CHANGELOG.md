@@ -1,3 +1,7 @@
+v3.0.296
+----------
+ * Fix result fixing migration
+
 v3.0.295
 ----------
  * Process contact queue until there's a pending message or empty
