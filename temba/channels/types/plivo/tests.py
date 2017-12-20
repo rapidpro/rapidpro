@@ -15,7 +15,7 @@ class PlivoTypeTest(TembaTest):
         self.login(self.admin)
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         connect_plivo_url = reverse('orgs.org_plivo_connect')
         claim_plivo_url = reverse('channels.claim_plivo')
@@ -25,10 +25,15 @@ class PlivoTypeTest(TembaTest):
         self.assertContains(response, "Plivo")
         self.assertContains(response, reverse('channels.claim_plivo'))
 
-        response = self.client.get(claim_plivo_url)
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(claim_plivo_url, follow=True)
-        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_plivo_url)
+
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_plivo_url, follow=True)
+
+            self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))

@@ -51,6 +51,15 @@ class TembaModel(SmartModel):
         abstract = True
 
 
+class RequireUpdateFieldsMixin(object):
+
+    def save(self, *args, **kwargs):
+        if self.id and 'update_fields' not in kwargs:
+            raise ValueError("Updating without specifying update_fields is disabled for this model")
+
+        return super(RequireUpdateFieldsMixin, self).save(*args, **kwargs)
+
+
 class SquashableModel(models.Model):
     """
     Base class for models which track counts by delta insertions which are then periodically squashed
@@ -69,7 +78,7 @@ class SquashableModel(models.Model):
     def squash(cls):
         start = time.time()
         num_sets = 0
-        for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER):
+        for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER)[:5000]:
             with connection.cursor() as cursor:
                 sql, params = cls.get_squash_query(distinct_set)
 

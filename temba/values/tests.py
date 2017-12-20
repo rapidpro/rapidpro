@@ -417,7 +417,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 9, "tea", 1)
 
         # add French to org languages
-        Language.create(self.org, self.admin, 'French', 'fre')
+        Language.create(self.org, self.admin, 'French', 'fra')
 
         # make sure we cleared the cache
         Value.invalidate_cache(ruleset=random)
