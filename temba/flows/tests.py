@@ -4279,8 +4279,19 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(path_length, len(payload['path']))
             self.assertEqual(result_count, len(payload['results']))
 
+            # make sure things don't sneak into our path format unintentionally
+            # first item in the path should have node, arrived, and exit
+            self.assertEqual(3, len(payload['path'][0]))
+
+            # last item has the same, but no exit
+            self.assertEqual(2, len(payload['path'][-1]))
+
             for key, value in six.iteritems(results):
-                self.assertEqual(value, payload['results'].get(key).get('value'))
+                result = payload['results'].get(key)
+                self.assertEqual(value, result.get('value'))
+
+                # make sure nothing sneaks into our result format unintentionally
+                self.assertEqual(6, len(result))
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
