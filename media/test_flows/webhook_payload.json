@@ -1,0 +1,449 @@
+{
+  "campaigns": [], 
+  "version": "11.3",
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "45a0df19-eb54-4bbe-aaf4-390506bc734b", 
+          "exit_uuid": "be9f209e-a510-4ed3-af6d-919e8335b31f", 
+          "y": 0, 
+          "x": 135, 
+          "destination": "f29e5970-210f-4ac5-ac1d-d055e64e17cd", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "How old are you?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "c14eb183-ed92-4ffb-89e8-3da36d4a6726"
+            }
+          ]
+        }, 
+        {
+          "uuid": "a8bef3ec-0497-441b-b234-800ab2079c63", 
+          "exit_uuid": "3cae10d4-ea4d-4b27-b4a0-22a95e2b513f", 
+          "y": 215, 
+          "x": 135, 
+          "destination": "593f8ff7-2b7b-4622-bc6a-7b125953b6bc", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "What is your favorite natural disaster?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "08ed5fce-6663-4a29-8872-242c6a71f2ec"
+            }
+          ]
+        }, 
+        {
+          "uuid": "5d122692-b3cd-467a-9371-b812570f611f", 
+          "exit_uuid": "20f35592-2e8b-4335-8cfe-e20f7657eb23", 
+          "y": 486, 
+          "x": 194, 
+          "destination": "37fb5dc9-b2a7-4489-b21e-7cb8ea462ab9", 
+          "actions": [
+            {
+              "action": "POST", 
+              "type": "api", 
+              "webhook": "http://localhost:49999/send_results", 
+              "uuid": "5466b841-a970-4ba0-b165-d63ce754469a", 
+              "webhook_headers": [
+                {
+                  "name": "Webhook-Type", 
+                  "value": "Action-POST"
+                }
+              ]
+            }, 
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Hey, so should I send it as a ruleset too?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "ce9e2a2e-cf37-4e85-8166-3ea55852c8c8"
+            }
+          ]
+        }, 
+        {
+          "uuid": "12a7c71c-8e3d-4464-b7fd-8c9445278050", 
+          "exit_uuid": "0a89bfdc-177f-4cf8-b493-b431f03c9e24", 
+          "y": 144, 
+          "x": 429, 
+          "destination": "f29e5970-210f-4ac5-ac1d-d055e64e17cd", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Hey, I said your age, needs to be a number!"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "77a371ec-8768-470e-be87-f868b49197d8"
+            }
+          ]
+        }, 
+        {
+          "uuid": "fe3fca37-ddf8-4a02-b41f-33c850ceb9b5", 
+          "exit_uuid": "2b8a002a-7209-4de8-8236-a475a58fc2e6", 
+          "y": 408, 
+          "x": 554, 
+          "destination": "593f8ff7-2b7b-4622-bc6a-7b125953b6bc", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Huh, don't know that one."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "2e56da9c-065c-458e-876c-0d5cc16c98d9"
+            }
+          ]
+        }, 
+        {
+          "uuid": "26d7b03b-00cb-4338-bd03-a314999791c5", 
+          "exit_uuid": "e2f02b99-de83-485d-8cd0-fe9afca689b2", 
+          "y": 859, 
+          "x": 599, 
+          "destination": null, 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Okay, fine."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "46b5fbea-b6e2-4621-b8ad-e0288fe45f64"
+            }
+          ]
+        }, 
+        {
+          "uuid": "e8342986-a505-41db-babf-bb5a98067b16", 
+          "exit_uuid": "736bf308-1d4b-4c16-8033-89c2ec653d1e", 
+          "y": 976, 
+          "x": 202, 
+          "destination": "ae979724-4382-469c-9d86-8bcfab03a75c", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Great work."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "cdff9090-23bc-468e-8814-92c16b36edb5"
+            }
+          ]
+        }, 
+        {
+          "uuid": "ae979724-4382-469c-9d86-8bcfab03a75c", 
+          "exit_uuid": "f061d90e-a3e9-42ed-a688-e2afdb0415fb", 
+          "y": 1083, 
+          "x": 233, 
+          "destination": "750f9130-b799-4cfa-951e-272aad58363b", 
+          "actions": [
+            {
+              "action": "GET", 
+              "type": "api", 
+              "webhook": "http://localhost:49999/send_results", 
+              "uuid": "c2fdd746-e30d-4619-aace-c9b9bbdbef93", 
+              "webhook_headers": [
+                {
+                  "name": "Webhook-Type", 
+                  "value": "Action-GET"
+                }
+              ]
+            }
+          ]
+        }
+      ], 
+      "version": "11.3",
+      "flow_type": "F", 
+      "entry": "45a0df19-eb54-4bbe-aaf4-390506bc734b", 
+      "rule_sets": [
+        {
+          "uuid": "f29e5970-210f-4ac5-ac1d-d055e64e17cd", 
+          "rules": [
+            {
+              "category": {
+                "eng": "numeric"
+              }, 
+              "uuid": "8257944e-f435-444a-9426-5a84a3567c1e", 
+              "destination": "a8bef3ec-0497-441b-b234-800ab2079c63", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "number"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "8667417b-4e83-4d3a-9ba4-5648a51e98a6", 
+              "destination": "12a7c71c-8e3d-4464-b7fd-8c9445278050", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Age", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 106, 
+          "x": 120, 
+          "config": {}
+        }, 
+        {
+          "uuid": "593f8ff7-2b7b-4622-bc6a-7b125953b6bc", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Tornado"
+              }, 
+              "uuid": "011f4c5e-1d21-4290-a4d3-dff6e846ea88", 
+              "destination": "5d122692-b3cd-467a-9371-b812570f611f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Tornado"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Tsunami"
+              }, 
+              "uuid": "64529637-4c7d-410b-b764-4e480cb0e01e", 
+              "destination": "5d122692-b3cd-467a-9371-b812570f611f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Tsunami"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Earthquake"
+              }, 
+              "uuid": "ab63a446-dba6-49eb-bc1b-235fc925e93b", 
+              "destination": "5d122692-b3cd-467a-9371-b812570f611f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Earthquake"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "5cf5081d-797e-4946-9007-b1f0c2033021", 
+              "destination": "fe3fca37-ddf8-4a02-b41f-33c850ceb9b5", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Disaster", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 360, 
+          "x": 104, 
+          "config": {}
+        }, 
+        {
+          "uuid": "37fb5dc9-b2a7-4489-b21e-7cb8ea462ab9", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Yes"
+              }, 
+              "uuid": "9b8b7efe-950c-4541-8d59-c9dd1c140d8e", 
+              "destination": "a98fc818-6cf4-4069-99b2-afef906adb34", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "test": {
+                  "eng": "Yes"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "No"
+              }, 
+              "uuid": "5595f3e0-380a-4a52-aea9-79a4a0f6ea88", 
+              "destination": "26d7b03b-00cb-4338-bd03-a314999791c5", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "No"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "6846aafa-8c18-458d-a39f-f381c3bc26ee", 
+              "destination": "26d7b03b-00cb-4338-bd03-a314999791c5", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Send Action", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 711, 
+          "x": 319, 
+          "config": {}
+        }, 
+        {
+          "uuid": "a98fc818-6cf4-4069-99b2-afef906adb34", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              }, 
+              "uuid": "a7306a59-bd4a-4ed8-a1b1-cfc51f9db28e", 
+              "destination": "e8342986-a505-41db-babf-bb5a98067b16", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Failure"
+              }, 
+              "uuid": "6923e47a-a4c8-4e2d-97ba-90c4474c3e3b", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Response 4", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 823, 
+          "x": 196, 
+          "config": {
+            "webhook": "http://localhost:49999/send_results", 
+            "webhook_action": "POST",
+            "webhook_headers": [
+              {
+                "name": "Webhook-Type", 
+                "value": "Ruleset-POST"
+              }
+            ]
+          }
+        }, 
+        {
+          "uuid": "750f9130-b799-4cfa-951e-272aad58363b", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              }, 
+              "uuid": "934d7feb-721b-4066-813a-0c7ce39894ae", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Failure"
+              }, 
+              "uuid": "c884fafa-11e9-4304-818c-2e907be834a6", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Response 5", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1216, 
+          "x": 279, 
+          "config": {
+            "webhook": "http://localhost:49999/send_results", 
+            "webhook_action": "GET", 
+            "webhook_headers": [
+              {
+                "name": "Webhook-Type", 
+                "value": "Ruleset-GET"
+              }
+            ]
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 61, 
+        "uuid": "8e1d7cd5-4007-4609-a0c9-b1d10a96b6e3", 
+        "name": "Webhook Payload Test", 
+        "saved_on": "2017-12-18T21:48:47.727950Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

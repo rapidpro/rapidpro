@@ -16,7 +16,7 @@ import urlparse
 from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
@@ -31,7 +31,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
@@ -46,6 +46,7 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
     A simple HTTP handler which responds to a request with a matching mocked request
     """
     def _handle_request(self, method, data=None):
+
         if not self.server.mocked_requests:
             raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
 
@@ -76,6 +77,9 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         elif ctype == 'application/x-www-form-urlencoded':
             length = int(self.headers['content-length'])
             data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        elif ctype == 'application/json':
+            length = int(self.headers['content-length'])
+            data = json.loads(self.rfile.read(length))
         else:
             data = {}
 
@@ -165,6 +169,9 @@ class TembaTest(SmartminTest):
         if self.get_verbosity() > 2:
             settings.DEBUG = True
 
+        # make sure we start off without any service users
+        Group.objects.get(name='Service Users').user_set.clear()
+
         self.clear_cache()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
@@ -220,6 +227,7 @@ class TembaTest(SmartminTest):
         # don't cache anon user between tests
         from temba import utils
         utils._anon_user = None
+        clear_flow_users()
 
         # reset our simulation to False
         Contact.set_simulation(False)

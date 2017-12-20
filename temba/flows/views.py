@@ -35,7 +35,8 @@ from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, datetime_to_str, on_transaction_commit, chunk_list
+from temba.utils import analytics, on_transaction_commit, chunk_list
+from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
