@@ -213,6 +213,19 @@ class DatesTest(TembaTest):
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
 
+            # AM / PM edge cases
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 12, 0, 0, 0)),
+                             str_to_datetime('11/21/17 at 12:00PM', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 0, 0, 0)),
+                             str_to_datetime('11/21/17 at 12:00 am', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 23, 59, 0, 0)),
+                             str_to_datetime('11/21/17 at 11:59 pm', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 30, 0, 0)),
+                             str_to_datetime('11/21/17 at 00:30 am', tz, dayfirst=False))
+
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 0, 0, 0)),  # illogical time ignored
+                             str_to_datetime('11/21/17 at 34:62', tz, dayfirst=False, fill_time=False))
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
 
