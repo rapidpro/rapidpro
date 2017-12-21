@@ -194,10 +194,9 @@ class DatesTest(TembaTest):
             self.assertIsNone(str_to_datetime('', tz))  # empty string
             self.assertIsNone(str_to_datetime('xxx', tz))  # unparseable string
             self.assertIsNone(str_to_datetime('xxx', tz, fill_time=False))  # unparseable string
-            self.assertIsNone(str_to_datetime('41-12-2017', tz))
-            self.assertIsNone(str_to_datetime('03-13-2017', tz))
-            self.assertIsNone(str_to_datetime('41-12-17', tz))
-            self.assertIsNone(str_to_datetime('03-13-17', tz))
+            self.assertIsNone(str_to_datetime('31-02-2017', tz))   # day out of range
+            self.assertIsNone(str_to_datetime('03-13-2017', tz))   # month out of range
+            self.assertIsNone(str_to_datetime('03-12-99999', tz))  # year out of range
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 3, 4, 5, 6)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True))  # day first
