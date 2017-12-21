@@ -1,3 +1,7 @@
+v3.0.297
+----------
+ * Don't blow up with logically invalid dates
+
 v3.0.296
 ----------
  * Process contact queue until there's a pending message or empty
