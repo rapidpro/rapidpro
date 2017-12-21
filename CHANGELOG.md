@@ -1,3 +1,7 @@
+v3.0.298
+----------
+ * Fix parsing of times with AM/PM markers
+
 v3.0.297
 ----------
  * Process contact queue until there's a pending message or empty
