@@ -140,34 +140,34 @@ def str_to_time(value):
     """
     for match in HH_MM_SS.finditer(value):
         hour = _atoi(match[1])
-
-        # do we have an AM/PM
-        if match[7] and match[7].lower() == "pm":
-            hour += 12
-
-        # is this a valid hour?
-        if hour > 24:
-            continue
-
         minute = _atoi(match[2])
-        if minute > 60:
-            continue
+
+        # do we have an AM/PM marker?
+        am_pm = match[7].lower() if match[7] else None
+
+        if hour < 12 and am_pm == 'pm':
+            hour += 12
+        elif hour == 12 and am_pm == 'am':
+            hour -= 12
 
         seconds = 0
+        micro = 0
+
         if match[4]:
             seconds = _atoi(match[4])
-            if seconds > 60:
-                continue
 
-        micro = 0
-        if match[6]:
-            micro = _atoi(match[6])
+            if match[6]:
+                micro = _atoi(match[6])
 
-            if len(match[6]) == 3:
-                # these are milliseconds, multi by 1,000,000 for micro
-                micro *= 1000
+                if len(match[6]) == 3:
+                    # these are milliseconds, multi by 1,000,000 for micro
+                    micro *= 1000
 
-        return datetime.time(hour, minute, seconds, micro)
+        try:
+            return datetime.time(hour, minute, seconds, micro)
+        except ValueError:
+            # if our numbers don't form a valid time keep trying
+            pass
 
     return None
 
