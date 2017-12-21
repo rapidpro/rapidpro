@@ -1,9 +1,5 @@
 v3.0.298
 ----------
- * Fix parsing of times with AM/PM markers
-
-v3.0.297
-----------
  * Process contact queue until there's a pending message or empty
  * Make date parsing much stricter
  * Migration to fix run results which were numeric but parsed as dates
@@ -30,15 +26,7 @@ v3.0.292
 
 v3.0.291
 ----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
+ * Ignore TMS callbacks
 
 v3.0.289
 ----------
