@@ -1,4 +1,4 @@
-v3.0.296
+v3.0.298
 ----------
  * Process contact queue until there's a pending message or empty
  * Make date parsing much stricter
@@ -26,15 +26,7 @@ v3.0.292
 
 v3.0.291
 ----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
+ * Ignore TMS callbacks
 
 v3.0.289
 ----------

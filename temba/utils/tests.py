@@ -194,10 +194,9 @@ class DatesTest(TembaTest):
             self.assertIsNone(str_to_datetime('', tz))  # empty string
             self.assertIsNone(str_to_datetime('xxx', tz))  # unparseable string
             self.assertIsNone(str_to_datetime('xxx', tz, fill_time=False))  # unparseable string
-            self.assertIsNone(str_to_datetime('41-12-2017', tz))
-            self.assertIsNone(str_to_datetime('03-13-2017', tz))
-            self.assertIsNone(str_to_datetime('41-12-17', tz))
-            self.assertIsNone(str_to_datetime('03-13-17', tz))
+            self.assertIsNone(str_to_datetime('31-02-2017', tz))   # day out of range
+            self.assertIsNone(str_to_datetime('03-13-2017', tz))   # month out of range
+            self.assertIsNone(str_to_datetime('03-12-99999', tz))  # year out of range
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 3, 4, 5, 6)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True))  # day first
@@ -213,6 +212,19 @@ class DatesTest(TembaTest):
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
+
+            # AM / PM edge cases
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 12, 0, 0, 0)),
+                             str_to_datetime('11/21/17 at 12:00PM', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 0, 0, 0)),
+                             str_to_datetime('11/21/17 at 12:00 am', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 23, 59, 0, 0)),
+                             str_to_datetime('11/21/17 at 11:59 pm', tz, dayfirst=False))
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 30, 0, 0)),
+                             str_to_datetime('11/21/17 at 00:30 am', tz, dayfirst=False))
+
+            self.assertEqual(tz.localize(datetime.datetime(2017, 11, 21, 0, 0, 0, 0)),  # illogical time ignored
+                             str_to_datetime('11/21/17 at 34:62', tz, dayfirst=False, fill_time=False))
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
