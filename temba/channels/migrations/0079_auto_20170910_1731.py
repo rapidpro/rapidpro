@@ -10,7 +10,7 @@ def populate_twilio_auth(apps, schema_editor):
     Channel = apps.get_model('channels', 'Channel')
 
     # copy our org level configs into our channel configs
-    for channel in Channel.objects.filter(channel_type__in=['T', 'TMS'], is_active=True).exclude(org=None).select_related('org'):
+    for channel in Channel.objects.filter(channel_type__in=['T', 'TMS'], is_active=True).select_related('org'):
         config = json.loads(channel.config) if channel.config else {}
         org_config = json.loads(channel.org.config)
         config['account_sid'] = org_config.get('ACCOUNT_SID')
@@ -19,7 +19,7 @@ def populate_twilio_auth(apps, schema_editor):
         channel.save(update_fields=['config'])
 
     # for consistency, remap TWIML keys as well
-    for channel in Channel.objects.filter(channel_type='TW', is_active=True).exclude(org=None):
+    for channel in Channel.objects.filter(channel_type='TW', is_active=True):
         config = json.loads(channel.config) if channel.config else {}
         config['account_sid'] = config.get('ACCOUNT_SID')
         config['auth_token'] = config.get('ACCOUNT_TOKEN')

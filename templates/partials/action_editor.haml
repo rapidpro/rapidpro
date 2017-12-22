@@ -249,9 +249,9 @@
               -trans "Header Value"
         .modal-webhook-header-pair{ng-repeat:"header in action.webhook_headers"}
           .modal-webhook-header.modal-webhook-header-name
-            %input{type:"text",name:"webhook-name",ng-model:"action_webhook_headers_name[$index]"}
+            %input{type:"text",name:"webhook-name",ng-model:"header.name"}
           .modal-webhook-header.modal-webhook-header-value
-            %input{type:"text",name:"webhook-value",ng-model:"action_webhook_headers_value[$index]"}
+            %input{type:"text",name:"webhook-value",ng-model:"header.value"}
           .modal-webhook-header.modal-webhook-header-remove
             .icon.icon-close{ng-click:"removeActionWebhookHeader($index)"}
 

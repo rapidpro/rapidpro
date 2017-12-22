@@ -29,6 +29,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -47,9 +48,6 @@ from timezone_field import TimeZoneField
 from urlparse import urlparse
 from uuid import uuid4
 
-
-UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
-UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
 EARLIEST_IMPORT_VERSION = "3"
 
@@ -146,14 +144,6 @@ ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
-class OrgEvent(Enum):
-    """
-    Represents an internal org event
-    """
-    topup_new = 16
-    topup_updated = 17
-
-
 class OrgLock(Enum):
     """
     Org-level lock types
@@ -219,10 +209,6 @@ class Org(SmartModel):
 
     country = models.ForeignKey('locations.AdminBoundary', null=True, blank=True, on_delete=models.SET_NULL,
                                 help_text="The country this organization should map results for.")
-
-    msg_last_viewed = models.DateTimeField(verbose_name=_("Message Last Viewed"), auto_now_add=True)
-
-    flows_last_viewed = models.DateTimeField(verbose_name=_("Flows Last Viewed"), auto_now_add=True)
 
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
@@ -313,37 +299,19 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    def update_caches(self, event, entity):
-        """
-        Update org-level caches in response to an event
-        """
-        r = get_redis_connection()
-
-        if event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
-            r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
-            r.delete(ORG_ACTIVE_TOPUP_KEY % self.pk)
-            r.delete(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk)
-            r.delete(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk)
-
-            for topup in self.topups.all():
-                r.delete(ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk))
-
-    def clear_caches(self, caches):
+    def clear_credit_cache(self):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
         """
-        if OrgCache.credits in caches:  # pragma: needs cover
-            r = get_redis_connection()
-
-            active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
-            return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
-                            ORG_CREDITS_USED_CACHE_KEY % self.pk,
-                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
-                            ORG_ACTIVE_TOPUP_KEY % self.pk,
-                            **active_topup_keys)
-        else:
-            return 0  # pragma: needs cover
+        r = get_redis_connection()
+        active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
+        return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
+                        ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk,
+                        ORG_CREDITS_USED_CACHE_KEY % self.pk,
+                        ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
+                        ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
+                        ORG_ACTIVE_TOPUP_KEY % self.pk,
+                        *active_topup_keys)
 
     def set_status(self, status):
         config = self.config_json()
@@ -466,6 +434,19 @@ class Org(SmartModel):
         else:
             return channel
 
+    @cached_property
+    def cached_channels(self):
+        channels = [c for c in self.channels.filter(is_active=True)]
+        for ch in channels:
+            ch.org = self
+
+        return channels
+
+    def clear_cached_channels(self):
+        if 'cached_channels' in self.__dict__:
+            del self.__dict__['cached_channels']
+        self.clear_cached_schemes()
+
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
@@ -496,13 +477,13 @@ class Org(SmartModel):
 
                 channels = []
                 if country_code:
-                    for c in self.channels.all():
+                    for c in self.cached_channels:
                         if c.country == country_code:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
+                    channels = [c for c in self.cached_channels if TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -592,6 +573,13 @@ class Org(SmartModel):
 
         setattr(self, cache_attr, schemes)
         return schemes
+
+    def clear_cached_schemes(self):
+        from temba.channels.models import Channel
+        for role in [Channel.ROLE_SEND, Channel.ROLE_RECEIVE, Channel.ROLE_ANSWER, Channel.ROLE_CALL, Channel.ROLE_USSD]:
+            cache_attr = '__schemes__%s' % role
+            if hasattr(self, cache_attr):
+                delattr(self, cache_attr)
 
     def normalize_contact_tels(self):
         """
@@ -734,7 +722,8 @@ class Org(SmartModel):
                                    smtp_host, smtp_port, smtp_username, smtp_password,
                                    use_tls)
         else:
-            send_simple_email(recipients, subject, body, from_email=settings.FLOW_FROM_EMAIL)
+            from_email = self.get_branding().get('flow_email', settings.FLOW_FROM_EMAIL)
+            send_simple_email(recipients, subject, body, from_email=from_email)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
@@ -1094,7 +1083,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
@@ -1248,30 +1237,15 @@ class Org(SmartModel):
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
 
-    def get_credits_expiring_soon(self):
+    def is_nearing_expiration(self):
         """
-        Get the number of credits expiring in less than a month.
+        Determines if the org is nearing expiration
         """
-        return get_cacheable_result(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_credits_expiring_soon)
-
-    def _calculate_credits_expiring_soon(self):
-        now = timezone.now()
-        one_month_period = now + timedelta(days=30)
-        expiring_topups_qs = self.topups.filter(is_active=True,
-                                                expires_on__lte=one_month_period).exclude(expires_on__lte=now)
-
-        used_credits = TopUpCredits.objects.filter(topup__in=expiring_topups_qs).aggregate(Sum('used')).get('used__sum')
-
-        expiring_topups_credits = expiring_topups_qs.aggregate(Sum('credits')).get('credits__sum')
-
-        more_valid_credits_qs = self.topups.filter(is_active=True, expires_on__gt=one_month_period)
-        more_valid_credits = more_valid_credits_qs.aggregate(Sum('credits')).get('credits__sum')
-
-        if more_valid_credits or not expiring_topups_credits:
-            return 0
-
-        return expiring_topups_credits - used_credits
+        newest_topup = TopUp.objects.filter(org=self, is_active=True).order_by('-created_on').first()
+        if newest_topup:
+            if timezone.now() + timedelta(days=30) > newest_topup.expires_on:
+                return newest_topup.get_remaining() > 0
+        return False
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1280,19 +1254,19 @@ class Org(SmartModel):
         """
         Get the credits number to consider as low threshold to this org
         """
-        return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+        return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
                                     self._calculate_low_credits_threshold)
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
-        return int(last_topup_credits * 0.15) if last_topup_credits else 0
+        return int(last_topup_credits * 0.15) if last_topup_credits else 0, self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
         Gets the total number of credits purchased or assigned to this org
         """
-        return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+        return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
                                     self._calculate_credits_total, force_dirty=force_dirty)
 
     def get_purchased_credits(self):
@@ -1300,12 +1274,11 @@ class Org(SmartModel):
         Returns the total number of credits purchased
         :return:
         """
-        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_purchased_credits)
+        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, self._calculate_purchased_credits)
 
     def _calculate_purchased_credits(self):
         purchased_credits = self.topups.filter(is_active=True, price__gt=0).aggregate(Sum('credits')).get('credits__sum')
-        return purchased_credits if purchased_credits else 0
+        return purchased_credits if purchased_credits else 0, self.get_credit_ttl()
 
     def _calculate_credits_total(self):
         active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
@@ -1318,32 +1291,28 @@ class Org(SmartModel):
 
         expired_credits = expired_credits if expired_credits else 0
 
-        return active_credits + expired_credits
+        return active_credits + expired_credits, self.get_credit_ttl()
 
     def get_credits_used(self):
         """
         Gets the number of credits used by this org
         """
-        return get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_credits_used)
+        return get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, self._calculate_credits_used)
 
     def _calculate_credits_used(self):
         used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
         used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
-        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
+        # if we don't have an active topup, add up pending messages too
+        if not self.get_active_topup_id():
+            test_contacts = self.org_contacts.filter(is_test=True).values_list('id', flat=True)
+            used_credits_sum += self.msgs.filter(topup=None).exclude(contact_id__in=test_contacts).count()
 
-        return used_credits_sum + unassigned_sum
+            # we don't cache in this case
+            return used_credits_sum, 0
 
-    def _calculate_credit_caches(self):
-        """
-        Calculates both our total as well as our active topup
-        """
-        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_total, force_dirty=True)
-        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_used, force_dirty=True)
+        return used_credits_sum, self.get_credit_ttl()
 
     def get_credits_remaining(self):
         """
@@ -1384,12 +1353,12 @@ class Org(SmartModel):
                         else:  # pragma: needs cover
                             break
 
-                    # recalculate our caches
-                    self._calculate_credit_caches()
-                    org._calculate_credit_caches()
-
                     # apply topups to messages missing them
-                    org.apply_topups()
+                    from .tasks import apply_topups_task
+                    apply_topups_task.delay(org.id)
+
+                    # the credit cache for our org should be invalidated too
+                    self.clear_credit_cache()
 
                 return True
 
@@ -1403,37 +1372,62 @@ class Org(SmartModel):
         Determines the active topup and returns that along with how many credits we were able
         to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
         """
-        total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
-        incrby_existing(total_used_key, amount)
-
         r = get_redis_connection()
-        active_topup_key = ORG_ACTIVE_TOPUP_KEY % self.pk
-        active_topup_pk = r.get(active_topup_key)
-        if active_topup_pk:
-            remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, int(active_topup_pk))
 
-            # decrement our active # of credits
-            remaining = r.decr(remaining_key, amount)
+        # we always consider this a credit 'used' since un-applied msgs are pending
+        # credit expenses for the next purchased topup
+        incrby_existing(ORG_CREDITS_USED_CACHE_KEY % self.id, amount)
 
-            # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 5000:
-                active_topup_pk = None
+        # if we have an active topup cache, we need to decrement the amount remaining
+        active_topup_id = self.get_active_topup_id()
+        if active_topup_id:
+
+            remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), amount)
+
+            # near the edge, clear out our cache and calculate from the db
+            if not remaining or int(remaining) < 100:
+                active_topup_id = None
+                self.clear_credit_cache()
 
         # calculate our active topup if we need to
-        if active_topup_pk is None:
-            active_topup = self._calculate_active_topup()
+        if not active_topup_id:
+            active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
-                active_topup_pk = active_topup.pk
-                r.set(active_topup_key, active_topup_pk, ORG_CREDITS_CACHE_TTL)
+                active_topup_id = active_topup.id
+                remaining = active_topup.get_remaining()
+                if amount > remaining:
+                    amount = remaining
+                r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), amount)
 
-                # can only reduce as much as we have available
-                if active_topup.get_remaining() < amount:
-                    amount = active_topup.get_remaining()
+        if active_topup_id:
+            return (active_topup_id, amount)
 
-                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
-                r.set(remaining_key, active_topup.get_remaining() - amount, ORG_CREDITS_CACHE_TTL)
+        return None, 0
 
-        return (active_topup_pk, amount)
+    def get_active_topup(self, force_dirty=False):
+        topup_id = self.get_active_topup_id(force_dirty=force_dirty)
+        if topup_id:
+            return TopUp.objects.get(id=topup_id)
+        return None
+
+    def get_active_topup_id(self, force_dirty=False):
+        return get_cacheable_result(ORG_ACTIVE_TOPUP_KEY % self.pk, self._calculate_active_topup, force_dirty=force_dirty)
+
+    def get_credit_ttl(self):
+        """
+        Credit TTL should be smallest of active topup expiration and ORG_CREDITS_CACHE_TTL
+        :return:
+        """
+        return self.get_topup_ttl(self.get_active_topup())
+
+    def get_topup_ttl(self, topup):
+        """
+        Gets how long metrics based on the given topup should live. Returns the shorter ttl of
+        either ORG_CREDITS_CACHE_TTL or time remaining on the expiration
+        """
+        if not topup:
+            return 0
+        return min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds())))
 
     def _calculate_active_topup(self):
         """
@@ -1444,7 +1438,15 @@ class Org(SmartModel):
                                           .filter(credits__gt=0)\
                                           .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
 
-        return active_topups.first()
+        topup = active_topups.first()
+        if topup:
+            # initialize our active topup metrics
+            r = get_redis_connection()
+            ttl = self.get_topup_ttl(topup)
+            r.set(ORG_ACTIVE_TOPUP_REMAINING % (self.id, topup.id), topup.get_remaining(), ttl)
+            return topup.id, ttl
+
+        return 0, 0
 
     def apply_topups(self):
         """
@@ -1455,7 +1457,8 @@ class Org(SmartModel):
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
-            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
+            test_contacts = self.org_contacts.filter(is_test=True).values_list('id', flat=True)
+            msg_uncredited = self.msgs.filter(topup=None).exclude(contact_id__in=test_contacts).order_by('created_on')
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
@@ -1487,10 +1490,14 @@ class Org(SmartModel):
 
             # update items in the database with their new topups
             for topup, items in six.iteritems(new_topup_items):
-                Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
+                msg_ids = [item.id for item in items if isinstance(item, Msg)]
+                Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
+
+        # any time we've reapplied topups, lets invalidate our credit cache too
+        self.clear_credit_cache()
 
     def current_plan_start(self):
         today = timezone.now().date()
@@ -1523,6 +1530,32 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
+
+    @cached_property
+    def cached_contact_fields(self):
+        from temba.contacts.models import ContactField
+        fields = ContactField.objects.filter(org=self, is_active=True)
+        for field in fields:
+            field.org = self
+        return fields
+
+    def clear_cached_groups(self):
+        if '__cached_groups' in self.__dict__:
+            del self.__dict__['__cached_groups']
+
+    def get_group(self, uuid):
+        cached_groups = self.__dict__.get('__cached_groups', {})
+        existing = cached_groups.get(uuid, None)
+
+        if existing:
+            return existing
+
+        from temba.contacts.models import ContactGroup
+        existing = ContactGroup.user_groups.filter(org=self, uuid=uuid).first()
+        if existing:
+            cached_groups[uuid] = existing
+            self.__dict__['__cached_groups'] = cached_groups
+        return existing
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
@@ -1616,7 +1649,8 @@ class Org(SmartModel):
             send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
-            self.apply_topups()
+            from .tasks import apply_topups_task
+            apply_topups_task.delay(self.id)
 
             return topup
 
@@ -1794,31 +1828,6 @@ class Org(SmartModel):
             add_component(component)
 
         return all_components
-
-    def increment_unread_msg_count(self, type):
-        """
-        Increments our redis cache of how many unread messages exist for this org and type.
-        @param type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
-        """
-        r = get_redis_connection()
-        r.hincrby(type, self.id, 1)
-
-    def get_unread_msg_count(self, msg_type):
-        """
-        Gets the value of our redis cache of how many unread messages exist for this org and type.
-        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
-        """
-        r = get_redis_connection()
-        count = r.hget(msg_type, self.id)
-        return 0 if count is None else int(count)
-
-    def clear_unread_msg_count(self, msg_type):
-        """
-        Clears our redis cache of how many unread messages exist for this org and type.
-        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
-        """
-        r = get_redis_connection()
-        r.hdel(msg_type, self.id)
 
     def initialize(self, branding=None, topup_size=None):
         """
@@ -2181,7 +2190,7 @@ class TopUp(SmartModel):
         topup = TopUp.objects.create(org=org, price=price, credits=credits, expires_on=expires_on,
                                      stripe_charge=stripe_charge, created_by=user, modified_by=user)
 
-        org.update_caches(OrgEvent.topup_new, topup)
+        org.clear_credit_cache()
         return topup
 
     def get_ledger(self):  # pragma: needs cover
@@ -2416,11 +2425,10 @@ class CreditAlert(SmartModel):
             # does this org have less than 0 messages?
             org_remaining_credits = org.get_credits_remaining()
             org_low_credits = org.has_low_credits()
-            org_credits_expiring = org.get_credits_expiring_soon()
 
             if org_remaining_credits <= 0:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            elif org_credits_expiring > 0:  # pragma: needs cover
+            elif org.is_nearing_expiration():  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

@@ -64,7 +64,7 @@ def migrate_all_twilio_apps(Channel):
     """
     Migrates all active Twilio channels to use channel specific TwiML apps with new channel-specific endpoints
     """
-    twilio_channels = list(Channel.objects.filter(channel_type='T', is_active=True).exclude(org=None).select_related('org'))
+    twilio_channels = list(Channel.objects.filter(channel_type='T', is_active=True).select_related('org'))
 
     if twilio_channels:
         print("Fetched %d Twilio channels to migrate apps for..." % len(twilio_channels))

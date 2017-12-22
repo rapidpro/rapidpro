@@ -52,7 +52,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<osmId>\w\d+)/$' % (path, action)
 
         def get_object(self):
-            return AdminBoundary.objects.get(osm_id=self.kwargs['osmId'])
+            return AdminBoundary.geometries.get(osm_id=self.kwargs['osmId'])
 
         def render_to_response(self, context):
             if self.object.children.all().count() > 0:
@@ -72,7 +72,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<osmId>\w\d+)/$' % (path, action)
 
         def get_object(self):
-            return AdminBoundary.objects.get(osm_id=self.kwargs['osmId'])
+            return AdminBoundary.geometries.get(osm_id=self.kwargs['osmId'])
 
         def post(self, request, *args, **kwargs):
 
@@ -115,11 +115,10 @@ class BoundaryCRUDL(SmartCRUDL):
             return JsonResponse(json_list, safe=False)
 
         def get(self, request, *args, **kwargs):
-            tops = list(AdminBoundary.objects.filter(
-                parent__osm_id=self.get_object().osm_id).order_by('name'))
+            tops = list(AdminBoundary.geometries.filter(parent__osm_id=self.get_object().osm_id).order_by('name'))
 
-            tops_children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[
-                boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
+            tops_children = AdminBoundary.geometries.filter(
+                Q(parent__osm_id__in=[boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
 
             boundaries = [top.as_json() for top in tops]
 
@@ -138,8 +137,7 @@ class BoundaryCRUDL(SmartCRUDL):
                 children = current_top.get('children', [])
                 child['match'] = '%s %s' % (child['name'], child['aliases'])
 
-                child_children = list(AdminBoundary.objects.filter(
-                    Q(parent__osm_id=child['osm_id'])).order_by('name'))
+                child_children = list(AdminBoundary.geometries.filter(Q(parent__osm_id=child['osm_id'])).order_by('name'))
                 sub_children = child.get('children', [])
                 for sub_child in child_children:
                     sub_child = sub_child.as_json()
