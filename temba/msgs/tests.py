@@ -17,23 +17,24 @@ from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.locations.models import AdminBoundary
 from temba.flows.models import RuleSet
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK, HANDLER_QUEUE
+from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK
+from temba.msgs.models import HANDLER_QUEUE, MSG_EVENT
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct, datetime_to_str
-from temba.utils.queues import push_task
+from temba.utils import dict_to_struct, dict_to_json
+from temba.utils.dates import datetime_to_str, datetime_to_s
+from temba.utils.queues import push_task, DEFAULT_PRIORITY
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
-from .management.commands.msg_console import MessageConsole
-from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
-from .templatetags.sms import as_icon
-from temba.locations.models import AdminBoundary
 from temba.msgs import models
-from temba.utils.queues import DEFAULT_PRIORITY
+from .management.commands.msg_console import MessageConsole
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task, process_message_task
+from .templatetags.sms import as_icon
 
 
 class MsgTest(TembaTest):
@@ -297,6 +298,32 @@ class MsgTest(TembaTest):
         must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
 
+    def test_contact_queue_flushing(self):
+
+        # change our channel type to one that uses the queue
+        self.channel.channel_type = 'T'
+        self.channel.save(update_fields=('channel_type',))
+
+        msg1 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 1")
+        contact_id = msg1.contact_id
+
+        r = get_redis_connection()
+        contact_queue = Msg.CONTACT_HANDLING_QUEUE % contact_id
+
+        # even though we already handled it, push it back on our queue to test flushing
+        payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
+        r.zadd(contact_queue, datetime_to_s(timezone.now()), dict_to_json(payload))
+
+        msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
+
+        # our new message should be handled and queue should be empty
+        msg2.refresh_from_db()
+        self.assertEqual(HANDLED, msg2.status)
+        self.assertEqual(0, len(r.zrange(contact_queue, 0, 1)))
+
+        # calling it again shouldn't do anything, but should return
+        process_message_task(dict(contact_id=contact_id))
+
     def test_create_incoming(self):
         Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
@@ -365,38 +392,35 @@ class MsgTest(TembaTest):
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
     def test_broadcast_metadata(self):
-        contact = self.create_contact('Stephen', '+12078778899')
-        contact2 = self.create_contact('Maaaarcos', '+12078778888')
-        ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
-        ContactURN.get_or_create(self.org, contact2, 'tel:+12078778888')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
-        broadcast.send(True, partial_recipients=partial_recipients)
+        Channel.create(self.org, self.admin, None, channel_type='TT')
+        contact1 = self.create_contact('Stephen', '+12078778899', language='fra')
+        contact2 = self.create_contact('Maaaarcos', number='+12078778888', twitter='marky65')
 
-        self.assertTrue(broadcast.metadata)
-        self.assertEqual(3, broadcast.msgs.all().count())
+        # can't create quick replies if you don't include base translation
+        with self.assertRaises(ValueError):
+            Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?",
+                             [contact1], quick_replies=[dict(eng='Yes'), dict(eng='No')])
 
-        # should not create a broadcast recipient if a similar one exists
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
-        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact2.id)
+        eng = Language.create(self.org, self.admin, "English", "eng")
+        Language.create(self.org, self.admin, "French", "fra")
+        self.org.primary_language = eng
+        self.org.save()
 
-        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
-        broadcast.send(True, partial_recipients=partial_recipients)
+        broadcast = Broadcast.create(self.org, self.admin,
+                                     "If a broadcast is sent and nobody receives it, does it still send?",
+                                     [contact1, contact2], send_all=True,
+                                     quick_replies=[dict(eng='Yes', fra='Oui'), dict(eng='No')])
 
-        self.assertEqual(2, broadcast.recipients.all().count())
-        self.assertEqual(3, broadcast.msgs.all().count())
+        # check metadata was set on the broadcast
+        self.assertEqual(broadcast.get_metadata(), {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
 
-        contact3 = self.create_contact('Leandro', '+12078778877', is_test=True)
-        ContactURN.get_or_create(self.org, contact3, 'tel:+12078778877')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact3], send_all=True,
-                                     quick_replies=[dict(eng='Yes'), dict(eng='No')])
-        partial_recipients = list(), Contact.objects.filter(pk=contact3.pk)
-        broadcast.send(True, partial_recipients=partial_recipients)
-        self.assertTrue(broadcast.metadata)
-        self.assertEqual(1, broadcast.msgs.all().count())
+        broadcast.send()
+        msg1, msg2, msg3 = broadcast.msgs.order_by('contact', 'id')
+
+        # message quick_replies are translated according to contact language
+        self.assertEqual(msg1.get_metadata(), {'quick_replies': ['Oui', 'No']})
+        self.assertEqual(msg2.get_metadata(), {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg3.get_metadata(), {'quick_replies': ['Yes', 'No']})
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -671,7 +695,8 @@ class MsgTest(TembaTest):
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe],
+                                     quick_replies=[{'base': "Yes"}, {'base': "No"}])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -704,7 +729,7 @@ class MsgTest(TembaTest):
             self.assertNotContains(response, reverse('channels.channellog_read', args=[log.id]))
 
         # let's resend some messages
-        self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
+        self.client.post(failed_url, dict(action='resend', objects=msg2.id), follow=True)
 
         # check for the resent message and the new one being resent
         self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
@@ -715,9 +740,10 @@ class MsgTest(TembaTest):
 
         resent_msg = broadcast.get_messages()[0]
         self.assertNotEqual(msg2, resent_msg)
-        self.assertEqual(msg2.text, resent_msg.text)
-        self.assertEqual(msg2.contact, resent_msg.contact)
-        self.assertEqual(PENDING, resent_msg.status)
+        self.assertEqual(resent_msg.text, msg2.text)
+        self.assertEqual(resent_msg.contact, msg2.contact)
+        self.assertEqual(resent_msg.status, PENDING)
+        self.assertEqual(resent_msg.get_metadata(), {'quick_replies': ["Yes", "No"]})
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):
@@ -2240,7 +2266,7 @@ class CeleryTaskTest(TembaTest):
         fullmsg = "Object %r unexpectedly not found in the database" % obj
         fullmsg += ": " + msg if msg else ""
         try:
-            type(obj).objects.using('default2').get(pk=obj.pk)
+            type(obj).objects.using('direct').get(pk=obj.pk)
         except obj.DoesNotExist:
             self.fail(fullmsg)
 
