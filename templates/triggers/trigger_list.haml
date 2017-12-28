@@ -189,12 +189,6 @@
                               - else
                                 -trans "not scheduled"
 
-                        -if obj.last_triggered
-                          %span.count
-                            %nobr
-                              ({{obj.trigger_count}} use{{obj.trigger_count|pluralize}})
-
-
                       %td{ width: "250px" }
                         .groups
                           -for group in obj.groups.all

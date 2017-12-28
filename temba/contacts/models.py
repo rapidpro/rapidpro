@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -790,9 +790,6 @@ class Contact(TembaModel):
             if not importing:
                 self.handle_update(field=field)
 
-            # invalidate our value cache for this contact field
-            Value.invalidate_cache(contact_field=field)
-
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
 
@@ -1063,7 +1060,7 @@ class Contact(TembaModel):
         from .search import contact_search
 
         if not base_group:
-            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
+            base_group = org.cached_all_contacts_group
 
         return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
@@ -1535,7 +1532,7 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
-        self.clear_all_groups(get_anonymous_user())
+        self.clear_all_groups(user)
 
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1860,6 +1857,7 @@ class Contact(TembaModel):
 
         group_change = False
         for group in affected_dynamic_groups:
+            group.org = self.org
             changed = group.reevaluate_contacts([self])
             if changed:
                 group_change = True
@@ -2026,9 +2024,13 @@ class ContactURN(models.Model):
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-            if contact:
-                contact.clear_urn_cache()
+            try:
+                with transaction.atomic():
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                if contact:
+                    contact.clear_urn_cache()
+            except IntegrityError:
+                urn = cls.lookup(org, urn_as_string)
 
         return urn
 
@@ -2355,10 +2357,7 @@ class ContactGroup(TembaModel):
                 changed.add(contact.pk)
                 contact.handle_update(group=self)
 
-        # invalidate our result cache for anybody depending on this group if it changed
         if changed:
-            Value.invalidate_cache(group=self)
-
             # update modified on in small batches to avoid long table lock, and having too many non-unique values for
             # modified_on which is the primary ordering for the API
             for batch in chunk_list(changed, 100):
@@ -2446,8 +2445,6 @@ class ContactGroup(TembaModel):
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
-
-        Value.invalidate_cache(group=self)
 
     @property
     def is_dynamic(self):

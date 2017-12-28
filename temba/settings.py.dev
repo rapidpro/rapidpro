@@ -51,36 +51,6 @@ CACHES = {
     }
 }
 
-# -----------------------------------------------------------------------------------
-# Need a PostgreSQL database on localhost with postgis extension installed.
-# -----------------------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'temba',
-        'USER': 'temba',
-        'PASSWORD': 'temba',
-        'HOST': 'localhost',
-        'PORT': '',
-        'ATOMIC_REQUESTS': True,
-        'CONN_MAX_AGE': 60,
-        'OPTIONS': {
-        }
-    },
-    'default2': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'temba',
-        'USER': 'temba',
-        'PASSWORD': 'temba',
-        'HOST': 'localhost',
-        'PORT': '',
-        'ATOMIC_REQUESTS': True,
-        'CONN_MAX_AGE': 60,
-        'OPTIONS': {
-        }
-    }
-}
-
 INTERNAL_IPS = ('127.0.0.1',)
 
 # -----------------------------------------------------------------------------------

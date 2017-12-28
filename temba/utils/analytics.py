@@ -21,8 +21,12 @@ def gauge(event, value=None):
     if value is None:
         value = 1
 
+    # settings.HOSTNAME is actually service name (like textit.in), and settings.MACHINE_NAME is the name of the machine
+    # (virtual/physical) that is part of the service
+    reporting_hostname = '%s.%s' % (settings.MACHINE_HOSTNAME, settings.HOSTNAME)
+
     if _librato:
-        _librato.gauge(event, value, settings.HOSTNAME)  # pragma: needs cover
+        _librato.gauge(event, value, reporting_hostname)  # pragma: needs cover
 
 
 def identify(username, attributes):
@@ -45,7 +49,7 @@ def track(user, event, properties=None, context=None):  # pragma: needs cover
     if context is None:
         context = dict()
 
-    # set our source according to our hostname
+    # set our source according to our hostname (name of the platform instance, and not machine hostname)
     context['source'] = settings.HOSTNAME
 
     # create properties if none were passed in
