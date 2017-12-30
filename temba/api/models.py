@@ -114,8 +114,8 @@ class Resthook(SmartModel):
 
     def release(self, user):
         # release any active subscribers
-        for s in self.subscribers.filter(is_active=True):  # pragma: needs cover
-            s.release()
+        for s in self.subscribers.filter(is_active=True):
+            s.release(user)
 
         # then ourselves
         self.is_active = False
