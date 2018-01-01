@@ -1460,10 +1460,17 @@ class OrgTest(TembaTest):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
 
+        # add a subscriber
+        subscriber = resthook.add_subscriber('http://foo', self.admin)
+
         # finally, let's remove that resthook
         self.client.post(resthook_url, {'resthook_%d' % resthook.id: 'checked'})
+
         resthook.refresh_from_db()
         self.assertFalse(resthook.is_active)
+
+        subscriber.refresh_from_db()
+        self.assertFalse(subscriber.is_active)
 
         # no more resthooks!
         response = self.client.get(resthook_url)
