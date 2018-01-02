@@ -1,3 +1,8 @@
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
 v3.0.298
 ----------
  * Process contact queue until there's a pending message or empty
