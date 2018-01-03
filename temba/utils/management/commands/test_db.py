@@ -30,7 +30,8 @@ from temba.msgs.models import Label, Msg
 from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
-from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
+from temba.utils import chunk_list
+from temba.utils.dates import ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
 
 
