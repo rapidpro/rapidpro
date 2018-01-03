@@ -2026,7 +2026,8 @@ class ContactURN(models.Model):
         # not found? create it
         if not urn:
             try:
-                urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                with transaction.atomic():
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
                 if contact:
                     contact.clear_urn_cache()
             except IntegrityError:

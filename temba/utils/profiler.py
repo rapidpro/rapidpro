@@ -21,12 +21,13 @@ class QueryTracker(object):  # pragma: no cover
             if idx < len(stack):
                 print(stack[idx], end='')
 
-    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_query_count=None, query=None, stack_count=3):
+    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_query_count=None,
+                 query_contains=None, stack_count=3):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
         self.num_queries = assert_query_count
         self.skip_unique_queries = skip_unique_queries
-        self.query = query
+        self.query_contains = query_contains
 
     def __enter__(self):
 
@@ -36,7 +37,7 @@ class QueryTracker(object):  # pragma: no cover
         queries = []
         self.queries = queries
 
-        query = self.query
+        query_contains = self.query_contains
 
         class CursorTrackerWrapper(CursorWrapper):  # pragma: no cover
 
@@ -57,7 +58,7 @@ class QueryTracker(object):  # pragma: no cover
             def execute(self, sql, params=None):
                 results = super(CursorTrackerWrapper, self).execute(sql, params)
                 sql = self.db.ops.last_executed_query(self.cursor, sql, params)
-                if query and query not in sql:
+                if query_contains and query_contains not in sql:
                     return results
 
                 stack = reversed([s for s in traceback.extract_stack() if self.valid_stack(s)])

@@ -16,7 +16,7 @@ from django.utils.encoding import force_unicode
 from django.utils.translation import gettext as _
 from functools import reduce
 from temba.locations.models import AdminBoundary
-from temba.utils import str_to_datetime, date_to_utc_range
+from temba.utils.dates import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from temba.contacts.models import ContactField, ContactURN
 
