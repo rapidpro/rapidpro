@@ -1400,10 +1400,11 @@ class ContactTest(TembaTest):
         )
         ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
         ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(37):
             contact = Contact.get_or_create(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         self.assertItemsEqual(
@@ -1415,7 +1416,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'age', 20)
 
         self.assertItemsEqual(
-            [group.name for group in contact.user_groups.filter(is_active=True).all()], ['cannon fodder', 'urn group']
+            [group.name for group in contact.user_groups.filter(is_active=True).all()],
+            ['cannon fodder', 'urn group', 'Age field is set']
         )
 
     def test_omnibox(self):

@@ -2407,7 +2407,7 @@ class ContactGroup(TembaModel):
 
             # if a contact has just been created than apply special contact search rules
             if is_new:
-                if parsed.has_is_set_condition() or parsed.has_urn_condition():
+                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
                     return qs, parsed
                 else:
                     return Contact.objects.none(), None
