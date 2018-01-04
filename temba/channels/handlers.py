@@ -2165,11 +2165,9 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
-        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-
-        if channel.secret is not None and (
-                len(authorization) != 2 or authorization[0] != 'Token' or
-                authorization[1] != channel.secret):
+        auth = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        if secret is not None and (len(auth) != 2 or auth[0] != 'Token' or auth[1] != secret):
             return JsonResponse(dict(error="Incorrect authentication token"), status=401)
 
         # Junebug is sending an event
@@ -2373,7 +2371,7 @@ class JioChatHandler(BaseChannelHandler):
 
         client = JiochatClient.from_channel(channel)
         if client:
-            verified, echostr = client.verify_request(request, channel.secret)
+            verified, echostr = client.verify_request(request, channel.config_json()[Channel.CONFIG_SECRET])
 
             if verified:
                 refresh_jiochat_access_tokens.delay(channel.id)
@@ -2459,7 +2457,7 @@ class FacebookHandler(BaseChannelHandler):
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
-            if channel.secret == request.GET.get('hub.verify_token'):
+            if channel.config_json()[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
                 on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))

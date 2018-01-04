@@ -51,8 +51,9 @@ class JunebugType(ChannelType):
         # build our payload
         payload = {'event_url': event_url, 'content': text}
 
-        if channel.secret is not None:
-            payload['event_auth_token'] = channel.secret
+        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        if secret is not None:
+            payload['event_auth_token'] = secret
 
         if is_ussd:
             connection = USSDSession.objects.get_with_status_only(msg.connection_id)

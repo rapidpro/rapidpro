@@ -41,7 +41,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     'channel_id': channel_id,
                     'channel_mid': channel_mid,
                     'channel_access_token': access_token,
-                    'channel_secret': secret
+                    'secret': secret
                 }
 
                 existing = Channel.objects.filter(
@@ -77,8 +77,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {
             'auth_token': channel_access_token,
+            'secret': channel_secret,
             'channel_id': channel_id,
-            'channel_secret': channel_secret,
             'channel_mid': channel_mid
         }
 

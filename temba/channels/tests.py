@@ -9905,7 +9905,7 @@ class LineTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'LN', '123456789', '123456789',
-                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
+                                      config=dict(channel_id='1234', secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):

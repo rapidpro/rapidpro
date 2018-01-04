@@ -35,7 +35,7 @@ class JioChatTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse('courier.jc', args=[channel.uuid]))
-        self.assertContains(response, channel.secret)
+        self.assertContains(response, channel.config_json()[Channel.CONFIG_SECRET])
 
         contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
 
