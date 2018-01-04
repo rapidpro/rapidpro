@@ -11,7 +11,7 @@ import json
 def use_secret_config(apps, schema_editor):
     Channel = apps.get_model('channels', 'Channel')
 
-    # for each facebook and junebug channel, move secret into config
+    # for each facebook, junebug and jiochat channel, move secret into config
     for ch in Channel.objects.filter(channel_type__in=['FB', 'JN', 'JC']):
         config = json.loads(ch.config)
         config['secret'] = ch.secret
