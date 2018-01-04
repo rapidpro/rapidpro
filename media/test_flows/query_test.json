@@ -178,8 +178,8 @@
           "y": 1047, 
           "x": 264, 
           "config": {
-            "webhook": "http://ip.jsontest.com/", 
-            "webhook_action": "GET", 
+            "webhook": "http://localhost:49999/ip_test",
+            "webhook_action": "GET",
             "webhook_headers": []
           }
         }, 

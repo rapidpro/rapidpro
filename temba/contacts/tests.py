@@ -30,7 +30,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
+from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
@@ -1599,7 +1599,7 @@ class ContactTest(TembaTest):
                                             description="It didn't send!!")
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_event(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
+            WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -1805,7 +1805,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
         result = WebHookResult.objects.get()
 
         item = {'type': 'webhook-result', 'obj': result}
@@ -1939,11 +1939,9 @@ class ContactTest(TembaTest):
             self.create_msg(direction='I', contact=self.joe, text="some msg no %d 2 send in sms language if u wish" % i)
             i += 1
 
-        from temba.campaigns.models import EventFire
         self.create_campaign()
 
         # create more events
-        from temba.campaigns.models import CampaignEvent
         for i in range(5):
             msg = "Sent %d days after planting date" % (i + 10)
             self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
@@ -1951,7 +1949,7 @@ class ContactTest(TembaTest):
                                                                     offset=i + 10, unit='D', message=msg)
 
         now = timezone.now()
-        self.joe.set_field(self.user, 'planting_date', six.text_type(now + timedelta(days=1)))
+        self.joe.set_field(self.user, 'planting_date', (now + timedelta(days=1)).isoformat())
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
@@ -3635,7 +3633,7 @@ class ContactTest(TembaTest):
         state_field = ContactField.get_or_create(self.org, self.admin, 'state', "State", None, Value.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
-        joe.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
+        joe.set_field(self.user, 'registration_date', "2014-12-31T01:04:00Z")
         joe.set_field(self.user, 'weight', "75.888888")
         joe.set_field(self.user, 'color', "green")
         joe.set_field(self.user, 'state', "kigali city")

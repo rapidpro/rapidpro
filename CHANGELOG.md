@@ -1,3 +1,21 @@
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
+v3.0.298
+----------
+ * Process contact queue until there's a pending message or empty
+ * Make date parsing much stricter
+ * Migration to fix run results which were numeric but parsed as dates
+ * Use transaction when creating contact URN
+ * Add support for v2 webhooks
+
+v3.0.294
+----------
+ * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
+ * Define MACHINE_HOSTNAME for librato metrics
+
 v3.0.293
 ----------
  * Fix handle_ruleset so we don't continue the run if a child has exited us
@@ -13,15 +31,7 @@ v3.0.292
 
 v3.0.291
 ----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
+ * Ignore TMS callbacks
 
 v3.0.289
 ----------

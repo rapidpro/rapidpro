@@ -23,7 +23,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import datetime_to_json_date
+from temba.utils.dates import datetime_to_json_date
 from temba.values.models import Value
 from temba.api.models import APIToken
 from uuid import uuid4
@@ -1105,7 +1105,7 @@ class APITest(TembaTest):
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="+250784444444")
         ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
-        jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
+        jay_z.set_field(self.user, 'registration_date', "31-12-2014 03:04:00")
 
         # try to update using URNs from two different contacts
         response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:+250784444444']))

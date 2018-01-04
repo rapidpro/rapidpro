@@ -1293,6 +1293,67 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assert404(response)
 
+    def test_contact_action_update_datetime_field(self):
+        url = reverse('api.v2.contacts')
+
+        self.assertEndpointAccess(url)
+
+        self.create_field('tag_activated_at', 'Tag activation', Value.TYPE_DATETIME)
+
+        # update contact with valid date format for the org - DD-MM-YYYY
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '31-12-2017'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNotNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with valid ISO8601 timestamp value with timezone
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11T11:12:13Z'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertEqual(resp_json['fields']['tag_activated_at'], '2017-11-11T13:12:13+02:00')
+
+        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11 11:12:13Z'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertEqual(resp_json['fields']['tag_activated_at'], '2011-11-11T11:12:00+02:00')
+
+        # update contact with invalid ISO8601 timestamp value without timezone
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11T11:12:13'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with invalid date format for the org - MM-DD-YYYY
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '12-31-2017'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with invalid timestamp value
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': 'el123a41'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
     def test_contact_actions_if_org_is_anonymous(self):
         url = reverse('api.v2.contacts')
         self.assertEndpointAccess(url)
