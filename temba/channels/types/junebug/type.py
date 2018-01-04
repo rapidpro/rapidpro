@@ -51,7 +51,7 @@ class JunebugType(ChannelType):
         # build our payload
         payload = {'event_url': event_url, 'content': text}
 
-        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        secret = channel.config.get(Channel.CONFIG_SECRET)
         if secret is not None:
             payload['event_auth_token'] = secret
 

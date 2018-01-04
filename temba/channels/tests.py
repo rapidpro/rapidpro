@@ -8082,8 +8082,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                 data['message_id'],))
 
     def test_status_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_event()
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -8109,8 +8111,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_status_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         # ok, what happens with an invalid uuid?
         data = self.mk_event()
@@ -8149,8 +8153,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8171,8 +8177,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8287,8 +8295,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("événement", self.admin, trigger_send=False)[0]
@@ -9232,9 +9242,9 @@ class JiochatTest(TembaTest):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
                                       config={'jiochat_app_id': 'app-id',
-                                              'jiochat_app_secret': 'app-secret'},
-                                      uuid='00000000-0000-0000-0000-000000001234',
-                                      secret=Channel.generate_secret(32))
+                                              'jiochat_app_secret': 'app-secret',
+                                              'secret': Channel.generate_secret(32)},
+                                      uuid='00000000-0000-0000-0000-000000001234')
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
@@ -9282,7 +9292,7 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        value = "".join(sorted([self.channel.secret, timestamp, nonce]))
+        value = "".join(sorted([self.channel.config_json()[Channel.CONFIG_SECRET], timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()
