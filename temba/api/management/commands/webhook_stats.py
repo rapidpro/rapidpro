@@ -4,13 +4,18 @@ import six
 
 from array import array
 from collections import defaultdict
-from django.core.management.base import BaseCommand
+from datetime import timedelta
+from django.core.management.base import BaseCommand, CommandParser
+from django.utils import timezone
 from six.moves.urllib.parse import urlparse
 from temba.api.models import WebHookResult
 
 
 class Command(BaseCommand):  # pragma: no cover
     help = "Generates statistics for web hook calls"
+
+    COMMAND_SUMMARY = 'summary'
+    COMMAND_SLOWEST = 'slowest'
 
     KEY_HOST = 'host'                    # host only
     KEY_HOST_AND_PATH = 'host_path'      # host and path
@@ -20,25 +25,45 @@ class Command(BaseCommand):  # pragma: no cover
     SORT_TIMEOUTS = 'timeouts'
 
     def add_arguments(self, parser):
-        parser.add_argument('--key', type=str, action='store', dest='key_by', default=self.KEY_HOST_AND_PATH_0,
-                            choices=(self.KEY_HOST, self.KEY_HOST_AND_PATH, self.KEY_HOST_AND_PATH_0),
-                            help="Key to aggregate requests over")
-        parser.add_argument('--sort', type=str, action='store', dest='sort_by', default=self.SORT_TIMEOUTS,
-                            choices=(self.SORT_ALPHA, self.SORT_TIMEOUTS),
-                            help="Sort aggregated results by")
+        cmd = self
+        subparsers = parser.add_subparsers(dest='command', help='Command to perform',
+                                           parser_class=lambda **kw: CommandParser(cmd, **kw))
 
-    def handle(self, key_by, sort_by, *args, **options):
-        self.analyze(key_by, sort_by)
+        summary_parser = subparsers.add_parser('summary', help='Summarizes URL based statistics')
+        summary_parser.add_argument('--key', type=str, action='store', dest='key_by', default=self.KEY_HOST_AND_PATH_0,
+                                    choices=(self.KEY_HOST, self.KEY_HOST_AND_PATH, self.KEY_HOST_AND_PATH_0),
+                                    help="Key to aggregate requests over")
+        summary_parser.add_argument('--sort', type=str, action='store', dest='sort_by', default=self.SORT_TIMEOUTS,
+                                    choices=(self.SORT_ALPHA, self.SORT_TIMEOUTS),
+                                    help="Sort aggregated results by")
+        summary_parser.add_argument('--max-age', type=int, action='store', dest='max_age', default=0,
+                                    help="Maximum age in minutes of results to include")
 
-    def analyze(self, key_by, sort_by):
-        total_results = WebHookResult.objects.count()
+        slowest_parser = subparsers.add_parser('slowest', help='Lists slowest webhook calls')
+        slowest_parser.add_argument('--max-age', type=int, action='store', dest='max_age', default=0,
+                                    help="Maximum age in minutes of results to include")
+
+    def handle(self, command, *args, **kwargs):
+        if command == self.COMMAND_SUMMARY:
+            self.handle_summary(kwargs['max_age'], kwargs['key_by'], kwargs['sort_by'])
+        else:
+            self.handle_slowest(kwargs['max_age'])
+
+    def handle_summary(self, max_age, key_by, sort_by):
+        results = WebHookResult.objects.all()
+
+        if max_age > 0:
+            created_after = timezone.now() - timedelta(minutes=max_age)
+            results = results.filter(created_on__gt=created_after)
+
+        total_results = results.count()
         self.stdout.write("Found %d webhook results to analyze..." % total_results)
 
         item_statuses = defaultdict(lambda: defaultdict(int))
         item_times = defaultdict(lambda: array('i'))
 
         num_results = 0
-        for result in WebHookResult.objects.only('url', 'status_code', 'request_time'):
+        for result in results.only('url', 'status_code', 'request_time'):
             item_key = self._url_to_key(result.url, key_by)
 
             item_statuses[item_key][result.status_code] += 1
@@ -80,9 +105,19 @@ class Command(BaseCommand):  # pragma: no cover
         elif sort_by == self.SORT_TIMEOUTS:
             items = sorted(items, key=lambda i: i['failures']['timeouts']['count'], reverse=True)
 
-        self._print_results(items)
+        self._print_summary(items)
 
-    def _print_results(self, items):
+    def handle_slowest(self, max_age):
+        results = WebHookResult.objects.only('url', 'request_time').order_by('-request_time')
+
+        if max_age > 0:
+            created_after = timezone.now() - timedelta(minutes=max_age)
+            results = results.filter(created_on__gt=created_after)
+
+        for result in results[:25]:
+            self.stdout.write("%s => %s secs" % (result.url, self._num_style(result.request_time)))
+
+    def _print_summary(self, items):
         self.stdout.write("\nResponse Statistics:\n=================================")
 
         for item in items:

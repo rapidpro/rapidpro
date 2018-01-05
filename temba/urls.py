@@ -23,7 +23,6 @@ urlpatterns = [
     url(r'^', include('temba.orgs.urls')),
     url(r'^', include('temba.schedules.urls')),
     url(r'^', include('temba.flows.urls')),
-    url(r'^', include('temba.reports.urls')),
     url(r'^', include('temba.triggers.urls')),
     #url(r'^', include('temba.elasticsearch.urls')),
     url(r'^', include('temba.campaigns.urls')),

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import iptools
 import os
 import sys
+import socket
 
 from celery.schedules import crontab
 from datetime import timedelta
@@ -245,7 +246,6 @@ INSTALLED_APPS = (
     #'temba.elasticsearch',
     'temba.msgs',
     'temba.flows',
-    'temba.reports',
     'temba.triggers',
     'temba.utils',
     'temba.campaigns',
@@ -454,7 +454,6 @@ PERMISSIONS = {
     'flows.flow': ('activity',
                    'activity_chart',
                    'activity_list',
-                   'analytics',
                    'api',
                    'archived',
                    'broadcast',
@@ -475,12 +474,6 @@ PERMISSIONS = {
                    'upload_action_recording',
                    'upload_media_action',
                    ),
-
-    'flows.ruleset': ('analytics',
-                      'choropleth',
-                      'map',
-                      'results',
-                      ),
 
     'msgs.msg': ('api',
                  'archive',
@@ -660,8 +653,6 @@ GROUP_PERMISSIONS = {
         'channels.channellog_read',
         'channels.channellog_session',
 
-        'reports.report.*',
-
         'flows.flow.*',
         'flows.flowstart_api',
         'flows.flowlabel.*',
@@ -764,8 +755,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_update',
         'channels.channelevent.*',
 
-        'reports.report.*',
-
         'flows.flow.*',
         'flows.flowstart_api',
         'flows.flowlabel.*',
@@ -840,9 +829,6 @@ GROUP_PERMISSIONS = {
         'flows.flow_results',
         'flows.flow_run_table',
         'flows.flow_simulate',
-        'flows.ruleset_analytics',
-        'flows.ruleset_results',
-        'flows.ruleset_choropleth',
 
         'msgs.broadcast_schedule_list',
         'msgs.broadcast_schedule_read',
@@ -1236,3 +1222,6 @@ CHATBASE_API_URL = 'https://chatbase.com/api/message'
 
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
+
+# When reporting metrics we use the hostname of the physical machine, not the hostname of the service
+MACHINE_HOSTNAME = socket.gethostname().split('.')[0]

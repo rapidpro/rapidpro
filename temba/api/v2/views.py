@@ -25,7 +25,8 @@ from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGrou
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
-from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
+from temba.utils import str_to_bool, splitting_getlist
+from temba.utils.dates import json_date_to_datetime
 from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer

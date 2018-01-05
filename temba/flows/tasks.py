@@ -7,8 +7,8 @@ from celery.task import task
 from django.utils import timezone
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
-from temba.utils import datetime_to_epoch
 from temba.utils.cache import QueueRecord
+from temba.utils.dates import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage, FlowCategoryCount
@@ -81,13 +81,11 @@ def interrupt_flow_runs_task(flow_id):
 
 
 @task(track_started=True, name='export_flow_results_task')
-def export_flow_results_task(id):
+def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user
     """
-    export_task = ExportFlowResultsTask.objects.filter(pk=id).first()
-    if export_task:
-        export_task.perform()
+    ExportFlowResultsTask.objects.select_related('org').get(id=export_id).perform()
 
 
 @task(track_started=True, name='start_flow_task')
