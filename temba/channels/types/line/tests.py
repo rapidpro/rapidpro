@@ -14,7 +14,7 @@ class LineTypeTest(TembaTest):
 
         self.channel = Channel.create(self.org, self.user, None, 'LN', name="LINE", address="12345",
                                       role="SR", schemes=['line'],
-                                      config={'auth_token': 'abcdef098765', 'channel_secret': '87654'})
+                                      config={'auth_token': 'abcdef098765', 'secret': '87654'})
 
     @patch('requests.get')
     def test_claim(self, mock_get):
@@ -36,7 +36,7 @@ class LineTypeTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.id]))
         self.assertEqual(channel.config_json(), {
             'auth_token': 'abcdef123456',
-            'channel_secret': '123456',
+            'secret': '123456',
             'channel_id': 123456789,
             'channel_mid': 'u1234567890'
         })

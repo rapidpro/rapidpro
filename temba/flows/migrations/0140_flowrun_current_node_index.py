@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ('flows', '0137_populate_run_messages'),
+        ('flows', '0139_fix_results'),
     ]
 
     operations = [
