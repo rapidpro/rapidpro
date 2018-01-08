@@ -1,3 +1,8 @@
+v3.0.300
+----------
+ * Use config secret instead of secret field on Channel
+ * Add tests for datetime contact API field update
+
 v3.0.299
 ----------
  * Fix deleting resthooks
