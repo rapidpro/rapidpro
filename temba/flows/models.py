@@ -12,7 +12,7 @@ import traceback
 import urllib2
 
 from array import array
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
@@ -4287,16 +4287,15 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         Batch fetches messages for the given runs and returns a dict of runs to messages
         """
-        message_sets = [r.get_messages() for r in runs]
-
-        from collections import defaultdict
-        from six.moves import reduce
-        import operator
+        message_ids = set()
+        for r in runs:
+            if r.message_ids:
+                message_ids.update(r.message_ids)
 
         messages = (
-            reduce(operator.or_, message_sets)
-            .filter(visibility=Msg.VISIBILITY_VISIBLE)
-            .select_related('channel', 'contact_urn')
+            Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
+            .select_related('contact_urn')
+            .prefetch_related('channel')
             .order_by('created_on')
         )
 
