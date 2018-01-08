@@ -42,7 +42,8 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils import dict_to_struct, get_anonymous_user
+from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
 from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
@@ -247,6 +248,8 @@ class ChannelTest(TembaTest):
         tigo.address = '1235'
         tigo.save()
 
+        self.org.clear_cached_channels()
+
         # should return the newest channel which is TIGO
         msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
         self.assertEqual(tigo, msg.channel)
@@ -255,6 +258,8 @@ class ChannelTest(TembaTest):
         # if we have prefixes matching set should honor those
         mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
         mtn.save()
+
+        self.org.clear_cached_channels()
 
         msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
         self.assertEqual(mtn, msg.channel)
@@ -356,8 +361,7 @@ class ChannelTest(TembaTest):
 
         msg = Msg.objects.get(pk=msg.pk)
         self.assertIsNotNone(msg.channel)
-        self.assertIsNone(msg.channel.gcm_id)
-        self.assertIsNone(msg.channel.secret)
+        self.assertFalse(msg.channel.is_active)
         self.assertEqual(self.org, msg.org)
 
         # queued messages for the channel should get marked as failed
@@ -365,8 +369,7 @@ class ChannelTest(TembaTest):
 
         call = ChannelEvent.objects.get(pk=call.pk)
         self.assertIsNotNone(call.channel)
-        self.assertIsNone(call.channel.gcm_id)
-        self.assertIsNone(call.channel.secret)
+        self.assertFalse(call.channel.is_active)
 
         self.assertEqual(self.org, call.org)
 
@@ -389,7 +392,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]), self.superuser)
         self.assertContains(response, 'Test Channel')
@@ -400,7 +403,7 @@ class ChannelTest(TembaTest):
 
         # create a channel
         channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                 secret="12345", gcm_id="123")
+                                 secret=Channel.generate_secret(), gcm_id="123")
 
         # add channel trigger
         from temba.triggers.models import Trigger
@@ -1103,6 +1106,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.channel_type, 'NX')
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
+        self.assertEqual(nexmo.tps, 1)
+        channel_config = nexmo.config_json()
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'private-key')
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type='NX').first()
@@ -1207,7 +1216,7 @@ class ChannelTest(TembaTest):
 
     def test_search_nexmo(self):
         self.login(self.admin)
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
         self.channel = Channel.create(self.org, self.user, 'RW', 'NX', None, '+250788123123',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -1290,14 +1299,10 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
-        self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
         Channel.objects.all().delete()
@@ -1314,12 +1319,7 @@ class ChannelTest(TembaTest):
         android.release()
 
         # check that some details are cleared and channel is now in active
-        self.assertIsNone(android.org)
-        self.assertIsNone(android.gcm_id)
-        self.assertIsNone(android.secret)
         self.assertFalse(android.is_active)
-
-        self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
@@ -1388,7 +1388,6 @@ class ChannelTest(TembaTest):
 
         # channel should be released now
         channel = Channel.objects.get(pk=self.unclaimed_channel.pk)
-        self.assertFalse(channel.org)
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):
@@ -1873,7 +1872,6 @@ class ChannelTest(TembaTest):
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
-        from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
         now = now.replace(microsecond=now.microsecond / 1000 * 1000)
 
@@ -2020,24 +2018,28 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        check_channels_task()
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['from_email'] = 'support@mybrand.com'
+        with self.settings(BRANDING=branding):
+            check_channels_task()
 
-        # should have created one alert
-        alert = Alert.objects.get()
-        self.assertEqual(self.channel, alert.channel)
-        self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-        self.assertFalse(alert.ended_on)
+            # should have created one alert
+            alert = Alert.objects.get()
+            self.assertEqual(self.channel, alert.channel)
+            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
+            self.assertFalse(alert.ended_on)
 
-        self.assertTrue(len(mail.outbox) == 1)
-        template = 'channels/email/disconnected_alert.txt'
-        context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=self.channel.org.get_branding(),
-                       last_seen=self.channel.last_seen, sync=alert.sync_event)
+            self.assertTrue(len(mail.outbox) == 1)
+            template = 'channels/email/disconnected_alert.txt'
+            context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
+                           branding=self.channel.org.get_branding(),
+                           last_seen=self.channel.last_seen, sync=alert.sync_event)
 
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
+            text_template = loader.get_template(template)
+            text = text_template.render(context)
 
-        self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].body, text)
+            self.assertEqual(mail.outbox[0].from_email, 'support@mybrand.com')
 
         # call it again
         check_channels_task()
@@ -3473,16 +3475,22 @@ class NexmoTest(TembaTest):
         org.config = json.dumps(config)
         org.save()
 
+        self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
+                                          Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
+                                          Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
+                                          Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]})
+        self.channel.save()
+
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
-        response = self.client.get(reverse('handlers.nexmo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('courier.nx', args=['not-real-uuid', 'status']), data)
         self.assertEqual(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1, should return 200
         # these are probably multipart message callbacks, which we don't track
         data = dict(to='250788123123', messageId='-1')
-        delivery_url = reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid])
+        delivery_url = reverse('courier.nx', args=[self.channel.uuid, 'status'])
         response = self.client.get(delivery_url, data)
         self.assertEqual(200, response.status_code)
 
@@ -3496,7 +3504,7 @@ class NexmoTest(TembaTest):
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.get(reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid]), data)
+            response = self.client.get(reverse('courier.nx', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -3509,7 +3517,7 @@ class NexmoTest(TembaTest):
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
-        callback_url = reverse('handlers.nexmo_handler', args=['receive', self.nexmo_uuid])
+        callback_url = reverse('courier.nx', args=[self.channel.uuid, 'receive'])
         response = self.client.get(callback_url, data)
 
         self.assertEqual(200, response.status_code)
@@ -3589,15 +3597,9 @@ class NexmoTest(TembaTest):
             self.assertEqual('12', msg.external_id)
 
             # assert that we were called with unicode
-            mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
-                                         params={'from': u'250788123123',
-                                                 'api_secret': u'1234',
-                                                 'status-report-req': 1,
-                                                 'to': u'250788383383',
-                                                 'text': u'Unicode \u263a',
-                                                 'api_key': u'1234',
-                                                 'type': 'unicode'})
-
+            self.assertEqual(mock.call_args[1]['params']['text'], u'Unicode \u263a')
+            self.assertEqual(mock.call_args[1]['params']['from'], u'250788123123')
+            self.assertTrue(mock.call_args[1]['params']['callback'])
             self.clear_cache()
 
         with patch('requests.get') as mock:
@@ -7219,7 +7221,7 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="name has Bob")
+        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """
@@ -8807,7 +8809,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+        self.assertEqual("What is your favorite color?", contact1.msgs.order_by('id').last().text)
 
         # check if catchall trigger starts a different flow
         referral = """
@@ -8828,7 +8830,7 @@ class FacebookTest(TembaTest):
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
-        self.assertEqual("Pick a number between 1-10.", contact1.msgs.all().first().text)
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by('id').last().text)
 
         # check referral params in postback
         postback = """
@@ -10137,6 +10139,18 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.text, "incoming msg")
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
+
+        # set our contact name to something else
+        contact = msg.contact
+        contact.name = "ET4"
+        contact.save(update_fields=['name'])
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        self.assertEqual(response.status_code, 200)
+
+        # refresh our contact, name shouldn't have changed
+        contact.refresh_from_db()
+        self.assertEqual("ET4", contact.name)
 
     def assertSignedRequest(self, payload, expected_status=200):
         from temba.channels.handlers import ViberPublicHandler

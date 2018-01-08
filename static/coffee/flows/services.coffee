@@ -402,7 +402,6 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
-
 ]
 
 app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, utils, Plumb, Revisions, DragHelper) ->
@@ -670,13 +669,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           .success (data, statusCode) ->
             $rootScope.error = null
             $rootScope.errorDelay = quietPeriod
-            if data.status == 'unsaved'
+
+            if data.status == 'failure'
               resolveObj =
                 type: -> "error"
-                title: -> "Editing Conflict"
-                body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
+                title: -> "Error Saving"
+                body: -> data.description
                 ok: -> 'Reload'
-                hideCancel: -> false
+                hideCancel: -> true
                 details: -> ''
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
@@ -685,7 +685,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   document.location.reload()
 
             else
-
               # store our latest revision
               Flow.flow.metadata.revision = data.revision
               Flow.flow.metadata.saved_on = data.saved_on
@@ -872,10 +871,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       else
         # our visited counts for actions
-        key = node.uuid + ':' + node.destination
         count = 0
-        if activity and activity.visited and key of activity.visited
-          count += activity.visited[key]
+        if activity and activity.visited
+          key = node.exit_uuid + ':' + node.destination
+          if key of activity.visited
+            count = activity.visited[key]
         node._visited = count
 
       return
@@ -1001,8 +1001,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if cfg.type == operatorType
           return cfg
 
-    fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
-      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
+    fetchRecentMessages: (exit_uuids, to_uuid) ->
+      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?exits=' + exit_uuids.join() + '&to=' + to_uuid).success (data) ->
 
     fetch: (flowId, onComplete = null) ->
 

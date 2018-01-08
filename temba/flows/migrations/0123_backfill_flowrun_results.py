@@ -24,6 +24,19 @@ RESULT_INPUT = 'input'
 RESULT_CREATED_ON = 'created_on'
 
 
+def get_path(boundary):
+    """
+    Returns the full path for this admin boundary, from country downwards using > as separator between
+    each level.
+    """
+    from temba.locations.models import AdminBoundary
+    if boundary.parent:
+        parent_path = get_path(boundary.parent)
+        return "%s %s %s" % (parent_path, AdminBoundary.PATH_SEPARATOR, boundary.name.replace(AdminBoundary.PATH_SEPARATOR, " "))
+    else:
+        return boundary.name.replace(AdminBoundary.PATH_SEPARATOR, " ")
+
+
 # same reason, we need this but can't use the real FlowRun object
 def serialize_value(value):
     """
@@ -37,7 +50,7 @@ def serialize_value(value):
     if isinstance(value, datetime):
         return value.isoformat()
     elif isinstance(value, AdminBoundary):
-        return value.as_path()
+        return get_path(value)
     else:
         return six.text_type(value)
 

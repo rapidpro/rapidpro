@@ -22,10 +22,11 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGroupCount, ContactField, URN
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
-from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
+from temba.utils import str_to_bool, splitting_getlist
+from temba.utils.dates import json_date_to_datetime
 from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -123,7 +124,7 @@ class RootView(views.APIView):
     ## Translatable Values
 
     Some endpoints return or accept text fields that may be translated into different languages. These should be objects
-    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
+    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
 
     ## Authentication
 
@@ -567,7 +568,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
         )
 
-        return queryset.select_related('parent')
+        return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
         context = super(BoundariesEndpoint, self).get_serializer_context()
@@ -2403,7 +2404,7 @@ class OrgEndpoint(BaseAPIView):
         {
             "name": "Nyaruka",
             "country": "RW",
-            "languages": ["eng", "fre"],
+            "languages": ["eng", "fra"],
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
@@ -2830,9 +2831,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('start', queryset=FlowStart.objects.only('uuid')),
-            Prefetch('values'),
-            Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
-            Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')

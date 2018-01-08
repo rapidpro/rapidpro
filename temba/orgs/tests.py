@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import json
-
 import nexmo
 import pytz
 import six
@@ -32,15 +31,13 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
 from uuid import uuid4
-from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, get_current_export_version
-from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
-from .models import WHITELISTED, SUSPENDED, RESTORED
+from .models import Org, TopUp, Invitation, Language, TopUpCredits, DAYFIRST, MONTHFIRST, get_current_export_version
+from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING, WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
 
 
@@ -90,12 +87,12 @@ class OrgTest(TembaTest):
     def test_languages(self):
         self.assertEqual(self.org.get_language_codes(), set())
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
         self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fra'})
 
         self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
         self.org.refresh_from_db()
@@ -376,6 +373,9 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
+        parent = Org.objects.create(name="Parent", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                    brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
+
         # change to the trial plan
         post_data = {
             'name': 'Temba',
@@ -389,7 +389,7 @@ class OrgTest(TembaTest):
             'date_format': 'D',
             'webhook': None,
             'webhook_events': 0,
-            'parent': '',
+            'parent': parent.id,
             'viewers': [self.user.id],
             'editors': [self.editor.id],
             'administrators': [self.admin.id],
@@ -405,6 +405,7 @@ class OrgTest(TembaTest):
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
+        self.assertEqual(parent, self.org.parent)
 
         # white list
         post_data['status'] = WHITELISTED
@@ -917,6 +918,34 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+    def test_topup_expiration(self):
+
+        contact = self.create_contact("Usain Bolt", "+250788123123")
+        welcome_topup = TopUp.objects.get()
+
+        # send some messages with a valid topup
+        self.create_inbound_msgs(contact, 10)
+        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
+        self.assertEqual(990, self.org.get_credits_remaining())
+
+        # now expire our topup and try sending more messages
+        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
+        welcome_topup.save(update_fields=('expires_on',))
+        self.org.clear_credit_cache()
+
+        # we should have no credits remaining since we expired
+        self.assertEqual(0, self.org.get_credits_remaining())
+        self.create_inbound_msgs(contact, 5)
+
+        # those messages are waiting to send
+        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
+
+        # so we should report -5 credits
+        self.assertEqual(-5, self.org.get_credits_remaining())
+
+        # our first 10 messages plus our 5 pending a topup
+        self.assertEqual(15, self.org.get_credits_used())
+
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
@@ -925,20 +954,16 @@ class OrgTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
-        def create_msgs(recipient, count):
-            for m in range(count):
-                self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+        self.create_inbound_msgs(contact, 10)
 
-        create_msgs(contact, 10)
-
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(990, self.org.get_credits_remaining())  # from db
 
         with self.assertNumQueries(0):
@@ -946,10 +971,11 @@ class OrgTest(TembaTest):
             self.assertEqual(10, self.org.get_credits_used())
             self.assertEqual(990, self.org.get_credits_remaining())
 
+        welcome_topup.refresh_from_db()
         self.assertEqual(10, welcome_topup.msgs.count())
-        self.assertEqual(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        self.assertEqual(10, welcome_topup.get_used())
 
-        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        # at this point we shouldn't have squashed any topup credits, so should have the same number as our used
         self.assertEqual(10, TopUpCredits.objects.all().count())
 
         # now squash
@@ -960,26 +986,29 @@ class OrgTest(TembaTest):
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
-        self.org.update_caches(OrgEvent.topup_updated, None)  # invalidates our credits remaining cache
+        self.org.clear_credit_cache()
 
         self.assertEqual(15, self.org.get_credits_total())
         self.assertEqual(5, self.org.get_credits_remaining())
 
         # create 10 more messages, only 5 of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+        welcome_topup.refresh_from_db()
+        self.assertEqual(15, welcome_topup.msgs.count())
+        self.assertEqual(15, welcome_topup.get_used())
 
-        self.assertFalse(self.org._calculate_active_topup())
+        (topup, _) = self.org._calculate_active_topup()
+        self.assertFalse(topup)
 
-        with self.assertNumQueries(0):
+        # we generate queries for total and used when we are near a boundary
+        with self.assertNumQueries(4):
             self.assertEqual(15, self.org.get_credits_total())
             self.assertEqual(20, self.org.get_credits_used())
             self.assertEqual(-5, self.org.get_credits_remaining())
 
         # again create 10 more messages, none of which will get a topup
-        create_msgs(contact, 10)
+        self.create_inbound_msgs(contact, 10)
 
         with self.assertNumQueries(0):
             self.assertEqual(15, self.org.get_credits_total())
@@ -991,7 +1020,6 @@ class OrgTest(TembaTest):
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # apply topups which will max out both and reduce debt to 5
         self.org.apply_topups()
@@ -1016,7 +1044,6 @@ class OrgTest(TembaTest):
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
@@ -1029,29 +1056,28 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEqual(100025, self.org.get_credits_total())
-        self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(99995, self.org.get_credits_remaining())
+        self.assertEqual(30, self.org.get_credits_used())
 
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertEqual(msg.topup, mega_topup)
-
         self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
         mega_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertIsNone(msg.topup)
 
         # check our totals
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(6):
             self.assertEqual(0, self.org.get_purchased_credits())
             self.assertEqual(31, self.org.get_credits_total())
             self.assertEqual(32, self.org.get_credits_used())
@@ -1065,74 +1091,69 @@ class OrgTest(TembaTest):
         next_week = timezone.now() + relativedelta(days=7)
         gift_topup.expires_on = next_week
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(99, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(4):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(99, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(2):
+            self.assertTrue(self.org.is_nearing_expiration())
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        # some cedits expires but more credits will remain active
+        # some credits expires but more credits will remain active
         later_active_topup = TopUp.create(self.admin, price=0, credits=200)
         five_week_ahead = timezone.now() + relativedelta(days=35)
         later_active_topup.expires_on = five_week_ahead
         later_active_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
-
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
-
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
         gift_topup.expires_on = yesterday
         gift_topup.save(update_fields=['expires_on'])
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
-
-        with self.assertNumQueries(3):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        self.org.clear_credit_cache()
 
         with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
+
+        with self.assertNumQueries(4):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_credits_expiring_soon())
+        with self.assertNumQueries(1):
+            self.assertFalse(self.org.is_nearing_expiration())
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
-        self.org.update_caches(OrgEvent.topup_updated, None)
-        self.org.apply_topups()
+        self.org.clear_credit_cache()
 
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             self.assertEqual(0, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1140,13 +1161,13 @@ class OrgTest(TembaTest):
 
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
@@ -1378,7 +1399,7 @@ class OrgTest(TembaTest):
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
@@ -1395,10 +1416,12 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
-        with self.settings(SEND_CHATBASE=True):
+        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
+
+            self.assertEqual(len(mock_post.mock_calls), 0)
 
     def test_resthooks(self):
         # no hitting this page without auth
@@ -1765,7 +1788,7 @@ class OrgTest(TembaTest):
         # tiers enabled, but enough credits
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         TopUp.create(self.admin, price=100, credits=1000000)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
         self.assertTrue(self.org.is_import_flows_tier())
         self.assertTrue(self.org.is_multi_user_tier())
@@ -1831,7 +1854,7 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
-        self.assertEqual(700, self.org._calculate_credits_used())
+        self.assertEqual(700, self.org._calculate_credits_used()[0])
 
         # now allocate across our remaining topups
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
@@ -1840,8 +1863,8 @@ class OrgTest(TembaTest):
         self.assertEqual(100, self.org.get_credits_remaining())
 
         # now clear our cache, we ought to have proper amount still
-        self.org._calculate_credit_caches()
-        sub_org._calculate_credit_caches()
+        self.org.clear_credit_cache()
+        sub_org.clear_credit_cache()
 
         self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(100, self.org.get_credits_remaining())
@@ -2376,7 +2399,7 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        response = self.client.post(url, dict(primary_lang='fra', languages='hat,arc'))
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -2391,17 +2414,17 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
-        self.assertContains(response, 'fre')
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic (700-300 BCE)')
+        self.assertContains(response, 'fra')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic (700-300 BCE) and Spanish')
 
         # one translation language
-        self.client.post(url, dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fra', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
         self.assertEqual(response.context['languages'], 'Haitian')
 
@@ -2412,36 +2435,35 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % url)
+        response = self.client.get('%s?search=fra' % url)
         results = response.json()['results']
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % url)
+        response = self.client.get('%s?initial=fra' % url)
         results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
-        self.assertEqual('French', languages.get_language_name('fre'))
-        self.assertEqual('Creoles and pidgins, English based', languages.get_language_name('cpe'))
+        self.assertEqual('French', languages.get_language_name('fra'))
+        self.assertEqual('Chinese Pidgin English', languages.get_language_name('cpi'))
 
         # should strip off anything after an open paren or semicolon
-        self.assertEqual('Official Aramaic', languages.get_language_name('arc'))
         self.assertEqual('Haitian', languages.get_language_name('hat'))
 
         # check that search returns results and in the proper order
         matches = languages.search_language_names('Fre')
-        self.assertEqual(4, len(matches))
-        self.assertEqual('Creoles and pidgins, French-based', matches[0]['text'])
-        self.assertEqual('French', matches[1]['text'])
-        self.assertEqual('French, Middle (ca.1400-1600)', matches[2]['text'])
-        self.assertEqual('French, Old (842-ca.1400)', matches[3]['text'])
+        self.assertEqual(13, len(matches))
+        self.assertEqual('Saint Lucian Creole French', matches[0]['text'])
+        self.assertEqual('Seselwa Creole French', matches[1]['text'])
+        self.assertEqual('French', matches[2]['text'])
+        self.assertEqual('Cajun French', matches[3]['text'])
 
         # try a language that doesn't exist
         self.assertEqual(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
-        text_translations = dict(eng="Hello", esp="Hola")
+        text_translations = dict(eng="Hello", spa="Hola")
 
         # null case
         self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
@@ -2450,10 +2472,38 @@ class LanguageTest(TembaTest):
         self.assertEqual(Language.get_localized_text(text_translations, ['eng'], "Hi"), "Hello")
 
         # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre'], "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra'], "Hi"), "Hi")
 
         # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ['fre', 'esp'], "Hi"), "Hola")
+        self.assertEqual(Language.get_localized_text(text_translations, ['fra', 'spa'], "Hi"), "Hola")
+
+    def test_language_migrations(self):
+        self.assertEqual('pcm', languages.iso6392_to_iso6393('cpe', country_code='NG'))
+
+        org_languages = ['dum', 'ger', 'alb', 'ita', 'tir', 'nwc', 'tsn', 'tso', 'lua', 'jav', 'nso', 'aus', 'nor',
+                         'ada', 'fij', 'hat', 'hau', 'fil', 'amh', 'som', 'ssw', 'mon', 'him', 'hin', 'tig', 'guj',
+                         'ibo', 'afr', 'div', 'bam', 'kac', 'tel', 'tpi', 'snd', 'ara', 'lao', 'nbl', 'arm', 'abk',
+                         'kur', 'per', 'wol', 'smi', 'lug', 'tmh', 'nep', 'luo', 'run', 'rum', 'tur', 'orm', 'que',
+                         'ori', 'rus', 'asm', 'pus', 'kik', 'ace', 'syr', 'ach', 'nde', 'srp', 'zul', 'vie', 'por',
+                         'chm', 'mai', 'pol', 'sot', 'art', 'tgl', 'che', 'fre', 'kon', 'swa', 'chi', 'twi', 'swe',
+                         'ukr', 'mkh', 'heb', 'kor', 'dut', 'tog', 'bur', 'ven', 'hmn', 'enm', 'gaa', 'ben', 'bem',
+                         'xho', 'aze', 'ain', 'ful', 'ang', 'dan', 'bho', 'jpn', 'raj', 'khm', 'AAR', 'ind', 'spa',
+                         'eng', 'lin', 'afa', 'ewe', 'nyn', 'nyo', 'mis', 'nya', 'yor', 'pan', 'tam', 'phi', 'mar',
+                         'sna', 'may', 'kan', 'kal', 'kas', 'kar', 'kin', 'lat', 'mal', 'urd', 'gsw', 'cpe', 'cpf',
+                         'cpp', 'tha']
+
+        for lang in org_languages:
+            self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
+
+        # test if language is already iso-639-3
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+        # test code path when language is in cache
+        self.assertEqual('cro', languages.iso6392_to_iso6393('cro'))
+
+        # test behavior with unknown values
+        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='')
+        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code='123')
 
 
 class BulkExportTest(TembaTest):
@@ -2601,7 +2651,7 @@ class BulkExportTest(TembaTest):
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.clear_credit_cache()
         self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old
@@ -2898,8 +2948,8 @@ class CreditAlertTest(TembaTest):
 
                     mock_has_low_credits.return_value = False
 
-                    with patch('temba.orgs.models.Org.get_credits_expiring_soon') as mock_get_credits_exipiring_soon:
-                        mock_get_credits_exipiring_soon.return_value = 0
+                    with patch('temba.orgs.models.Org.is_nearing_expiration') as is_nearing_expiration:
+                        is_nearing_expiration.return_value = False
 
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
@@ -2908,7 +2958,7 @@ class CreditAlertTest(TembaTest):
                         # no alert since no expiring credits
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-                        mock_get_credits_exipiring_soon.return_value = 200
+                        is_nearing_expiration.return_value = True
 
                         CreditAlert.check_org_credits()
 
@@ -2938,81 +2988,6 @@ class CreditAlertTest(TembaTest):
                         self.assertEqual(1, CreditAlert.objects.filter(is_active=True, org=self.org,
                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
                         self.assertEqual(6, len(mail.outbox))
-
-
-class UnreadCountTest(FlowFileTest):
-
-    def test_unread_count_test(self):
-        flow = self.get_flow('favorites')
-
-        # create a trigger for 'favs'
-        Trigger.objects.create(org=self.org, flow=flow, keyword='favs', created_by=self.admin, modified_by=self.admin)
-
-        # start our flow by firing an incoming message
-        contact = self.create_contact('Anakin Skywalker', '+12067791212')
-        msg = self.create_msg(contact=contact, text="favs")
-
-        # process it
-        Msg.process_message(msg)
-
-        # our flow unread count should have gone up
-        self.assertEqual(1, flow.get_and_clear_unread_responses())
-
-        # cleared by the first call
-        self.assertEqual(0, flow.get_and_clear_unread_responses())
-
-        # at this point our flow should have started.. go to our trigger list page to see if our context is correct
-        self.login(self.admin)
-        trigger_list = reverse('triggers.trigger_list')
-        response = self.client.get(trigger_list)
-
-        self.assertEqual(0, response.context['msgs_unread_count'])
-        self.assertEqual(1, response.context['flows_unread_count'])
-
-        # answer another question in the flow
-        msg = self.create_msg(contact=contact, text="red")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEqual(0, response.context['msgs_unread_count'])
-        self.assertEqual(2, response.context['flows_unread_count'])
-
-        # finish the flow and send a message outside it
-        msg = self.create_msg(contact=contact, text="primus")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="nic")
-        Msg.process_message(msg)
-
-        msg = self.create_msg(contact=contact, text="Hello?")
-        Msg.process_message(msg)
-
-        response = self.client.get(trigger_list)
-        self.assertEqual(4, response.context['flows_unread_count'])
-        self.assertEqual(1, response.context['msgs_unread_count'])
-
-        # visit the msg pane
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEqual(4, response.context['flows_unread_count'])
-        self.assertEqual(0, response.context['msgs_unread_count'])
-
-        # now the flow list pane
-        response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(0, response.context['flows_unread_count'])
-        self.assertEqual(0, response.context['msgs_unread_count'])
-
-        # make sure a test contact doesn't update our counts
-        test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
-
-        msg = self.create_msg(contact=test_contact, text="favs")
-        Msg.process_message(msg)
-
-        # assert our counts weren't updated
-        self.assertEqual(0, self.org.get_unread_msg_count(UNREAD_INBOX_MSGS))
-        self.assertEqual(0, self.org.get_unread_msg_count(UNREAD_FLOW_MSGS))
-
-        # wasn't counted for the individual flow
-        self.assertEqual(0, flow.get_and_clear_unread_responses())
 
 
 class EmailContextProcessorsTest(SmartminTest):
@@ -3057,6 +3032,7 @@ class StripeCreditsTest(TembaTest):
 
         settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
+        self.assertTrue(1000, self.org.get_credits_total())
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
