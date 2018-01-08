@@ -9,6 +9,10 @@
     width: 485px;
   }
 
+  label[for="new_format"] {
+    display: inline-block;
+  }
+
 .modal-header.title
   %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
@@ -29,7 +33,7 @@
           %input{ng-model:"ruleset.label",name:"label",alphanum:"",ng-required:"true",type:"text",id:"label-name", maxlength:"64"}
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
-    .errors
+    .errors{ng-if:'invalidFields.length > 0'}
       -include 'partials/invalid_fields.haml'   
 
     .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_menu"', ussd:0}
@@ -125,17 +129,20 @@
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
 
-        %a.additional-options{href:"javascript:;",ng-click:"webhookAdditionalOptions()",ng-show:"!formData.isWebhookAdditionalOptionsVisible"}
-          -trans "Additional options"
+        .help-text
+          %a.additional-options{href:"javascript:;",ng-click:"webhookAdditionalOptions()",ng-show:"!formData.isWebhookAdditionalOptionsVisible"}
+            -trans "Additional options"
 
         .webhook-headers{ng-show:"formData.isWebhookAdditionalOptionsVisible"}
           .modal-webhook-header-pair
             .modal-webhook-header.modal-webhook-header-name
               .message
-                -trans "Header Name"
+                .help-text
+                  -trans "Header Name"
             .modal-webhook-header.modal-webhook-header-value
               .message
-                -trans "Header Value"
+                .help-text
+                  -trans "Header Value"
           .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_headers"}
             .modal-webhook-header.modal-webhook-header-name
               %input{type:"text",name:"webhook-name",ng-model:"header.name"}
@@ -144,40 +151,72 @@
             .modal-webhook-header.modal-webhook-header-remove
               .icon.icon-close{ng-click:"removeWebhookHeader($index)"}
 
-          %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
-            -trans "Add header"
+          .help-text
+            %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
+              -trans "Add header"
 
-        .help-text
-          -blocktrans
-            We'll include the message text along with data specified in
-            the
-            %a{href:"/webhooks/webhook/#flow"}<
-              Webhook Flow Event API
-            .
+        .div{ng-show:'formData.supportsLegacy && formData.webhook_action == "POST"'}
 
-        .help-text
-          -blocktrans
-            This step will be identified as [[ruleset.uuid]]
+          .success{ng-show:'formData.newFormat'}
+            %p
+              This webhook is set to use the
+              %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
+                new version
+              of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
+              box below. Keep in mind that the deprecated format will be removed January 31, 2018.
 
-        %p{class:"description response"}
-          -blocktrans
-            If your server responds with JSON, each property will be added
-            to the flow.
+            .div{style:'margin-top:10px'}
+              %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+                %label{for:'new_format'}
+                  Use the new webhook format
 
-        .example
-          .code
-            &#x7B;
-            %br
-            &nbsp;&nbsp;product: "Solar charging kit",
-            %br
-            &nbsp;&nbsp;stock_level: 32
-            %br
-            &#x7D;
+          .warning{ng-hide:'formData.newFormat'}
+            %p
+              This webhook is using a
+              %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
+                deprecated version
+              of the POST Webhook API which will be removed on January 31, 2018.
+              Prior to that date, you will need to update any services depending on the deprecated API format.
 
-        .help-text
-          -blocktrans
-            In this example @extra.product and @extra.stock_level would be
-            added for all future steps.
+            %p
+              Review the
+              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+                new version
+              and check the box below when this webhook is ready to start receiving the new format.
+
+            .div{style:'margin-top:10px'}
+              %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+                %label{for:'new_format'}
+                  Use the new webhook format
+
+        .div{ng-hide:'formData.supportsLegacy && formData.webhook_action == "POST"'}
+          .help-text
+            -blocktrans
+              We'll include the message text along with data specified in the
+              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+                Webhook Flow Event API
+              . This step will be identified as [[ruleset.uuid]]
+
+          %p
+          %p{class:"description response"}
+            -blocktrans
+              If your server responds with JSON, each property will be added
+              to the flow.
+
+          .example
+            .code
+              &#x7B;
+              %br
+              &nbsp;&nbsp;product: "Solar charging kit",
+              %br
+              &nbsp;&nbsp;stock_level: 32
+              %br
+              &#x7D;
+
+          .help-text
+            -blocktrans
+              In this example @extra.product and @extra.stock_level would be
+              added for all future steps.
 
     %span{ng-if:'formData.rulesetConfig.type == "wait_digit"'}
       %form{name:"menu",class:"ivr-menu"}
