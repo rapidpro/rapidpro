@@ -20,7 +20,6 @@ services:
       - MANAGEPY_INIT_DB=on
       - MANAGEPY_MIGRATE=on
     volumes:
-      - ./env:/rapidpro/env
       - ./temba/flow:/rapidpro/temba/flow
       - ./static:/rapidpro/static
       - ./templates:/rapidpro/templates
@@ -36,9 +35,8 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=super-secret-key
-    command: ["/rapidpro/env/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,msgs,flows,handler"]
+    command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,msgs,flows,handler"]
     volumes:
-      - ./env:/rapidpro/env
       - ./temba/flow:/rapidpro/temba/flow
       - ./static:/rapidpro/static
       - ./templates:/rapidpro/templates
