@@ -96,7 +96,7 @@ class FacebookType(ChannelType):
                 attachment_url = msg.attachments
             if attachment_url:
                 attachment = {"content_type": attachment_url.split(":")[0],
-                              "url": ''.join(attachment_url.split(":")[1:])}
+                              "url": ':'.join(attachment_url.split(":")[1:])}
 
         if attachment:
             category = attachment["content_type"].split('/')[0]
