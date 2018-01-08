@@ -99,7 +99,7 @@ class FacebookType(ChannelType):
                               "url": ''.join(attachment_url.split(":")[1:])}
 
         if attachment:
-            category = attachment.content_type.split('/')[0]
+            category = attachment["content_type"].split('/')[0]
 
             payload = json.loads(payload)
             payload['message'] = {'attachment': {'type': category, 'payload': {'url': attachment["url"]}}}
