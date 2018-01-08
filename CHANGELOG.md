@@ -1,3 +1,175 @@
+v3.0.298
+----------
+ * Process contact queue until there's a pending message or empty
+ * Make date parsing much stricter
+ * Migration to fix run results which were numeric but parsed as dates
+ * Use transaction when creating contact URN
+ * Add support for v2 webhooks
+
+v3.0.294
+----------
+ * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
+ * Define MACHINE_HOSTNAME for librato metrics
+
+v3.0.293
+----------
+ * Fix handle_ruleset so we don't continue the run if a child has exited us
+ * Migration to backfill FlowRun.message_ids and .current_node_uuid (recommend faking and running manually)
+
+v3.0.292
+----------
+ * Add support for 'direct' db connection
+ * Stop updating count and triggered on on triggers
+ * Add FlowRun.current_node_uuid and message_ids
+ * Catch IntegrityError and lookup again when creating contact URN
+ * Make sure we dont allow group chats in whatsapp
+
+v3.0.291
+----------
+ * Ignore TMS callbacks
+
+v3.0.289
+----------
+ * Stop writing values in flows to values_value
+
+v3.0.287
+----------
+ * Performance improvements and simplications to flow result exports
+ * Add some extra options to webhook_stats
+ * Migration to convert old recent message records
+
+v3.0.286
+----------
+ * Remove incomplete path counts
+
+v3.0.285
+----------
+ * Migrate languages on campaign events
+ * Rework flow path count trigger to use exit_uuid and not record incomplete segments
+
+v3.0.282
+----------
+ * Don't import contacts with unknown iso639-3 code
+ * Make angular bits less goofy for quick replies and webhooks
+ * Add is_active index on flowrun
+ * Don't disassociate channels from orgs when they're released
+ * Include language column in Contact export
+
+v3.0.281
+----------
+ * Set tps for nexmo and whatsapp
+ * Dont overwrite name when receiving a message from a contact that already exists
+ * Flow start performance improvements
+
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
+v3.0.279
+----------
+ * Update Nexmo channels to use new Courier URLs
+ * Store path on AdminBoundary for faster lookups
+ * Serialize metata for courier tasks (quick replies support)
+ * Add default manager to AdminBoundary which doesn't include geometry
+
+v3.0.278
+----------
+ * Fixes to the ISO639-3 migration
+ * Add support for quick replies
+
+v3.0.277
+----------
+ * Add flow migration for base_language in flow definitions
+
+v3.0.276
+----------
+ * back down to generic override if not found with specific code
+ * Add esp-spa as exception
+
+v3.0.275
+----------
+ * Fix language migrations
+
+v3.0.274
+----------
+ * Fix serialization of 0 decimal values in API
+ * Add initial version of WhatsApp channel (simple messaging only)
+ * Migrate to iso639-3 language codes (from iso639-2)
+ * Remove indexes on Msg, FlowRun and FlowStep which we don't use
+ * Remove fields no longer used on org model
+
+v3.0.273
+----------
+ * Don't blow up when a flow result doesn't have input
+
+v3.0.272
+----------
+ * Fix parsing ISO dates with negative offsets
+
+v3.0.271
+----------
+ * Serialize contact field values with org timezone
+
+v3.0.270
+----------
+ * Load results and path from new JSON fields instead of step/value objects on API runs endpoint
+
+v3.0.269
+----------
+ * Fix campaign export issue
+ * Disable legacy analytics page
+ * Change date constants and contact fields to use full/canonical format in expressions context
+
+v3.0.265
+----------
+ * Fix not updating versions on import flows
+ * Require FlowRun saves to use update_fields
+ * Rework get_results to use FlowRun.results
+ * Don't allow users to save dynamic groups with 'id' or 'name' attributes
+ * Add flow version 11.0, create migration to update references to contact fields and flow fields
+
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
+v3.0.263
+----------
+ * Start campaigns in separate task
+ * Enable flow results graphs on flow result page
+ * Fix run table json parsing
+ * SuperAutoScaler!
+
+v3.0.262
+----------
+ * Use string comparison to optimize temba_update_flowcategorycount
+ * Allow path counts to be read by node or exit
+ * SuperAutoscaler
+ * Fix inbox views so we don't look up channel logs for views that don't have them
+ * Add management command for analyzing webhook calls
+ * Change recent message fetching to work with either node UUID or exit UUID
+
+v3.0.261
+----------
+ * Migrate revisions forward with rev version
+ * Limit scope of squashing so we can recover from giant unsquashed numbers
+
+v3.0.260
+----------
+ * Make tests go through migration
+ * Set version number of system created flows
+ * Block saving old versions over new versions
+ * Perform apply_topups as a task, tweak org update form
+ * Updates to credit caches to consider expiration
+ * Tweak credit expiration email
+
+v3.0.259
+----------
+ * Improve performance and restartability of run.path backfill migration
+ * Update to latest smartmin
+ * Use run.results for run results page
+
 v3.0.258
 ----------
  * Set brand domain on channel creations, use for callbacks

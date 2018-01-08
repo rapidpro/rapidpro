@@ -25,14 +25,15 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartT
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
+from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException
+from .search import SearchException, parse_query
 from .tasks import export_contacts_task
 
 
@@ -71,14 +72,14 @@ class ContactGroupForm(forms.ModelForm):
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
+        self.org = user.get_org()
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
-        org = self.user.get_org()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group(org, name)
+        existing = ContactGroup.get_user_group(self.org, name)
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -86,13 +87,25 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        groups_count = ContactGroup.user_groups.filter(org=org).count()
+        groups_count = ContactGroup.user_groups.filter(org=self.org).count()
         if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
             raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
                                           "You must delete existing ones before you can "
                                           "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
         return name
+
+    def clean_query(self):
+        try:
+            parsed_query = parse_query(text=self.cleaned_data['query'], as_anon=self.org.is_anon)
+            if parsed_query.can_be_dynamic_group():
+                return parsed_query.as_text()
+            else:
+                raise forms.ValidationError(
+                    _('You cannot create a dynamic group based on "name" or "id".')
+                )
+        except SearchException as e:
+            raise forms.ValidationError(six.text_type(e))
 
     class Meta:
         fields = '__all__'
@@ -106,6 +119,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     system_group = None
     add_button = True
     paginate_by = 50
+
+    parsed_search = None
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
@@ -124,7 +139,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         search_query = self.request.GET.get('search', None)
         if search_query:
             try:
-                qs = Contact.search(org, search_query, group)
+                qs, self.parsed_search = Contact.search(org, search_query, group)
             except SearchException as e:
                 self.search_error = six.text_type(e)
                 qs = Contact.objects.none()
@@ -160,6 +175,12 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
+
+        # replace search string with parsed search expression
+        if self.parsed_search is not None:
+            context['search'] = self.parsed_search.as_text()
+            context['save_dynamic_search'] = self.parsed_search.can_be_dynamic_group()
+
         return context
 
     def get_user_groups(self, org):
@@ -370,6 +391,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 export = ExportContactsTask.create(org, user, group, search)
 
+                # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
@@ -873,7 +895,11 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search') and not self.search_error:
+            # define save search conditions
+            valid_search_condition = self.request.GET.get('search') and not self.search_error
+            has_contactgroup_create_perm = self.has_org_perm('contacts.contactgroup_create')
+
+            if has_contactgroup_create_perm and valid_search_condition:
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):
