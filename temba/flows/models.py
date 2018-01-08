@@ -12,7 +12,7 @@ import traceback
 import urllib2
 
 from array import array
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
@@ -2808,7 +2808,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return Msg.objects.filter(steps__run=self)
+        return Msg.objects.filter(id__in=self.message_ids) if self.message_ids else Msg.objects.none()
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -4283,6 +4283,33 @@ class ExportFlowResultsTask(BaseExportTask):
         group_names.sort()
         return ", ".join(group_names)
 
+    def _get_messages_for_runs(self, runs):
+        """
+        Batch fetches messages for the given runs and returns a dict of runs to messages
+        """
+        message_ids = set()
+        for r in runs:
+            if r.message_ids:
+                message_ids.update(r.message_ids)
+
+        messages = (
+            Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
+            .select_related('contact_urn')
+            .prefetch_related('channel')
+            .order_by('created_on')
+        )
+
+        msgs_by_id = {m.id: m for m in messages}
+
+        msgs_by_run = defaultdict(list)
+        for run in runs:
+            for msg_id in (run.message_ids or []):
+                msg = msgs_by_id.get(msg_id)
+                if msg:
+                    msgs_by_run[run].append(msg)
+
+        return msgs_by_run
+
     def write_export(self):
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -4344,14 +4371,11 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .prefetch_related(
-                    'contact',
-                    Prefetch('steps', FlowStep.objects.only('id', 'run')),
-                    'steps__messages__contact_urn',
-                    'steps__messages__channel'
-                )
+                .select_related('contact')
                 .order_by('contact', 'id')
             )
+
+            msgs_by_run = self._get_messages_for_runs(run_batch)
 
             for run in run_batch:
                 # is this a new contact?
@@ -4421,7 +4445,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run, msgs_by_run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -4439,16 +4463,11 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, 'xlsx'
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _write_run_messages(self, book, msgs_sheet, run, msgs_by_run):
         """
         Writes out any messages associated with the given run
         """
-        run_msgs = set()
-        for step in run.steps.all():
-            run_msgs.update(step.messages.all())
-        run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
-
-        for msg in run_msgs:
+        for msg in msgs_by_run.get(run, []):
             if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
