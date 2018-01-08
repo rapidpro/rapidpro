@@ -2,8 +2,6 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
-from uuid import uuid4
-
 import regex
 import six
 import traceback
@@ -26,7 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from functools import cmp_to_key
 from itertools import chain
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, smart_url
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
@@ -40,11 +38,12 @@ from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
+from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit, chunk_list
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
+from uuid import uuid4
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentMessage
 
 logger = logging.getLogger(__name__)
 
@@ -81,35 +80,42 @@ IVR_EXPIRES_CHOICES = (
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
-        wrong_format = []
-        existing_keywords = []
-        keyword_triggers = self.cleaned_data.get('keyword_triggers', '').strip()
+        value = self.cleaned_data.get('keyword_triggers', '')
 
-        for keyword in keyword_triggers.split(','):
-            if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
+        duplicates = []
+        wrong_format = []
+        cleaned_keywords = []
+
+        for keyword in value.split(','):
+            keyword = keyword.lower().strip()
+            if not keyword:
+                continue
+
+            if not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0) or len(keyword) > Trigger.KEYWORD_MAX_LEN:
                 wrong_format.append(keyword)
 
             # make sure it is unique on this org
-            if keyword and org:
-                existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            if self.instance:
+                existing = existing.exclude(flow=self.instance.pk)
 
-                if self.instance:
-                    existing = existing.exclude(flow=self.instance.pk)
-
-                if existing:
-                    existing_keywords.append(keyword)
+            if existing:
+                duplicates.append(keyword)
+            else:
+                cleaned_keywords.append(keyword)
 
         if wrong_format:
-            raise forms.ValidationError(_('"%s" must be a single word containing only letter and numbers') % ', '.join(wrong_format))
+            raise forms.ValidationError(_('"%s" must be a single word, less than %d characters, containing only letter '
+                                          'and numbers') % (', '.join(wrong_format), Trigger.KEYWORD_MAX_LEN))
 
-        if existing_keywords:
-            if len(existing_keywords) > 1:
-                error_message = _('The keywords "%s" are already used for another flow') % ', '.join(existing_keywords)
+        if duplicates:
+            if len(duplicates) > 1:
+                error_message = _('The keywords "%s" are already used for another flow') % ', '.join(duplicates)
             else:
-                error_message = _('The keyword "%s" is already used for another flow') % ', '.join(existing_keywords)
+                error_message = _('The keyword "%s" is already used for another flow') % ', '.join(duplicates)
             raise forms.ValidationError(error_message)
 
-        return keyword_triggers.lower()
+        return ','.join(cleaned_keywords)
 
     class Meta:
         model = Flow
@@ -385,7 +391,8 @@ class FlowCRUDL(SmartCRUDL):
             if (step_uuid or rule_uuids) and next_uuid:
                 from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
                 to_uuids = [next_uuid]
-                recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
+
+                recent = FlowPathRecentMessage.get_recent(from_uuids, to_uuids)
 
                 for msg in recent:
                     recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
@@ -513,17 +520,30 @@ class FlowCRUDL(SmartCRUDL):
             return obj
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        fields = ('pk',)
+        fields = ('id',)
         cancel_url = 'uuid@flows.flow_editor'
-        redirect_url = '@flows.flow_list'
-        default_template = 'smartmin/delete_confirm.html'
-        success_message = _("Your flow has been removed.")
+        success_message = ''
+
+        def get_success_url(self):
+            return reverse("flows.flow_list")
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release()
-            redirect_url = self.get_redirect_url()
+            flow = self.get_object()
+            self.object = flow
 
-            return HttpResponseRedirect(redirect_url)
+            flows = Flow.objects.filter(org=flow.org, flow_dependencies__in=[flow])
+            if flows.count():
+                return HttpResponseRedirect(smart_url(self.cancel_url, flow))
+
+            # do the actual deletion
+            flow.release()
+
+            # we can't just redirect so as to make our modal do the right thing
+            response = self.render_to_response(self.get_context_data(success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+
+            return response
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -703,7 +723,8 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self, *args, **kwargs):
-            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+            qs = super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs)
+            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
@@ -871,7 +892,13 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='step', display=six.text_type(_('Sent to'))),
                 dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
-            flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
+
+            parent_variables = [dict(name='parent.%s' % v['name'], display=v['display']) for v in contact_variables]
+            parent_variables += [dict(name='parent.%s' % v['name'], display=v['display']) for v in flow_variables]
+
+            child_variables = [dict(name='child.%s' % v['name'], display=v['display']) for v in contact_variables]
+            child_variables += [dict(name='child.%s' % v['name'], display=v['display']) for v in flow_variables]
+
             flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
@@ -887,7 +914,9 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables,
+            messages_completions = contact_variables + date_variables + flow_variables
+            messages_completions += parent_variables + child_variables
+            return JsonResponse(dict(message_completions=messages_completions,
                                      function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -898,12 +927,15 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
 
+            flow = self.get_object(self.get_queryset())
+
             # hangup any test calls if we have them
-            IVRCall.hangup_test_call(self.get_object())
+            if flow.flow_type == Flow.VOICE:
+                IVRCall.hangup_test_call(flow)
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            flow = self.get_object(self.get_queryset())
+
             flow.ensure_current_version()
 
             initial = flow.as_json(expand_contacts=True)
@@ -981,11 +1013,9 @@ class FlowCRUDL(SmartCRUDL):
                                   href='#'))
 
             if self.has_org_perm('flows.flow_delete'):
-                links.append(dict(divider=True)),
-                links.append(dict(title=_("Delete"),
-                                  delete=True,
-                                  success_url=reverse('flows.flow_list'),
-                                  href=reverse('flows.flow_delete', args=[flow.id])))
+                links.append(dict(title=_('Delete'),
+                                  js_class='delete-flow',
+                                  href="#"))
 
             return links
 
@@ -1024,6 +1054,12 @@ class FlowCRUDL(SmartCRUDL):
             contact_fields = forms.ModelMultipleChoiceField(ContactField.objects.filter(id__lt=0), required=False,
                                                             help_text=_("Which contact fields, if any, to include "
                                                                         "in the export"))
+
+            extra_urns = forms.MultipleChoiceField(required=False, label=_("Extra URNs"),
+                                                   choices=ContactURN.EXPORT_SCHEME_HEADERS,
+                                                   help_text=_("Extra URNs to include in the export in addition to "
+                                                               "the URN used in the flow"))
+
             responded_only = forms.BooleanField(required=False, label=_("Responded Only"), initial=True,
                                                 help_text=_("Only export results for contacts which responded"))
             include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
@@ -1081,7 +1117,8 @@ class FlowCRUDL(SmartCRUDL):
                                                       contact_fields=form.cleaned_data['contact_fields'],
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],
-                                                      responded_only=form.cleaned_data['responded_only'])
+                                                      responded_only=form.cleaned_data['responded_only'],
+                                                      extra_urns=form.cleaned_data['extra_urns'])
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: needs cover
@@ -1353,13 +1390,19 @@ class FlowCRUDL(SmartCRUDL):
                 if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(user.username, 'temba.flow_simulated')
 
-                ActionLog.objects.filter(run__in=runs).delete()
-                Msg.objects.filter(contact=test_contact).delete()
+                action_log_ids = list(ActionLog.objects.filter(run__in=runs).values_list('id', flat=True))
+                ActionLog.objects.filter(id__in=action_log_ids).delete()
+
+                msg_ids = list(Msg.objects.filter(contact=test_contact).only('id').values_list('id', flat=True))
+
+                for batch in chunk_list(msg_ids, 25):
+                    Msg.objects.filter(id__in=list(batch)).delete()
+
                 IVRCall.objects.filter(contact=test_contact).delete()
                 USSDSession.objects.filter(contact=test_contact).delete()
 
-                runs.delete()
                 steps.delete()
+                FlowRun.objects.filter(contact=test_contact).delete()
 
                 # reset all contact fields values
                 test_contact.values.all().delete()
@@ -1378,8 +1421,7 @@ class FlowCRUDL(SmartCRUDL):
             new_message = json_dict.get('new_message', '')
             media = None
 
-            from temba.settings import TEMBA_HOST, STATIC_URL
-            media_url = 'http://%s%simages' % (TEMBA_HOST, STATIC_URL)
+            media_url = 'http://%s%simages' % (user.get_org().get_brand_domain(), settings.STATIC_URL)
 
             if 'new_photo' in json_dict:  # pragma: needs cover
                 media = '%s/png:%s/simulator_photo.png' % (Msg.MEDIA_IMAGE, media_url)
@@ -1400,16 +1442,17 @@ class FlowCRUDL(SmartCRUDL):
                         USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
+                                                    contact=test_contact,
                                                     date=timezone.now(),
                                                     message_id=str(randint(0, 1000)),
-                                                    external_id=str(randint(0, 1000)),
+                                                    external_id='test',
                                                     org=user.get_org(),
                                                     status=status)
                     else:
                         Msg.create_incoming(None,
-                                            test_contact.get_urn(TEL_SCHEME).urn,
+                                            six.text_type(test_contact.get_urn(TEL_SCHEME)),
                                             new_message,
-                                            media=media,
+                                            attachments=[media] if media else None,
                                             org=user.get_org(),
                                             status=PENDING)
                 except Exception as e:  # pragma: needs cover
@@ -1419,6 +1462,15 @@ class FlowCRUDL(SmartCRUDL):
                                         status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
+
+            if flow.flow_type == Flow.USSD:
+                for msg in messages:
+                    if msg.connection.should_end:
+                        msg.connection.close()
+
+                # don't show the empty closing message on the simulator
+                messages = messages.exclude(text='', direction='O')
+
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)

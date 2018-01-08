@@ -2003,8 +2003,9 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
       };
 
       $modalStack.close = function (modalInstance, result) {
-        var modalWindow = openedWindows.get(modalInstance).value;
+        var modalWindow = openedWindows.get(modalInstance);
         if (modalWindow) {
+          modalWindow = modalWindow.value
           modalWindow.deferred.resolve(result);
           removeModalWindow(modalInstance);
         }

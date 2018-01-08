@@ -1,13 +1,17 @@
 from __future__ import unicode_literals
 
 import logging
+import six
 
 from celery.task import task
+from collections import defaultdict
 from django.db import transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
+from temba.utils import chunk_list
+from temba.utils.cache import QueueRecord
 from temba.utils.queues import push_task, nonoverlapping_task
 
 
@@ -19,14 +23,39 @@ def check_campaigns_task():
     """
     See if any event fires need to be triggered
     """
-    # for each that needs to be fired
-    for fire in EventFire.objects.filter(fired=None,
-                                         scheduled__lte=timezone.now()).select_related('contact', 'contact__org'):
-        try:
-            push_task(fire.contact.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
+    from temba.flows.models import Flow
 
-        except Exception:  # pragma: no cover
-            logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
+    unfired = EventFire.objects.filter(fired=None, scheduled__lte=timezone.now())
+    unfired = unfired.values('id', 'event__flow_id')
+
+    # group fire events by flow so they can be batched
+    fire_ids_by_flow_id = defaultdict(list)
+    for fire in unfired:
+        fire_ids_by_flow_id[fire['event__flow_id']].append(fire['id'])
+
+    # fetch the flows used by all these event fires
+    flows_by_id = {flow.id: flow for flow in Flow.objects.filter(id__in=fire_ids_by_flow_id.keys())}
+
+    queued_fires = QueueRecord('queued_event_fires')
+
+    # create queued tasks
+    for flow_id, fire_ids in six.iteritems(fire_ids_by_flow_id):
+        flow = flows_by_id[flow_id]
+
+        # create sub-batches no no single task is too big
+        for fire_id_batch in chunk_list(fire_ids, 500):
+
+            # ignore any fires which were queued by previous calls to this task but haven't yet been marked as fired
+            queued_fire_ids = queued_fires.filter_unqueued(fire_id_batch)
+
+            if queued_fire_ids:
+                try:
+                    push_task(flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=queued_fire_ids))
+
+                    queued_fires.set_queued(queued_fire_ids)
+                except Exception:  # pragma: no cover
+                    fire_ids_str = ','.join(six.text_type(f) for f in queued_fire_ids)
+                    logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
 @task(track_started=True, name='update_event_fires_task')  # pragma: no cover

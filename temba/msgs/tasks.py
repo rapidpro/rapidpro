@@ -13,9 +13,11 @@ from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
-from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
+from temba.contacts.models import Contact, STOP_CONTACT_EVENT
+from temba.channels.models import ChannelEvent, CHANNEL_EVENT
+from temba.utils import json_date_to_datetime, chunk_list, analytics
+from temba.utils.mage import handle_new_message, handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
-from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, LabelCount, SystemLabelCount
 
@@ -49,7 +51,32 @@ def process_run_timeout(run_id, timeout_on):
                 print("T[%09d] %08.3f s" % (run.id, time.time() - start))
 
 
-def process_message(msg, from_mage=False, new_contact=False):
+def process_fire_events(fire_ids):
+    from temba.campaigns.models import EventFire
+
+    # every event fire in the batch will be for the same flow... but if the flow has been deleted then fires won't exist
+    single_fire = EventFire.objects.filter(id__in=fire_ids).first()
+    if not single_fire:  # pragma: no cover
+        return
+
+    flow = single_fire.event.flow
+
+    # lock on the flow so we know non-one else is updating these event fires
+    r = get_redis_connection()
+    with r.lock('process_fire_events:%d' % flow.id, timeout=300):
+
+        # only fetch fires that haven't been somehow already handled
+        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related('contact'))
+        if fires:
+            print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
+
+            start = time.time()
+            EventFire.batch_fire(fires, flow)
+
+            print("E[%s][%s] Finished batch firing events in %.3f s" % (flow.org.name, flow.name, time.time() - start))
+
+
+def process_message(msg, new_message=False, new_contact=False):
     """
     Processes the passed in message dealing with new contacts or mage messages appropriately.
     """
@@ -57,10 +84,10 @@ def process_message(msg, from_mage=False, new_contact=False):
     start = time.time()
 
     # if message was created in Mage...
-    if from_mage:
-        mage_handle_new_message(msg.org, msg)
+    if new_message:
+        handle_new_message(msg.org, msg)
         if new_contact:
-            mage_handle_new_contact(msg.org, msg.contact)
+            handle_new_contact(msg.org, msg.contact)
 
     Msg.process_message(msg)
     print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
@@ -92,7 +119,7 @@ def process_message_task(msg_event):
                 msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
                 if msg:
-                    process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
+                    process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
@@ -105,11 +132,42 @@ def process_message_task(msg_event):
 
 
 @task(track_started=True, name='send_broadcast')
-def send_broadcast_task(broadcast_id):
+def send_broadcast_task(broadcast_id, **kwargs):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
-    broadcast.send()
+
+    high_priority = (broadcast.recipient_count == 1)
+    expressions_context = {} if kwargs.get('with_expressions', True) else None
+
+    broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
+
+
+@task(track_started=True, name='send_to_flow_node')
+def send_to_flow_node(org_id, user_id, text, **kwargs):
+    from django.contrib.auth.models import User
+    from temba.contacts.models import Contact
+    from temba.orgs.models import Org
+    from temba.flows.models import FlowStep
+
+    org = Org.objects.get(pk=org_id)
+    user = User.objects.get(pk=user_id)
+    simulation = kwargs.get('simulation', 'false') == 'true'
+    step_uuid = kwargs.get('s', None)
+
+    qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+
+    steps = FlowStep.objects.filter(run__is_active=True, step_uuid=step_uuid,
+                                    left_on=None, run__flow__org=org).distinct('contact').select_related('contact')
+    contact_uuids = [f.contact.uuid for f in steps]
+    contacts = qs.filter(uuid__in=contact_uuids).order_by('name')
+
+    recipients = list(contacts)
+    broadcast = Broadcast.create(org, user, text, recipients)
+    broadcast.send(expressions_context={})
+
+    analytics.track(user.username, 'temba.broadcast_created',
+                    dict(contacts=len(contacts), groups=0, urns=0))
 
 
 @task(track_started=True, name='send_spam')
@@ -186,7 +244,6 @@ def check_messages_task():  # pragma: needs cover
     Checks to see if any of our aggregators have errored messages that need to be retried.
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
     """
-    from django.utils import timezone
     from .models import INCOMING, PENDING
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
@@ -236,13 +293,11 @@ def handle_event_task():
     messages that need to be handled.
 
     Currently three types of events may be "popped" from our queue:
-           msg - Which contains the id of the Msg to be processed
-          fire - Which contains the id of the EventFire that needs to be fired
-       timeout - Which contains a run that timed out and needs to be resumed
+             msg - Which contains the id of the Msg to be processed
+            fire - Which contains the id of the EventFire that needs to be fired
+         timeout - Which contains a run that timed out and needs to be resumed
+    stop_contact - Which contains the contact id to stop
     """
-    from temba.campaigns.models import EventFire
-    r = get_redis_connection()
-
     # pop off the next task
     org_id, event_task = start_task(HANDLE_EVENT_TASK)
 
@@ -255,21 +310,20 @@ def handle_event_task():
             process_message_task(event_task)
 
         elif event_task['type'] == FIRE_EVENT:
-            # use a lock to make sure we don't do two at once somehow
-            key = 'fire_campaign_%s' % event_task['id']
-            if not r.get(key):
-                with r.lock(key, timeout=120):
-                    event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
-                                             .select_related('event', 'event__campaign', 'event__campaign__org').first()
-                    if event:
-                        print("E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name))
-                        start = time.time()
-                        event.fire()
-                        print("E[%09d] %08.3f s" % (event.id, time.time() - start))
+            fire_ids = event_task.get('fires') if 'fires' in event_task else [event_task.get('id')]
+            process_fire_events(fire_ids)
 
         elif event_task['type'] == TIMEOUT_EVENT:
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
             process_run_timeout(event_task['run'], timeout_on)
+
+        elif event_task['type'] == STOP_CONTACT_EVENT:
+            contact = Contact.objects.get(id=event_task['contact_id'])
+            contact.stop(contact.modified_by)
+
+        elif event_task['type'] == CHANNEL_EVENT:
+            event = ChannelEvent.objects.get(id=event_task['event_id'])
+            event.handle()
 
         else:  # pragma: needs cover
             raise Exception("Unexpected event type: %s" % event_task)

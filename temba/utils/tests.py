@@ -2,8 +2,10 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import copy
 import datetime
 import json
+import pycountry
 import pytz
 import six
 import time
@@ -27,23 +29,24 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
+from . import format_decimal, str_to_datetime, str_to_time, date_to_utc_range
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
+from . import percentage, datetime_to_json_date, json_date_to_datetime
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
-from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
+from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
 from .email import send_simple_email, is_valid_address
 from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
-from .gsm7 import is_gsm7, replace_non_gsm7_accents
+from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
+from .http import http_headers
 from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
+from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
-from . import decode_base64
 
 
 class InitTest(TembaTest):
@@ -55,6 +58,14 @@ class InitTest(TembaTest):
         self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
                          decode_base64('Please vote NO on the confirmation of Gorsuch.'))
 
+        # length not multiple of 4
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)'))
+
+        # end not match base64 characteres
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???'))
+
         self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
                          decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
 
@@ -63,6 +74,16 @@ class InitTest(TembaTest):
 
         self.assertIn('I find them to be friendly',
                       decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
+
+        # not 50% ascii letters
+        self.assertEqual('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw==',
+                         decode_base64('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw=='))
+
+        with patch('temba.utils.text.Counter') as mock_decode:
+            mock_decode.side_effect = Exception('blah')
+
+            self.assertEqual('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==',
+                             decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
@@ -168,36 +189,36 @@ class InitTest(TembaTest):
         self.assertTrue(str_to_bool('1'))
 
     def test_format_decimal(self):
-        self.assertEquals('', format_decimal(None))
-        self.assertEquals('0', format_decimal(Decimal('0.0')))
-        self.assertEquals('10', format_decimal(Decimal('10')))
-        self.assertEquals('100', format_decimal(Decimal('100.0')))
-        self.assertEquals('123', format_decimal(Decimal('123')))
-        self.assertEquals('123', format_decimal(Decimal('123.0')))
-        self.assertEquals('123.34', format_decimal(Decimal('123.34')))
-        self.assertEquals('123.34', format_decimal(Decimal('123.3400000')))
-        self.assertEquals('-123', format_decimal(Decimal('-123.0')))
+        self.assertEqual('', format_decimal(None))
+        self.assertEqual('0', format_decimal(Decimal('0.0')))
+        self.assertEqual('10', format_decimal(Decimal('10')))
+        self.assertEqual('100', format_decimal(Decimal('100.0')))
+        self.assertEqual('123', format_decimal(Decimal('123')))
+        self.assertEqual('123', format_decimal(Decimal('123.0')))
+        self.assertEqual('123.34', format_decimal(Decimal('123.34')))
+        self.assertEqual('123.34', format_decimal(Decimal('123.3400000')))
+        self.assertEqual('-123', format_decimal(Decimal('-123.0')))
 
     def test_slugify_with(self):
-        self.assertEquals('foo_bar', slugify_with('foo bar'))
-        self.assertEquals('foo$bar', slugify_with('foo bar', '$'))
+        self.assertEqual('foo_bar', slugify_with('foo bar'))
+        self.assertEqual('foo$bar', slugify_with('foo bar', '$'))
 
     def test_truncate(self):
-        self.assertEquals('abc', truncate('abc', 5))
-        self.assertEquals('abcde', truncate('abcde', 5))
-        self.assertEquals('ab...', truncate('abcdef', 5))
+        self.assertEqual('abc', truncate('abc', 5))
+        self.assertEqual('abcde', truncate('abcde', 5))
+        self.assertEqual('ab...', truncate('abcdef', 5))
 
     def test_random_string(self):
         rs = random_string(1000)
-        self.assertEquals(1000, len(rs))
+        self.assertEqual(1000, len(rs))
         self.assertFalse('1' in rs or 'I' in rs or '0' in rs or 'O' in rs)
 
     def test_percentage(self):
-        self.assertEquals(0, percentage(0, 100))
-        self.assertEquals(0, percentage(0, 0))
-        self.assertEquals(0, percentage(100, 0))
-        self.assertEquals(75, percentage(75, 100))
-        self.assertEquals(76, percentage(759, 1000))
+        self.assertEqual(0, percentage(0, 100))
+        self.assertEqual(0, percentage(0, 0))
+        self.assertEqual(0, percentage(100, 0))
+        self.assertEqual(75, percentage(75, 100))
+        self.assertEqual(76, percentage(759, 1000))
 
     def test_get_country_code_by_name(self):
         self.assertEqual('RW', get_country_code_by_name('Rwanda'))
@@ -211,6 +232,16 @@ class InitTest(TembaTest):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
+
+    def test_replace_non_characters(self):
+        self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
+
+    def test_http_headers(self):
+        headers = http_headers(extra={'Foo': "Bar"})
+        headers['Token'] = "123456"
+
+        self.assertEqual(headers, {'User-agent': 'RapidPro', 'Foo': "Bar", 'Token': "123456"})
+        self.assertEqual(http_headers(), {'User-agent': 'RapidPro'})  # check changes don't leak
 
 
 class TimezonesTest(TembaTest):
@@ -242,10 +273,10 @@ class TemplateTagTest(TembaTest):
         flow = Flow.create(self.org, self.admin, 'Test Flow')
         trigger = Trigger.objects.create(org=self.org, keyword='trigger', flow=flow, created_by=self.admin, modified_by=self.admin)
 
-        self.assertEquals('icon-instant', icon(campaign))
-        self.assertEquals('icon-feed', icon(trigger))
-        self.assertEquals('icon-tree', icon(flow))
-        self.assertEquals("", icon(None))
+        self.assertEqual('icon-instant', icon(campaign))
+        self.assertEqual('icon-feed', icon(trigger))
+        self.assertEqual('icon-tree', icon(flow))
+        self.assertEqual("", icon(None))
 
     def test_format_seconds(self):
         from temba.utils.templatetags.temba import format_seconds
@@ -253,13 +284,13 @@ class TemplateTagTest(TembaTest):
         self.assertIsNone(format_seconds(None))
 
         # less than a minute
-        self.assertEquals("30 sec", format_seconds(30))
+        self.assertEqual("30 sec", format_seconds(30))
 
         # round down
-        self.assertEquals("1 min", format_seconds(89))
+        self.assertEqual("1 min", format_seconds(89))
 
         # round up
-        self.assertEquals("2 min", format_seconds(100))
+        self.assertEqual("2 min", format_seconds(100))
 
     def test_delta(self):
         from temba.utils.templatetags.temba import delta_filter
@@ -277,6 +308,30 @@ class TemplateTagTest(TembaTest):
 
         # non-delta arg
         self.assertEqual('', delta_filter('Invalid'))
+
+    def test_oxford(self):
+        from temba.utils.templatetags.temba import oxford
+
+        def forloop(idx, total):
+            """
+            Creates a dict like that available inside a template tag
+            """
+            return dict(counter0=idx, counter=idx + 1, revcounter=total - idx, last=total == idx + 1)
+
+        # list of two
+        self.assertEqual(" and ", oxford(forloop(0, 2)))
+        self.assertEqual(".", oxford(forloop(1, 2), "."))
+
+        # list of three
+        self.assertEqual(", ", oxford(forloop(0, 3)))
+        self.assertEqual(", and ", oxford(forloop(1, 3)))
+        self.assertEqual(".", oxford(forloop(2, 3), "."))
+
+        # list of four
+        self.assertEqual(", ", oxford(forloop(0, 4)))
+        self.assertEqual(", ", oxford(forloop(1, 4)))
+        self.assertEqual(", and ", oxford(forloop(2, 4)))
+        self.assertEqual(".", oxford(forloop(3, 4), "."))
 
 
 class CacheTest(TembaTest):
@@ -337,24 +392,45 @@ class CacheTest(TembaTest):
         incrby_existing('xxx', -2, r)  # non-existent key
         self.assertIsNone(r.get('xxx'))
 
+    def test_queue_record(self):
+        items1 = [dict(id=1), dict(id=2), dict(id=3)]
+        lock = QueueRecord('test_items', lambda i: i['id'])
+        self.assertEqual(lock.filter_unqueued(items1), [dict(id=1), dict(id=2), dict(id=3)])
+
+        lock.set_queued(items1)  # mark those items as queued now
+
+        self.assertTrue(lock.is_queued(dict(id=3)))
+        self.assertFalse(lock.is_queued(dict(id=4)))
+
+        # try getting access to queued item #3 and a new item #4
+        items2 = [dict(id=3), dict(id=4)]
+        self.assertEqual(lock.filter_unqueued(items2), [dict(id=4)])
+
+        # check locked items are still locked tomorrow
+        with patch('temba.utils.cache.timezone') as mock_timezone:
+            mock_timezone.now.return_value = timezone.now() + datetime.timedelta(days=1)
+
+            lock = QueueRecord('test_items', lambda i: i['id'])
+            self.assertEqual(lock.filter_unqueued([dict(id=3)]), [])
+
 
 class EmailTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
         send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
-        self.assertEquals(len(mail.outbox), 1)
-        self.assertEquals(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
-        self.assertEquals(mail.outbox[0].subject, "Test Subject")
-        self.assertEquals(mail.outbox[0].body, "Test Body")
-        self.assertEquals(mail.outbox[0].recipients(), ['recipient@bar.com'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
+        self.assertEqual(mail.outbox[0].subject, "Test Subject")
+        self.assertEqual(mail.outbox[0].body, "Test Body")
+        self.assertEqual(mail.outbox[0].recipients(), ['recipient@bar.com'])
 
         send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
-        self.assertEquals(len(mail.outbox), 2)
-        self.assertEquals(mail.outbox[1].from_email, 'no-reply@foo.com')
-        self.assertEquals(mail.outbox[1].subject, "Test Subject")
-        self.assertEquals(mail.outbox[1].body, "Test Body")
-        self.assertEquals(mail.outbox[1].recipients(), ["recipient@bar.com"])
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(mail.outbox[1].from_email, 'no-reply@foo.com')
+        self.assertEqual(mail.outbox[1].subject, "Test Subject")
+        self.assertEqual(mail.outbox[1].body, "Test Body")
+        self.assertEqual(mail.outbox[1].recipients(), ["recipient@bar.com"])
 
     def test_is_valid_address(self):
 
@@ -477,7 +553,7 @@ class JsonTest(TembaTest):
 
         # test the same using our object mocking
         mock = dict_to_struct('Mock', json.loads(encoded), ['now'])
-        self.assertEquals(mock.now, source['now'])
+        self.assertEqual(mock.now, source['now'])
 
         # try it with a microsecond of 0 instead
         source['now'] = timezone.now().replace(microsecond=0)
@@ -493,7 +569,7 @@ class JsonTest(TembaTest):
 
         # test the same using our object mocking
         mock = dict_to_struct('Mock', json.loads(encoded), ['now'])
-        self.assertEquals(mock.now, source['now'])
+        self.assertEqual(mock.now, source['now'])
 
 
 class QueueTest(TembaTest):
@@ -522,7 +598,7 @@ class QueueTest(TembaTest):
 
         # pop on another task and start it and complete it
         push_task(self.org, None, 'test', args1)
-        self.assertEquals(args1, start_task('test')[1])
+        self.assertEqual(args1, start_task('test')[1])
         complete_task('test', self.org.id)
 
         # should have no active workers
@@ -535,8 +611,8 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args2)
 
         # should come back in order of insertion
-        self.assertEquals(args1, start_task('test')[1])
-        self.assertEquals(args2, start_task('test')[1])
+        self.assertEqual(args1, start_task('test')[1])
+        self.assertEqual(args2, start_task('test')[1])
 
         # two active workers
         self.assertEqual(r.zscore('test:active', self.org.id), 2)
@@ -565,10 +641,10 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args4, LOW_PRIORITY)
 
         # high priority should be first out, then defaults, then low
-        self.assertEquals(args3, start_task('test')[1])
-        self.assertEquals(args1, start_task('test')[1])
-        self.assertEquals(args2, start_task('test')[1])
-        self.assertEquals(args4, start_task('test')[1])
+        self.assertEqual(args3, start_task('test')[1])
+        self.assertEqual(args1, start_task('test')[1])
+        self.assertEqual(args2, start_task('test')[1])
+        self.assertEqual(args4, start_task('test')[1])
 
         self.assertEqual(r.zscore('test:active', self.org.id), 4)
 
@@ -683,115 +759,115 @@ class ExpressionsTest(TembaTest):
         self.context = EvaluationContext(variables, timezone.utc, DateStyle.DAY_FIRST)
 
     def test_evaluate_template(self):
-        self.assertEquals(("Hello World", []), evaluate_template('Hello World', self.context))  # no expressions
-        self.assertEquals(("Hello = Well 5", []),
-                          evaluate_template("Hello = @(flow.water_source) @flow.users", self.context))
-        self.assertEquals(("xxJoexx", []),
-                          evaluate_template("xx@(contact.first_name)xx", self.context))  # no whitespace
-        self.assertEquals(('Hello "World"', []),
-                          evaluate_template('@( "Hello ""World""" )', self.context))  # string with escaping
-        self.assertEquals(("Hello World", []),
-                          evaluate_template('@( "Hello" & " " & "World" )', self.context))  # string concatenation
-        self.assertEquals(('("', []),
-                          evaluate_template('@("(" & """")', self.context))  # string literals containing delimiters
-        self.assertEquals(('Joe Blow and Joe Blow', []),
-                          evaluate_template('@contact and @(contact)', self.context))  # old and new style
-        self.assertEquals(("Joe Blow language is set to 'eng'", []),
-                          evaluate_template("@contact language is set to '@contact.language'", self.context))  # language
+        self.assertEqual(("Hello World", []), evaluate_template('Hello World', self.context))  # no expressions
+        self.assertEqual(("Hello = Well 5", []),
+                         evaluate_template("Hello = @(flow.water_source) @flow.users", self.context))
+        self.assertEqual(("xxJoexx", []),
+                         evaluate_template("xx@(contact.first_name)xx", self.context))  # no whitespace
+        self.assertEqual(('Hello "World"', []),
+                         evaluate_template('@( "Hello ""World""" )', self.context))  # string with escaping
+        self.assertEqual(("Hello World", []),
+                         evaluate_template('@( "Hello" & " " & "World" )', self.context))  # string concatenation
+        self.assertEqual(('("', []),
+                         evaluate_template('@("(" & """")', self.context))  # string literals containing delimiters
+        self.assertEqual(('Joe Blow and Joe Blow', []),
+                         evaluate_template('@contact and @(contact)', self.context))  # old and new style
+        self.assertEqual(("Joe Blow language is set to 'eng'", []),
+                         evaluate_template("@contact language is set to '@contact.language'", self.context))  # language
 
         # test LTR and RTL mixing
-        self.assertEquals(("one two three four", []),
-                          evaluate_template("one @flow.english four", self.context))  # LTR var, LTR value, LTR text
-        self.assertEquals(("one اثنين ثلاثة four", []),
-                          evaluate_template("one @flow.arabic four", self.context))  # LTR var, RTL value, LTR text
-        self.assertEquals(("واحد اثنين ثلاثة أربعة", []),
-                          evaluate_template("واحد @flow.arabic أربعة", self.context))  # LTR var, RTL value, RTL text
-        self.assertEquals(("واحد two three أربعة", []),
-                          evaluate_template("واحد @flow.english أربعة", self.context))  # LTR var, LTR value, RTL text
+        self.assertEqual(("one two three four", []),
+                         evaluate_template("one @flow.english four", self.context))  # LTR var, LTR value, LTR text
+        self.assertEqual(("one اثنين ثلاثة four", []),
+                         evaluate_template("one @flow.arabic four", self.context))  # LTR var, RTL value, LTR text
+        self.assertEqual(("واحد اثنين ثلاثة أربعة", []),
+                         evaluate_template("واحد @flow.arabic أربعة", self.context))  # LTR var, RTL value, RTL text
+        self.assertEqual(("واحد two three أربعة", []),
+                         evaluate_template("واحد @flow.english أربعة", self.context))  # LTR var, LTR value, RTL text
 
         # test decimal arithmetic
-        self.assertEquals(("Result: 7", []),
-                          evaluate_template("Result: @(flow.users + 2)",
-                                            self.context))  # var is int
-        self.assertEquals(("Result: 0", []),
-                          evaluate_template("Result: @(flow.count - 5)",
-                                            self.context))  # var is string
-        self.assertEquals(("Result: 0.5", []),
-                          evaluate_template("Result: @(5 / (flow.users * 2))",
-                                            self.context))  # result is decimal
-        self.assertEquals(("Result: -10", []),
-                          evaluate_template("Result: @(-5 - flow.users)", self.context))  # negatives
+        self.assertEqual(("Result: 7", []),
+                         evaluate_template("Result: @(flow.users + 2)",
+                                           self.context))  # var is int
+        self.assertEqual(("Result: 0", []),
+                         evaluate_template("Result: @(flow.count - 5)",
+                                           self.context))  # var is string
+        self.assertEqual(("Result: 0.5", []),
+                         evaluate_template("Result: @(5 / (flow.users * 2))",
+                                           self.context))  # result is decimal
+        self.assertEqual(("Result: -10", []),
+                         evaluate_template("Result: @(-5 - flow.users)", self.context))  # negatives
 
         # test date arithmetic
-        self.assertEquals(("Date: 02-12-2014 09:00", []),
-                          evaluate_template("Date: @(flow.joined + 1)",
-                                            self.context))  # var is datetime
-        self.assertEquals(("Date: 28-11-2014 09:00", []),
-                          evaluate_template("Date: @(flow.started - 3)",
-                                            self.context))  # var is string
-        self.assertEquals(("Date: 04-07-2014", []),
-                          evaluate_template("Date: @(DATE(2014, 7, 1) + 3)",
-                                            self.context))  # date constructor
-        self.assertEquals(("Date: 01-12-2014 11:30", []),
-                          evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))",
-                                            self.context))  # time addition to datetime var
-        self.assertEquals(("Date: 01-12-2014 06:30", []),
-                          evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))",
-                                            self.context))  # time subtraction from string var
+        self.assertEqual(("Date: 02-12-2014 09:00", []),
+                         evaluate_template("Date: @(flow.joined + 1)",
+                                           self.context))  # var is datetime
+        self.assertEqual(("Date: 28-11-2014 09:00", []),
+                         evaluate_template("Date: @(flow.started - 3)",
+                                           self.context))  # var is string
+        self.assertEqual(("Date: 04-07-2014", []),
+                         evaluate_template("Date: @(DATE(2014, 7, 1) + 3)",
+                                           self.context))  # date constructor
+        self.assertEqual(("Date: 01-12-2014 11:30", []),
+                         evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))",
+                                           self.context))  # time addition to datetime var
+        self.assertEqual(("Date: 01-12-2014 06:30", []),
+                         evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))",
+                                           self.context))  # time subtraction from string var
 
         # test function calls
-        self.assertEquals(("Hello joe", []),
-                          evaluate_template("Hello @(lower(contact.first_name))",
-                                            self.context))  # use lowercase for function name
-        self.assertEquals(("Hello JOE", []),
-                          evaluate_template("Hello @(UPPER(contact.first_name))",
-                                            self.context))  # use uppercase for function name
-        self.assertEquals(("Bonjour world", []),
-                          evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))',
-                                            self.context))  # string arguments
-        self.assertRegexpMatches(evaluate_template('Today is @(TODAY())', self.context)[0],
-                                 'Today is \d\d-\d\d-\d\d\d\d')  # function with no args
-        self.assertEquals(('3', []),
-                          evaluate_template('@(LEN( 1.2 ))',
-                                            self.context))  # auto decimal -> string conversion
-        self.assertEquals(('16', []),
-                          evaluate_template('@(LEN(flow.joined))',
-                                            self.context))  # auto datetime -> string conversion
-        self.assertEquals(('2', []),
-                          evaluate_template('@(WORD_COUNT("abc-def", FALSE))',
-                                            self.context))  # built-in variable
-        self.assertEquals(('TRUE', []),
-                          evaluate_template('@(OR(AND(True, flow.count = flow.users, 1), 0))',
-                                            self.context))  # booleans / varargs
-        self.assertEquals(('yes', []),
-                          evaluate_template('@(IF(IF(flow.count > 4, "x", "y") = "x", "yes", "no"))',
-                                            self.context))  # nested conditional
+        self.assertEqual(("Hello joe", []),
+                         evaluate_template("Hello @(lower(contact.first_name))",
+                                           self.context))  # use lowercase for function name
+        self.assertEqual(("Hello JOE", []),
+                         evaluate_template("Hello @(UPPER(contact.first_name))",
+                                           self.context))  # use uppercase for function name
+        self.assertEqual(("Bonjour world", []),
+                         evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))',
+                                           self.context))  # string arguments
+        self.assertRegex(evaluate_template('Today is @(TODAY())', self.context)[0],
+                         'Today is \d\d-\d\d-\d\d\d\d')  # function with no args
+        self.assertEqual(('3', []),
+                         evaluate_template('@(LEN( 1.2 ))',
+                                           self.context))  # auto decimal -> string conversion
+        self.assertEqual(('16', []),
+                         evaluate_template('@(LEN(flow.joined))',
+                                           self.context))  # auto datetime -> string conversion
+        self.assertEqual(('2', []),
+                         evaluate_template('@(WORD_COUNT("abc-def", FALSE))',
+                                           self.context))  # built-in variable
+        self.assertEqual(('TRUE', []),
+                         evaluate_template('@(OR(AND(True, flow.count = flow.users, 1), 0))',
+                                           self.context))  # booleans / varargs
+        self.assertEqual(('yes', []),
+                         evaluate_template('@(IF(IF(flow.count > 4, "x", "y") = "x", "yes", "no"))',
+                                           self.context))  # nested conditional
 
         # evaluation errors
-        self.assertEquals(("Error: @()", ["Expression error at: )"]),
-                          evaluate_template("Error: @()",
-                                            self.context))  # syntax error due to empty expression
-        self.assertEquals(("Error: @('2')", ["Expression error at: '"]),
-                          evaluate_template("Error: @('2')",
-                                            self.context))  # don't support single quote string literals
-        self.assertEquals(("Error: @(2 / 0)", ["Division by zero"]),
-                          evaluate_template("Error: @(2 / 0)",
-                                            self.context))  # division by zero
-        self.assertEquals(("Error: @(1 + flow.blank)", ["Expression could not be evaluated as decimal or date arithmetic"]),
-                          evaluate_template("Error: @(1 + flow.blank)",
-                                            self.context))  # string that isn't numeric
-        self.assertEquals(("Well @flow.boil", ["Undefined variable: flow.boil"]),
-                          evaluate_template("@flow.water_source @flow.boil",
-                                            self.context))  # undefined variables
-        self.assertEquals(("Hello @(XXX(1, 2))", ["Undefined function: XXX"]),
-                          evaluate_template("Hello @(XXX(1, 2))",
-                                            self.context))  # undefined function
-        self.assertEquals(('Hello @(ABS(1, "x", TRUE))', ["Too many arguments provided for function ABS"]),
-                          evaluate_template('Hello @(ABS(1, "x", TRUE))',
-                                            self.context))  # wrong number of args
-        self.assertEquals(('Hello @(REPT(flow.blank, -2))', ['Error calling function REPT with arguments "", -2']),
-                          evaluate_template('Hello @(REPT(flow.blank, -2))',
-                                            self.context))  # internal function error
+        self.assertEqual(("Error: @()", ["Expression error at: )"]),
+                         evaluate_template("Error: @()",
+                                           self.context))  # syntax error due to empty expression
+        self.assertEqual(("Error: @('2')", ["Expression error at: '"]),
+                         evaluate_template("Error: @('2')",
+                                           self.context))  # don't support single quote string literals
+        self.assertEqual(("Error: @(2 / 0)", ["Division by zero"]),
+                         evaluate_template("Error: @(2 / 0)",
+                                           self.context))  # division by zero
+        self.assertEqual(("Error: @(1 + flow.blank)", ["Expression could not be evaluated as decimal or date arithmetic"]),
+                         evaluate_template("Error: @(1 + flow.blank)",
+                                           self.context))  # string that isn't numeric
+        self.assertEqual(("Well @flow.boil", ["Undefined variable: flow.boil"]),
+                         evaluate_template("@flow.water_source @flow.boil",
+                                           self.context))  # undefined variables
+        self.assertEqual(("Hello @(XXX(1, 2))", ["Undefined function: XXX"]),
+                         evaluate_template("Hello @(XXX(1, 2))",
+                                           self.context))  # undefined function
+        self.assertEqual(('Hello @(ABS(1, "x", TRUE))', ["Too many arguments provided for function ABS"]),
+                         evaluate_template('Hello @(ABS(1, "x", TRUE))',
+                                           self.context))  # wrong number of args
+        self.assertEqual(('Hello @(REPT(flow.blank, -2))', ['Error calling function REPT with arguments "", -2']),
+                         evaluate_template('Hello @(REPT(flow.blank, -2))',
+                                           self.context))  # internal function error
 
     def test_evaluate_template_compat(self):
         # test old style expressions, i.e. @ and with filters
@@ -906,11 +982,11 @@ class ExpressionsTest(TembaTest):
                                                                      vararg=False)])))
 
     def test_percentage(self):
-        self.assertEquals(0, percentage(0, 100))
-        self.assertEquals(0, percentage(0, 0))
-        self.assertEquals(0, percentage(100, 0))
-        self.assertEquals(75, percentage(75, 100))
-        self.assertEquals(76, percentage(759, 1000))
+        self.assertEqual(0, percentage(0, 100))
+        self.assertEqual(0, percentage(0, 0))
+        self.assertEqual(0, percentage(100, 0))
+        self.assertEqual(75, percentage(75, 100))
+        self.assertEqual(76, percentage(759, 1000))
 
 
 class GSM7Test(TembaTest):
@@ -921,17 +997,41 @@ class GSM7Test(TembaTest):
         self.assertFalse(is_gsm7("No unicode. ☺"))
 
         replaced = replace_non_gsm7_accents("No capital accented È!")
-        self.assertEquals("No capital accented E!", replaced)
+        self.assertEqual("No capital accented E!", replaced)
         self.assertTrue(is_gsm7(replaced))
 
         replaced = replace_non_gsm7_accents("No crazy “word” quotes.")
-        self.assertEquals('No crazy "word" quotes.', replaced)
+        self.assertEqual('No crazy "word" quotes.', replaced)
         self.assertTrue(is_gsm7(replaced))
 
         # non breaking space
         replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
-        self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
+        self.assertEqual('Pour chercher du boulot, comment fais-tu ?', replaced)
         self.assertTrue(is_gsm7(replaced))
+
+    def test_num_segments(self):
+        ten_chars = "1234567890"
+
+        self.assertEqual(1, calculate_num_segments(ten_chars * 16))
+        self.assertEqual(1, calculate_num_segments(ten_chars * 6 + "“word”7890"))
+
+        # 161 should be two segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 16 + "1"))
+
+        # 306 is exactly two gsm7 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 30 + "123456"))
+
+        # 159 but with extended as last should be two as well
+        self.assertEqual(2, calculate_num_segments(ten_chars * 15 + "123456789{"))
+
+        # 355 should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 35 + "12345"))
+
+        # 134 is exactly two ucs2 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 12 + "“word”12345678"))
+
+        # 136 characters with quotes should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
 class ChunkTest(TembaTest):
@@ -1020,12 +1120,12 @@ class ExportTest(TembaTest):
 
             for idx, row in enumerate(reader):
                 if idx == 0:
-                    self.assertEquals(cols, row)
+                    self.assertEqual(cols, row)
                 else:
-                    self.assertEquals(values, row)
+                    self.assertEqual(values, row)
 
             # should only be three rows
-            self.assertEquals(2, idx)
+            self.assertEqual(2, idx)
 
     @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
@@ -1052,37 +1152,44 @@ class ExportTest(TembaTest):
         temp_file, file_ext = exporter.save_file()
         workbook = load_workbook(filename=temp_file.name)
 
-        self.assertEquals(2, len(workbook.worksheets))
+        self.assertEqual(2, len(workbook.worksheets))
 
         # check our sheet 1 values
         sheet1 = workbook.worksheets[0]
 
         rows = tuple(sheet1.rows)
 
-        self.assertEquals(cols, [cell.value for cell in rows[0]])
-        self.assertEquals(values, [cell.value for cell in rows[1]])
+        self.assertEqual(cols, [cell.value for cell in rows[0]])
+        self.assertEqual(values, [cell.value for cell in rows[1]])
 
-        self.assertEquals(test_max_rows, len(list(sheet1.rows)))
-        self.assertEquals(32, len(list(sheet1.columns)))
+        self.assertEqual(test_max_rows, len(list(sheet1.rows)))
+        self.assertEqual(32, len(list(sheet1.columns)))
 
         sheet2 = workbook.worksheets[1]
         rows = tuple(sheet2.rows)
-        self.assertEquals(cols, [cell.value for cell in rows[0]])
-        self.assertEquals(values, [cell.value for cell in rows[1]])
+        self.assertEqual(cols, [cell.value for cell in rows[0]])
+        self.assertEqual(values, [cell.value for cell in rows[1]])
 
-        self.assertEquals(200 + 2, len(list(sheet2.rows)))
-        self.assertEquals(32, len(list(sheet2.columns)))
+        self.assertEqual(200 + 2, len(list(sheet2.rows)))
+        self.assertEqual(32, len(list(sheet2.columns)))
 
 
 class CurrencyTest(TembaTest):
 
     def test_currencies(self):
-        self.assertEqual(currency_for_country('US').letter, 'USD')
-        self.assertEqual(currency_for_country('EC').letter, 'USD')
-        self.assertEqual(currency_for_country('FR').letter, 'EUR')
-        self.assertEqual(currency_for_country('DE').letter, 'EUR')
-        self.assertEqual(currency_for_country('YE').letter, 'YER')
-        self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+        self.assertEqual(currency_for_country('US').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('EC').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('FR').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('DE').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('YE').alpha_3, 'YER')
+        self.assertEqual(currency_for_country('AF').alpha_3, 'AFN')
+
+        for country in list(pycountry.countries):
+            try:
+                currency_for_country(country.alpha_2)
+            except KeyError:
+                self.fail('Country missing currency: %s' % country)
 
 
 class VoiceXMLTest(TembaTest):
@@ -1441,6 +1548,15 @@ class MiddlewareTest(TembaTest):
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
 
+    def test_redirect(self):
+        self.assertNotRedirect(self.client.get(reverse('public.public_index')), None)
+
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['redirect'] = '/redirect'
+        with self.settings(BRANDING=branding):
+            self.assertRedirect(self.client.get(reverse('public.public_index')), '/redirect')
+
     def test_flow_simulation(self):
         Contact.set_simulation(True)
 
@@ -1498,7 +1614,8 @@ class MakeTestDBTest(SimpleTestCase):
         def assertOrgCounts(qs, counts):
             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        print(User.objects.all())
+        self.assertEqual(User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12)
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
@@ -1510,7 +1627,7 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

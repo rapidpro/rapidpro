@@ -5,8 +5,9 @@ class window.AutoComplete
 
   constructor: (@variables=[], @functions=[]) ->
 
-    @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
+    @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step', 'parent', 'child', 'new_contact']);
     @completions = @variables.concat(@functions)
+    @invalidFields = {}
 
     # mark our functions as functions
     for f in @functions
@@ -103,7 +104,7 @@ class window.AutoComplete
 
         beforeInsert: (value, item) ->
 
-          completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi')
+          completionChars = new RegExp("([A-Za-z_\\d\.]*)$", 'gi')
           valueForName = ""
           match = completionChars.exec(value)
           if match
@@ -111,7 +112,7 @@ class window.AutoComplete
 
           hasMore = false
           for option in ac.variables
-            hasMore = valueForName and option.name.indexOf(valueForName) is 0 and option.name isnt valueForName
+            hasMore = valueForName and option.name.indexOf(valueForName + '.') is 0 and option.name isnt valueForName
             if hasMore
               break
 
@@ -131,6 +132,34 @@ class window.AutoComplete
             value += " "
 
           return value
+
+  findInvalidFields: (text) ->
+    if not text
+      return []
+
+    # these are acceptable keys, that we don't necessarily want to show completion for
+    validKeys = {
+      "id": true,
+      "telegram": true,
+      "facebook": true
+    }
+
+    for variable in @variables
+      if variable.name.startsWith('contact')
+        key = variable.name.slice(8)
+        if key
+          validKeys[key] = true;
+
+    fields = @parser.getContactFields(text)
+
+    re = /[a-z][a-z0-9_]+/;
+    for field in fields
+      if !(field of validKeys) or !re.exec(field)
+        @invalidFields[field] = true
+    return Object.keys(@invalidFields)
+
+  getInvalidFields: () ->
+    return Object.keys(@invalidFields)
 
   getDisplayTemplate: (map, query, subQuery) ->
     template = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
@@ -239,9 +268,9 @@ class window.AutoComplete
       if subtext.match(/\(\)$/) isnt null
         inputor.caret('pos', subtext.length - 1)
 
-    # do react to clicking inside expressions
+    # hide autocomplete if user clicks in the input
     inputor.off('click.atwhoInner').on 'click.atwhoInner', (e) ->
-      $.noop()
+      inputor.atwho('hide')
 
     # check for possible inserts when a key is pressed
     inputor.off('keyup.atwhoInner').on 'keyup.atwhoInner', (e) ->

@@ -2,6 +2,9 @@
 - load smartmin temba compress
 - load i18n
 
+-block page-title
+  -trans "Manage Accounts"
+  \- {{user_org.name|capfirst}}
 
 -block extra-less
   -compress css inline
@@ -17,8 +20,16 @@
           }
         }
 
+        tr.invites-title th {
+          border: none
+        }
+
         tr.invite td {
           color: #ddd;
+
+          &.invite-remove {
+            color: #999999;
+          }
         }
 
         .glyph.level-checkbox:before {
@@ -120,6 +131,11 @@
             .glyph.level-checkbox
 
       // pending invites
+      %tr
+      %tr.invites-title
+        %th
+          -trans "Invites"
+
       -for invite in invites
         %tr.invite
           %td
@@ -132,6 +148,11 @@
             .glyph.level-checkbox{class:'{% if invite.user_group == "V"%}checked{%endif%}'}
           %td.permission
             .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
+          - with invites_fields|get:invite as check_name
+            %td.check.permission.invite-remove
+              .hidden-input.hide
+                {{form|field:check_name}}
+              .glyph.level-checkbox
 
       %tr
         %td{height:'3px', colspan:6}
@@ -234,6 +255,9 @@
           cell.addClass('checked');
           ipt.prop('checked', true);
 
+        } else if (cell.hasClass("invite-remove")) {
+          cell.removeClass('checked');
+          ipt.prop('checked', false);
         }
 
         hasAdmin = false;

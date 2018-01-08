@@ -1,0 +1,17 @@
+-extends "channels/channel_claim_number.html"
+
+-load compress temba
+-load i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph{class:"{{ view.channel_type.icon }}"}
+
+- block account-trial-warning
+  - if account_trial
+    .account-trial-warning
+      - blocktrans
+        You have connected a Twilio Trial Account which has some restrictions.
+      %br
+      %a{href:"https://www.twilio.com/help/faq/twilio-basics/how-does-twilios-free-trial-work"}
+        - trans "Read more about the limits placed on Twilio's Free Trial numbers."

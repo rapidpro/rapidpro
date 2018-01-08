@@ -46,7 +46,7 @@ class AirtimeEventTest(TembaTest):
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
 
             self.assertEqual(mock_post.call_count, 1)
-            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
             self.assertTrue('action' in mock_args.keys())
             self.assertTrue('login' in mock_args.keys())
@@ -67,7 +67,7 @@ class AirtimeEventTest(TembaTest):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
             self.assertEqual(mock_post.call_count, 1)
-            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
             self.assertTrue('action' in mock_args.keys())
             self.assertTrue('login' in mock_args.keys())
@@ -245,6 +245,30 @@ class AirtimeEventTest(TembaTest):
                           'delivered_amount_info': '1'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '', 'skuid': '5505',
+                          'destination_msisdn': '+12065552020', 'currency': 'USD',
+                          'product': '0.5'},) in mock_response.call_args_list)
+        mock_response.reset_mock()
+
+        # for open range only, no product_list, no skuid_list,
+        # just a skuid we just have to pass the amount as denomination
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "open_range_minimum_amount_local_currency=5\r\n"
+                                                       "open_range_maximum_amount_local_currency=100\r\n"
+                                                       "open_range_minimum_amount_requested_currency=0.25\r\n"
+                                                       "open_range_maximum_amount_requested_currency=5\r\n"
+                                                       "skuid=9940\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
+        self.assertEqual(mock_response.call_count, 3)
+        self.assertTrue(({'action': 'msisdn_info', 'currency': 'USD', 'destination_msisdn': '+12065552020',
+                          'delivered_amount_info': '1'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '', 'skuid': '9940',
                           'destination_msisdn': '+12065552020', 'currency': 'USD',
                           'product': '0.5'},) in mock_response.call_args_list)
         mock_response.reset_mock()

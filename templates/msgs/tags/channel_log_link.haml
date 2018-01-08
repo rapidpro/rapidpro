@@ -1,0 +1,7 @@
+-if log
+  -if log.session
+    %a{href:"{% url 'channels.channellog_session' log.session.id %}"}
+      .icon-docs-2
+  -else
+    %a{href:"{% url 'channels.channellog_read' log.id %}"}
+      .icon-docs-2

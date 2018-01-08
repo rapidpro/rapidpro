@@ -1,0 +1,414 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 51, 
+          "destination": "e9d21f6a-9e6c-4bfe-9735-65cbf9536f92", 
+          "uuid": "629c3e5c-89b8-4d04-905c-3c54f466c905", 
+          "actions": [
+            {
+              "type": "del_group", 
+              "groups": [
+                {
+                  "name": "Dog Facts", 
+                  "uuid": "ac7bed91-8be1-4780-8d3e-80083735ed70"
+                }
+              ]
+            }, 
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Cat Facts", 
+                  "uuid": "119ef829-1ab8-4170-ada0-7d22041cc777"
+                }
+              ]
+            },
+            {
+              "field": "favorite_cat", 
+              "type": "save", 
+              "value": "Scottish Fold", 
+              "label": "Favorite Cat"
+            },
+            {
+              "msg": {
+                "fre": "French @(10 / contact.french_age & contact.french_fries).",
+                "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw)). Your score is @(MAX(parent.contact.top, child.contact.bottom)). On @((DATEVALUE(\"24-10-2017\") + TIMEVALUE(\"12:30\"))). Thanks @parent.contact!"
+              },
+              "media": {
+                "eng": "image:@contact.attachment"
+              },
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 552, 
+          "x": 64, 
+          "destination": "87438640-8765-4ff2-b528-1272f6d5b1ba", 
+          "uuid": "e5be62c6-8dc2-4ada-ba99-d0b04d846217", 
+          "actions": [
+            {
+              "contacts": [], 
+              "media": {}, 
+              "variables": [
+                {
+                  "id": "@contact.recipient"
+                }
+              ], 
+              "groups": [], 
+              "msg": {
+                "fre": "This is in the @contact.french_message", 
+                "eng": "This is a @contact.message"
+              }, 
+              "type": "send"
+            }, 
+            {
+              "msg": "Email @contact.email_message", 
+              "type": "email", 
+              "emails": [
+                "test@rapidpro.io"
+              ], 
+              "subject": "Subject @contact.subject"
+            }
+          ]
+        }, 
+        {
+          "y": 769, 
+          "x": 21, 
+          "destination": "42d135e8-a7d8-4c1d-8228-5b916bc89b3a", 
+          "uuid": "87438640-8765-4ff2-b528-1272f6d5b1ba", 
+          "actions": [
+            {
+              "field": "next_cat_fact", 
+              "type": "save", 
+              "value": "@contact.last_cat_fact", 
+              "label": "Next Cat Fact"
+            }, 
+            {
+              "type": "add_group", 
+              "groups": [
+                "@contact.cat_breed"
+              ]
+            }, 
+            {
+              "type": "del_group", 
+              "groups": [
+                "@contact.organization"
+              ]
+            }, 
+            {
+              "type": "trigger-flow", 
+              "variables": [
+                {
+                  "id": "@contact.other_phone"
+                }
+              ], 
+              "flow": {
+                "name": "Child Flow", 
+                "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
+              }, 
+              "groups": [], 
+              "contacts": []
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "629c3e5c-89b8-4d04-905c-3c54f466c905", 
+      "rule_sets": [
+        {
+          "uuid": "e9d21f6a-9e6c-4bfe-9735-65cbf9536f92", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              }, 
+              "uuid": "7bdd6c7f-88cd-46eb-8a95-f968abf10a03", 
+              "destination": "ce6384b9-d629-4335-b70a-2e9d82b041a2", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Failure"
+              }, 
+              "uuid": "3013a0f5-bfae-47e8-b942-876fa750d2e9", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 341, 
+          "x": 305, 
+          "config": {
+            "webhook": "http://www.google.com/@(contact.webhook)/endpoint.json", 
+            "webhook_action": "GET", 
+            "webhook_headers": []
+          }
+        }, 
+        {
+          "uuid": "ce6384b9-d629-4335-b70a-2e9d82b041a2", 
+          "rules": [
+            {
+              "category": {
+                "fre": "French Rule", 
+                "eng": "Rule"
+              }, 
+              "uuid": "02c9e416-7cbe-428a-89e7-ad891f5f561e", 
+              "destination": "e5be62c6-8dc2-4ada-ba99-d0b04d846217", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "fre": "@contact.french_rule", 
+                  "eng": "@contact.rule"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "7617a509-7b4a-4d8a-a0b9-4cd5def5e8d3", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 441, 
+          "x": 47, 
+          "config": {}
+        }, 
+        {
+          "uuid": "42d135e8-a7d8-4c1d-8228-5b916bc89b3a", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Monkey Facts"
+              }, 
+              "uuid": "5972c657-2714-4c93-b8a1-f97a24c8e33e", 
+              "destination": "51077642-657f-4368-908b-5eba98a0c7a4", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "test": {
+                  "uuid": "4b33434a-37f3-439c-a078-ae182a5fcde2", 
+                  "name": "Monkey Facts"
+                }, 
+                "type": "in_group"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Fish Facts"
+              }, 
+              "uuid": "fd69f4f5-2963-4980-b74c-281a150deda7", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "uuid": "9c59c1ab-df85-4eef-86a1-1e95f78f637d", 
+                  "name": "Fish Facts"
+                }, 
+                "type": "in_group"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "1df5b5cc-52f2-4399-aab3-b04e70e7a03c", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "group", 
+          "label": "Group Split", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1078, 
+          "x": 140, 
+          "config": {}
+        }, 
+        {
+          "uuid": "51077642-657f-4368-908b-5eba98a0c7a4", 
+          "rules": [
+            {
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "uuid": "5c8dc7a6-4008-43fe-b914-a21ea3699313", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 4", 
+          "operand": "@contact.expression_split", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1221, 
+          "x": 56, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 261, 
+        "uuid": "17aebbfb-eb4f-4884-a550-50cbbae996fa", 
+        "name": "Dependencies", 
+        "saved_on": "2017-10-05T20:27:23.019354Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "uuid": "6175bb69-d3a8-4a40-a898-f9505b9498f4", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What is your favorite color? @step.value"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 89, 
+          "x": 725, 
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "uuid": "dee2737a-9e76-4095-a4f0-07fc15b59f75", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "don't know that one"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "6175bb69-d3a8-4a40-a898-f9505b9498f4", 
+      "rule_sets": [
+        {
+          "uuid": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Red"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Red"
+              }, 
+              "destination": null, 
+              "uuid": "b48fa375-c3ad-4b3e-bf93-43292e3b1cfa"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "fre": "grune", 
+                  "eng": "Green"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Green"
+              }, 
+              "uuid": "83562725-1f39-4dd6-a167-f4280f94fa15"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "Blue"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Blue"
+              }, 
+              "uuid": "480acf40-4abb-4661-b2af-6ac31d21251c"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "dee2737a-9e76-4095-a4f0-07fc15b59f75", 
+              "uuid": "bc11051b-efa8-4562-9f9a-37d831299694", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Color", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 146, 
+          "x": 258, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247", 
+        "name": "Child Flow", 
+        "saved_on": "2017-01-20T15:55:34.401121Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

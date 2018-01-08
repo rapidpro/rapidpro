@@ -4,7 +4,6 @@ import json
 import urlparse
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
@@ -13,12 +12,20 @@ from django.views.generic import RedirectView, View
 from random import randint
 from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreateView, SmartListView, SmartTemplateView
 from temba.public.models import Lead, Video
-from temba.utils import analytics, random_string
+from temba.utils import analytics, get_anonymous_user
+from temba.utils.text import random_string
 from urllib import urlencode
 
 
 class IndexView(SmartTemplateView):
     template_name = 'public/public_index.haml'
+
+    def pre_process(self, request, *args, **kwargs):
+        response = super(IndexView, self).pre_process(request, *args, **kwargs)
+        redirect = self.request.branding.get('redirect')
+        if redirect:
+            return HttpResponseRedirect(redirect)
+        return response
 
     def get_context_data(self, **kwargs):
         context = super(IndexView, self).get_context_data(**kwargs)
@@ -125,7 +132,7 @@ class LeadCRUDL(SmartCRUDL):
             return HttpResponseRedirect(url + "?errors=%s" % email)
 
         def pre_save(self, obj):
-            anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            anon = get_anonymous_user()
             obj = super(LeadCRUDL.Create, self).pre_save(obj)
             obj.created_by = anon
             obj.modified_by = anon
@@ -139,6 +146,7 @@ class LeadCRUDL(SmartCRUDL):
 
 
 class Blog(RedirectView):
+    # whitelabels don't have blogs, so we don't use the brand domain here
     url = "http://blog." + settings.HOSTNAME
 
 

@@ -17,6 +17,8 @@
         %textarea#id_text{tabindex:1}
         #counter
 
+        #recipients-count
+
         #omni
           #omni-select2
             #omnibox.placeholder.populate{style:"width:100%"}
@@ -48,8 +50,6 @@
       %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
         -trans "Add Channel"
 
-  %script{src:"{{ STATIC_URL }}js/excellent.js"}
-
   -load compress
 
   :javascript
@@ -69,15 +69,14 @@
 
     // show the compose dialog with some contacts prepopulated
     function showComposeInitialized(queryString, url, onComplete) {
-      showCompose(true, url, onComplete);
+      showCompose(true, url, null, null, onComplete);
       $.get("{% url 'contacts.contact_omnibox' %}?" + queryString, function(data, textStatus){
         initializeOmnibox(data.results);
         $('.select2-input').attr('tabindex', 2);
       });
     }
 
-    
-    function showCompose(loading, url, onComplete) {
+    function showCompose(loading, url, nodeUUID, nodeRecipientsCount, onComplete) {
       // make sure any previous errors are removed
       $("#send-message .error").remove();
 
@@ -93,6 +92,17 @@
       } else {
         $("#omni-select2").show();
         $("#loading").hide();
+      }
+
+      $("#recipients-count").hide();
+
+      if(nodeUUID) {
+        $("#omnibox").hide();
+        $("#omni-select2").hide();
+        $("#loading").hide();
+        $("#send-message .schedule").hide();
+        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{% trans "recipients at this point in the flow" %}' );
+        $("#recipients-count").show();
       }
 
       // show the modal
@@ -116,10 +126,10 @@
       $('#send-form').attr("action", url);
 
       $("#send-message .ok").unbind('click').unbind('keypress').click(function(e) {
-        sendMessage(e, null, onComplete)
+        sendMessage(e, null, nodeUUID, onComplete)
       }).keypress(function(e) {
         if(e.which == 13){
-          sendMessage(e, null, onComplete);
+          sendMessage(e, null, nodeUUID, onComplete);
         }
       });
 
@@ -139,7 +149,7 @@
       sendMessage(this, true);
     });
 
-    function sendMessage(e, scheduled, onComplete) {
+    function sendMessage(e, scheduled, nodeUUID, onComplete) {
       if ($("#send-message .ok").hasClass("disabled")) {
         e.preventDefault();
         return;
@@ -163,6 +173,7 @@
 
       // our post data
       var data = {
+        step_node: nodeUUID,
         schedule: scheduled,
         text: form.find("#id_text").val(),
         csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val()

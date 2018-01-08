@@ -21,7 +21,7 @@
               },
               {
                 "test": {
-                  "test": "Father",
+                  "test": "Fathers",
                   "type": "contains_any"
                 },
                 "category": "Father",

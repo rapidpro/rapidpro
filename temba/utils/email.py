@@ -6,7 +6,7 @@ import six
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, send_mail, get_connection as get_smtp_connection
 from django.core.validators import EmailValidator
-from django.template import loader, Context
+from django.template import loader
 from django.conf import settings
 
 
@@ -78,7 +78,7 @@ def send_custom_smtp_email(recipients, subject, body, from_email, smtp_host, smt
     :param smtp_password: SMTP password
     :param use_tls: Whether to use TLS
     """
-    recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
+    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     if smtp_port is not None:
         smtp_port = int(smtp_port)
@@ -108,8 +108,8 @@ def send_template_email(recipients, subject, template, context, branding):
     context['subject'] = subject
     context['branding'] = branding
 
-    html = html_template.render(Context(context))
-    text = text_template.render(Context(context))
+    html = html_template.render(context)
+    text = text_template.render(context)
 
     send_temba_email(subject, text, html, from_email, recipient_list)
 

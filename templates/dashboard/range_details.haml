@@ -1,0 +1,61 @@
+-load humanize
+
+.span6
+  %table.table
+    -for org in orgs
+      %tr
+        %td
+          %a{href:'?org={{org.channel__org}}&begin={{begin|date:"Y-m-d"}}&end={{end|date:"Y-m-d"}}&direction={{direction}}'}
+            {{org.channel__org__name}}
+        %td
+          {{org.day}}
+        %td
+          .pull-right
+            {{org.count_sum|intcomma}}
+    %tr
+      %td
+      %td
+      %td
+
+
+.span6
+  #channel-chart
+
+%table#data.hide
+  %thead
+    %tr
+      %th
+      %th
+        Messages
+  %tbody
+    -for type in channel_types
+      %tr
+        %th
+          {{type.channel__name}}
+        %td
+          {{type.count_sum}}
+
+:javascript
+  $(document).ready(function() {
+
+    var chart = Highcharts.chart('channel-chart', {
+      data: {
+        table: 'data'
+      },
+      chart: {
+        type: 'pie'
+      },
+      title: {
+        text: null
+      },
+      credits: {
+        enabled: false
+      },
+      tooltip: {
+        formatters: function () {
+          return '<b>' + this.series.name + '</b><br/>' +
+            this.point.y + ' ' + this.point.name.toLowerCase();
+        }
+      }
+    });
+  });

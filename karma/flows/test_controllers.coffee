@@ -426,6 +426,9 @@ describe 'Controllers:', ->
         scope.ruleset.ruleset_type = 'webhook'
         scope.formData.webhook = 'http://www.nyaruka.com'
         scope.formData.webhook_action = 'POST'
+        scope.formData.webhook_headers = [{name: '', key: ''}]
+        scope.webhook_headers_name[0] = 'Authorization'
+        scope.webhook_headers_value[0] = 'Token 12345'
 
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.ruleset_type).toBe('webhook')
@@ -436,6 +439,8 @@ describe 'Controllers:', ->
       # our config should have a url
       expect(ruleset.config.webhook).toBe('http://www.nyaruka.com')
       expect(ruleset.config.webhook_action).toBe('POST')
+      expect(ruleset.config.webhook_headers[0]['name']).toBe('Authorization')
+      expect(ruleset.config.webhook_headers[0]['value']).toBe('Token 12345')
 
       # do it again, make sure we have the right number of rules
       editRules ruleset, (scope) ->
@@ -579,11 +584,13 @@ describe 'Controllers:', ->
         modalScope = $modalStack.getTop().value.modalScope
 
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # ivr only
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # pretend we are a voice flow
         flowService.flow.flow_type = 'V'
@@ -591,6 +598,7 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('say'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # now try a survey
         flowService.flow.flow_type = 'S'
@@ -598,6 +606,7 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # USSD flow
         flowService.flow.flow_type = 'U'
@@ -605,6 +614,7 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(true)
 
       $timeout.flush()
 
@@ -755,3 +765,25 @@ describe 'Controllers:', ->
 
         for rule_test in rule_tests
           expect(scope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
+
+          
+     it 'should generate json quick replies to send', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+    
+      json_quick_reply = ['Yes', 'No']
+
+      editAction actionset, action, (scope) ->
+        scope.quickReplies = []
+        scope.action.quick_replies = {}
+        scope.addNewQuickReply()
+        scope.quickReplies[0] = 'Yes'
+        scope.quickReplies[1] = 'No'
+        scope.formData.msg = "test"
+        scope.saveMessage('test', type='reply')
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      expect(JSON.stringify(action.quick_replies)).toBe(JSON.stringify(json_quick_reply))

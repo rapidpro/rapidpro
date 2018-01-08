@@ -5,7 +5,7 @@
 
 {% block body %}
     <p>
-      {% blocktrans with org_name=org_name brand=branding.name %}
+      {% blocktrans with org_name=org.name brand=branding.name %}
         We've noticed that the Android phone for {{ org_name }} hasn't contacted the {{ brand }} servers since
       {% endblocktrans %}
 

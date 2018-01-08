@@ -1,6 +1,7 @@
 from django import template
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
+from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext, ungettext_lazy
@@ -17,6 +18,24 @@ TIME_SINCE_CHUNKS = (
     (60, ungettext_lazy('%d minute', '%d minutes')),
     (1, ungettext_lazy('%d second', '%d seconds'))
 )
+
+
+@register.filter
+def oxford(forloop, punctuation=""):
+    """
+    Filter that looks at the current step in a forloop and adds commas or and
+    """
+    # there are only two items
+    if forloop["counter"] == 1 and forloop["revcounter"] == 2:
+        return _(" and ")
+
+    # we are the last in a list of 3 or more
+    if forloop["revcounter"] == 2:
+        return _(", and ")
+
+    if not forloop['last']:
+        return ", "
+    return punctuation
 
 
 @register.filter

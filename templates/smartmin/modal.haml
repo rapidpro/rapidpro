@@ -5,7 +5,6 @@
         -include success_script
       -else
         :javascript
-          console.log('loading: {{success_url}}');
           document.location.href = '{{ success_url }}';
 
 -else
@@ -18,3 +17,6 @@
       .select2-container {
         width: 300px;
       }
+
+  -if form
+    {{ form.media }}

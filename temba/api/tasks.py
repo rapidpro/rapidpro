@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
 
+from temba.utils import chunk_list
 from temba.utils.queues import nonoverlapping_task
 from .models import WebHookEvent, WebHookResult
 
@@ -66,8 +67,14 @@ def trim_webhook_event_task():
 
     if success_logs_trim_time:
         success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
-        WebHookEvent.objects.filter(created_on__lte=success_log_later, status=WebHookEvent.STATUS_COMPLETE).delete()
+        event_ids = WebHookEvent.objects.filter(created_on__lte=success_log_later, status=WebHookEvent.STATUS_COMPLETE)
+        event_ids = event_ids.values_list('id', flat=True)
+        for batch in chunk_list(event_ids, 1000):
+            WebHookEvent.objects.filter(id__in=batch).delete()
 
     if all_logs_trim_time:
         all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
-        WebHookEvent.objects.filter(created_on__lte=all_log_later).delete()
+        event_ids = WebHookEvent.objects.filter(created_on__lte=all_log_later)
+        event_ids = event_ids.values_list('id', flat=True)
+        for batch in chunk_list(event_ids, 1000):
+            WebHookEvent.objects.filter(id__in=batch).delete()

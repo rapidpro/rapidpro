@@ -1,20 +1,24 @@
 from __future__ import print_function, unicode_literals
 
 import calendar
+import itertools
 import json
 import logging
+import mimetypes
 import os
 import pycountry
 import random
+
+import re
 import regex
 import six
 import stripe
 import traceback
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
@@ -23,9 +27,8 @@ from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Sum, F, Q
+from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
-from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -34,16 +37,13 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import languages
+from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.email import send_template_email
+from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
-from temba.utils.timezones import timezone_to_country_code
+from temba.utils.text import random_string
 from timezone_field import TimeZoneField
-from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
 
@@ -51,8 +51,14 @@ from uuid import uuid4
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 10
-EARLIEST_IMPORT_VERSION = 3
+EARLIEST_IMPORT_VERSION = "3"
+
+
+# making this a function allows it to be used as a default for Django fields
+def get_current_export_version():
+    from temba.flows.models import Flow
+    return Flow.VERSIONS[-1]
+
 
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
@@ -107,6 +113,13 @@ SMTP_USERNAME = 'SMTP_USERNAME'
 SMTP_PASSWORD = 'SMTP_PASSWORD'
 SMTP_PORT = 'SMTP_PORT'
 SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
+
+CHATBASE_AGENT_NAME = 'CHATBASE_AGENT_NAME'
+CHATBASE_API_KEY = 'CHATBASE_API_KEY'
+CHATBASE_TYPE_AGENT = 'agent'
+CHATBASE_TYPE_USER = 'user'
+CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
+CHATBASE_VERSION = 'CHATBASE_VERSION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -277,6 +290,9 @@ class Org(SmartModel):
         from temba.middleware import BrandingMiddleware
         return BrandingMiddleware.get_branding_for_host(self.brand)
 
+    def get_brand_domain(self):
+        return self.get_branding()['domain']
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock
@@ -366,11 +382,10 @@ class Org(SmartModel):
 
         # see if our export needs to be updated
         export_version = data.get('version', 0)
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
-        if export_version < CURRENT_EXPORT_VERSION:
+        if Flow.is_before_version(export_version, get_current_export_version()):
             from temba.flows.models import FlowRevision
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
@@ -381,33 +396,25 @@ class Org(SmartModel):
         Trigger.import_triggers(data, self, user, same_site)
 
     @classmethod
-    def export_definitions(cls, site_link, flows=(), campaigns=(), triggers=()):
-        # remove any triggers that aren't included in our flows
-        flow_uuids = set([f.uuid for f in flows])
-        filtered_triggers = []
-        for trigger in triggers:
-            if trigger.flow.uuid in flow_uuids:
-                filtered_triggers.append(trigger)
-
-        triggers = filtered_triggers
+    def export_definitions(cls, site_link, components):
+        from temba.campaigns.models import Campaign
+        from temba.flows.models import Flow
+        from temba.triggers.models import Trigger
 
         exported_flows = []
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
         exported_campaigns = []
-        for campaign in campaigns:
-            for flow in campaign.get_flows():
-                flows.add(flow)
-            exported_campaigns.append(campaign.as_json())
-
         exported_triggers = []
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
 
-        return dict(version=CURRENT_EXPORT_VERSION,
+        for component in components:
+            if isinstance(component, Flow):
+                component.ensure_current_version()  # only export current versions
+                exported_flows.append(component.as_json(expand_contacts=True))
+            elif isinstance(component, Campaign):
+                exported_campaigns.append(component.as_json())
+            elif isinstance(component, Trigger):
+                exported_triggers.append(component.as_json())
+
+        return dict(version=get_current_export_version(),
                     site=site_link,
                     flows=exported_flows,
                     campaigns=exported_campaigns,
@@ -441,16 +448,18 @@ class Org(SmartModel):
         """
         from temba.channels.models import Channel
 
-        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
-        if country_code:
-            channel = channel.filter(country=country_code)
+        channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
-        channel = channel.first()
+        if scheme is not None:
+            channels = channels.filter(schemes__contains=[scheme])
+
+        channel = None
+        if country_code:
+            channel = channels.filter(country=country_code).first()
 
         # no channel? try without country
-        if not channel and country_code:
-            channel = self.channels.filter(is_active=True, scheme=scheme,
-                                           role__contains=role).order_by('-pk').first()
+        if not channel:
+            channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
@@ -461,9 +470,6 @@ class Org(SmartModel):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
-
-        if not scheme and not contact_urn:
-            raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
             if contact_urn:
@@ -496,7 +502,7 @@ class Org(SmartModel):
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.all()]
+                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -508,14 +514,18 @@ class Org(SmartModel):
                 # if we have more than one match, find the one with the highest overlap
                 if len(senders) > 1:
                     for sender in senders:
-                        channel_number = sender.address.strip('+')
+                        config = sender.config_json()
+                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+                        if not channel_prefixes or not isinstance(channel_prefixes, list):
+                            channel_prefixes = [sender.address.strip('+')]
 
-                        for idx in range(prefix, len(channel_number)):
-                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                                prefix = idx
-                                channel = sender
-                            else:
-                                break
+                        for chan_prefix in channel_prefixes:
+                            for idx in range(prefix, len(chan_prefix)):
+                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
+                                    prefix = idx
+                                    channel = sender
+                                else:
+                                    break
                 elif senders:
                     channel = senders[0]
 
@@ -552,8 +562,8 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_ussd_channels(self):
-        from temba.channels.models import Channel
-        return self.channels.filter(is_active=True, org=self, channel_type__in=Channel.USSD_CHANNELS)
+        from temba.channels.models import ChannelType, Channel
+        return Channel.get_by_category(self, ChannelType.Category.USSD)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -577,7 +587,8 @@ class Org(SmartModel):
 
         schemes = set()
         for channel in self.channels.filter(is_active=True, role__contains=role):
-            schemes.add(channel.scheme)
+            for scheme in channel.schemes:
+                schemes.add(scheme)
 
         setattr(self, cache_attr, schemes)
         return schemes
@@ -625,10 +636,10 @@ class Org(SmartModel):
         channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_obj = pycountry.countries.get(alpha_2=country_code)
             country_name = country_obj.name
             currency = currency_for_country(country_code)
-            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.alpha_3,
                                           currency_name=currency.name))
 
         return sorted(channel_countries, key=lambda k: k['name'])
@@ -779,13 +790,13 @@ class Org(SmartModel):
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        temba_host = settings.TEMBA_HOST.lower()
+        domain = self.get_brand_domain()
 
-        app_name = "%s/%s" % (temba_host, nexmo_uuid)
+        app_name = "%s/%s" % (domain, nexmo_uuid)
 
-        answer_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
+        answer_url = "https://%s%s" % (domain, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
 
-        event_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
+        event_url = "https://%s%s" % (domain, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
 
         params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
                       event_url=event_url, event_method='POST')
@@ -811,28 +822,7 @@ class Org(SmartModel):
         return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token, user):
-        client = TwilioRestClient(account_sid, account_token)
-        app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
-        apps = client.applications.list(friendly_name=app_name)
-        if apps:
-            temba_app = apps[0]
-        else:  # pragma: needs cover
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
-
-            # the the twiml to run when the voice app fails
-            fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
-
-            temba_app = client.applications.create(friendly_name=app_name,
-                                                   voice_url=app_url,
-                                                   voice_fallback_url=fallback_url,
-                                                   voice_fallback_method='GET',
-                                                   status_callback=app_url,
-                                                   status_callback_method='POST',
-                                                   sms_url=app_url,
-                                                   sms_method="POST")
-
-        application_sid = temba_app.sid
-        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token, APPLICATION_SID: application_sid}
+        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
 
         config = self.config_json()
         config.update(twilio_config)
@@ -859,13 +849,16 @@ class Org(SmartModel):
             config = self.config_json()
             account_sid = config.get(ACCOUNT_SID, None)
             account_token = config.get(ACCOUNT_TOKEN, None)
-            application_sid = config.get(APPLICATION_SID, None)
-            if account_sid and account_token and application_sid:
+            if account_sid and account_token:
                 return True
         return False
 
     def remove_nexmo_account(self, user):
         if self.config:
+            # release any nexmo channels
+            for channel in self.channels.filter(is_active=True, channel_type='NX'):  # pragma: needs cover
+                channel.release()
+
             config = self.config_json()
             config[NEXMO_KEY] = ''
             config[NEXMO_SECRET] = ''
@@ -873,17 +866,15 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any nexmo channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
-            for channel in channels:  # pragma: needs cover
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
 
     def remove_twilio_account(self, user):
         if self.config:
+            # release any twilio and twilio messaging sevice channels
+            for channel in self.channels.filter(is_active=True, channel_type__in=['T', 'TMS']):
+                channel.release()
+
             config = self.config_json()
             config[ACCOUNT_SID] = ''
             config[ACCOUNT_TOKEN] = ''
@@ -892,14 +883,46 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any twilio channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
-            for channel in channels:
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
+
+    def connect_chatbase(self, agent_name, api_key, version, user):
+        chatbase_config = {
+            CHATBASE_AGENT_NAME: agent_name,
+            CHATBASE_API_KEY: api_key,
+            CHATBASE_VERSION: version
+        }
+
+        config = self.config_json()
+        config.update(chatbase_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_chatbase_account(self, user):
+        config = self.config_json()
+
+        if CHATBASE_AGENT_NAME in config:
+            del config[CHATBASE_AGENT_NAME]
+
+        if CHATBASE_API_KEY in config:
+            del config[CHATBASE_API_KEY]
+
+        if CHATBASE_VERSION in config:
+            del config[CHATBASE_VERSION]
+
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def get_chatbase_credentials(self):
+        if self.config:
+            config = self.config_json()
+            chatbase_api_key = config.get(CHATBASE_API_KEY, None)
+            chatbase_version = config.get(CHATBASE_VERSION, None)
+            return chatbase_api_key, chatbase_version
+        else:
+            return None, None
 
     def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
@@ -954,7 +977,7 @@ class Org(SmartModel):
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
-                    return country.alpha2
+                    return country.alpha_2
             except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
@@ -1088,7 +1111,7 @@ class Org(SmartModel):
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if not boundary:
+                    if boundary:
                         break
 
                 if not boundary:
@@ -1159,12 +1182,10 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
+        return self.channels.filter(channel_type='T')
 
     def has_nexmo_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
+        return self.channels.filter(channel_type='NX')
 
     def create_welcome_topup(self, topup_size=None):
         if topup_size:
@@ -1367,6 +1388,9 @@ class Org(SmartModel):
                     self._calculate_credit_caches()
                     org._calculate_credit_caches()
 
+                    # apply topups to messages missing them
+                    org.apply_topups()
+
                 return True
 
         # couldn't allocate credits
@@ -1392,7 +1416,7 @@ class Org(SmartModel):
             remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
-            if not remaining or int(remaining) < 100:
+            if not remaining or int(remaining) < 5000:
                 active_topup_pk = None
 
         # calculate our active topup if we need to
@@ -1521,9 +1545,9 @@ class Org(SmartModel):
         # for our purposes, #1 and #2 are treated the same, we just always update the default card
 
         try:
-            if not customer:
+            if not customer or customer.email != user.email:
                 # then go create a customer object for this user
-                customer = stripe.Customer.create(card=token, email=user,
+                customer = stripe.Customer.create(card=token, email=user.email,
                                                   description="{ org: %d }" % self.pk)
 
                 stripe_customer = customer.id
@@ -1539,7 +1563,10 @@ class Org(SmartModel):
                 for card in existing_cards:
                     card.delete()
 
-                card = customer.cards.create(card=token)
+                try:
+                    card = customer.cards.create(card=token)
+                except stripe.CardError:
+                    raise ValidationError(_("Sorry, your card was declined, please contact your provider or try another card."))
 
                 customer.default_card = card.id
                 customer.save()
@@ -1593,8 +1620,12 @@ class Org(SmartModel):
 
             return topup
 
+        except ValidationError as e:
+            raise e
+
         except Exception as e:
-            traceback.print_exc(e)
+            logger = logging.getLogger(__name__)
+            logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(_("Sorry, we were unable to process your payment, please try again later or contact us."))
 
     def account_value(self):
@@ -1677,46 +1708,92 @@ class Org(SmartModel):
 
         return subscription
 
-    def get_export_flows(self, include_archived=False):
+    def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
+        """
+        Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
+        """
+        from temba.campaigns.models import Campaign, CampaignEvent
+        from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+
+        flow_prefetches = ('action_sets', 'rule_sets')
+        campaign_prefetches = (
+            Prefetch('events', queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE), to_attr='flow_events'),
+            'flow_events__flow'
+        )
+
+        all_flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
+        all_flow_map = {f.uuid: f for f in all_flows}
+
+        if include_campaigns:
+            all_campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(*campaign_prefetches)
+        else:
+            all_campaigns = Campaign.objects.none()
+
         if not include_archived:
-            flows = flows.filter(is_archived=False)
-        return flows
+            all_flows = all_flows.filter(is_archived=False)
+            all_campaigns = all_campaigns.filter(is_archived=False)
 
-    def get_recommended_channel(self):
-        from temba.channels.views import TWILIO_SEARCH_COUNTRIES
-        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
-                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
+        # build dependency graph for all flows and campaigns
+        dependencies = defaultdict(set)
+        for flow in all_flows:
+            dependencies[flow] = flow.get_dependencies(all_flow_map)
+        for campaign in all_campaigns:
+            dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
-        countrycode = timezone_to_country_code(self.timezone)
-        recommended = 'android'
+        # replace any dependency on a group with that group's associated campaigns - we're not actually interested
+        # in flow-group-flow relationships - only relationships that go through a campaign
+        campaigns_by_group = defaultdict(list)
+        if include_campaigns:
+            for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
+                campaigns_by_group[campaign.group].append(campaign)
 
-        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = 'twilio'
+        for c, deps in six.iteritems(dependencies):
+            if isinstance(c, Flow):
+                for d in list(deps):
+                    if isinstance(d, ContactGroup):
+                        deps.remove(d)
+                        deps.update(campaigns_by_group[d])
 
-        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'nexmo'
+        if include_triggers:
+            all_triggers = self.trigger_set.filter(is_archived=False, is_active=True).select_related('flow')
+            for trigger in all_triggers:
+                dependencies[trigger] = {trigger.flow}
 
-        elif countrycode == 'KE':
-            recommended = 'africastalking'
+        # make dependencies symmetric, i.e. if A depends on B, B depends on A
+        for c, deps in six.iteritems(dependencies.copy()):
+            for d in deps:
+                dependencies[d].add(c)
 
-        elif countrycode == 'ID':
-            recommended = 'hub9'
+        return dependencies
 
-        elif countrycode == 'SO':
-            recommended = 'shaqodoon'
+    def resolve_dependencies(self, flows, campaigns, include_campaigns=True, include_triggers=False, include_archived=False):
+        """
+        Given a set of flows and and a set of campaigns, returns a new set including all dependencies
+        """
+        dependencies = self.generate_dependency_graph(include_campaigns=include_campaigns,
+                                                      include_triggers=include_triggers,
+                                                      include_archived=include_archived)
 
-        elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'blackmyna'
+        primary_components = set(itertools.chain(flows, campaigns))
+        all_components = set()
 
-        elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'yo'
+        def add_component(c):
+            if c in all_components:
+                return
 
-        elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'globe'
+            all_components.add(c)
+            if c in primary_components:
+                primary_components.remove(c)
 
-        return recommended
+            for d in dependencies[c]:
+                add_component(d)
+
+        while primary_components:
+            component = next(iter(primary_components))
+            add_component(component)
+
+        return all_components
 
     def increment_unread_msg_count(self, type):
         """
@@ -1784,6 +1861,32 @@ class Org(SmartModel):
 
         return self.save_media(File(temp), extension)
 
+    def save_response_media(self, response):
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        downloaded = None
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.save_media(File(temp), extension)
+
+        return content_type, downloaded
+
     def save_media(self, file, extension):
         """
         Saves the given file data with the extension and returns an absolute url to the result
@@ -1829,14 +1932,15 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user, brand=None):
-    org = user.get_org()
     if not brand:
+        org = Org.get_org(user)
         brand = org.brand if org else settings.DEFAULT_BRAND
 
     if user.is_superuser:
         return Org.objects.all()
+
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.filter(brand=brand).distinct().order_by('name')
+    return user_orgs.filter(brand=brand, is_active=True).distinct().order_by('name')
 
 
 def get_org(obj):
@@ -1942,7 +2046,7 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text=None):
         """
         Returns the appropriate translation to use.
         :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
@@ -1959,8 +2063,8 @@ class Language(SmartModel):
 
         # otherwise, find the first preferred language
         for lang in preferred_languages:
-            localized = text_translations.get(lang, None)
-            if localized:
+            localized = text_translations.get(lang)
+            if localized is not None:
                 return localized
 
         return default_text

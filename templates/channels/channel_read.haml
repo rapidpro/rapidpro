@@ -36,7 +36,7 @@
           -if channel.is_delegate_caller
             -trans "Voice calls enabled"
 
-      -if channel.has_configuration_page
+      -if object.get_type.show_config_page
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.id %}">{%trans "Settings"%}</a>
 
 
