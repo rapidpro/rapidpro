@@ -109,8 +109,6 @@ def process_message_task(msg_event):
         # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
 
-            msg = None
-
             # pop the next message off our contact queue until we find one that needs handling
             while True:
                 with r.pipeline() as pipe:
@@ -127,11 +125,12 @@ def process_message_task(msg_event):
                 msg = (
                     Msg.objects.filter(id=msg_event['id'])
                     .order_by()
-                    .select_related('org', 'contact', 'contact_urn', 'channel').first()
+                    .select_related('org', 'contact', 'contact_urn', 'channel')
+                    .first()
                 )
 
                 # make sure we are still pending
-                if msg.status == PENDING:
+                if msg and msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
                     return
 
