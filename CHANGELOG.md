@@ -1,3 +1,8 @@
+v3.0.301
+----------
+ * Tweak process_message_task to not blow up if message doesn't exist
+ * Use FlowRun.message_ids for flow result exports
+
 v3.0.300
 ----------
  * Use config secret instead of secret field on Channel
