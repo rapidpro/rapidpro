@@ -1,3 +1,7 @@
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
 v3.0.302
 ----------
  * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
