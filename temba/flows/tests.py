@@ -49,7 +49,7 @@ from .models import (
     DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
-    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction,
+    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
     FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 )
 
@@ -4957,16 +4957,27 @@ class FlowsTest(FlowFileTest):
             '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
         })
 
-        # check recent messages
-        recent = FlowPathRecentMessage.get_recent([color_question.exit_uuid], color.uuid)
+        # check recent runs
+        recent = FlowPathRecentRun.get_recent([color_question.exit_uuid], color.uuid)
         self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
 
-        recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
+        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
         self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
 
+        recent = FlowPathRecentRun.get_recent([other_action.exit_uuid], color.uuid)
+        self.assertEqual([m.text for m in recent],
+                         ["I don't know that color. Try again.", "I don't know that color. Try again."])
+
+        recent = FlowPathRecentRun.get_recent([color_blue_uuid], beer_question.uuid)
+        self.assertEqual([m.text for m in recent], ["blue"])
+
+        # TODO remove after converting to recent runs
+        recent = FlowPathRecentMessage.get_recent([color_question.exit_uuid], color.uuid)
+        self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
+        recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
+        self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
         recent = FlowPathRecentMessage.get_recent([other_action.exit_uuid], color.uuid)
         self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
-
         recent = FlowPathRecentMessage.get_recent([color_blue_uuid], beer_question.uuid)
         self.assertEqual([m.text for m in recent], ["blue"])
 
