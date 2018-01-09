@@ -4329,6 +4329,31 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(ValueError):
             FlowRevision.validate_flow_definition(self.get_flow_json('non_localized_ruleset'))
 
+    def test_start_flow_queueing(self):
+        self.get_flow('start_flow_queued')
+        self.channel.channel_type = 'TG'
+        self.channel.save()
+
+        # trigger Flow A
+        self.send('flowa')
+
+        # make sure the message sent after our start flow action is never created
+        self.assertIsNone(Msg.objects.filter(text='This message should never be sent').first())
+
+        # the message sent by the flow started by our start action should have gotten queued
+        msg = Msg.objects.filter(text='This message should be queued').first()
+        self.assertIsNotNone(msg.queued_on)
+        self.assertEqual(WIRED, msg.status)
+        msg.delete()
+
+        # now lets do the same test but with a flow that prompts first
+        self.send('flowawait')
+        self.send('yes')
+
+        msg = Msg.objects.filter(text='This message should be queued').first()
+        self.assertIsNotNone(msg.queued_on)
+        self.assertEqual(WIRED, msg.status)
+
     def test_sms_forms(self):
         flow = self.get_flow('sms_form')
 
