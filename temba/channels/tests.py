@@ -42,7 +42,8 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils import dict_to_struct, get_anonymous_user
+from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
 from temba.utils.http import http_headers
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
@@ -1105,6 +1106,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.channel_type, 'NX')
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
+        self.assertEqual(nexmo.tps, 1)
+        channel_config = nexmo.config_json()
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'private-key')
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type='NX').first()
@@ -1865,7 +1872,6 @@ class ChannelTest(TembaTest):
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
-        from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
         now = now.replace(microsecond=now.microsecond / 1000 * 1000)
 
@@ -8076,8 +8082,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                 data['message_id'],))
 
     def test_status_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_event()
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -8103,8 +8111,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_status_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         # ok, what happens with an invalid uuid?
         data = self.mk_event()
@@ -8143,8 +8153,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8165,8 +8177,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8281,8 +8295,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("événement", self.admin, trigger_send=False)[0]
@@ -9226,9 +9242,9 @@ class JiochatTest(TembaTest):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
                                       config={'jiochat_app_id': 'app-id',
-                                              'jiochat_app_secret': 'app-secret'},
-                                      uuid='00000000-0000-0000-0000-000000001234',
-                                      secret=Channel.generate_secret(32))
+                                              'jiochat_app_secret': 'app-secret',
+                                              'secret': Channel.generate_secret(32)},
+                                      uuid='00000000-0000-0000-0000-000000001234')
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
@@ -9276,7 +9292,7 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        value = "".join(sorted([self.channel.secret, timestamp, nonce]))
+        value = "".join(sorted([self.channel.config_json()[Channel.CONFIG_SECRET], timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()
@@ -9899,7 +9915,7 @@ class LineTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'LN', '123456789', '123456789',
-                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
+                                      config=dict(channel_id='1234', secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):

@@ -22,7 +22,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookEvent, Resthook
+from temba.api.models import WebHookEvent, WebHookResult, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
@@ -32,7 +32,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, O
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -610,7 +610,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(44):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -758,7 +758,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(43):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -835,7 +835,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -862,7 +862,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(44):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -1248,7 +1248,7 @@ class FlowTest(TembaTest):
         # return our run for later inspection
         return run
 
-    def assertDateTest(self, expected_test, expected_value, test):
+    def assertDateTest(self, expected_result, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.timezone
         context = run.flow.build_expressions_context(run.contact, None)
@@ -1257,15 +1257,17 @@ class FlowTest(TembaTest):
         test_json = test.as_json()
         test = test.__class__.from_json(run.org, test_json)
 
-        tuple = test.evaluate(run, self.sms, context, self.sms.text)
-        if expected_test:
-            self.assertTrue(tuple[0])
+        result, value = test.evaluate(run, self.sms, context, self.sms.text)
+
+        if expected_result:
+            self.assertTrue(result)
         else:
-            self.assertFalse(tuple[0])
-        if expected_test and expected_value:
+            self.assertFalse(result)
+
+        if expected_result and expected_value:
             # convert our expected date time the right timezone
             expected_tz = expected_value.astimezone(tz)
-            self.assertTrue(abs((expected_tz - tuple[1]).total_seconds()) < 60, "%s does not match expected %s" % (tuple[1], expected_tz))
+            self.assertTrue(abs((expected_tz - value).total_seconds()) < 60, "%s does not match expected %s" % (value, expected_tz))
 
     def test_location_tests(self):
         sms = self.create_msg(contact=self.contact, text="")
@@ -1655,7 +1657,7 @@ class FlowTest(TembaTest):
             Performs a set of date tests in either day-first or month-first mode
             """
             self.org.date_format = 'D' if dayfirst else 'M'
-            self.org.save()
+            self.org.save(update_fields=('date_format',))
 
             # perform all date tests as if it were 2014-01-02 03:04:05.6 UTC - a date which when localized to DD-MM-YYYY
             # or MM-DD-YYYY is ambiguous
@@ -1670,10 +1672,7 @@ class FlowTest(TembaTest):
                 self.assertDateTest(False, None, test)
 
                 sms.text = "1980"
-                self.assertDateTest(True, now.replace(year=1980), test)
-
-                sms.text = "December 14, 1982"
-                self.assertDateTest(True, now.replace(year=1982, month=12, day=14), test)
+                self.assertDateTest(False, None, test)
 
                 if dayfirst:
                     sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
@@ -1687,7 +1686,10 @@ class FlowTest(TembaTest):
                 test = DateBeforeTest('@(date.today - 1)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d-%d-%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
                 sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
@@ -1696,7 +1698,10 @@ class FlowTest(TembaTest):
                 test = DateEqualTest('@(date.today - 3)')
                 self.assertDateTest(False, None, test)
 
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                if dayfirst:
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
+                else:
+                    sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.month, three_days_ago.day, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
                 test = DateAfterTest('@(date.today + 3)')
@@ -1709,8 +1714,8 @@ class FlowTest(TembaTest):
                 self.assertDateTest(True, five_days_next, test)
 
         # check date tests in both date modes
-        perform_date_tests(sms, True)
-        perform_date_tests(sms, False)
+        perform_date_tests(sms, dayfirst=True)
+        perform_date_tests(sms, dayfirst=False)
 
     def test_length(self):
         org = self.org
@@ -3637,12 +3642,12 @@ class ActionTest(TembaTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
-    def test_webhook_action(self, mock_timezone_now):
+    def test_webhook_action_legacy(self, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
 
         action = WebhookAction(str(uuid4()), 'http://localhost:49999/token',
-                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}])
+                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}], legacy_format=True)
 
         # check to and from JSON
         action_json = action.as_json()
@@ -4256,6 +4261,57 @@ class SimulationTest(FlowFileTest):
 
 
 class FlowsTest(FlowFileTest):
+
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_webhook_payload(self):
+        flow = self.get_flow('webhook_payload')
+
+        # we call as an action, and then again as a ruleset
+        ctype = 'application/json'
+        ruleset_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+        action_post = self.mockRequest('POST', '/send_results', '{"received":"action"}', content_type=ctype)
+        action_get = self.mockRequest('GET', '/send_results', '{"received":"action"}', content_type=ctype)
+        ruleset_get = self.mockRequest('GET', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+
+        self.assertEqual("What is your favorite natural disaster?", self.send_message(flow, "39"))
+        self.assertEqual("Hey, so should I send it as a ruleset too?", self.send_message(flow, "tornado"))
+        self.assertEqual("Great work.", self.send_message(flow, "yes"))
+
+        msg = Msg.objects.all().order_by('-id').first()
+
+        def assert_payload(payload, path_length, result_count, results):
+            self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid), payload['contact'])
+            self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
+            self.assertEqual(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
+            self.assertEqual(path_length, len(payload['path']))
+            self.assertEqual(result_count, len(payload['results']))
+
+            # make sure things don't sneak into our path format unintentionally
+            # first item in the path should have node, arrived, and exit
+            self.assertEqual(3, len(payload['path'][0]))
+
+            # last item has the same, but no exit
+            self.assertEqual(2, len(payload['path'][-1]))
+
+            for key, value in six.iteritems(results):
+                result = payload['results'].get(key)
+                self.assertEqual(value, result.get('value'))
+
+                # make sure nothing sneaks into our result format unintentionally
+                self.assertEqual(6, len(result))
+
+        # we arrived at our ruleset webhook first
+        assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
+        assert_payload(action_post.data, 7, 3, dict(send_action="yes"))
+
+        # gets shouldn't have payloads
+        self.assertIsNone(action_get.data)
+        self.assertIsNone(ruleset_get.data)
+
+        # make sure triggering without a url fails properly
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), None, '', msg)
+        result = WebHookResult.objects.all().order_by('-id').first()
+        self.assertIn('No webhook_url specified, skipping send', result.message)
 
     def test_validate_flow_definition(self):
 
@@ -7461,10 +7517,6 @@ class WebhookLoopTest(FlowFileTest):
         self.mockRequest('GET', '/msg', '{ "text": "first message" }')
         self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
 
-        flow_def = flow.as_json()
-        flow_def['action_sets'][0]['actions'][0]['webhook'] = 'http://localhost:49999/msg'
-        flow.update(flow_def)
-
         self.mockRequest('GET', '/msg', '{ "text": "second message" }')
         self.assertEqual("second message", self.send_message(flow, "second"))
 
@@ -8290,13 +8342,15 @@ class AndroidChildStatus(FlowFileTest):
 
 class QueryTest(FlowFileTest):
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_num_queries(self):
 
         self.get_flow('query_test')
         flow = Flow.objects.filter(name="Query Test").first()
 
-        from temba.utils.profiler import QueryTracker
-        with QueryTracker(assert_query_count=164, stack_count=10, skip_unique_queries=True):
+        # mock our webhook call which will get triggered in the flow
+        self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
+        with QueryTracker(assert_query_count=156, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
@@ -8405,7 +8459,7 @@ class TypeTest(TembaTest):
         self.assertEqual('not a date', results['date']['input'])
         self.assertEqual('Other', results['date']['category'])
 
-        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 06/23/1977")))
+        self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 23/06/1977")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="The number is 10")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="I'm in Eastern Province")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
@@ -8420,7 +8474,7 @@ class TypeTest(TembaTest):
 
         self.assertEqual('Date', results['date']['name'])
         self.assertTrue(results['date']['value'].startswith("1977-06-23T"))
-        self.assertEqual('Born 06/23/1977', results['date']['input'])
+        self.assertEqual('Born 23/06/1977', results['date']['input'])
         self.assertEqual('is a date', results['date']['category'])
 
         self.assertEqual('Number', results['number']['name'])
