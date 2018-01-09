@@ -756,7 +756,7 @@
       -trans "Verify Token"
 
     %code
-      {{ channel.secret }}
+      {{ channel.config_json.secret }}
 
   -elif object.channel_type == 'JC'
     %h4
@@ -775,7 +775,7 @@
       -trans "Token"
 
     %code
-      {{ channel.secret }}
+      {{ channel.config_json.secret }}
 
 
   -elif object.channel_type == 'VI'

@@ -1223,5 +1223,4 @@ CHATBASE_API_URL = 'https://chatbase.com/api/message'
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
 
 # When reporting metrics we use the hostname of the physical machine, not the hostname of the service
-system_hostname = socket.gethostname().split('.')[0]
-MACHINE_HOSTNAME = '%s.%s' % (system_hostname, HOSTNAME)
+MACHINE_HOSTNAME = socket.gethostname().split('.')[0]

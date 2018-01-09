@@ -12,7 +12,7 @@ import traceback
 import urllib2
 
 from array import array
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
@@ -214,7 +214,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1", "11.2"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1", "11.2", "11.3"
     ]
 
     name = models.CharField(max_length=64,
@@ -2808,7 +2808,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return Msg.objects.filter(steps__run=self)
+        return Msg.objects.filter(id__in=self.message_ids) if self.message_ids else Msg.objects.none()
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -3576,8 +3576,17 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
-                                                         headers=header)
+                # resthooks trigger legacy api for now
+                legacy_format = resthook or self.config_json().get('legacy_format', False)
+
+                if legacy_format:
+                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
+                                                                      resthook=resthook,
+                                                                      headers=header)
+                else:
+                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                               resthook=resthook,
+                                                               headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4274,6 +4283,33 @@ class ExportFlowResultsTask(BaseExportTask):
         group_names.sort()
         return ", ".join(group_names)
 
+    def _get_messages_for_runs(self, runs):
+        """
+        Batch fetches messages for the given runs and returns a dict of runs to messages
+        """
+        message_ids = set()
+        for r in runs:
+            if r.message_ids:
+                message_ids.update(r.message_ids)
+
+        messages = (
+            Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
+            .select_related('contact_urn')
+            .prefetch_related('channel')
+            .order_by('created_on')
+        )
+
+        msgs_by_id = {m.id: m for m in messages}
+
+        msgs_by_run = defaultdict(list)
+        for run in runs:
+            for msg_id in (run.message_ids or []):
+                msg = msgs_by_id.get(msg_id)
+                if msg:
+                    msgs_by_run[run].append(msg)
+
+        return msgs_by_run
+
     def write_export(self):
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -4335,14 +4371,11 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .prefetch_related(
-                    'contact',
-                    Prefetch('steps', FlowStep.objects.only('id', 'run')),
-                    'steps__messages__contact_urn',
-                    'steps__messages__channel'
-                )
+                .select_related('contact')
                 .order_by('contact', 'id')
             )
+
+            msgs_by_run = self._get_messages_for_runs(run_batch)
 
             for run in run_batch:
                 # is this a new contact?
@@ -4412,7 +4445,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run, msgs_by_run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -4430,16 +4463,11 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, 'xlsx'
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _write_run_messages(self, book, msgs_sheet, run, msgs_by_run):
         """
         Writes out any messages associated with the given run
         """
-        run_msgs = set()
-        for step in run.steps.all():
-            run_msgs.update(step.messages.all())
-        run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
-
-        for msg in run_msgs:
+        for msg in msgs_by_run.get(run, []):
             if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
@@ -4848,23 +4876,35 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
+    # old webhooks support legacy format
+    LEGACY_FORMAT = 'legacy_format'
+
+    def __init__(self, uuid, webhook, action='POST', webhook_headers=None, legacy_format=None):
         super(WebhookAction, self).__init__(uuid)
 
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
+        self.legacy_format = legacy_format
 
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID),
                    json_obj.get('webhook', org.get_webhook_url()),
                    json_obj.get('action', 'POST'),
-                   json_obj.get('webhook_headers', []))
+                   json_obj.get('webhook_headers', []),
+                   json_obj.get(cls.LEGACY_FORMAT))
 
     def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
-                    webhook_headers=self.webhook_headers)
+
+        json_dict = dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+                         webhook_headers=self.webhook_headers)
+
+        # only include legacy format flag if it is true or false
+        if self.legacy_format is not None:
+            json_dict[self.LEGACY_FORMAT] = self.legacy_format
+
+        return json_dict
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4879,7 +4919,10 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, headers=headers)
+        if self.legacy_format:
+            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
+        else:
+            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 

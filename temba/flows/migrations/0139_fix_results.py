@@ -69,7 +69,7 @@ def fix_value_results(FlowRun, RuleSet, Value):
                         if node_uuid in no_longer_dates:
                             result['value'] = no_longer_dates[node_uuid]
 
-                    run.results = json.dumps(run.results)
+                    run.results = json.dumps(results)
                     run.save(update_fields=('results',))
 
                 cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)

@@ -1641,7 +1641,7 @@ class ContactTest(TembaTest):
                                             description="It didn't send!!")
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_event(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
+            WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -1847,7 +1847,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
         result = WebHookResult.objects.get()
 
         item = {'type': 'webhook-result', 'obj': result}
