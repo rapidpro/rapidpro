@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0138_flowrun_current_node_index'),
+        ('flows', '0140_flowrun_current_node_index'),
     ]
 
     operations = [
