@@ -31,6 +31,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
+from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
@@ -245,13 +246,12 @@ class ContactGroupTest(TembaTest):
         flow = self.get_flow('initialize')
         self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
 
-        from temba.utils.profiler import QueryTracker
         fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
         for key in fields:
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=230, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=245, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
