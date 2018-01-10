@@ -10,8 +10,8 @@ from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowPathRecentRun
-from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentMessage, FlowCategoryCount
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowCategoryCount, FlowPathRecentRun
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
 logger = logging.getLogger(__name__)
@@ -132,11 +132,6 @@ def start_msg_flow_batch_task():
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
 def squash_flowpathcounts():
     FlowPathCount.squash()
-
-
-@nonoverlapping_task(track_started=True, name="prune_recentmessages")
-def prune_recentmessages():  # pragma: no cover
-    FlowPathRecentMessage.prune()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')
