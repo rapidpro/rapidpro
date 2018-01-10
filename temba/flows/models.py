@@ -837,11 +837,6 @@ class Flow(TembaModel):
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
 
-                        # it's possible that one of our children interrupted us with a start flow action
-                        run.refresh_from_db(fields=('is_active',))
-                        if not run.is_active:
-                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
-
                         if child_runs:
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
@@ -849,7 +844,9 @@ class Flow(TembaModel):
                         else:  # pragma: no cover
                             continue_parent = False
 
-                        if continue_parent:
+                        # it's possible that one of our children interrupted us with a start flow action
+                        run.refresh_from_db(fields=('is_active',))
+                        if continue_parent and run.is_active:
                             started_flows.remove(flow.id)
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)

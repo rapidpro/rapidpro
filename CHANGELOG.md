@@ -1,3 +1,15 @@
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
 v3.0.301
 ----------
  * Tweak process_message_task to not blow up if message doesn't exist
