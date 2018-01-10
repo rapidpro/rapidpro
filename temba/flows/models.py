@@ -2946,9 +2946,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for step in self.steps.all():
             step.release()
 
-        # clear any recent messages
-        self.recent_messages.all().delete()
-
         # lastly delete ourselves
         self.delete()
 
