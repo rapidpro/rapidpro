@@ -1,3 +1,7 @@
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
 v3.0.303
 ----------
  * Still queue messages for sending when interrupted by a child
