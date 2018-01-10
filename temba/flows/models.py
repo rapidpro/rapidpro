@@ -888,8 +888,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=rule.uuid,
-                                 category=rule.get_category_name(flow.base_language), previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=rule.uuid, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1808,7 +1807,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1822,6 +1821,9 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
             if not previous_step.contact.is_test:
+                FlowPathRecentRun.record(exit_uuid, node.uuid, run, visited_on=arrived_on)
+
+                # TODO remove once these have been converted to recent runs
                 FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
@@ -2800,6 +2802,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if needs_update:
             self.save(update_fields=('responded', 'message_ids'))
+
+    def get_message_ids(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return self.message_ids or []
 
     def get_messages(self):
         """
@@ -4081,6 +4089,97 @@ class FlowPathRecentMessage(models.Model):
         ]
 
 
+class FlowPathRecentRun(models.Model):
+    """
+    Maintains recent runs for a flow path segment
+    """
+    PRUNE_TO = 5
+    LAST_PRUNED_KEY = 'last_recentrun_pruned'
+
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
+
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    run = models.ForeignKey(FlowRun, related_name='recent_runs')
+    visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
+
+    @classmethod
+    def record(cls, exit_uuid, to_uuid, run, visited_on=None):
+        cls.objects.create(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, visited_on=visited_on or timezone.now())
+
+    @classmethod
+    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
+        """
+        Gets the recent runs for the given flow segments
+        """
+        recent = (
+            cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid)
+            .select_related('run')
+            .order_by('-visited_on')
+        )
+        if limit:
+            recent = recent[:limit]
+
+        # batch fetch all the messages for these runs
+        message_ids = set()
+        for r in recent:
+            message_ids.update(r.run.get_message_ids())
+        msgs = {m.id: m for m in Msg.objects.filter(id__in=message_ids).only('id', 'text', 'created_on')}
+
+        results = []
+        for r in recent:
+            # find the most recent message in the run when this visit happened
+            msg = None
+            for msg_id in reversed(r.run.get_message_ids()):
+                msg = msgs.get(msg_id)
+                if msg and msg.created_on < r.visited_on:
+                    break
+
+            results.append({
+                'run': r.run,
+                'text': msg.text if msg else "",
+                'visited_on': r.visited_on
+            })
+
+        return results
+
+    @classmethod
+    def prune(cls):
+        """
+        Removes old recent run records leaving only PRUNE_TO most recent for each segment
+        """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
+        sql = """
+            DELETE FROM %(table)s WHERE id IN (
+              SELECT id FROM (
+                  SELECT
+                    r.id,
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY visited_on DESC) AS pos
+                  FROM %(table)s r
+                  WHERE (from_uuid, to_uuid) IN (
+                    -- get the unique segments added to since last prune
+                    SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+                  )
+              ) s WHERE s.pos > %(limit)d
+            )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+
+        cursor = db_connection.cursor()
+        cursor.execute(sql)
+
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
+
+        return cursor.rowcount  # number of deleted entries
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['from_uuid', 'to_uuid', '-visited_on'])
+        ]
+
+
 class FlowNodeCount(SquashableModel):
     """
     Maintains counts of unique contacts at each flow node.
@@ -4286,8 +4385,7 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         message_ids = set()
         for r in runs:
-            if r.message_ids:
-                message_ids.update(r.message_ids)
+            message_ids.update(r.get_message_ids())
 
         messages = (
             Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
@@ -4300,7 +4398,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         msgs_by_run = defaultdict(list)
         for run in runs:
-            for msg_id in (run.message_ids or []):
+            for msg_id in run.get_message_ids():
                 msg = msgs_by_id.get(msg_id)
                 if msg:
                     msgs_by_run[run].append(msg)

@@ -49,12 +49,12 @@ from .models import (
     DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
-    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction,
+    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
     FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 )
 
 from .views import FlowCRUDL
-from .tasks import update_run_expirations_task, prune_recentmessages, squash_flowruncounts, squash_flowpathcounts
+from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flowpathcounts
 
 
 class FlowTest(TembaTest):
@@ -4943,7 +4943,9 @@ class FlowsTest(FlowFileTest):
         color_blue_uuid = rules[-4].uuid
 
         # we don't know this shade of green, it should route us to the beginning again
-        self.send_message(flow, 'chartreuse')
+        run1, = flow.start([], [self.contact])
+        self.create_msg(direction=INCOMING, contact=self.contact, text='chartreuse').handle()
+
         (active, visited) = flow.get_activity()
 
         self.assertEqual(active, {color.uuid: 1})
@@ -4958,7 +4960,7 @@ class FlowsTest(FlowFileTest):
 
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
-        self.send_message(flow, 'mauve')
+        self.create_msg(direction=INCOMING, contact=self.contact, text='mauve').handle()
         (active, visited) = flow.get_activity()
 
         self.assertEqual(active, {color.uuid: 1})
@@ -4970,7 +4972,7 @@ class FlowsTest(FlowFileTest):
 
         # this time a color we know takes us elsewhere, activity will move
         # to another node, but still just one entry
-        self.send_message(flow, 'blue')
+        self.create_msg(direction=INCOMING, contact=self.contact, text='blue').handle()
         (active, visited) = flow.get_activity()
 
         self.assertEqual(active, {beer.uuid: 1})
@@ -4982,16 +4984,26 @@ class FlowsTest(FlowFileTest):
             '%s:%s' % (beer_question.exit_uuid, beer.uuid): 1,
         })
 
-        # check recent messages
+        # check recent runs
+        recent = FlowPathRecentRun.get_recent([color_question.exit_uuid], color.uuid)
+        self.assertEqual([r['text'] for r in recent], ["What is your favorite color?"])
+
+        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
+        self.assertEqual([r['text'] for r in recent], ["mauve", "chartreuse"])
+
+        recent = FlowPathRecentRun.get_recent([other_action.exit_uuid], color.uuid)
+        self.assertEqual([r['text'] for r in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
+
+        recent = FlowPathRecentRun.get_recent([color_blue_uuid], beer_question.uuid)
+        self.assertEqual([r['text'] for r in recent], ["blue"])
+
+        # TODO remove after converting to recent runs
         recent = FlowPathRecentMessage.get_recent([color_question.exit_uuid], color.uuid)
         self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
-
         recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
         self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
-
         recent = FlowPathRecentMessage.get_recent([other_action.exit_uuid], color.uuid)
         self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
-
         recent = FlowPathRecentMessage.get_recent([color_blue_uuid], beer_question.uuid)
         self.assertEqual([m.text for m in recent], ["blue"])
 
@@ -5101,9 +5113,9 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(flow.get_run_stats(),
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
-        # messages to/from deleted contacts shouldn't appear in the recent messages
-        recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
-        self.assertEqual([m.text for m in recent], ["burnt sienna"])
+        # messages to/from deleted contacts shouldn't appear in the recent runs
+        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
+        self.assertEqual([r['text'] for r in recent], ["burnt sienna"])
 
         # test contacts should not affect the counts
         hammer = Contact.get_test_contact(self.admin)
@@ -5132,8 +5144,8 @@ class FlowsTest(FlowFileTest):
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # and no recent message entries for this test contact
-        recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
-        self.assertEqual([m.text for m in recent], ["burnt sienna"])
+        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
+        self.assertEqual([r['text'] for r in recent], ["burnt sienna"])
 
         # try the same thing after squashing
         squash_flowpathcounts()
@@ -5258,7 +5270,7 @@ class FlowsTest(FlowFileTest):
             '%s:%s' % (name.get_rules()[0].uuid, end_prompt.uuid): 0,
         })
 
-    def test_prune_recentmessages(self):
+    def test_prune_recentruns(self):
         flow = self.get_flow('favorites')
 
         other_action = ActionSet.objects.get(y=8, flow=flow)
@@ -5272,32 +5284,32 @@ class FlowsTest(FlowFileTest):
             self.send_message(flow, '%d' % (m + 1), contact=contact)
 
         # all 12 messages are stored for the other segment
-        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
         self.assertEqual(len(other_recent), 12)
 
         # and these are returned with most-recent first
-        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], other_action.uuid, limit=None)
-        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"])
+        other_recent = FlowPathRecentRun.get_recent([other_rule.uuid], other_action.uuid, limit=None)
+        self.assertEqual([r['text'] for r in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"])
 
         # even when limit is applied
-        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], other_action.uuid, limit=5)
-        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8"])
+        other_recent = FlowPathRecentRun.get_recent([other_rule.uuid], other_action.uuid, limit=5)
+        self.assertEqual([r['text'] for r in other_recent], ["12", "11", "10", "9", "8"])
 
-        prune_recentmessages()
+        squash_flowruncounts()
 
         # now only 5 newest are stored
-        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
         self.assertEqual(len(other_recent), 5)
 
-        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], other_action.uuid)
-        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8"])
+        other_recent = FlowPathRecentRun.get_recent([other_rule.uuid], other_action.uuid)
+        self.assertEqual([r['text'] for r in other_recent], ["12", "11", "10", "9", "8"])
 
         # send another message and prune again
         self.send_message(flow, "13", contact=bob)
-        prune_recentmessages()
+        squash_flowruncounts()
 
-        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], other_action.uuid)
-        self.assertEqual([m.text for m in other_recent], ["13", "12", "11", "10", "9"])
+        other_recent = FlowPathRecentRun.get_recent([other_rule.uuid], other_action.uuid)
+        self.assertEqual([r['text'] for r in other_recent], ["13", "12", "11", "10", "9"])
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
@@ -8375,7 +8387,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=156, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=162, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
