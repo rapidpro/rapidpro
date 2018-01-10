@@ -3147,7 +3147,7 @@ class FlowStep(models.Model):
 
     step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
 
-    step_uuid = models.CharField(max_length=36, db_index=True,
+    step_uuid = models.CharField(max_length=36,
                                  help_text=_("The UUID of the ActionSet or RuleSet for this step"))
 
     rule_uuid = models.CharField(max_length=36, null=True,
