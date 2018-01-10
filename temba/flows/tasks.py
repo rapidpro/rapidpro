@@ -135,7 +135,7 @@ def squash_flowpathcounts():
 
 
 @nonoverlapping_task(track_started=True, name="prune_recentmessages")
-def prune_recentmessages():
+def prune_recentmessages():  # pragma: no cover
     FlowPathRecentMessage.prune()
 
 
