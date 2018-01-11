@@ -44,7 +44,7 @@ from .flow_migrations import (
 from .models import (
     Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
     RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user, FlowCategoryCount,
-    FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest, EqTest, LtTest, LteTest,
+    Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest, EqTest, LtTest, LteTest,
     GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest, DateEqualTest, DateAfterTest,
     DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
@@ -4776,7 +4776,8 @@ class FlowsTest(FlowFileTest):
         # no params returns no results
         assert_recent(self.client.get(recent_messages_url), [])
 
-        self.send_message(flow, 'chartreuse')
+        flow.start([], [self.contact])
+        self.create_msg(direction=INCOMING, contact=self.contact, text='chartreuse').handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
@@ -4793,23 +4794,18 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + invalid_params)
         assert_recent(response, [])
 
-        self.send_message(flow, 'mauve')
-        msg1 = Msg.objects.filter(text='chartreuse').first()
-        msg2 = Msg.objects.filter(text='mauve').first()
+        self.create_msg(direction=INCOMING, contact=self.contact, text='mauve').handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
 
         response = self.client.get(recent_messages_url + other_params)
-        self.assertEqual(response.json(), [
-            {'text': "mauve", 'sent': datetime_to_str(msg2.created_on, tz=self.org.timezone)},
-            {'text': "chartreuse", 'sent': datetime_to_str(msg1.created_on, tz=self.org.timezone)}
-        ])
+        assert_recent(response, ["mauve", "chartreuse"])
 
         response = self.client.get(recent_messages_url + blue_params)
         assert_recent(response, [])
 
-        self.send_message(flow, 'blue')
+        self.create_msg(direction=INCOMING, contact=self.contact, text='blue').handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
@@ -4996,16 +4992,6 @@ class FlowsTest(FlowFileTest):
 
         recent = FlowPathRecentRun.get_recent([color_blue_uuid], beer_question.uuid)
         self.assertEqual([r['text'] for r in recent], ["blue"])
-
-        # TODO remove after converting to recent runs
-        recent = FlowPathRecentMessage.get_recent([color_question.exit_uuid], color.uuid)
-        self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
-        recent = FlowPathRecentMessage.get_recent([color_other_uuid], other_action.uuid)
-        self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
-        recent = FlowPathRecentMessage.get_recent([other_action.exit_uuid], color.uuid)
-        self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
-        recent = FlowPathRecentMessage.get_recent([color_blue_uuid], beer_question.uuid)
-        self.assertEqual([m.text for m in recent], ["blue"])
 
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
@@ -8387,7 +8373,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=162, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=153, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
