@@ -1,3 +1,12 @@
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
+v3.0.305
+----------
+ * Add new model for tracking recent runs
+ * Add dynamic group optimization for new contacts
+
 v3.0.304
 ----------
  * Drop index on FlowStep.step_uuid as it's no longer needed
