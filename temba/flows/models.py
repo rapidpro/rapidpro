@@ -1080,10 +1080,14 @@ class Flow(TembaModel):
         if not simulation:
             return FlowNodeCount.get_totals(self)
 
-        # count steps in active runs where contact hasn't left that node
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=True)
-        totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
-        return {t[0]: t[1] for t in totals if t[1]}
+        # count unique values of current_node_uuid for active runs for test contacts
+        totals = (
+            self.runs.filter(contact__is_test=True, is_active=True)
+            .values('current_node_uuid')
+            .annotate(total=Count('current_node_uuid'))
+        )
+
+        return {six.text_type(t['current_node_uuid']): t['total'] for t in totals if t['total']}
 
     def get_segment_counts(self, simulation):
         """
@@ -1093,13 +1097,18 @@ class Flow(TembaModel):
         if not simulation:
             return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
-        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
+        simulator_runs = self.runs.filter(contact__is_test=True)
+        path_counts = defaultdict(int)
 
-        path_counts = {}
-        for step in steps:
-            if step['count']:
-                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
+        for run in simulator_runs:
+            prev_step = None
+            for step in run.get_path():
+                if prev_step:
+                    exit_uuid = prev_step['exit_uuid']
+                    node_uuid = step['node_uuid']
+                    path_counts['%s:%s' % (exit_uuid, node_uuid)] += 1
+
+                prev_step = step
 
         return path_counts
 
