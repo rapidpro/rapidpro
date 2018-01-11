@@ -1,3 +1,7 @@
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
 v3.0.305
 ----------
  * Add new model for tracking recent runs
