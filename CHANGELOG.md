@@ -1,3 +1,7 @@
+v3.0.307
+----------
+ * Stop using FlowPathRecentMessage
+
 v3.0.306
 ----------
  * Migration to convert recent messages to recent runs
