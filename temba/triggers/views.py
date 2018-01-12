@@ -19,7 +19,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelType
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -339,8 +339,7 @@ class UssdTriggerForm(BaseTriggerForm):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
         super(UssdTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
-        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 channel_type__in=Channel.USSD_CHANNELS)
+        self.fields['channel'].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
@@ -540,7 +539,7 @@ class TriggerCRUDL(SmartCRUDL):
     class BaseList(TriggerActionMixin, OrgMixin, OrgPermsMixin, SmartListView):
         fields = ('name', 'modified_on')
         default_template = 'triggers/trigger_list.html'
-        default_order = ('-last_triggered', '-modified_on')
+        default_order = ('-modified_on',)
         search_fields = ('keyword__icontains', 'flow__name__icontains', 'channel__name__icontains')
 
         def get_context_data(self, **kwargs):
@@ -559,7 +558,7 @@ class TriggerCRUDL(SmartCRUDL):
             return folders
 
     class List(BaseList):
-        fields = ('keyword', 'flow', 'trigger_count', 'last_triggered')
+        fields = ('keyword', 'flow', 'trigger_count')
         link_fields = ('keyword', 'flow')
         actions = ('archive',)
         title = _("Triggers")

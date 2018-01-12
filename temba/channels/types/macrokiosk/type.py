@@ -2,7 +2,6 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
-
 import requests
 import six
 
@@ -11,8 +10,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.types.macrokiosk.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS, Encoding
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException, Encoding
 
 
 class MacrokioskType(ChannelType):
@@ -58,9 +57,7 @@ class MacrokioskType(ChannelType):
 
         url = 'https://www.etracker.cc/bulksms/send'
         payload = json.dumps(data)
-
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json', 'Accept': 'application/json'})
 
         event = HttpEvent('POST', url, payload)
 

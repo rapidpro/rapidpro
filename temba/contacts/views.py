@@ -25,14 +25,15 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartT
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
+from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException
+from .search import SearchException, parse_query
 from .tasks import export_contacts_task
 
 
@@ -71,14 +72,14 @@ class ContactGroupForm(forms.ModelForm):
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
+        self.org = user.get_org()
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
-        org = self.user.get_org()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group(org, name)
+        existing = ContactGroup.get_user_group(self.org, name)
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -86,11 +87,25 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        if ContactGroup.user_groups.filter(org=org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
-                                          'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
+        groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+        if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                          "You must delete existing ones before you can "
+                                          "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
         return name
+
+    def clean_query(self):
+        try:
+            parsed_query = parse_query(text=self.cleaned_data['query'], as_anon=self.org.is_anon)
+            if parsed_query.can_be_dynamic_group():
+                return parsed_query.as_text()
+            else:
+                raise forms.ValidationError(
+                    _('You cannot create a dynamic group based on "name" or "id".')
+                )
+        except SearchException as e:
+            raise forms.ValidationError(six.text_type(e))
 
     class Meta:
         fields = '__all__'
@@ -104,6 +119,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     system_group = None
     add_button = True
     paginate_by = 50
+
+    parsed_search = None
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
@@ -122,7 +139,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         search_query = self.request.GET.get('search', None)
         if search_query:
             try:
-                qs = Contact.search(org, search_query, group)
+                qs, self.parsed_search = Contact.search(org, search_query, group)
             except SearchException as e:
                 self.search_error = six.text_type(e)
                 qs = Contact.objects.none()
@@ -158,6 +175,12 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
+
+        # replace search string with parsed search expression
+        if self.parsed_search is not None:
+            context['search'] = self.parsed_search.as_text()
+            context['save_dynamic_search'] = self.parsed_search.can_be_dynamic_group()
+
         return context
 
     def get_user_groups(self, org):
@@ -368,6 +391,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 export = ExportContactsTask.create(org, user, group, search)
 
+                # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
@@ -585,10 +609,12 @@ class ContactCRUDL(SmartCRUDL):
                 return self.cleaned_data['csv_file']
 
             def clean(self):
-                if ContactGroup.user_groups.filter(org=self.org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-                    raise forms.ValidationError('You have reached %s contact groups, please remove some contact groups '
-                                                'to be able to import contacts in a contact group' %
-                                                ContactGroup.MAX_ORG_CONTACTGROUPS)
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                                  "You must delete existing ones before you can "
+                                                  "create new ones." % (groups_count,
+                                                                        ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
                 return self.cleaned_data
 
@@ -869,7 +895,11 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search') and not self.search_error:
+            # define save search conditions
+            valid_search_condition = self.request.GET.get('search') and not self.search_error
+            has_contactgroup_create_perm = self.has_org_perm('contacts.contactgroup_create')
+
+            if has_contactgroup_create_perm and valid_search_condition:
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):
@@ -1201,36 +1231,60 @@ class ContactGroupCRUDL(SmartCRUDL):
                 obj.update_query(obj.query)
             return obj
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
+        fields = ('id',)
 
-        def pre_process(self, request, *args, **kwargs):
-            group = self.get_object()
-            triggers = group.trigger_set.filter(is_archived=False)
-            if triggers.count() > 0:
-                trigger_list = ', '.join([six.text_type(trigger) for trigger in triggers])
-                messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
-                return HttpResponseRedirect(smart_url(self.cancel_url, group))
-            return super(ContactGroupCRUDL.Delete, self).pre_process(request, *args, **kwargs)
+        def get_context_data(self, **kwargs):
+            context = super(ContactGroupCRUDL.Delete, self).get_context_data(**kwargs)
+            context['triggers'] = self.get_object().trigger_set.filter(is_archived=False)
+            return context
+
+        def get_success_url(self):
+            return reverse("contacts.contact_list")
 
         def post(self, request, *args, **kwargs):
-            group = self.get_object()
+            # we need a self.object for get_context_data
+            self.object = self.get_object()
+            group = self.object
+
+            # if there are still dependencies, give up
+            triggers = group.trigger_set.filter(is_archived=False)
+            if triggers.count() > 0:
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+            from temba.flows.models import Flow
+            flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
+            if flows.count():
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
+            # remove our group
             group.release()
 
             # make is_active False for all its triggers too
             group.trigger_set.all().update(is_active=False)
 
-            return HttpResponseRedirect(reverse("contacts.contact_list"))
+            # we can't just redirect so as to make our modal do the right thing
+            response = self.render_to_response(self.get_context_data(success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
 
 class ManageFieldsForm(forms.Form):
+
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs['org']
+        del kwargs['org']
+        super(ManageFieldsForm, self).__init__(*args, **kwargs)
+
     def clean(self):
         used_labels = []
         for key in self.cleaned_data:
             if key.startswith('field_'):
                 idx = key[6:]
+                field = self.cleaned_data[key]
                 label = self.cleaned_data["label_%s" % idx]
 
                 if label:
@@ -1243,6 +1297,14 @@ class ManageFieldsForm(forms.Form):
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
+                else:
+                    # don't allow fields that are dependencies for flows be removed
+                    if field != '__new_field':
+                        from temba.flows.models import Flow
+                        flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
+                        if flow:
+                            raise forms.ValidationError(_('The field "%s" cannot be removed while it is still used in the flow "%s"' % (field.label, flow.name)))
+
         return self.cleaned_data
 
 
@@ -1307,6 +1369,11 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             context['contact_fields'] = contact_fields
             return context
+
+        def get_form_kwargs(self):
+            kwargs = super(ContactFieldCRUDL.Managefields, self).get_form_kwargs()
+            kwargs['org'] = self.derive_org()
+            return kwargs
 
         def get_form(self):
             form = super(ContactFieldCRUDL.Managefields, self).get_form()

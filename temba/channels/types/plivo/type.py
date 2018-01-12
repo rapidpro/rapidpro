@@ -2,10 +2,9 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
-
 import plivo
 import six
-from django.conf import settings
+
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
@@ -46,8 +45,7 @@ class PlivoType(ChannelType):
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
 
         client = plivo.RestAPI(channel.config[Channel.CONFIG_PLIVO_AUTH_ID], channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler',
-                                                                       args=['status', channel.uuid])
+        status_url = "https://%s%s" % (channel.callback_domain, reverse('handlers.plivo_handler', args=['status', channel.uuid]))
 
         payload = {'src': channel.address.lstrip('+'),
                    'dst': msg.urn_path.lstrip('+'),
@@ -68,7 +66,7 @@ class PlivoType(ChannelType):
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:
+        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:  # pragma: no cover
             raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
                                 event=event, start=start)
 

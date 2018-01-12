@@ -1,7 +1,9 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress
 -load i18n
-
+-block page-title
+  -trans "Triggers"
+  
 -block title-icon
   .title-icon
     %span.glyph.icon-feed
@@ -186,12 +188,6 @@
                                   -trans "not scheduled"
                               - else
                                 -trans "not scheduled"
-
-                        -if obj.last_triggered
-                          %span.count
-                            %nobr
-                              ({{obj.trigger_count}} use{{obj.trigger_count|pluralize}})
-
 
                       %td{ width: "250px" }
                         .groups

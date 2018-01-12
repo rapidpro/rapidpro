@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import iso8601
 import json
 import six
 
@@ -13,7 +14,8 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.msgs.tasks import send_broadcast_task
-from temba.utils import datetime_to_json_date, on_transaction_commit
+from temba.utils import on_transaction_commit
+from temba.utils.dates import datetime_to_json_date
 from temba.values.models import Value
 
 from . import fields
@@ -137,8 +139,10 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
-                                     text=text, base_language=base_language,
-                                     recipients=recipients, channel=self.validated_data.get('channel'))
+                                     text=text,
+                                     base_language=base_language,
+                                     recipients=recipients,
+                                     channel=self.validated_data.get('channel'))
 
         # send in task
         on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
@@ -169,11 +173,12 @@ class ChannelEventReadSerializer(ReadSerializer):
 
 
 class CampaignReadSerializer(ReadSerializer):
+    archived = serializers.ReadOnlyField(source='is_archived')
     group = fields.ContactGroupField()
 
     class Meta:
         model = Campaign
-        fields = ('uuid', 'name', 'group', 'created_on')
+        fields = ('uuid', 'name', 'archived', 'group', 'created_on')
 
 
 class CampaignWriteSerializer(WriteSerializer):
@@ -369,7 +374,7 @@ class ContactReadSerializer(ReadSerializer):
         fields = {}
         for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
+            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value, org=self.context['org'])
         return fields
 
     def get_blocked(self, obj):
@@ -516,10 +521,11 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
-        if not self.instance and ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
-            raise serializers.ValidationError('You have reached %s contact fields, '
-                                              'please remove some contact fields to be able '
-                                              'to create new contact fields' % ContactField.MAX_ORG_CONTACTFIELDS)
+        fields_count = ContactField.objects.filter(org=self.context['org']).count()
+        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError("This org has %s contact fields and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS))
 
         return data
 
@@ -558,10 +564,11 @@ class ContactGroupWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if ContactGroup.user_groups.filter(org=self.context['org']).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise serializers.ValidationError("You have reached %s contact groups, "
-                                              "please remove some contact groups to be able "
-                                              "to create new contact groups" % ContactGroup.MAX_ORG_CONTACTGROUPS)
+        group_count = ContactGroup.user_groups.filter(org=self.context['org']).count()
+        if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise serializers.ValidationError("This org has %s groups and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (group_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
         return data
 
     def save(self):
@@ -674,19 +681,26 @@ class FlowRunReadSerializer(ReadSerializer):
         return {'uuid': str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
-        return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
-
-    def get_values(self, obj):
-        values = {}
-        for value in obj.values.all():
-            values[value.ruleset.context_key] = {
-                'value': value.decimal_value if value.decimal_value is not None else value.string_value,
-                'category': value.category,
-                'node': value.ruleset.uuid,
-                'time': value.modified_on,
+        def convert_step(step):
+            arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
+            return {
+                'node': step[FlowRun.PATH_NODE_UUID],
+                'time': format_datetime(arrived_on)
             }
 
-        return values
+        return [convert_step(s) for s in obj.get_path()]
+
+    def get_values(self, obj):
+        def convert_result(result):
+            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
+            return {
+                'value': result[FlowRun.RESULT_VALUE],
+                'category': result[FlowRun.RESULT_CATEGORY],
+                'node': result[FlowRun.RESULT_NODE_UUID],
+                'time': format_datetime(created_on),
+            }
+
+        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
@@ -788,9 +802,11 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if Label.label_objects.filter(org=self.context['org'], is_active=True).count() >= Label.MAX_ORG_LABELS:
-            raise serializers.ValidationError("You have reached %s labels, "
-                                              "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
+        labels_count = Label.label_objects.filter(org=self.context['org'], is_active=True).count()
+        if labels_count >= Label.MAX_ORG_LABELS:
+            raise serializers.ValidationError("This org has %s labels and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (labels_count, Label.MAX_ORG_LABELS))
         return data
 
     def save(self):

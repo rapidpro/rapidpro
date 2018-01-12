@@ -11,7 +11,7 @@ from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
 from mock import patch
-
+from temba.api.models import APIToken, WebHookEvent, WebHookResult
 from temba.api.tasks import trim_webhook_event_task
 from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, TEL_SCHEME
@@ -20,7 +20,7 @@ from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
-from temba.api.models import APIToken, WebHookEvent, WebHookResult
+from uuid import uuid4
 
 
 class APITokenTest(TembaTest):
@@ -230,11 +230,11 @@ class WebHookTest(TembaTest):
         org = self.channel.org
         org.save()
 
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([WebhookAction(org.get_webhook_url()).as_json()])
+        actionset.set_actions_dict([WebhookAction(str(uuid4()), org.get_webhook_url(), legacy_format=True).as_json()])
         actionset.save()
 
         # run a user through this flow
@@ -280,9 +280,10 @@ class WebHookTest(TembaTest):
 
         values = json.loads(data['values'][0])
 
-        self.assertEqual('Other', values[0]['category']['base'])
-        self.assertEqual('color', values[0]['label'])
-        self.assertEqual('Mauve', values[0]['text'])
+        self.assertEqual(values[0]['category'], 'Other')
+        self.assertEqual(values[0]['category_localized'], 'Other')
+        self.assertEqual(values[0]['label'], 'color')
+        self.assertEqual(values[0]['text'], 'Mauve')
         self.assertTrue(values[0]['time'])
         self.assertTrue(data['time'])
 
@@ -586,7 +587,12 @@ class WebHookTest(TembaTest):
 
         # check that our webhook settings have saved
         self.assertEqual('http://fake.com/webhook.php', self.channel.org.get_webhook_url())
-        self.assertDictEqual({'X-My-Header': 'foobar', 'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.channel.org.get_webhook_headers())
+        self.assertDictEqual({
+            'X-My-Header':
+            'foobar',
+            'Authorization':
+            'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
+        }, self.channel.org.get_webhook_headers())
 
         with patch('requests.Session.send') as mock:
             mock.return_value = MockResponse(200, "Boom")

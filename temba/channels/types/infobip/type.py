@@ -6,13 +6,13 @@ import requests
 import six
 import time
 
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-
-from temba.channels.views import AuthenticatedExternalClaimView
+from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
 
 
 class InfobipType(ChannelType):
@@ -26,25 +26,40 @@ class InfobipType(ChannelType):
     name = "Infobip"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.""")
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
     max_length = 1600
     attachment_support = False
 
     def send(self, channel, msg, text):
-        url = "https://api.infobip.com/sms/1/text/single"
+        url = "https://api.infobip.com/sms/1/text/advanced"
 
         username = channel.config['username']
         password = channel.config['password']
         encoded_auth = base64.b64encode(username + ":" + password)
 
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json',
-                   'Authorization': 'Basic %s' % encoded_auth}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Basic %s' % encoded_auth
+        })
 
-        payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
-                   'text': text}
+        # the event url InfoBip will forward delivery reports to
+        status_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.ib', args=[channel.uuid, 'delivered']))
+
+        payload = {"messages": [
+            {
+                "from": channel.address.lstrip('+'),
+                "destinations": [
+                    {"to": msg.urn_path.lstrip('+'), "messageId": msg.id}
+                ],
+                "text": text,
+                "notifyContentType": "application/json",
+                "intermediateReport": True,
+                "notifyUrl": status_url
+            }
+        ]}
 
         event = HttpEvent('POST', url, json.dumps(payload))
         events = [event]
@@ -66,10 +81,8 @@ class InfobipType(ChannelType):
         messages = response_json['messages']
 
         # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']['id']) != 0:  # pragma: no cover
-            raise SendException("Received non-zero status code [%s]" % messages[0]['status']['id'],
+        if int(messages[0]['status']['groupId']) not in [1, 3]:
+            raise SendException("Received error status: %s" % messages[0]['status']['description'],
                                 events=events, start=start)
 
-        external_id = messages[0]['messageid']
-
-        Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
+        Channel.success(channel, msg, SENT, start, events=events)

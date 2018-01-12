@@ -22,10 +22,11 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGroupCount, ContactField, URN
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
-from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
+from temba.utils import str_to_bool, splitting_getlist
+from temba.utils.dates import json_date_to_datetime
 from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -123,7 +124,7 @@ class RootView(views.APIView):
     ## Translatable Values
 
     Some endpoints return or accept text fields that may be translated into different languages. These should be objects
-    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
+    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
 
     ## Authentication
 
@@ -567,7 +568,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
         )
 
-        return queryset.select_related('parent')
+        return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
         context = super(BoundariesEndpoint, self).get_serializer_context()
@@ -717,6 +718,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **name** - the name of the campaign (string).
+     * **archived** - whether this campaign is archived (boolean)
      * **group** - the group this campaign operates on (object).
      * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
 
@@ -733,6 +735,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "name": "Reminders",
+                "archived": false,
                 "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
@@ -760,6 +763,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "name": "Reminders",
+            "archived": false,
             "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
             "created_on": "2013-08-19T19:11:21.088Z"
         }
@@ -1805,6 +1809,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
+        queryset = queryset.exclude(flow_type=Flow.MESSAGE)
+
         # filter by UUID (optional)
         uuid = params.get('uuid')
         if uuid:
@@ -2208,10 +2214,10 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav"
+                "media": "wav:http://domain.com/recording.wav",
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
-                "sent_on": "2016-01-06T15:35:03.675716Z",
+                "sent_on": "2016-01-06T15:35:03.675716Z"
             },
             ...
         }
@@ -2398,7 +2404,7 @@ class OrgEndpoint(BaseAPIView):
         {
             "name": "Nyaruka",
             "country": "RW",
-            "languages": ["eng", "fre"],
+            "languages": ["eng", "fra"],
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
@@ -2825,9 +2831,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('start', queryset=FlowStart.objects.only('uuid')),
-            Prefetch('values'),
-            Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
-            Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')

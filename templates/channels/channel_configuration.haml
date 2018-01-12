@@ -158,7 +158,7 @@
         The callback URL is called by Nexmo when you receive new incoming messages.
 
     %code
-      https://{{ domain }}{% url 'courier.nx' object.org.nexmo_uuid 'receive' %}
+      https://{{ domain }}{% url 'courier.nx' object.uuid 'receive' %}
 
     %h4
       -trans "Callback URL for Delivery Receipt"
@@ -168,7 +168,7 @@
         The delivery URL is called by Nexmo when a message is successfully delivered to a recipient.
 
     %code
-      https://{{ domain }}{% url 'courier.nx' object.org.nexmo_uuid 'status' %}
+      https://{{ domain }}{% url 'courier.nx' object.uuid 'status' %}
 
 
     %h4
@@ -208,7 +208,7 @@
 
     %p
       -blocktrans
-        This endpoint should be called by Infobip when new messages are received to your number. You can set the receive URL on your Infobip account by contacting your sales agent.
+        This endpoint should be called with a POST by Infobip when new messages are received to your number. You can set the receive URL on your Infobip account by contacting your sales agent.
 
     %code
       https://{{ domain }}{% url 'courier.ib' object.uuid 'receive' %}
@@ -220,7 +220,7 @@
 
     %p
       -blocktrans
-        This endpoint should be called by Infobip when a message has been to the final recipient. (delivery reports)
+        This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports)
         You can set the delivery callback URL on your Infobip account by contacting your sales agent.
 
     %code
@@ -890,6 +890,19 @@
 
     %code
       https://{{ domain }}{% url 'courier.yo' object.uuid 'receive' %}
+
+  -elif object.channel_type == 'DK'
+    %h4
+      -blocktrans
+        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.
+
+    %hr
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'courier.dk' object.uuid 'receive' %}
 
   -elif object.channel_type == 'CK'
     %h4

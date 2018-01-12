@@ -1,0 +1,255 @@
+{
+  "campaigns": [], 
+  "version": "10.1", 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "597d1693-d2d4-4d18-be13-ce09272d5275", 
+          "uuid": "6ecc6987-4fd2-411e-bf26-1498dd9346ee", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Hi, this is a message, let's add you to some groups and set a contact field. Send something."
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "744e61bf-7332-4091-95d3-0e3a6a3937c8"
+            }, 
+            {
+              "type": "add_group", 
+              "uuid": "eaa79a9a-b5d0-4e3f-89d3-5367fd9d65b8", 
+              "groups": [
+                {
+                  "name": "Survey Audience", 
+                  "uuid": "d4d2fbcf-56ea-41e5-a3e9-f0f06165a227"
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 420, 
+          "x": 107, 
+          "destination": "7aaa6920-3bc9-4142-8be4-2ec5aa59d7f8", 
+          "uuid": "6f3d842f-aefe-4cfe-b051-1a5804897de4", 
+          "actions": [
+            {
+              "field": "something", 
+              "type": "save", 
+              "uuid": "55152f2d-d25a-4483-a09b-b1fafdb82333", 
+              "value": "@flow.something", 
+              "label": "Something"
+            }, 
+            {
+              "msg": {
+                "base": "You said @contact.something"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "c2083087-80d0-4ae6-9e78-0ccd90e992ad"
+            }
+          ]
+        }, 
+        {
+          "y": 840, 
+          "x": 108, 
+          "destination": "3d1173f1-069e-495c-b60a-abfb7cd53948", 
+          "uuid": "bbd2f281-5892-4562-b85e-e5cf937be64f", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Let's call a webhook now shall we?"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "05d23506-8b9f-4cb7-96a6-0574cb57ce71"
+            }
+          ]
+        }, 
+        {
+          "y": 1210, 
+          "x": 88, 
+          "destination": null, 
+          "uuid": "904ac6c2-ca5c-4f09-be7b-aa6fae4b0124", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Your IP is @extra.ip, ok we are done!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "73e8bde7-e7fc-4bf0-93d6-386a740c3e7b"
+            }
+          ]
+        }
+      ], 
+      "version": "10.1", 
+      "flow_type": "F", 
+      "entry": "6ecc6987-4fd2-411e-bf26-1498dd9346ee", 
+      "rule_sets": [
+        {
+          "uuid": "7aaa6920-3bc9-4142-8be4-2ec5aa59d7f8", 
+          "rules": [
+            {
+              "category": {
+                "base": "Completed"
+              }, 
+              "uuid": "3210a055-15d7-4d9b-9964-4f34dfbe981d", 
+              "destination": "bbd2f281-5892-4562-b85e-e5cf937be64f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Expired"
+              }, 
+              "uuid": "435b1be8-362d-4e21-a832-61347a8ceb70", 
+              "destination": "bbd2f281-5892-4562-b85e-e5cf937be64f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 618, 
+          "x": 269, 
+          "config": {
+            "flow": {
+              "name": "Other Flow", 
+              "uuid": "58f294a9-3b4c-4ded-96ca-fd251d581f82"
+            }
+          }
+        }, 
+        {
+          "uuid": "3d1173f1-069e-495c-b60a-abfb7cd53948", 
+          "rules": [
+            {
+              "category": {
+                "base": "Success"
+              }, 
+              "uuid": "4040af76-3efc-44bd-8db7-f403a6796fbf", 
+              "destination": "904ac6c2-ca5c-4f09-be7b-aa6fae4b0124", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Failure"
+              }, 
+              "uuid": "2c7dd77b-df77-41c1-889e-011999583425", 
+              "destination": "904ac6c2-ca5c-4f09-be7b-aa6fae4b0124", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Response 3", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1047, 
+          "x": 264, 
+          "config": {
+            "webhook": "http://localhost:49999/ip_test",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
+        }, 
+        {
+          "uuid": "597d1693-d2d4-4d18-be13-ce09272d5275", 
+          "rules": [
+            {
+              "category": {
+                "base": "All Responses"
+              }, 
+              "uuid": "80ddfec2-0b7d-4e8b-a6f2-f34e03af5045", 
+              "destination": "6f3d842f-aefe-4cfe-b051-1a5804897de4", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Something", 
+          "operand": "Something", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 250, 
+          "x": 270, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 24, 
+        "uuid": "e7666bbf-9dbd-4ebe-8971-011a9a04ddd5", 
+        "name": "Query Test", 
+        "saved_on": "2017-11-23T15:28:46.860528Z"
+      }
+    }, 
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "eac1e926-af60-450a-bb74-ff197741eba6", 
+          "actions": [
+            {
+              "msg": {
+                "base": "This is a subflow, ok, I'm done!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "5b9d0f17-6e7d-4ea3-b3b8-e1c8c4366fb9"
+            }
+          ]
+        }
+      ], 
+      "version": "10.1", 
+      "flow_type": "F", 
+      "entry": "eac1e926-af60-450a-bb74-ff197741eba6", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "58f294a9-3b4c-4ded-96ca-fd251d581f82", 
+        "name": "Other Flow", 
+        "saved_on": "2017-11-23T15:26:01.463254Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

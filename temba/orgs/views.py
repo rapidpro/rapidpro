@@ -31,8 +31,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from email.utils import parseaddr
 from functools import cmp_to_key
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
-from smartmin.views import SmartModelFormView, SmartModelActionView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView
+from smartmin.views import SmartTemplateView, SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
@@ -43,13 +43,13 @@ from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, \
-    ACCOUNT_TOKEN
+from .models import Org, OrgCache, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, ACCOUNT_TOKEN
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
 from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
+from .tasks import apply_topups_task
 
 
 def check_login(request):
@@ -479,7 +479,7 @@ class OrgCRUDL(SmartCRUDL):
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
                 json_data = json.loads(data)
-                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
                     raise ValidationError('This file is no longer valid. Please export a new version and try again.')
 
                 return data
@@ -625,7 +625,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_twilio'
+        success_url = '@channels.claim_twilio'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -637,17 +637,13 @@ class OrgCRUDL(SmartCRUDL):
             org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
             org = self.get_object()
+            domain = org.get_brand_domain()
 
             nexmo_client = org.get_nexmo_client()
             if not nexmo_client:
@@ -657,9 +653,8 @@ class OrgCRUDL(SmartCRUDL):
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             try:
-                from temba.settings import TEMBA_HOST
-                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
-                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+                nexmo_client.update_account('http://%s%s' % (domain, mo_path),
+                                            'http://%s%s' % (domain, dl_path))
 
                 return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
@@ -669,8 +664,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
 
-            from temba.settings import TEMBA_HOST
             org = self.get_object()
+            domain = org.get_brand_domain()
+
             config = org.config_json()
             context['nexmo_api_key'] = config[NEXMO_KEY]
             context['nexmo_api_secret'] = config[NEXMO_SECRET]
@@ -678,8 +674,8 @@ class OrgCRUDL(SmartCRUDL):
             nexmo_uuid = config.get(NEXMO_UUID, None)
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
-            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
-            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
+            context['mo_path'] = 'https://%s%s' % (domain, mo_path)
+            context['dl_path'] = 'https://%s%s' % (domain, dl_path)
 
             return context
 
@@ -791,12 +787,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org.save()
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
@@ -1026,16 +1017,19 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
+        fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
+
         class OrgUpdateForm(forms.ModelForm):
-            viewers = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
-            parent = forms.ModelChoiceField(Org.objects.all(), required=False)
+            parent = forms.IntegerField(required=False)
+
+            def clean_parent(self):
+                parent = self.cleaned_data.get('parent')
+                if parent:
+                    return Org.objects.filter(pk=parent).first()
 
             class Meta:
                 model = Org
-                fields = '__all__'
+                fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
 
         form_class = OrgUpdateForm
 
@@ -1132,6 +1126,16 @@ class OrgCRUDL(SmartCRUDL):
                     fields_by_user[user] = fields
                 return fields_by_user
 
+            def add_invite_remove_fields(self, invites):
+                fields_by_invite = {}
+
+                for invite in invites:
+                    field_name = "%s_%d" % ('remove_invite', invite.pk)
+                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    fields_by_invite[invite] = field_name
+
+                return fields_by_invite
+
             def clean_invite_emails(self):
                 emails = self.cleaned_data['invite_emails'].lower().strip()
                 if emails:
@@ -1173,8 +1177,12 @@ class OrgCRUDL(SmartCRUDL):
         def get_form(self):
             form = super(OrgCRUDL.ManageAccounts, self).get_form()
 
-            self.org_users = self.get_object().get_org_users()
+            org = self.get_object()
+            self.org_users = org.get_org_users()
             self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
+
+            self.invites = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            self.fields_by_invite = form.add_invite_remove_fields(self.invites)
 
             return form
 
@@ -1183,6 +1191,10 @@ class OrgCRUDL(SmartCRUDL):
 
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
+
+            for invite in self.fields_by_invite.keys():
+                if cleaned_data.get(self.fields_by_invite.get(invite)):
+                    Invitation.objects.filter(org=org, pk=invite.pk).delete()
 
             invite_emails = cleaned_data['invite_emails'].lower().strip()
             invite_group = cleaned_data['invite_group']
@@ -1241,7 +1253,8 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = org
             context['org_users'] = self.org_users
             context['group_fields'] = self.fields_by_users
-            context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
+            context['invites'] = self.invites
+            context['invites_fields'] = self.fields_by_invite
             return context
 
         def get_success_url(self):
@@ -2159,7 +2172,7 @@ class OrgCRUDL(SmartCRUDL):
                         info_txt = parsed_response.get('info_txt', None)
                         error_txt = parsed_response.get('error_txt', None)
 
-                    except:
+                    except Exception:
                         raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
                                                 "Please check them again and retry."))
 
@@ -2576,7 +2589,7 @@ class TopUpCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super(TopUpCRUDL.Create, self).post_save(obj)
-            obj.org.apply_topups()
+            apply_topups_task.delay(obj.org.id)
             return obj
 
     class Update(SmartUpdateView):
@@ -2587,8 +2600,7 @@ class TopUpCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super(TopUpCRUDL.Update, self).post_save(obj)
-            obj.org.update_caches(OrgEvent.topup_updated, obj)
-            obj.org.apply_topups()
+            apply_topups_task.delay(obj.org.id)
             return obj
 
     class Manage(SmartListView):

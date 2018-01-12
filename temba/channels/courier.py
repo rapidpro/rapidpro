@@ -2,7 +2,7 @@
 import time
 import json
 from django_redis import get_redis_connection
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 
 
 def push_courier_msgs(channel, msgs, high_priority=False):
@@ -50,10 +50,10 @@ def msg_as_task(msg):
                     direction=msg.direction,
                     text=msg.text,
                     high_priority=msg.high_priority,
-                    priority=500 if msg.high_priority else 100,  # TODO stop using this on courier side and then remove
                     urn=msg.contact_urn.urn,
                     error_count=msg.error_count,
                     attachments=msg.attachments,
+                    metadata=msg.get_metadata(),
                     response_to_id=msg.response_to_id,
                     external_id=msg.external_id,
 

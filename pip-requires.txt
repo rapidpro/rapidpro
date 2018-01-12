@@ -51,7 +51,8 @@ colorama
 enum34
 gunicorn
 iptools
-iso639
+iso-639
+iso8601
 isoweek
 phonenumbers
 pycountry

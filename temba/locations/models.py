@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import geojson
@@ -5,10 +6,24 @@ import logging
 import six
 
 from django.contrib.gis.db import models
+from django.db.models.functions import Concat
+from django.db.models import Value, F
 from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 
 logger = logging.getLogger(__name__)
+
+
+# default manager for AdminBoundary, doesn't load geometries
+class NoGeometryManager(models.GeoManager):
+    def get_queryset(self):
+        return super(NoGeometryManager, self).get_queryset().defer('geometry', 'simplified_geometry')
+
+
+# optional 'geometries' manager for AdminBoundary, loads everything
+class GeometryManager(models.GeoManager):
+    def get_queryset(self):
+        return super(GeometryManager, self).get_queryset()
 
 
 @six.python_2_unicode_compatible
@@ -21,6 +36,10 @@ class AdminBoundary(MPTTModel, models.Model):
     LEVEL_DISTRICT = 2
     LEVEL_WARD = 3
 
+    # used to separate segments in a hierarchy of boundaries. Has the advantage of being a character in GSM7 and
+    # being very unlikely to show up in an admin boundary name.
+    PATH_SEPARATOR = '>'
+
     osm_id = models.CharField(max_length=15, unique=True,
                               help_text="This is the OSM id for this administrative boundary")
 
@@ -32,13 +51,16 @@ class AdminBoundary(MPTTModel, models.Model):
     parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
                             help_text="The parent to this political boundary if any")
 
+    path = models.CharField(max_length=768, null=True, help_text="The full path name for this location")
+
     geometry = models.MultiPolygonField(null=True,
                                         help_text="The full geometry of this administrative boundary")
 
     simplified_geometry = models.MultiPolygonField(null=True,
                                                    help_text="The simplified geometry of this administrative boundary")
 
-    objects = models.GeoManager()
+    objects = NoGeometryManager()
+    geometries = GeometryManager()
 
     @staticmethod
     def get_geojson_dump(features):
@@ -83,6 +105,19 @@ class AdminBoundary(MPTTModel, models.Model):
         # update our object values so that self is up to date
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    def update_path(self):
+        if self.level == 0:
+            self.path = self.name
+            self.save(update_fields=('path',))
+
+        def _update_child_paths(boundary):
+            boundaries = AdminBoundary.objects.filter(parent=boundary).only('name', 'parent__path')
+            boundaries.update(path=Concat(Value(boundary.path), Value(' %s ' % AdminBoundary.PATH_SEPARATOR), F('name')))
+            for boundary in boundaries:
+                _update_child_paths(boundary)
+
+        _update_child_paths(self)
 
     def __str__(self):
         return "%s" % self.name

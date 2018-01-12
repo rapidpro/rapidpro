@@ -108,23 +108,37 @@ def process_message_task(msg_event):
 
         # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
-            # pop the next message to process off our contact queue
-            with r.pipeline() as pipe:
-                pipe.zrange(contact_queue, 0, 0)
-                pipe.zremrangebyrank(contact_queue, 0, 0)
-                (contact_msg, deleted) = pipe.execute()
 
-            if contact_msg:
+            msg = None
+
+            # pop the next message off our contact queue until we find one that needs handling
+            while True:
+                with r.pipeline() as pipe:
+                    pipe.zrange(contact_queue, 0, 0)
+                    pipe.zremrangebyrank(contact_queue, 0, 0)
+                    (contact_msg, deleted) = pipe.execute()
+
+                # no more messages in the queue for this contact, we're done
+                if not contact_msg:
+                    return
+
+                # we have a message in our contact queue, look it up
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = (
+                    Msg.objects.filter(id=msg_event['id'])
+                    .order_by()
+                    .select_related('org', 'contact', 'contact_urn', 'channel').first()
+                )
 
-                if msg:
+                # make sure we are still pending
+                if msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
+                    return
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
-        if msg:
+        msg = Msg.objects.filter(id=msg_event['id']).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg and msg.status == PENDING:
             # grab our contact lock and handle this message
             key = 'pcm_%d' % msg.contact_id
             with r.lock(key, timeout=120):
@@ -132,12 +146,15 @@ def process_message_task(msg_event):
 
 
 @task(track_started=True, name='send_broadcast')
-def send_broadcast_task(broadcast_id):
+def send_broadcast_task(broadcast_id, **kwargs):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
+
     high_priority = (broadcast.recipient_count == 1)
-    broadcast.send(high_priority=high_priority)
+    expressions_context = {} if kwargs.get('with_expressions', True) else None
+
+    broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
 
 
 @task(track_started=True, name='send_to_flow_node')
@@ -161,7 +178,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    broadcast.send()
+    broadcast.send(expressions_context={})
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))
@@ -266,7 +283,7 @@ def check_messages_task():  # pragma: needs cover
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
+    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(contact__is_test=True)
     unhandled_count = unhandled_messages.count()
 
     if unhandled_count:
@@ -433,6 +450,6 @@ def clear_old_msg_external_ids():
     msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
-        Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
+        Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import iso8601
 import json
 import pytz
 import six
@@ -20,12 +21,13 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
+from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction, ActionSet, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from uuid import uuid4
 from urllib import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
@@ -593,7 +595,7 @@ class APITest(TembaTest):
 
         # create new broadcast with all fields
         response = self.postJSON(url, None, {
-            'text': "Hello",
+            'text': "Hi @contact",
             'urns': ["twitter:franky"],
             'contacts': [self.joe.uuid, self.frank.uuid],
             'groups': [reporters.uuid],
@@ -601,20 +603,23 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello"})
+        self.assertEqual(broadcast.text, {'base': "Hi @contact"})
         self.assertEqual(set(broadcast.urns.values_list('identity', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
 
+        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
+        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
+
         # create new broadcast with translations
         response = self.postJSON(url, None, {
-            'text': {'base': "Hello", 'fre': "Bonjour"},
+            'text': {'base': "Hello", 'fra': "Bonjour"},
             'contacts': [self.joe.uuid, self.frank.uuid],
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.text, {'base': "Hello", 'fre': "Bonjour"})
+        self.assertEqual(broadcast.text, {'base': "Hello", 'fra': "Bonjour"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
         # try sending as a suspended org
@@ -648,6 +653,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': campaign2.uuid,
             'name': "Reminders #2",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign2.created_on)
         })
@@ -669,6 +675,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json(), {
             'uuid': campaign3.uuid,
             'name': "Reminders #3",
+            'archived': False,
             'group': {'uuid': reporters.uuid, 'name': "Reporters"},
             'created_on': format_datetime(campaign3.created_on)
         })
@@ -867,13 +874,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': {'base': "OK", 'fre': "D'accord"}
+            'message': {'base': "OK", 'fra': "D'accord"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord"})
+        self.assertEqual(event2.message, {'base': "OK", 'fra': "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
@@ -882,13 +889,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"}
+            'message': {'base': "OK", 'fra': "D'accord", 'kin': "Sawa"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"})
+        self.assertEqual(event2.message, {'base': "OK", 'fra': "D'accord", 'kin': "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
@@ -1010,10 +1017,10 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some more contacts (in addition to Joe and Frank)
-        contact1 = self.create_contact("Ann", "0788000001", language='fre')
+        contact1 = self.create_contact("Ann", "0788000001", language='fra')
         contact2 = self.create_contact("Bob", "0788000002")
         contact3 = self.create_contact("Cat", "0788000003")
-        contact4 = self.create_contact("Don", "0788000004", language='fre')
+        contact4 = self.create_contact("Don", "0788000004", language='fra')
 
         contact1.set_field(self.user, 'nickname', "Annie", label="Nick name")
         contact4.set_field(self.user, 'nickname', "Donnie", label="Nick name")
@@ -1045,7 +1052,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['results'][0], {
             'uuid': contact4.uuid,
             'name': "Don",
-            'language': "fre",
+            'language': "fra",
             'urns': ["tel:+250788000004"],
             'groups': [{'uuid': group.uuid, 'name': group.name}],
             'fields': {'nickname': "Donnie"},
@@ -1103,15 +1110,6 @@ class APITest(TembaTest):
             'modified_on': format_datetime(contact3.modified_on)
         })
 
-        with AnonymousOrg(self.org):
-            # can't filter by URN
-            response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
-
-            # output shouldn't include URNs
-            response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
-            self.assertEqual(response.json()['results'][0]['urns'], [])
-
         # try to post something other than an object
         response = self.postJSON(url, None, [])
         self.assertEqual(response.status_code, 400)
@@ -1149,15 +1147,18 @@ class APITest(TembaTest):
         # create with all fields
         response = self.postJSON(url, None, {
             'name': "Jean",
-            'language': "fre",
+            'language': "fra",
             'urns': ["tel:+250783333333", "twitter:JEAN"],
             'groups': [group.uuid],
             'fields': {'nickname': "Jado"}
         })
         self.assertEqual(response.status_code, 201)
 
+        resp_json = response.json()
+        self.assertEqual(resp_json['urns'], ['twitter:jean', 'tel:+250783333333'])
+
         # URNs will be normalized
-        jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
+        jean = Contact.objects.filter(name="Jean", language='fra').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
@@ -1182,7 +1183,7 @@ class APITest(TembaTest):
         # contact should be unchanged
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean")
-        self.assertEqual(jean.language, "fre")
+        self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
@@ -1262,24 +1263,6 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'uuid=%s&urn=%s' % (jean.uuid, quote_plus("tel:+250784444444")), {})
         self.assertResponseError(response, None, "URL can only contain one of the following parameters: urn, uuid")
 
-        with AnonymousOrg(self.org):
-            # can't update via URN
-            response = self.postJSON(url, 'urn=%s' % 'tel:+250785555555', {})
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
-
-            # can't update contact URNs
-            response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ["tel:+250786666666"]})
-            self.assertResponseError(response, 'urns', "Updating URNs not allowed for anonymous organizations")
-
-            # but can create with URNs
-            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
-            self.assertEqual(response.status_code, 201)
-
-            # TODO should UUID be masked in response??
-
-            xavier = Contact.objects.get(name="Xavier")
-            self.assertEqual(set(xavier.urns.values_list('identity', flat=True)), {"tel:+250787777777", "twitter:xavier"})
-
         # try an empty delete request
         response = self.deleteJSON(url, None)
         self.assertResponseError(response, None, "URL must contain one of the following parameters: urn, uuid")
@@ -1291,11 +1274,15 @@ class APITest(TembaTest):
         jean.refresh_from_db()
         self.assertFalse(jean.is_active)
 
+        # create xavier
+        response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
+        self.assertEqual(response.status_code, 201)
+
         # delete a contact by URN (which should be normalized)
         response = self.deleteJSON(url, 'urn=%s' % quote_plus('twitter:XAVIER'))
         self.assertEqual(response.status_code, 204)
 
-        xavier.refresh_from_db()
+        xavier = Contact.objects.get(name="Xavier")
         self.assertFalse(xavier.is_active)
 
         # try deleting a contact by a non-existent URN
@@ -1305,6 +1292,54 @@ class APITest(TembaTest):
         # try to delete a contact in another org
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assert404(response)
+
+    def test_contact_actions_if_org_is_anonymous(self):
+        url = reverse('api.v2.contacts')
+        self.assertEndpointAccess(url)
+
+        group = ContactGroup.get_or_create(self.org, self.admin, 'Customers')
+
+        response = self.postJSON(url, None, {
+            'name': "Jean",
+            'language': "fra",
+            'urns': ["tel:+250783333333", "twitter:JEAN"],
+            'groups': [group.uuid],
+            'fields': {}
+        })
+        self.assertEqual(response.status_code, 201)
+
+        jean = Contact.objects.filter(name="Jean", language='fra').get()
+
+        with AnonymousOrg(self.org):
+            # can't update via URN
+            response = self.postJSON(url, 'urn=%s' % 'tel:+250785555555', {})
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
+
+            # can't update contact URNs
+            response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ["tel:+250786666666"]})
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, 'urns', "Updating URNs not allowed for anonymous organizations")
+
+            # output shouldn't include URNs
+            response = self.fetchJSON(url, 'uuid=%s' % jean.uuid)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['results'][0]['urns'], [])
+
+            # but can create with URNs
+            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
+            self.assertEqual(response.status_code, 201)
+
+            # TODO should UUID be masked in response??
+            xavier = Contact.objects.get(name="Xavier")
+            self.assertEqual(
+                set(xavier.urns.values_list('identity', flat=True)), {"tel:+250787777777", "twitter:xavier"}
+            )
+
+            # can't filter by URN
+            response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
+            self.assertEqual(response.status_code, 400)
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
     def test_contact_actions(self):
         url = reverse('api.v2.contact_actions')
@@ -1327,7 +1362,7 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
         flow.start([], [contact1, contact2, contact3])
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
@@ -1621,8 +1656,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact fields, please remove some contact fields "
-                                 "to be able to create new contact fields")
+                                 "This org has 10 contact fields and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
 
     def test_flows(self):
         url = reverse('api.v2.flows')
@@ -1630,14 +1665,17 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         registration = self.create_flow(name="Registration")
-        survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
+        color = self.get_flow('color')
+
+        # add a campaign message flow that should be filtered out
+        Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), 'eng')
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
-        survey.labels.add(reporting)
+        color.labels.add(reporting)
 
         # run joe through through a flow
-        survey.start([], [self.joe])
+        color.start([], [self.joe])
         self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
 
         # flow belong to other org
@@ -1652,14 +1690,14 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
             {
-                'uuid': survey.uuid,
-                'name': "Survey",
+                'uuid': color.uuid,
+                'name': "Color Flow",
                 'archived': False,
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(survey.created_on),
-                'modified_on': format_datetime(survey.modified_on)
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
             },
             {
                 'uuid': registration.uuid,
@@ -1674,16 +1712,16 @@ class APITest(TembaTest):
         ])
 
         # filter by UUID
-        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'uuid=%s' % color.uuid)
+        self.assertResultsByUUID(response, [color])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(registration.modified_on))
         self.assertResultsByUUID(response, [registration])
 
         # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
-        self.assertResultsByUUID(response, [survey])
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
@@ -1706,7 +1744,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = YES", 'count': 0},
+            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = \"YES\"", 'count': 0},
             {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
         ])
 
@@ -1790,8 +1828,12 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact groups, please remove some contact groups "
-                                 "to be able to create new contact groups")
+                                 "This org has 10 groups and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones.")
+
+        group1 = ContactGroup.user_groups.filter(org=self.org, name='group1').first()
+        response = self.deleteJSON(url, 'uuid=%s' % group1.uuid)
+        self.assertEqual(response.status_code, 204)
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
@@ -1889,7 +1931,9 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 labels, please remove some to be able to add a new label")
+                                 "This org has 10 labels and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones."
+                                 )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
@@ -2072,16 +2116,31 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json(), {
             'name': "Temba",
             'country': "RW",
-            'languages': ["eng", "fre"],
+            'languages': ["eng", "fra"],
             'primary_language': "eng",
             'timezone': "Africa/Kigali",
             'date_style': "day_first",
+            'credits': {'used': 0, 'remaining': 1000},
+            'anon': False
+        })
+
+        # try to set languages which do not exist in iso639-3
+        self.org.set_languages(self.admin, ['fra', '123', 'eng'], 'eng')
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json(), {
+            'name': 'Temba',
+            'country': 'RW',
+            'languages': ['eng', 'fra'],
+            'primary_language': 'eng',
+            'timezone': 'Africa/Kigali',
+            'date_style': 'day_first',
             'credits': {'used': 0, 'remaining': 1000},
             'anon': False
         })
@@ -2119,12 +2178,16 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # allow Frank to run the flow in French
-        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
-        self.frank.language = 'fre'
+        self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
+        self.frank.language = 'fra'
         self.frank.save()
 
-        flow1 = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
+
+        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
+        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
+        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
@@ -2153,7 +2216,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -2171,8 +2234,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2187,16 +2250,16 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
+                    'node': color_ruleset.uuid,
+                    'time': format_datetime(iso8601.parse_date(joe_run1.get_results()['color']['created_on']))
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
@@ -2527,7 +2590,8 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
+                                                       dict(base="Hi @extra.first_name @extra.last_name, "
                                                                  "what's your favorite color?")).as_json()])
         first_action.save()
 

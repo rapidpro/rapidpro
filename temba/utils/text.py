@@ -114,7 +114,7 @@ def decode_base64(original):
         if float(letters) / len(decoded) < 0.5:
             return original
 
-    except:
+    except Exception:
         return original
 
     return decoded

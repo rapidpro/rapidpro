@@ -9,6 +9,9 @@
   -if has_messages
     {{page_top}}
 
+-block page-title
+  {{title}}
+
 -block title-icon
   %span.title-icon
     .glyph.icon-inbox
@@ -168,7 +171,7 @@
               %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
                 %tbody
                   -for object in object_list
-                    %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}{% if object.created_on > msg_last_viewed %}new{% endif %}', data-object-id:'{{ object.id }}',
+                    %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
                       - if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
@@ -197,7 +200,7 @@
                           {{object.created_on|gmail_time}}
 
                         .log-icon
-                          -if not user_org.is_anon or perms.contacts.contact_break_anon
+                          -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
                             {% channel_log_link object %}
 
                     -empty

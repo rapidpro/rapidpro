@@ -8,9 +8,9 @@ import time
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import FCM_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 from .views import ClaimView
-from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
+from ...models import Channel, ChannelType, SendException
 
 
 class FirebaseCloudMessagingType(ChannelType):
@@ -31,6 +31,7 @@ class FirebaseCloudMessagingType(ChannelType):
     max_length = 10000
     attachment_support = False
     free_sending = True
+    quick_reply_text_size = 36
 
     def send(self, channel, msg, text):
         start = time.time()
@@ -56,9 +57,16 @@ class FirebaseCloudMessagingType(ChannelType):
             }
             data['content_available'] = True
 
+        metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+        quick_replies = metadata.get('quick_replies', [])
+        formatted_replies = [dict(title=item[:self.quick_reply_text_size], payload=item[:self.quick_reply_text_size])
+                             for item in quick_replies]
+
+        if quick_replies:
+            data['data']['quick_replies'] = formatted_replies
+
         payload = json.dumps(data)
-        headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')}
-        headers.update(TEMBA_HEADERS)
+        headers = http_headers(extra={'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')})
 
         event = HttpEvent('POST', url, payload)
 

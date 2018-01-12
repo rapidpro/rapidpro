@@ -35,9 +35,9 @@ Your {{ brand }} account for {{ org }} is out of credit. You will no longer be a
 
 {% elif alert.alert_type == 'E' %}
 
-{% blocktrans with org=alert.org.name brand=branding.name expiring=org.get_credits_expiring_soon %}
+{% blocktrans with org=alert.org.name brand=branding.name %}
 
-Your {{ brand }} account for {{ org }} has {{ expiring }} expiring credits in less than one month.
+Your {{ brand }} account for {{ org }} has expiring credits in less than one month.
 {% endblocktrans %}
 
   <br/>
