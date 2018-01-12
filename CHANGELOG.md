@@ -1,3 +1,9 @@
+v3.0.308
+----------
+'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
+ * Update date for webhook change on api docs
+ * Don't use flow steps for calculating test contact activity
+
 v3.0.307
 ----------
  * Stop using FlowPathRecentMessage
