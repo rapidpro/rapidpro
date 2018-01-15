@@ -4033,10 +4033,6 @@ class FlowPathRecentRun(models.Model):
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
 
     @classmethod
-    def record(cls, exit_uuid, to_uuid, run, visited_on=None):
-        cls.objects.create(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, visited_on=visited_on or timezone.now())
-
-    @classmethod
     def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
         Gets the recent runs for the given flow segments
