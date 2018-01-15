@@ -2872,10 +2872,18 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             exit_type = None
 
         # we store a simplified version of the path
-        path = [{"node": s['node_uuid'], "time": s['arrived_on']} for s in run_output['path']]
+        path = []
+        for s in run_output['path']:
+            path.append({
+                FlowRun.PATH_NODE_UUID: s['node_uuid'],
+                FlowRun.PATH_EXIT_UUID: s.get('exit_uuid'),
+                FlowRun.PATH_ARRIVED_ON: s['arrived_on']
+            })
+        current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         if existing:
             existing.path = json.dumps(path)
+            existing.current_node_uuid = current_node_uuid
             existing.results = json.dumps(results)
             existing.expires_on = expires_on
             existing.timeout_on = timeout_on
@@ -2884,7 +2892,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing.exit_type = exit_type
             existing.responded |= bool(msg_in)
             existing.is_active = is_active
-            existing.save(update_fields=('path', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
+            existing.save(update_fields=('path', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
             msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
@@ -2903,6 +2911,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                                      flow=flow, contact=contact,
                                      parent=parent,
                                      path=json.dumps(path),
+                                     current_node_uuid=current_node_uuid,
                                      results=json.dumps(results),
                                      session=session,
                                      responded=bool(msg_in),
