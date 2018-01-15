@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0143_populate_recent_runs'),
+        ('flows', '0145_update_path_trigger'),
     ]
 
     operations = [

@@ -10721,7 +10721,7 @@ class CourierTest(TembaTest):
 
 
 class HandleEventTest(TembaTest):
-    def test_stop_contact_task(self):
+    def test_new_conversation_channel_event(self):
         self.joe = self.create_contact("Joe", "+12065551212")
         flow = self.get_flow('favorites')
         Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow)
@@ -10731,3 +10731,13 @@ class HandleEventTest(TembaTest):
 
         # should have been started in our flow
         self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.joe))
+
+    def test_stop_contact_channel_event(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+
+        self.assertFalse(self.joe.is_stopped)
+        event = ChannelEvent.create(self.channel, "tel:+12065551212", ChannelEvent.TYPE_STOP_CONTACT, timezone.now())
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=CHANNEL_EVENT, event_id=event.id))
+
+        self.joe.refresh_from_db()
+        self.assertTrue(self.joe.is_stopped)
