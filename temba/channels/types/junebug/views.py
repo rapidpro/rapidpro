@@ -1,7 +1,6 @@
 from __future__ import unicode_literals, absolute_import
 
 from django import forms
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
@@ -32,15 +31,16 @@ class ClaimView(AuthenticatedExternalClaimView):
     def form_valid(self, form):
         org = self.request.user.get_org()
         data = form.cleaned_data
+        config = {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
+        if data['secret']:
+            config[Channel.CONFIG_SECRET] = data['secret']
 
         self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                  self.get_submitted_country(data),
                                                                  data['number'], data['username'],
                                                                  data['password'], 'JN',
                                                                  data.get('url'),
-                                                                 role=Channel.DEFAULT_ROLE)
-        if data['secret']:
-            self.object.secret = data['secret']
-            self.object.save()
+                                                                 role=Channel.DEFAULT_ROLE,
+                                                                 extra_config=config)
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)

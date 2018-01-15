@@ -2,7 +2,6 @@ from __future__ import absolute_import, unicode_literals
 
 from datetime import timedelta
 from django.db import models
-from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -44,7 +43,7 @@ class IVRCall(ChannelSession):
         runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
         for run in runs:
             test_call = IVRCall.objects.filter(id=run.connection.id).first()
-            if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
+            if test_call.channel.channel_type in ['T', 'TW']:
                 if not test_call.is_done():
                     test_call.close()
 
@@ -62,11 +61,13 @@ class IVRCall(ChannelSession):
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
+        domain = self.channel.callback_domain
+
         from temba.ivr.clients import IVRException
         from temba.flows.models import ActionLog, FlowRun
         if client:
             try:
-                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
+                url = "https://%s%s" % (domain, reverse('ivr.ivrcall_handle', args=[self.pk]))
                 if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 

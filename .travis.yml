@@ -60,6 +60,7 @@ before_script:
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
 script:
+  # any non-zero error code should be treated as an immediate failure
   - set -e
 
   # test PEP8 compliance on both Python 2 and 3
@@ -79,7 +80,10 @@ script:
   # run our Python tests
   - coverage run manage.py test --noinput --verbosity=2
 
+  - set +e
+
 after_success:
+  - pip install pyopenssl==17.4.0
   - coveralls --rcfile .coveragerc_failcheck
   - coverage report -i --rcfile .coveragerc
   - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100

@@ -1,6 +1,5 @@
 -load i18n
 
-
 :css
   .attach-option {
   }
@@ -47,6 +46,19 @@
     width: 385px;
   }
 
+  .quick-reply, .quick-reply:hover {
+    transition: none;
+    -webkit-transition: none;
+  }
+
+  label[for="new_format"] {
+    display: inline-block;
+  }
+
+  .modal.api .modal-body input {
+    margin-left: 0px;
+  }
+
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
 .modal-body
@@ -60,7 +72,7 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
-        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !quickReplies.length'}
           .attach-button{ng-show:'!showAttachOptions'}
             .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
@@ -84,7 +96,7 @@
             %span.attach-url
               %input{ng-model:"action._attachURL", name:"url", type:'text', auto-complete:"", placeholder: '@extra.attachment_url', ng-required:"showAttachVariable"}
             .icon.icon-close{ng-click:"showAttachOptions = false; showAttachVariable = false"}
-              
+
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
           .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
           .summary
@@ -92,6 +104,21 @@
           .remove
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
+
+        .icon-button-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+
+      .quick-reply{ng-show:"!showQuickReplyButton"}
+        .modal-quick-reply-header
+          .quick-reply-title
+            -trans "Quick Replies"
+
+        .modal-quick-reply{ng-repeat:"reply in quickReplies", class:""}
+          .quick-reply-title
+            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply[base_language]", ng-required:"true"}
+
+          .icon.icon-close{ng-click:"removeQuickReply($index);"}
+        %a.add-reply{href:"javascript:;", ng-click:"addNewQuickReply()", ng-hide:"quickReplies.length == 11"}
+          -trans "Add reply"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
@@ -216,58 +243,94 @@
       %select{ng-model:"action.action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
       %input{ng-model:"action.webhook",name:"url",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"url",class:"url"}
 
-      %a.additional-options{href:"javascript:;",ng-click:"actionWebhookAdditionalOptions()",ng-show:"!formData.isActionWebhookAdditionalOptionsVisible"}
-        -trans "Additional options"
+      .help-text
+        %a.additional-options{href:"javascript:;",ng-click:"actionWebhookAdditionalOptions()",ng-show:"!formData.isActionWebhookAdditionalOptionsVisible"}
+          -trans "Additional options"
 
       .webhook-headers{ng-show:"formData.isActionWebhookAdditionalOptionsVisible"}
         .modal-webhook-header-pair
           .modal-webhook-header.modal-webhook-header-name
             .message
-              -trans "Header Name"
+              .help-text
+                -trans "Header Name"
           .modal-webhook-header.modal-webhook-header-value
             .message
-              -trans "Header Value"
+              .help-text
+                -trans "Header Value"
         .modal-webhook-header-pair{ng-repeat:"header in action.webhook_headers"}
           .modal-webhook-header.modal-webhook-header-name
-            %input{type:"text",name:"webhook-name",ng-model:"action_webhook_headers_name[$index]"}
+            %input{type:"text",name:"webhook-name",ng-model:"header.name"}
           .modal-webhook-header.modal-webhook-header-value
-            %input{type:"text",name:"webhook-value",ng-model:"action_webhook_headers_value[$index]"}
+            %input{type:"text",name:"webhook-value",ng-model:"header.value"}
           .modal-webhook-header.modal-webhook-header-remove
             .icon.icon-close{ng-click:"removeActionWebhookHeader($index)"}
 
-        %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
-          -trans "Add header"
+        .help-text
+          %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
+            -trans "Add header"
 
-      .help-text
-        -blocktrans
-          We'll include the message text along with data specified
-          in the
-          %a{href:"/webhooks/webhook/#flow"}<
-            Webhook Flow Event API
-          .
+      .div{ng-show:'formData.supportsLegacy && action.action == "POST"'}
 
-      .help-text
-        -blocktrans
-          This step will be identified as [[action.uuid]]
+        .success{ng-show:'formData.newFormat'}
+          %p
+            This webhook is set to use the
+            %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
+              new version
+            of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
+            box below. Keep in mind that the deprecated format will be removed January 31, 2018.
 
-      %p{class:"description response"}
-        -blocktrans
-          If your server responds with JSON, each property will be
-          added to the flow.
+          .div{style:'margin-top:10px'}
+            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+              %label{for:'new_format'}
+                Use the new webhook format
 
-      .code
-        &#x7B;
-        %br
-        &nbsp;&nbsp;product: "Solar charging kit",
-        %br
-        &nbsp;&nbsp;stock_level: 32
-        %br
-        &#x7D;
+        .warning{ng-hide:'formData.newFormat'}
+          %p
+            This webhook is using a
+            %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
+              deprecated version
+            of the POST Webhook API which will be removed on January 31, 2018.
+            Prior to that date, you will need to update any services depending on the deprecated API format.
 
-      .help-text
-        -blocktrans
-          In this example @extra.product and @extra.stock_level
-          would be added for all future steps.
+          %p
+            Review the
+            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+              new version
+            and check the box below when this webhook is ready to start receiving the new format.
+
+          .div{style:'margin-top:10px'}
+            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
+              %label{for:'new_format'}
+                Use the new webhook format
+
+      .div{ng-hide:'formData.supportsLegacy && action.action == "POST"'}
+        .help-text
+          -blocktrans
+            We'll include the message text along with data specified in the
+            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
+              Webhook Flow Event API
+            . This step will be identified as [[actionset.uuid]]
+
+        %p
+        %p{class:"description response"}
+          -blocktrans
+            If your server responds with JSON, each property will be added
+            to the flow.
+
+        .example
+          .code
+            &#x7B;
+            %br
+            &nbsp;&nbsp;product: "Solar charging kit",
+            %br
+            &nbsp;&nbsp;stock_level: 32
+            %br
+            &#x7D;
+
+        .help-text
+          -blocktrans
+            In this example @extra.product and @extra.stock_level would be
+            added for all future steps
 
       %button{ng-click:"saveWebhook(action.action, action.webhook)",class:"submit hide"}
         -trans "Ok"

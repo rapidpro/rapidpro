@@ -26,8 +26,9 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, url)
 
-        mock_get.return_value = MockResponse(200, json.dumps({'title': 'FCM Channel', 'key': 'abcde12345', 'send_notification': 'True'}))
-
+        mock_get.return_value = MockResponse(
+            200, json.dumps({'title': 'FCM Channel', 'key': 'abcde12345', 'send_notification': 'True'})
+        )
         response = self.client.post(url, {
             'title': 'FCM Channel',
             'key': 'abcde12345',
@@ -37,4 +38,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         channel = Channel.objects.get(address='abcde12345')
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.id]))
         self.assertEqual(channel.channel_type, "FCM")
-        self.assertEqual(channel.config_json(), {'FCM_KEY': 'abcde12345', 'FCM_TITLE': 'FCM Channel', 'FCM_NOTIFICATION': True})
+        self.assertEqual(
+            channel.config_json(),
+            {'FCM_KEY': 'abcde12345', 'FCM_TITLE': 'FCM Channel', 'FCM_NOTIFICATION': True}
+        )

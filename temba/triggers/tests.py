@@ -483,7 +483,6 @@ class TriggerTest(TembaTest):
         self.assertTrue(Trigger.find_and_handle(msg))
 
         self.assertEqual(msg.msg_type, 'F')
-        self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
 
         contact.refresh_from_db()
         self.assertEqual('Ben Haggerty', contact.name)
@@ -809,7 +808,7 @@ class TriggerTest(TembaTest):
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.get_flow('color')
 
         contact = self.create_contact("Ali", "250788739305")
 

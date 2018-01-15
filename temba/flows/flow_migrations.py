@@ -1,14 +1,259 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals, print_function, division
 
 import copy
 import json
 import regex
 import six
+from uuid import uuid4
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
-from uuid import uuid4
+from temba.contacts.models import ContactField
+from temba.flows.models import Flow
+from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_to_version_11_3(json_flow, flow=None):
+    """
+    Migrates webhooks to support legacy format
+    """
+    for actionset in json_flow.get('action_sets', []):
+        for action in actionset['actions']:
+            if action['type'] == 'api' and action.get('action', 'POST') == 'POST':
+                action['action'] = 'POST'
+                action['legacy_format'] = True
+
+    for ruleset in json_flow.get('rule_sets', []):
+        if ruleset['ruleset_type'] == 'webhook':
+            if ruleset['config']['webhook_action'] == 'POST':
+                ruleset['config']['legacy_format'] = True
+
+    return json_flow
+
+
+def _base_migrate_to_version_11_2(json_flow, country_code):
+    if 'base_language' in json_flow and json_flow['base_language'] != 'base':
+        iso_code = json_flow['base_language']
+        new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+        json_flow['base_language'] = new_iso_code
+
+    return json_flow
+
+
+def migrate_to_version_11_2(json_flow, flow=None):
+    """
+    Migrates base_language in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:  # pragma: no cover
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_2(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_2(exported_json, org, same_site=True):
+    """
+        Migrates base_language in flow exports from iso639-2 to iso639-3
+    """
+    country_code = org.get_country_code()
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_2(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
+
+
+def _base_migrate_to_version_11_1(json_flow, country_code):
+    def _is_this_a_lang_object(obj):
+        """
+        Lang objects should only have keys of length == 3
+        """
+        keys = set(obj.keys())  # py3 compatibility, keys() is an iterable
+
+        # remove the 'base' language
+        keys.discard('base')
+
+        if keys:
+            for k in keys:
+                if len(k) == 3:
+                    continue
+                else:
+                    return False
+            return True
+
+    def _traverse(obj, country_code):
+        if isinstance(obj, dict):
+
+            if _is_this_a_lang_object(obj):
+                new_obj = {}
+
+                for key, val in obj.items():
+                    if key == 'base':
+                        new_obj.update({key: val})
+                    else:
+                        new_key = iso6392_to_iso6393(key, country_code)
+                        new_obj.update({new_key: val})
+
+                value = new_obj
+            elif 'lang' in obj:
+                iso_code = obj['lang']
+                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                obj['lang'] = new_iso_code
+                value = obj
+            else:
+                value = {k: _traverse(v, country_code) for k, v in obj.items()}
+
+        elif isinstance(obj, list):
+            value = [_traverse(elem, country_code) for elem in obj]
+        else:
+            value = obj
+
+        return value
+
+    return _traverse(json_flow, country_code=country_code)
+
+
+def migrate_to_version_11_1(json_flow, flow=None):
+    """
+    Migrates translation language codes in flow definitions from iso639-2 to iso639-3
+    """
+    if flow is not None:
+        country_code = flow.org.get_country_code()
+    else:  # pragma: no cover
+        raise ValueError('Languages depend on org, can not migrate to version 11 without org')
+
+    return _base_migrate_to_version_11_1(json_flow, country_code=country_code)
+
+
+def migrate_export_to_version_11_1(exported_json, org, same_site=True):
+    """
+        Migrates translation language codes in flow exports from iso639-2 to iso639-3
+    """
+    country_code = org.get_country_code()
+
+    migrated_flows = []
+    for sub_flow in exported_json.get('flows', []):
+        flow = _base_migrate_to_version_11_1(sub_flow, country_code=country_code)
+        migrated_flows.append(flow)
+
+    exported_json['flows'] = migrated_flows
+
+    return exported_json
+
+
+def migrate_export_to_version_11_0(json_export, org, same_site=True):
+    """
+    Introduces the concept of format_location and format_date. This migration
+    wraps all references to rulesets or contact fields which are locations or dates and
+    wraps them appropriately
+    """
+    replacements = [
+        [r'@date([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)', r'@(format_date(date))\1'],
+        [r'@date\.now', r'@(format_date(date.now))']
+    ]
+
+    # get all contact fields that are date or location for this org
+    fields = (ContactField.objects
+              .filter(org=org, is_active=True, value_type__in=['D', 'S', 'I', 'W'])
+              .only('id', 'value_type', 'key'))
+
+    for cf in fields:
+        format_function = 'format_date' if cf.value_type == 'D' else 'format_location'
+        replacements.append([
+            r'@contact\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % cf.key,
+            r'@(%s(contact.%s))\1' % (format_function, cf.key)
+        ])
+
+    for flow in json_export.get('flows', []):
+
+        # figure out which rulesets are date or location
+        for rs in flow.get('rule_sets', []):
+            rs_type = None
+            for rule in rs.get('rules', []):
+                test = rule.get('test', {}).get('type')
+                if not test:  # pragma: no cover
+                    continue
+                elif test == 'true':
+                    continue
+                elif not rs_type:
+                    rs_type = test
+                elif rs_type and test != rs_type:
+                    rs_type = 'none'
+
+            key = Flow.label_to_slug(rs['label'])
+
+            # any reference to this result value's time property needs wrapped in format_date
+            replacements.append([
+                r'@flow\.%s\.time' % key,
+                r'@(format_date(flow.%s.time))' % key
+            ])
+
+            # how we wrap the actual result value depends on its type
+            if rs_type in ['date', 'date_before', 'date_after', 'date_equal']:
+                format_function = 'format_date'
+            elif rs_type in ['state', 'district', 'ward']:
+                format_function = 'format_location'
+            else:  # pragma: no cover
+                continue
+
+            replacements.append([
+                r'@flow\.%s([^0-9a-zA-Z\.]|\.[^0-9a-zA-Z\.]|$|\.$)' % key,
+                r'@(%s(flow.%s))\1' % (format_function, key)
+            ])
+
+        # for every action in this flow, look for replies, sends or says that use these fields and wrap them
+        for actionset in flow.get('action_sets', []):
+            for action in actionset.get('actions', []):
+                if action['type'] in ['reply', 'send', 'say']:
+                    msg = action['msg']
+                    for lang, text in msg.items():
+                        migrated_text = text
+                        for pattern, replacement in replacements:
+                            migrated_text = regex.sub(
+                                pattern,
+                                replacement,
+                                migrated_text,
+                                flags=regex.UNICODE | regex.MULTILINE
+                            )
+
+                        msg[lang] = migrated_text
+
+    return json_export
+
+
+def migrate_to_version_11_0(json_flow, flow):
+    return migrate_export_to_version_11_0({'flows': [json_flow]}, flow.org)['flows'][0]
+
+
+def migrate_to_version_10_4(json_flow, flow=None):
+    """
+    Fixes flows which don't have exit_uuids on actionsets or uuids on actions
+    """
+    for actionset in json_flow['action_sets']:
+        if not actionset.get('exit_uuid'):
+            actionset['exit_uuid'] = six.text_type(uuid4())
+
+        for action in actionset['actions']:
+            uuid = action.get('uuid')
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
+def migrate_to_version_10_3(json_flow, flow=None):
+    """
+    Adds exit_uuid to actionsets so flows can be migrated in goflow deterministically
+    """
+    for actionset in json_flow['action_sets']:
+        actionset['exit_uuid'] = six.text_type(uuid4())
+    return json_flow
 
 
 def migrate_to_version_10_2(json_flow, flow=None):

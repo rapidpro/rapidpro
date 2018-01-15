@@ -1,3 +1,275 @@
+v3.0.308
+----------
+'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
+ * Update date for webhook change on api docs
+ * Don't use flow steps for calculating test contact activity
+
+v3.0.307
+----------
+ * Stop using FlowPathRecentMessage
+
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
+v3.0.305
+----------
+ * Add new model for tracking recent runs
+ * Add dynamic group optimization for new contacts
+
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
+v3.0.301
+----------
+ * Tweak process_message_task to not blow up if message doesn't exist
+ * Use FlowRun.message_ids for flow result exports
+
+v3.0.300
+----------
+ * Use config secret instead of secret field on Channel
+ * Add tests for datetime contact API field update
+
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
+v3.0.298
+----------
+ * Process contact queue until there's a pending message or empty
+ * Make date parsing much stricter
+ * Migration to fix run results which were numeric but parsed as dates
+ * Use transaction when creating contact URN
+ * Add support for v2 webhooks
+
+v3.0.294
+----------
+ * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
+ * Define MACHINE_HOSTNAME for librato metrics
+
+v3.0.293
+----------
+ * Fix handle_ruleset so we don't continue the run if a child has exited us
+ * Migration to backfill FlowRun.message_ids and .current_node_uuid (recommend faking and running manually)
+
+v3.0.292
+----------
+ * Add support for 'direct' db connection
+ * Stop updating count and triggered on on triggers
+ * Add FlowRun.current_node_uuid and message_ids
+ * Catch IntegrityError and lookup again when creating contact URN
+ * Make sure we dont allow group chats in whatsapp
+
+v3.0.291
+----------
+ * Ignore TMS callbacks
+
+v3.0.289
+----------
+ * Stop writing values in flows to values_value
+
+v3.0.287
+----------
+ * Performance improvements and simplications to flow result exports
+ * Add some extra options to webhook_stats
+ * Migration to convert old recent message records
+
+v3.0.286
+----------
+ * Remove incomplete path counts
+
+v3.0.285
+----------
+ * Migrate languages on campaign events
+ * Rework flow path count trigger to use exit_uuid and not record incomplete segments
+
+v3.0.282
+----------
+ * Don't import contacts with unknown iso639-3 code
+ * Make angular bits less goofy for quick replies and webhooks
+ * Add is_active index on flowrun
+ * Don't disassociate channels from orgs when they're released
+ * Include language column in Contact export
+
+v3.0.281
+----------
+ * Set tps for nexmo and whatsapp
+ * Dont overwrite name when receiving a message from a contact that already exists
+ * Flow start performance improvements
+
+v3.0.280
+----------
+ * Parse ISO dates followed by a period
+ * Optimize batch flow starts
+
+v3.0.279
+----------
+ * Update Nexmo channels to use new Courier URLs
+ * Store path on AdminBoundary for faster lookups
+ * Serialize metata for courier tasks (quick replies support)
+ * Add default manager to AdminBoundary which doesn't include geometry
+
+v3.0.278
+----------
+ * Fixes to the ISO639-3 migration
+ * Add support for quick replies
+
+v3.0.277
+----------
+ * Add flow migration for base_language in flow definitions
+
+v3.0.276
+----------
+ * back down to generic override if not found with specific code
+ * Add esp-spa as exception
+
+v3.0.275
+----------
+ * Fix language migrations
+
+v3.0.274
+----------
+ * Fix serialization of 0 decimal values in API
+ * Add initial version of WhatsApp channel (simple messaging only)
+ * Migrate to iso639-3 language codes (from iso639-2)
+ * Remove indexes on Msg, FlowRun and FlowStep which we don't use
+ * Remove fields no longer used on org model
+
+v3.0.273
+----------
+ * Don't blow up when a flow result doesn't have input
+
+v3.0.272
+----------
+ * Fix parsing ISO dates with negative offsets
+
+v3.0.271
+----------
+ * Serialize contact field values with org timezone
+
+v3.0.270
+----------
+ * Load results and path from new JSON fields instead of step/value objects on API runs endpoint
+
+v3.0.269
+----------
+ * Fix campaign export issue
+ * Disable legacy analytics page
+ * Change date constants and contact fields to use full/canonical format in expressions context
+
+v3.0.265
+----------
+ * Fix not updating versions on import flows
+ * Require FlowRun saves to use update_fields
+ * Rework get_results to use FlowRun.results
+ * Don't allow users to save dynamic groups with 'id' or 'name' attributes
+ * Add flow version 11.0, create migration to update references to contact fields and flow fields
+
+v3.0.264
+----------
+ * Show summary for non-waits on flow results
+ * Reduce number of queries during flow handling
+
+v3.0.263
+----------
+ * Start campaigns in separate task
+ * Enable flow results graphs on flow result page
+ * Fix run table json parsing
+ * SuperAutoScaler!
+
+v3.0.262
+----------
+ * Use string comparison to optimize temba_update_flowcategorycount
+ * Allow path counts to be read by node or exit
+ * SuperAutoscaler
+ * Fix inbox views so we don't look up channel logs for views that don't have them
+ * Add management command for analyzing webhook calls
+ * Change recent message fetching to work with either node UUID or exit UUID
+
+v3.0.261
+----------
+ * Migrate revisions forward with rev version
+ * Limit scope of squashing so we can recover from giant unsquashed numbers
+
+v3.0.260
+----------
+ * Make tests go through migration
+ * Set version number of system created flows
+ * Block saving old versions over new versions
+ * Perform apply_topups as a task, tweak org update form
+ * Updates to credit caches to consider expiration
+ * Tweak credit expiration email
+
+v3.0.259
+----------
+ * Improve performance and restartability of run.path backfill migration
+ * Update to latest smartmin
+ * Use run.results for run results page
+
+v3.0.258
+----------
+ * Set brand domain on channel creations, use for callbacks
+
+v3.0.257
+----------
+ * Migration to populate run paths (timeconsuming, may want to fake aand run manually)
+ * Ensure actions have UUIDs in single message and join-group flows
+ * Flow migration command shouldn't blow up if a single flow fails
+
+v3.0.255
+----------
+ * Fix Twilio to redirect to twilio claim page after connecting Twilio
+ * Add FlowRun.path and start populating it for new flow steps
+ * Removes no longer used Msg.has_template_error field
+
+v3.0.254
+----------
+ * Use get_host() when calculating signature for voice callbacks
+
+v3.0.253
+----------
+ * use get_host() when validating IVR requests
+
+v3.0.252
+----------
+ * Better Twilio channel claiming
+
+v3.0.250
+----------
+ * Tweaks to recommended channels display
+
+v3.0.246
+----------
+ * Update smartmin to version 1.11.4
+ * Dynamic channels: Chikka, Twilio, Twilio Messaging Service and TwiML Rest API
+
+v3.0.245
+----------
+ * Tweaks to the great FlowRun results migration for better logging and for parallel migrations
+ * Fixes us showing inactive orgs in nav bar and choose page
+ * Ignore requests missing text for incoming message from Infobip
+
+v3.0.244
+----------
+ * Add exit_uuid to all flow action_sets (needed for goflow migrations)
+
+v3.0.243
+----------
+ * Add index to FlowPathRecentMessage
+ * Flows API endpoint should filter out campaign message flow type
+ * Add archived field to campaings API endpoint
+ * Fix to correctly substitute context brand variable in dynamic channel blurb
+
 v3.0.242
 ----------
  * Data migration to populate results on FlowRun (timeconsuming, may want to fake and run manually)

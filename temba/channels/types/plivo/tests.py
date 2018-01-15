@@ -15,16 +15,25 @@ class PlivoTypeTest(TembaTest):
         self.login(self.admin)
 
         # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
+        self.org.channels.update(is_active=False)
 
         connect_plivo_url = reverse('orgs.org_plivo_connect')
         claim_plivo_url = reverse('channels.claim_plivo')
 
         # make sure plivo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Connect plivo")
-        self.assertContains(response, reverse('orgs.org_plivo_connect'))
-        self.assertNotContains(response, reverse('channels.claim_plivo'))
+        self.assertContains(response, "Plivo")
+        self.assertContains(response, reverse('channels.claim_plivo'))
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_plivo_url)
+
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_plivo_url, follow=True)
+
+            self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_plivo_connect'))
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))
@@ -37,12 +46,15 @@ class PlivoTypeTest(TembaTest):
         # let's add a number already connected to the account
         with patch('requests.get') as plivo_get:
             with patch('requests.post') as plivo_post:
-                plivo_get.return_value = MockResponse(200,
-                                                      json.dumps(dict(objects=[dict(number='16062681435',
-                                                                                    region="California, UNITED STATES"),
-                                                                               dict(number='8080',
-                                                                                    region='GUADALAJARA, MEXICO')])))
-
+                plivo_get.return_value = MockResponse(
+                    200,
+                    json.dumps(
+                        dict(objects=[
+                            dict(number='16062681435', region="California, UNITED STATES"),
+                            dict(number='8080', region='GUADALAJARA, MEXICO')
+                        ])
+                    )
+                )
                 plivo_post.return_value = MockResponse(202, json.dumps(dict(status='changed', app_id='app-id')))
 
                 # make sure our numbers appear on the claim page
@@ -67,9 +79,12 @@ class PlivoTypeTest(TembaTest):
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-                self.assertEqual(channel.config_json(), {Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
-                                                         Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                                                         Channel.CONFIG_PLIVO_APP_ID: 'app-id'})
+                self.assertEqual(channel.config_json(), {
+                    Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
+                    Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
+                    Channel.CONFIG_PLIVO_APP_ID: 'app-id',
+                    Channel.CONFIG_CALLBACK_DOMAIN: 'app.rapidpro.io'
+                })
                 self.assertEqual(channel.address, "+16062681435")
                 # no more credential in the session
                 self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
@@ -114,7 +129,8 @@ class PlivoTypeTest(TembaTest):
                         self.assertEqual(channel.config_json(), {
                             Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                             Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                            Channel.CONFIG_PLIVO_APP_ID: 'app-id'
+                            Channel.CONFIG_PLIVO_APP_ID: 'app-id',
+                            Channel.CONFIG_CALLBACK_DOMAIN: 'app.rapidpro.io'
                         })
                         self.assertEqual(channel.address, "+16062681440")
                         # no more credential in the session

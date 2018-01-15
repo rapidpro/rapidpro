@@ -33,6 +33,7 @@ class TwitterType(ChannelType):
     max_length = 10000
     show_config_page = False
     free_sending = True
+    quick_reply_text_size = 36
 
     FATAL_403S = ("messages to this user right now",  # handle is suspended
                   "users who are not following you")  # handle no longer follows us
@@ -56,10 +57,32 @@ class TwitterType(ChannelType):
             # this is a legacy URN (no display), the path is our screen name
             if scheme == TWITTER_SCHEME:
                 dm = twitter.send_direct_message(screen_name=path, text=text)
+                external_id = dm['id']
 
             # this is a new twitterid URN, our path is our user id
             else:
-                dm = twitter.send_direct_message(user_id=path, text=text)
+                metadata = msg.metadata if hasattr(msg, 'metadata') else {}
+                quick_replies = metadata.get('quick_replies', [])
+                formatted_replies = [dict(label=item[:self.quick_reply_text_size]) for item in quick_replies]
+
+                if quick_replies:
+                    params = {
+                        'event': {
+                            'type': 'message_create',
+                            'message_create': {
+                                'target': {'recipient_id': path},
+                                'message_data': {
+                                    'text': text,
+                                    'quick_reply': {'type': 'options', 'options': formatted_replies}
+                                }
+                            }
+                        }
+                    }
+                    dm = twitter.post('direct_messages/events/new', params=params)
+                    external_id = dm['event']['id']
+                else:
+                    dm = twitter.send_direct_message(user_id=path, text=text)
+                    external_id = dm['id']
 
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
@@ -80,5 +103,4 @@ class TwitterType(ChannelType):
 
             raise SendException(str(e), events=twitter.events, fatal=fatal, start=start)
 
-        external_id = dm['id']
         Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)

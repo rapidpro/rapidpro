@@ -108,23 +108,36 @@ def process_message_task(msg_event):
 
         # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
-            # pop the next message to process off our contact queue
-            with r.pipeline() as pipe:
-                pipe.zrange(contact_queue, 0, 0)
-                pipe.zremrangebyrank(contact_queue, 0, 0)
-                (contact_msg, deleted) = pipe.execute()
 
-            if contact_msg:
+            # pop the next message off our contact queue until we find one that needs handling
+            while True:
+                with r.pipeline() as pipe:
+                    pipe.zrange(contact_queue, 0, 0)
+                    pipe.zremrangebyrank(contact_queue, 0, 0)
+                    (contact_msg, deleted) = pipe.execute()
+
+                # no more messages in the queue for this contact, we're done
+                if not contact_msg:
+                    return
+
+                # we have a message in our contact queue, look it up
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = (
+                    Msg.objects.filter(id=msg_event['id'])
+                    .order_by()
+                    .select_related('org', 'contact', 'contact_urn', 'channel')
+                    .first()
+                )
 
-                if msg:
+                # make sure we are still pending
+                if msg and msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
+                    return
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
-        if msg:
+        msg = Msg.objects.filter(id=msg_event['id']).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg and msg.status == PENDING:
             # grab our contact lock and handle this message
             key = 'pcm_%d' % msg.contact_id
             with r.lock(key, timeout=120):
@@ -148,26 +161,27 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
     from temba.contacts.models import Contact
     from temba.orgs.models import Org
-    from temba.flows.models import FlowStep
+    from temba.flows.models import FlowRun
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
     simulation = kwargs.get('simulation', 'false') == 'true'
-    step_uuid = kwargs.get('s', None)
+    node_uuid = kwargs.get('s', None)
 
-    qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+    runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
-    steps = FlowStep.objects.filter(run__is_active=True, step_uuid=step_uuid,
-                                    left_on=None, run__flow__org=org).distinct('contact').select_related('contact')
-    contact_uuids = [f.contact.uuid for f in steps]
-    contacts = qs.filter(uuid__in=contact_uuids).order_by('name')
+    contact_ids = (
+        Contact.objects
+        .filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+        .filter(id__in=runs.values_list('contact', flat=True))
+        .values_list('id', flat=True)
+    )
 
-    recipients = list(contacts)
-    broadcast = Broadcast.create(org, user, text, recipients)
+    broadcast = Broadcast.create(org, user, text, recipients=[])
+    broadcast.update_contacts(contact_ids)
     broadcast.send(expressions_context={})
 
-    analytics.track(user.username, 'temba.broadcast_created',
-                    dict(contacts=len(contacts), groups=0, urns=0))
+    analytics.track(user.username, 'temba.broadcast_created', dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
 @task(track_started=True, name='send_spam')
@@ -269,7 +283,7 @@ def check_messages_task():  # pragma: needs cover
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
+    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(contact__is_test=True)
     unhandled_count = unhandled_messages.count()
 
     if unhandled_count:
@@ -436,6 +450,6 @@ def clear_old_msg_external_ids():
     msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
-        Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
+        Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))

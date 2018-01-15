@@ -5,11 +5,11 @@ import time
 import requests
 
 from datetime import timedelta
-from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from six import text_type
+
 from temba.channels.models import ChannelType, Channel, SendException
 from temba.channels.types.junebug.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
@@ -39,18 +39,21 @@ class JunebugType(ChannelType):
         connection = None
 
         # if the channel config has specified and override hostname use that, otherwise use settings
-        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+        callback_domain = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, None)
+        if not callback_domain:
+            callback_domain = channel.callback_domain
 
         # the event url Junebug will relay events to
-        event_url = 'http://%s%s' % (event_hostname, reverse('courier.jn', args=[channel.uuid, 'event']))
+        event_url = 'http://%s%s' % (callback_domain, reverse('courier.jn', args=[channel.uuid, 'event']))
 
         is_ussd = Channel.get_type_from_code(channel.channel_type).category == ChannelType.Category.USSD
 
         # build our payload
         payload = {'event_url': event_url, 'content': text}
 
-        if channel.secret is not None:
-            payload['event_auth_token'] = channel.secret
+        secret = channel.config.get(Channel.CONFIG_SECRET)
+        if secret is not None:
+            payload['event_auth_token'] = secret
 
         if is_ussd:
             connection = USSDSession.objects.get_with_status_only(msg.connection_id)

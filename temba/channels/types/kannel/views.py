@@ -1,8 +1,8 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
-from uuid import uuid4
 
+from uuid import uuid4
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
@@ -49,7 +49,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                   Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),
                   Channel.CONFIG_USERNAME: data.get('username', None),
                   Channel.CONFIG_PASSWORD: data.get('password', None),
-                  Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
+                  Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT),
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
         self.object = Channel.add_config_external_channel(org, self.request.user, country, number, 'KN',
                                                           config, role=role, parent=None)
 

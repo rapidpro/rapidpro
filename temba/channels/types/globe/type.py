@@ -2,7 +2,6 @@ from __future__ import unicode_literals, absolute_import
 
 import json
 import time
-
 import requests
 import six
 
@@ -25,7 +24,7 @@ class GlobeType(ChannelType):
 
     name = "Globe Labs"
 
-    claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand }} with Globe Labs to send
+    claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
                        and receive messages on your shortcode.""")
     claim_view = ClaimView
 
@@ -36,6 +35,9 @@ class GlobeType(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ['Asia/Manila']
+
+    def is_recommended_to(self, user):
+        return self.is_available_to(user)
 
     def send(self, channel, msg, text):
         payload = {
@@ -61,7 +63,7 @@ class GlobeType(ChannelType):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code != 200 and response.status_code != 201:  # pragma: no cover
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 

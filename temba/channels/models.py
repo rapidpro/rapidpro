@@ -9,6 +9,8 @@ import time
 import urlparse
 
 from abc import ABCMeta, abstractmethod
+
+from django.template import Engine
 from enum import Enum
 from datetime import timedelta
 from django.conf import settings
@@ -24,7 +26,6 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django_countries.fields import CountryField
 from django_redis import get_redis_connection
@@ -32,7 +33,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
+from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
@@ -41,7 +42,6 @@ from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 from twilio import twiml, TwilioRestException
-from uuid import uuid4
 from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
@@ -95,6 +95,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
+    quick_reply_text_size = 20
 
     ivr_protocol = None
 
@@ -104,11 +105,17 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return True
 
+    def is_recommended_to(self, user):
+        """
+        Determines whether this channel type is recommended to the given user.
+        """
+        return False
+
     def get_claim_blurb(self):
         """
         Gets the blurb for use on the claim page list of channel types
         """
-        return mark_safe(self.claim_blurb)
+        return Engine.get_default().from_string(self.claim_blurb)
 
     def get_claim_url(self):
         """
@@ -173,15 +180,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 @six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
-    TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_TWILIO = 'T'
-    TYPE_TWIML = 'TW'
-    TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
 
     # keys for various config options stored in the channel config dict
+    CONFIG_BASE_URL = 'base_url'
     CONFIG_SEND_URL = 'send_url'
     CONFIG_SEND_METHOD = 'method'
     CONFIG_SEND_BODY = 'body'
@@ -199,18 +203,24 @@ class Channel(TembaModel):
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
     CONFIG_AUTH_TOKEN = 'auth_token'
+    CONFIG_SECRET = 'secret'
     CONFIG_CHANNEL_ID = 'channel_id'
-    CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
     CONFIG_FCM_ID = 'FCM_ID'
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
     CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
+    CONFIG_CALLBACK_DOMAIN = 'callback_domain'
     CONFIG_ACCOUNT_SID = 'account_sid'
     CONFIG_APPLICATION_SID = 'application_sid'
     CONFIG_NUMBER_SID = 'number_sid'
     CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
+
+    CONFIG_NEXMO_API_KEY = 'nexmo_api_key'
+    CONFIG_NEXMO_API_SECRET = 'nexmo_api_secret'
+    CONFIG_NEXMO_APP_ID = 'nexmo_app_id'
+    CONFIG_NEXMO_APP_PRIVATE_KEY = 'nexmo_app_private_key'
 
     CONFIG_SHORTCODE_MATCHING_PREFIXES = 'matching_prefixes'
 
@@ -263,39 +273,26 @@ class Channel(TembaModel):
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
-        TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
-        TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_TWILIO, "Twilio"),
-                    (TYPE_TWIML, "TwiML Rest API"),
-                    (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
-        TYPE_TWILIO: "icon-channel-twilio",
-        TYPE_TWIML: "icon-channel-twilio",
-        TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_VIBER: "icon-viber"
     }
 
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
-    TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
+    TWIML_CHANNELS = [TYPE_VERBOICE]
 
-    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
-
-    HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID]
+    HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
@@ -368,7 +365,7 @@ class Channel(TembaModel):
         if not schemes:
             raise ValueError("Cannot create channel without schemes")
 
-        if country and schemes != ['tel']:
+        if country and schemes[0] not in ['tel', 'whatsapp']:
             raise ValueError("Only channels handling phone numbers can be country specific")
 
         if config is None:
@@ -422,8 +419,9 @@ class Channel(TembaModel):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
 
     @classmethod
-    def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url, role=DEFAULT_ROLE):
+    def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
+                                           url, role=DEFAULT_ROLE, extra_config=None):
+
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -432,6 +430,9 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
+        if extra_config:
+            config.update(extra_config)
+
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
                               role=role)
 
@@ -442,112 +443,26 @@ class Channel(TembaModel):
                               config=config, role=role, schemes=schemes, parent=parent)
 
     @classmethod
-    def add_twilio_channel(cls, org, user, phone_number, country, role):
-        client = org.get_twilio_client()
-        twilio_phones = client.phone_numbers.list(phone_number=phone_number)
-        channel_uuid = uuid4()
-
-        # create new TwiML app
-        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('courier.t', args=[channel_uuid, 'receive'])
-        new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
-        new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
-
-        new_app = client.applications.create(
-            friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel_uuid),
-            sms_url=new_receive_url,
-            sms_method="POST",
-            voice_url=new_voice_url,
-            voice_fallback_url="https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml",
-            voice_fallback_method='GET',
-            status_callback=new_status_url,
-            status_callback_method='POST'
-        )
-
-        is_short_code = len(phone_number) <= 6
-        if is_short_code:
-            short_codes = client.sms.short_codes.list(short_code=phone_number)
-
-            if short_codes:
-                short_code = short_codes[0]
-                number_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('courier.t', args=[channel_uuid, 'receive'])
-                client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
-
-                role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-                phone = phone_number
-
-            else:  # pragma: no cover
-                raise Exception(_("Short code not found on your Twilio Account. "
-                                  "Please check you own the short code and Try again"))
-        else:
-            if twilio_phones:
-                twilio_phone = twilio_phones[0]
-                client.phone_numbers.update(twilio_phone.sid,
-                                            voice_application_sid=new_app.sid,
-                                            sms_application_sid=new_app.sid)
-
-            else:  # pragma: needs cover
-                twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
-                                                             voice_application_sid=new_app.sid,
-                                                             sms_application_sid=new_app.sid)
-
-            phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
-                                               phonenumbers.PhoneNumberFormat.NATIONAL)
-
-            number_sid = twilio_phone.sid
-
-        org_config = json.loads(org.config)
-        config = {Channel.CONFIG_APPLICATION_SID: new_app.sid, Channel.CONFIG_NUMBER_SID: number_sid,
-                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
-
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
-                              config=config, uuid=channel_uuid)
-
-    @classmethod
-    def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
-        org_config = json.loads(org.config)
-        config = {Channel.CONFIG_MESSAGING_SERVICE_SID: messaging_service_sid,
-                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
-
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO_MESSAGING_SERVICE,
-                              name=messaging_service_sid, address=None, config=config)
-
-    @classmethod
-    def add_twiml_api_channel(cls, org, user, country, address, config, role):
-        is_short_code = len(address) <= 6
-
-        name = address
-
-        if is_short_code:
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-        else:
-            address = "+%s" % address
-            name = phonenumbers.format_number(phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL)
-
-        existing = Channel.objects.filter(address=address, org=org, channel_type=Channel.TYPE_TWIML).first()
-        if existing:
-            existing.name = name
-            existing.address = address
-            existing.config = json.dumps(config)
-            existing.country = country
-            existing.role = role
-            existing.save()
-            return existing
-
-        return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
-
-    @classmethod
     def add_send_channel(cls, user, channel):
         # nexmo ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(user.get_org(), user, channel.country, 'NX', name="Nexmo Sender",
+        org = user.get_org()
+        org_config = org.config_json()
+
+        config = {Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
+                  Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
+                  Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
+                  Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+                  Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
+
+        return Channel.create(user.get_org(), user, channel.country, 'NX', name="Nexmo Sender", config=config, tps=1,
                               address=channel.address, role=Channel.ROLE_SEND, parent=channel, bod=nexmo_phone_number)
 
     @classmethod
     def add_call_channel(cls, org, user, channel):
-        return Channel.create(org, user, channel.country, Channel.TYPE_TWILIO, name="Twilio Caller",
+        return Channel.create(org, user, channel.country, 'T', name="Twilio Caller",
                               address=channel.address, role=Channel.ROLE_CALL, parent=channel)
 
     @classmethod
@@ -628,7 +543,10 @@ class Channel(TembaModel):
         """
         Generates a secret value used for command signing
         """
-        return random_string(length)
+        code = random_string(length)
+        while cls.objects.filter(secret=code):  # pragma: no cover
+            code = random_string(length)
+        return code
 
     @classmethod
     def determine_encoding(cls, text, replace=False):
@@ -649,18 +567,6 @@ class Channel(TembaModel):
 
         # otherwise, this is unicode
         return Encoding.UNICODE, text
-
-    @classmethod
-    def supports_media(cls, channel):
-        """
-        Can this channel send images, audio, and video. This is static to work
-        with ChannelStructs or Channels
-        """
-        # Twilio only supports mms in the US and Canada
-        if channel.channel_type == cls.TYPE_TWILIO:
-            return channel.country in ('US', 'CA')
-        else:
-            return cls.get_type_from_code(channel.channel_type).has_attachment_support(channel)
 
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
@@ -694,6 +600,17 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    @property
+    def callback_domain(self):
+        """
+        Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
+        """
+        callback_domain = self.config_json().get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        if callback_domain is None:
+            callback_domain = self.org.get_brand_domain()
+
+        return callback_domain
+
     def get_ussd_delegate(self):
         return self.get_delegate(Channel.ROLE_USSD)
 
@@ -716,9 +633,9 @@ class Channel(TembaModel):
         if not (self.is_active and self.org):
             return None
 
-        if self.channel_type == Channel.TYPE_TWILIO:
+        if self.channel_type == 'T':
             return self.org.get_twilio_client()
-        elif self.channel_type == Channel.TYPE_TWIML:
+        elif self.channel_type == 'TW':
             return self.get_twiml_client()
         elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
@@ -819,7 +736,7 @@ class Channel(TembaModel):
         cached = cache.get(key, None)
 
         if cached is None:
-            channel = Channel.objects.filter(pk=channel_id).exclude(org=None).first()
+            channel = Channel.objects.filter(pk=channel_id, is_active=True).first()
 
             # channel has been disconnected, ignore
             if not channel:  # pragma: no cover
@@ -843,7 +760,7 @@ class Channel(TembaModel):
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
-                    config=self.config_json(), org_config=org_config)
+                    callback_domain=self.callback_domain, config=self.config_json(), org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -986,6 +903,9 @@ class Channel(TembaModel):
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
+            except TwilioRestException as e:
+                raise e
+
             except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
                 logger.exception(six.text_type(e))
@@ -995,47 +915,16 @@ class Channel(TembaModel):
             for call in IVRCall.objects.filter(channel=self):
                 call.close()
 
-            # delete Twilio SMS application
-            if self.channel_type == Channel.TYPE_TWILIO:
-                client = self.org.get_twilio_client()
-                number_update_args = dict()
-
-                if not self.is_delegate_sender():
-                    number_update_args['sms_application_sid'] = ""
-
-                if self.supports_ivr():
-                    number_update_args['voice_application_sid'] = ""
-
-                try:
-                    number_sid = self.bod or self.config_json()['number_sid']
-                    client.phone_numbers.update(number_sid, **number_update_args)
-                except Exception:
-                    if client:
-                        matching = client.phone_numbers.list(phone_number=self.address)
-                        if matching:
-                            client.phone_numbers.update(matching[0].sid, **number_update_args)
-
-                if 'application_sid' in config:
-                    try:
-                        client.applications.delete(sid=config['application_sid'])
-                    except TwilioRestException:  # pragma: no cover
-                        pass
-
         # save off our org and gcm id before nullifying
         org = self.org
-        fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
+        fcm_id = config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
         else:
             registration_id = self.gcm_id
 
-        # remove all identifying bits from the client
-        self.org = None
-        self.gcm_id = None
-        self.config = json.dumps(config)
-        self.secret = None
-        self.claim_code = None
+        # make the channel inactive
         self.is_active = False
         self.save()
 
@@ -1189,132 +1078,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_chikka_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
-
-        payload = {
-            'message_type': 'SEND',
-            'mobile_number': msg.urn_path.lstrip('+'),
-            'shortcode': channel.address,
-            'message_id': msg.id,
-            'message': text,
-            'request_cost': 'FREE',
-            'client_id': channel.config[Channel.CONFIG_USERNAME],
-            'secret_key': channel.config[Channel.CONFIG_PASSWORD]
-        }
-
-        # if this is a response to a user SMS, then we need to set this as a reply
-        # response ids are only valid for up to 24 hours
-        response_window = timedelta(hours=24)
-        if msg.response_to_id and msg.created_on > timezone.now() - response_window:
-            response_to = Msg.objects.filter(id=msg.response_to_id).first()
-            if response_to:
-                payload['message_type'] = 'REPLY'
-                payload['request_id'] = response_to.external_id
-
-        # build our send URL
-        url = 'https://post.chikka.com/smsapi/request'
-        start = time.time()
-
-        log_payload = payload.copy()
-        log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
-
-        event = HttpEvent('POST', url, log_payload)
-        events = [event]
-
-        try:
-            response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        # if they reject our request_id, send it as a normal send
-        if response.status_code == 400 and 'request_id' in payload:
-            error = response.json()
-            if error.get('message', None) == 'BAD REQUEST' and error.get('description', None) == 'Invalid/Used Request ID':
-                try:
-
-                    # operate on a copy so we can still inspect our original call
-                    payload = payload.copy()
-                    del payload['request_id']
-                    payload['message_type'] = 'SEND'
-
-                    event = HttpEvent('POST', url, payload)
-                    events.append(event)
-
-                    response = requests.post(url, data=payload, headers=http_headers(), timeout=5)
-                    event.status_code = response.status_code
-                    event.response_body = response.text
-
-                    log_payload = payload.copy()
-                    log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
-
-                except Exception as e:
-                    raise SendException(six.text_type(e), events=events, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                events=events, start=start)
-
-        Channel.success(channel, msg, WIRED, start, events=events)
-
-    @classmethod
-    def send_twilio_message(cls, channel, msg, text):
-        from temba.msgs.models import Attachment, WIRED
-        from temba.utils.twilio import TembaTwilioRestClient
-
-        callback_url = Channel.build_twilio_callback_url(channel.channel_type, channel.uuid, msg.id)
-
-        start = time.time()
-        media_urls = []
-
-        if msg.attachments:
-            # for now we only support sending one attachment per message but this could change in future
-            attachment = Attachment.parse_all(msg.attachments)[0]
-            media_urls = [attachment.url]
-
-        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
-            config = channel.config
-            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN),
-                                           base=config.get(Channel.CONFIG_SEND_URL))
-        else:
-            config = channel.config
-            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN))
-
-        try:
-            if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-                messaging_service_sid = channel.config['messaging_service_sid']
-                client.messages.create(to=msg.urn_path,
-                                       messaging_service_sid=messaging_service_sid,
-                                       body=text,
-                                       media_url=media_urls,
-                                       status_callback=callback_url)
-            else:
-                client.messages.create(to=msg.urn_path,
-                                       from_=channel.address,
-                                       body=text,
-                                       media_url=media_urls,
-                                       status_callback=callback_url)
-
-            Channel.success(channel, msg, WIRED, start, events=client.messages.events)
-
-        except TwilioRestException as e:
-            fatal = False
-
-            # user has blacklisted us, stop the contact
-            if e.code == 21610:
-                from temba.contacts.models import Contact
-                fatal = True
-                contact = Contact.objects.get(id=msg.contact)
-                contact.stop(contact.modified_by)
-
-            raise SendException(e.msg, events=client.messages.events, fatal=fatal)
-
-        except Exception as e:
-            raise SendException(six.text_type(e), events=client.messages.events)
-
-    @classmethod
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1441,7 +1204,7 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.attachments and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
             # for now we only support sending one attachment per message but this could change in future
             attachment = Attachment.parse_all(msg.attachments)[0]
             text = '%s\n%s' % (text, attachment.url)
@@ -1491,7 +1254,7 @@ class Channel(TembaModel):
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
-            Msg.objects.filter(pk=msg.id).update(msg_count=len(parts))
+            Msg.objects.filter(id=msg.id).update(msg_count=len(parts))
 
     @classmethod
     def track_status(cls, channel, status):
@@ -1500,7 +1263,7 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, channel_type, channel_uuid, sms_id):
+    def build_twilio_callback_url(cls, domain, channel_type, channel_uuid, sms_id):
         if channel_type == 'T':
             url = reverse('courier.t', args=[channel_uuid, 'status'])
         elif channel_type == 'TMS':
@@ -1508,7 +1271,7 @@ class Channel(TembaModel):
         elif channel_type == 'TW':
             url = reverse('courier.tw', args=[channel_uuid, 'status'])
 
-        url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
+        url = "https://" + domain + url + "?action=callback&id=%d" % sms_id
         return url
 
     def __str__(self):  # pragma: no cover
@@ -1563,11 +1326,7 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
-                  Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_TWILIO: Channel.send_twilio_message,
-                  Channel.TYPE_TWIML: Channel.send_twilio_message,
-                  Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
+SEND_FUNCTIONS = {Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message}
 
 
@@ -1694,9 +1453,8 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        user = get_anonymous_user()
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
+        contact = Contact.get_or_create(org, get_anonymous_user(), name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         extra_json = None if not extra else json.dumps(extra)
