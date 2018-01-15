@@ -1829,9 +1829,6 @@ class Flow(TembaModel):
             previous_step.next_uuid = node.uuid
             previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
-            if not previous_step.contact.is_test:
-                FlowPathRecentRun.record(exit_uuid, node.uuid, run, visited_on=arrived_on)
-
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
         run.update_timeout(arrived_on, timeout)
