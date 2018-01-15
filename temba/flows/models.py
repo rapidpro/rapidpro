@@ -2955,9 +2955,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for step in self.steps.all():
             step.release()
 
-        # clear any recent messages
-        self.recent_messages.all().delete()
-
         # lastly delete ourselves
         self.delete()
 
@@ -4022,25 +4019,6 @@ class FlowPathCount(SquashableModel):
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
-
-
-class FlowPathRecentMessage(models.Model):
-    """
-    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
-    might be purged.
-    """
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
-
-    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.TextField(help_text=_("The message text"))
-    created_on = models.DateTimeField(help_text=_("When the message arrived"))
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
-        ]
 
 
 class FlowPathRecentRun(models.Model):
