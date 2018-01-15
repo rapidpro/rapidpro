@@ -472,7 +472,6 @@ class Broadcast(models.Model):
             quick_replies = self.get_translated_quick_replies(contact)
 
             media = self.get_translated_media(contact)
-
             if media:
                 media_type, media_url = media.split(':', 1)
                 # arbitrary media urls don't have a full content type, so only

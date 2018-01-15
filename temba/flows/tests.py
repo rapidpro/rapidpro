@@ -4194,6 +4194,7 @@ class SimulationTest(FlowFileTest):
         # session should have started now
         self.assertTrue(handle_incoming.called)
         self.assertEqual(handle_incoming.call_count, 1)
+
         self.assertIsNone(handle_incoming.call_args[1]['status'])
 
         self.channel.delete()
@@ -4279,11 +4280,13 @@ class FlowsTest(FlowFileTest):
         self.assertFalse(run.responded)
 
         self.assertEqual(FlowNodeCount.get_totals(favorites), {rule_set1.uuid: 1})
-        self.assertEqual(FlowPathCount.get_totals(favorites), {action_set1.uuid + ':' + rule_set1.uuid: 1})
+        self.assertEqual(FlowPathCount.get_totals(favorites), {action_set1.exit_uuid + ':' + rule_set1.uuid: 1})
         self.assertEqual(FlowCategoryCount.objects.count(), 0)
 
-        recent = FlowPathRecentRun.objects.get()
-        self.assertEqual(recent.text, "What is your favorite color?")
+        recent = FlowPathRecentRun.get_recent([action_set1.exit_uuid], rule_set1.uuid)
+        self.assertEqual(len(recent), 1)
+        self.assertEqual(recent[0]['run'], run)
+        self.assertEqual(recent[0]['text'], "What is your favorite color?")
 
         msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
 
@@ -6530,6 +6533,7 @@ class FlowsTest(FlowFileTest):
 
         # boolean values in our rule dict shouldn't blow up
         rule = json_dict['rule_sets'][0]['rules'][0]
+        rule['category']['updated'] = True
 
         favorites.update(json_dict)
 

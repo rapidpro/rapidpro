@@ -8,15 +8,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0123_backfill_flowrun_results'),
+        ('flows', '0143_populate_recent_runs'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='flowrun',
-            name='path',
-            field=models.TextField(help_text='The path taken through the flow in JSON format', null=True),
-        ),
         migrations.AddField(
             model_name='flowsession',
             name='output',

@@ -54,6 +54,7 @@ from temba.values.models import Value
 from temba_expressions.utils import tokenize
 from uuid import uuid4
 
+
 logger = logging.getLogger(__name__)
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
@@ -2822,8 +2823,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                                      help_text="The user which submitted this flow run")
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
-
-    path = models.TextField(null=True, help_text=_("The path taken through the flow in JSON format"))
 
     results = models.TextField(null=True,
                                help_text=_("The results collected during this flow run in JSON format"))
@@ -6483,6 +6482,7 @@ class SendAction(VariableContactAction):
 
 
 class Rule(object):
+
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category

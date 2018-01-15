@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db.models import Prefetch
 from django.utils.timezone import now
 from mptt.utils import get_cached_trees
-from temba.utils import datetime_to_str
+from temba.utils.dates import datetime_to_str
 from temba.values.models import Value
 
 
