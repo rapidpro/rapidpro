@@ -1500,7 +1500,7 @@ class ChannelEvent(models.Model):
             contact = Contact.get_or_create(self.org, user, name=None, urns=[self.contact_urn.urn],
                                             channel=self.channel)
             contact.stop(user)
-            handled = bool(contact)
+            handled = True
 
         return handled
 
