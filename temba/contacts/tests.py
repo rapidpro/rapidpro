@@ -251,7 +251,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=230, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=215, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):

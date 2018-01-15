@@ -1829,9 +1829,6 @@ class Flow(TembaModel):
             previous_step.next_uuid = node.uuid
             previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
 
-            if not previous_step.contact.is_test:
-                FlowPathRecentRun.record(exit_uuid, node.uuid, run, visited_on=arrived_on)
-
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
         run.update_timeout(arrived_on, timeout)
@@ -4034,10 +4031,6 @@ class FlowPathRecentRun(models.Model):
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_runs')
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
-
-    @classmethod
-    def record(cls, exit_uuid, to_uuid, run, visited_on=None):
-        cls.objects.create(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, visited_on=visited_on or timezone.now())
 
     @classmethod
     def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
