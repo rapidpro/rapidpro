@@ -497,9 +497,6 @@ class Broadcast(models.Model):
                             run.parent.org = self.org
                             message_context.update(dict(parent=run.parent.build_expressions_context()))
 
-            if status == INITIALIZING and (contact.is_stopped or contact.is_blocked):
-                status = FAILED
-
             try:
                 msg = Msg.create_outgoing(self.org,
                                           self.created_by,

@@ -1120,6 +1120,7 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
+
             # try to parse our body
             try:
                 json_dict = json.loads(request.body)

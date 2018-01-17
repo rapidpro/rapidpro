@@ -981,7 +981,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
-            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status__in=[DELIVERED, FAILED]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
@@ -1819,7 +1819,6 @@ class Flow(TembaModel):
                                                  media=send_action.media,
                                                  base_language=self.base_language,
                                                  send_all=send_action.send_all,
-                                                 action_uuid=send_action.uuid,
                                                  quick_replies=send_action.quick_replies)
                     broadcast.update_contacts(all_contact_ids)
 
@@ -2017,7 +2016,7 @@ class Flow(TembaModel):
         if msgs and not parent_run:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status__in=[DELIVERED, FAILED]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -5493,7 +5492,7 @@ class AddToGroupAction(Action):
         add = AddToGroupAction.TYPE == self.get_type()
         user = get_flow_user(run.org)
 
-        if contact and not (contact.is_stopped or contact.is_blocked):
+        if contact:
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
                     (value, errors) = Msg.evaluate_template(group, context, org=run.flow.org)
