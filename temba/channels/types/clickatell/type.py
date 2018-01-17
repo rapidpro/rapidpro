@@ -26,5 +26,5 @@ class ClickatellType(ChannelType):
     max_length = 420
     attachment_support = False
 
-    def send(self, channel, msg, text):
+    def send(self, channel, msg, text):  # pragma: no cover
         raise Exception("Sending Clickatell messages is only possible via Courier")
