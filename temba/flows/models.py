@@ -183,7 +183,7 @@ class FlowSession(models.Model):
         cls.objects.filter(contact__in=contacts, status=cls.STATUS_WAITING).update(status=cls.STATUS_INTERRUPTED)
 
     @classmethod
-    def bulk_start(cls, contacts, flow, broadcasts=None, msg_in=None, extra=None):
+    def bulk_start(cls, contacts, flow, msg_in=None, extra=None):
         """
         Starts a contact in the given flow
         """
@@ -225,7 +225,7 @@ class FlowSession(models.Model):
                                          output=json.dumps(output.session),
                                          responded=bool(msg_in and msg_in.created_on))
 
-            contact_runs = session.sync_runs(output, msg_in, broadcasts)
+            contact_runs = session.sync_runs(output, msg_in)
             runs.append(contact_runs[0])
 
         return runs
@@ -273,7 +273,7 @@ class FlowSession(models.Model):
             self.save(update_fields=('output', 'responded', 'status'))
 
             # update our session
-            self.sync_runs(output, msg_in, (), waiting_run)
+            self.sync_runs(output, msg_in, waiting_run)
 
         except goflow.FlowServerException:
             # something has gone wrong so this session is over
@@ -284,7 +284,7 @@ class FlowSession(models.Model):
 
         return True, []
 
-    def sync_runs(self, output, msg_in, broadcasts, prev_waiting_run=None):
+    def sync_runs(self, output, msg_in, prev_waiting_run=None):
         """
         Update our runs with the session output
         """
@@ -309,7 +309,7 @@ class FlowSession(models.Model):
             # currently outgoing messages are only have response_to set if sent from same run
             run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
 
-            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, wait, run_input, broadcasts)
+            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, wait, run_input)
             runs.append(run)
             msgs_to_send += msgs
 
@@ -1787,6 +1787,16 @@ class Flow(TembaModel):
     def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
                        flow_start=None, parent_run=None):
 
+        if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
+            # try to start the session against our flow server
+            contacts = Contact.objects.filter(id__in=all_contact_ids).order_by('id')
+
+            runs = FlowSession.bulk_start(contacts, self, start_msg, extra)
+            if flow_start:
+                flow_start.runs.add(*runs)
+                flow_start.update_status()
+            return runs
+
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
 
@@ -1850,16 +1860,6 @@ class Flow(TembaModel):
 
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
-
-        if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
-            # try to start the session against our flow server
-            contacts = Contact.objects.filter(id__in=batch_contact_ids).order_by('id')
-
-            runs = FlowSession.bulk_start(contacts, self, broadcasts, start_msg, extra)
-            if flow_start:
-                flow_start.runs.add(*runs)
-                flow_start.update_status()
-            return runs
 
         batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
         Contact.bulk_cache_initialize(self.org, batch_contacts)
@@ -2847,7 +2847,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, wait, msg_in, broadcasts=()):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, wait, msg_in):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2892,7 +2892,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing.save(update_fields=('path', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
-            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
+            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in)
 
         else:
             # use our now for created_on/modified_on as this needs to be as close as possible to database time for API
@@ -2922,7 +2922,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
                 ActionLog.create(run, log_text, created_on=created_on)
 
-            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
+            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in)
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
@@ -2934,7 +2934,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return run, msgs_to_send
 
-    def apply_events(self, run_log, msg_in=None, broadcasts=()):
+    def apply_events(self, run_log, msg_in=None):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
@@ -2942,12 +2942,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if entry.event['type'] == 'send_msg':
                 msg = self.apply_send_msg(entry.event, msg_in)
                 if msg:
-                    # filter our broadcasts by action uuid that generated us
-                    action_uuid = entry.action_uuid
-                    if action_uuid and broadcasts:
-                        for broadcast in [b for b in broadcasts if six.text_type(b.action_uuid) == action_uuid]:
-                            broadcast.msgs.add(msg)
-
                     msgs_to_send.append(msg)
                     msgs_by_step[entry.step_uuid].append(msg)
             else:

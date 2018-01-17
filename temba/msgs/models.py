@@ -233,8 +233,6 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
-    action_uuid = models.UUIDField(null=True, blank=True, help_text=_("Optional action that created this broadcast"))
-
     metadata = models.TextField(null=True, help_text=_("The metadata for messages of this broadcast"))
 
     @classmethod
