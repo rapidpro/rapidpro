@@ -1,3 +1,44 @@
+v3.0.310
+----------
+ * Reimplement clickatell as a Courier only channel against new API
+
+v3.0.309
+----------
+ * Use database trigger for inserting new recent run records
+ * Handle stop contact channel events
+ * Remove no longer used FlowPathRecentRun model
+
+v3.0.308
+----------
+'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
+ * Update date for webhook change on api docs
+ * Don't use flow steps for calculating test contact activity
+
+v3.0.307
+----------
+ * Stop using FlowPathRecentMessage
+
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
+v3.0.305
+----------
+ * Add new model for tracking recent runs
+ * Add dynamic group optimization for new contacts
+
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
 v3.0.301
 ----------
  * Tweak process_message_task to not blow up if message doesn't exist

@@ -65,15 +65,15 @@
     %h4
       -blocktrans
         To finish configuring your Clickatell connection you'll need to set the following callback URLs on the
-        Clickatell website under your account.
+        Clickatell website for your integration.
 
     %h4
-      -trans "Primary Callback URL"
+      -trans "Reply Callback"
 
     %p
       -blocktrans
-        You can set the callback URL on your Clickatell account by managing your two way number, then setting your reply
-        path to HTTP GET and your target address to the URL below. (leave username and password blank)
+        You can set the callback URL on your Clickatell account by managing your integration, then setting your reply
+        callback under "Two Way Settings" to HTTP POST and your target address to the URL below. (leave username and password blank)
 
     %code
       https://{{ domain }}{% url 'courier.ct' object.uuid 'receive' %}
@@ -81,12 +81,12 @@
     %hr
 
     %h4
-      -trans "Message Delivery Notifications URL"
+      -trans "Delivery Notifications"
 
     %p
       -blocktrans
-        To receive updated statuses on the messages you send you need to edit your HTTP API endpoint on your Clickatell
-        account and set the message delivery notifications to the URL below. (pick HTTP Get as the Method)
+        You can set the delivery notification URL on your Clickatell account by managing your integration, then setting your
+        delivery notification URL under "Settings" to HTTP POST and your target address to the URL below. (leave username and password blank)
 
     %code
       https://{{ domain }}{% url 'courier.ct' object.uuid 'status' %}

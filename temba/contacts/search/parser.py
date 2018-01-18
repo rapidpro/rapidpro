@@ -118,6 +118,13 @@ class ContactQuery(object):
 
         return not(prop_names.intersection(props_not_allowed))
 
+    def has_is_not_set_condition(self):
+        return 'NOTSET' in set(self.root.get_prop_comparators())
+
+    def has_urn_condition(self):
+        urn_search = set(self.root.get_prop_names()).intersection(self.SEARCHABLE_SCHEMES)
+        return bool(urn_search)
+
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -132,6 +139,7 @@ class QueryNode(object):
     """
     A search query node which is either a condition or a boolean combination of other conditions
     """
+
     def simplify(self):
         return self
 
@@ -178,6 +186,9 @@ class Condition(QueryNode):
 
     def get_prop_names(self):
         return [self.prop]
+
+    def get_prop_comparators(self):
+        return [self.comparator]
 
     def as_query(self, org, prop_map, base_set):
         prop_type, prop_obj = prop_map[self.prop]
@@ -337,6 +348,9 @@ class IsSetCondition(Condition):
     def __init__(self, prop, comparator):
         super(IsSetCondition, self).__init__(prop, comparator, "")
 
+    def get_prop_comparators(self):
+        return ['SET' if self.comparator.lower() in self.IS_SET_LOOKUPS else 'NOTSET']
+
     def as_query(self, org, prop_map, base_set):
         prop_type, prop_obj = prop_map[self.prop]
 
@@ -390,6 +404,12 @@ class BoolCombination(QueryNode):
         for child in self.children:
             names += child.get_prop_names()
         return names
+
+    def get_prop_comparators(self):
+        comparators = []
+        for child in self.children:
+            comparators += child.get_prop_comparators()
+        return comparators
 
     def simplify(self):
         """

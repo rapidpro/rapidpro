@@ -948,10 +948,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
-    "prune-recentmessages": {
-        'task': 'prune_recentmessages',
-        'schedule': timedelta(seconds=300),
-    },
     "squash-channelcounts": {
         'task': 'squash_channelcounts',
         'schedule': timedelta(seconds=300),
@@ -1211,7 +1207,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK', 'WA'])
+COURIER_CHANNELS = set(['DK', 'WA', 'CT'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

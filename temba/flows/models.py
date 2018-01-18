@@ -837,11 +837,6 @@ class Flow(TembaModel):
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
 
-                        # it's possible that one of our children interrupted us with a start flow action
-                        run.refresh_from_db(fields=('is_active',))
-                        if not run.is_active:
-                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
-
                         if child_runs:
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
@@ -849,7 +844,9 @@ class Flow(TembaModel):
                         else:  # pragma: no cover
                             continue_parent = False
 
-                        if continue_parent:
+                        # it's possible that one of our children interrupted us with a start flow action
+                        run.refresh_from_db(fields=('is_active',))
+                        if continue_parent and run.is_active:
                             started_flows.remove(flow.id)
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
@@ -891,8 +888,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=rule.uuid,
-                                 category=rule.get_category_name(flow.base_language), previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=rule.uuid, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1084,10 +1080,14 @@ class Flow(TembaModel):
         if not simulation:
             return FlowNodeCount.get_totals(self)
 
-        # count steps in active runs where contact hasn't left that node
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=True)
-        totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
-        return {t[0]: t[1] for t in totals if t[1]}
+        # count unique values of current_node_uuid for active runs for test contacts
+        totals = (
+            self.runs.filter(contact__is_test=True, is_active=True)
+            .values('current_node_uuid')
+            .annotate(total=Count('current_node_uuid'))
+        )
+
+        return {six.text_type(t['current_node_uuid']): t['total'] for t in totals if t['total']}
 
     def get_segment_counts(self, simulation):
         """
@@ -1097,13 +1097,18 @@ class Flow(TembaModel):
         if not simulation:
             return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
-        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
+        simulator_runs = self.runs.filter(contact__is_test=True)
+        path_counts = defaultdict(int)
 
-        path_counts = {}
-        for step in steps:
-            if step['count']:
-                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
+        for run in simulator_runs:
+            prev_step = None
+            for step in run.get_path():
+                if prev_step:
+                    exit_uuid = prev_step['exit_uuid']
+                    node_uuid = step['node_uuid']
+                    path_counts['%s:%s' % (exit_uuid, node_uuid)] += 1
+
+                prev_step = step
 
         return path_counts
 
@@ -1811,7 +1816,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1823,9 +1828,6 @@ class Flow(TembaModel):
             previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
             previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
-
-            if not previous_step.contact.is_test:
-                FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2804,6 +2806,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update:
             self.save(update_fields=('responded', 'message_ids'))
 
+    def get_message_ids(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return self.message_ids or []
+
     def get_messages(self):
         """
         Gets all the messages associated with this run
@@ -2943,9 +2951,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # so we can decrement the activity properly
         for step in self.steps.all():
             step.release()
-
-        # clear any recent messages
-        self.recent_messages.all().delete()
 
         # lastly delete ourselves
         self.delete()
@@ -3150,7 +3155,7 @@ class FlowStep(models.Model):
 
     step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
 
-    step_uuid = models.CharField(max_length=36, db_index=True,
+    step_uuid = models.CharField(max_length=36,
                                  help_text=_("The UUID of the ActionSet or RuleSet for this step"))
 
     rule_uuid = models.CharField(max_length=36, null=True,
@@ -4013,44 +4018,60 @@ class FlowPathCount(SquashableModel):
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
-class FlowPathRecentMessage(models.Model):
+class FlowPathRecentRun(models.Model):
     """
-    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
-    might be purged.
+    Maintains recent runs for a flow path segment
     """
     PRUNE_TO = 5
-    LAST_PRUNED_KEY = 'last_recentmessage_pruned'
+    LAST_PRUNED_KEY = 'last_recentrun_pruned'
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.TextField(help_text=_("The message text"))
-    created_on = models.DateTimeField(help_text=_("When the message arrived"))
-
-    @classmethod
-    def record(cls, exit_uuid, to_uuid, run, msgs):
-        objs = []
-        for msg in msgs:
-            objs.append(cls(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, text=msg.text, created_on=msg.created_on))
-        cls.objects.bulk_create(objs)
+    run = models.ForeignKey(FlowRun, related_name='recent_runs')
+    visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
 
     @classmethod
     def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
-        Gets the recent messages for the given flow segments
+        Gets the recent runs for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
+        recent = (
+            cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid)
+            .select_related('run')
+            .order_by('-visited_on')
+        )
         if limit:
             recent = recent[:limit]
 
-        return recent
+        # batch fetch all the messages for these runs
+        message_ids = set()
+        for r in recent:
+            message_ids.update(r.run.get_message_ids())
+        msgs = {m.id: m for m in Msg.objects.filter(id__in=message_ids).only('id', 'text', 'created_on')}
+
+        results = []
+        for r in recent:
+            # find the most recent message in the run when this visit happened
+            msg = None
+            for msg_id in reversed(r.run.get_message_ids()):
+                msg = msgs.get(msg_id)
+                if msg and msg.created_on < r.visited_on:
+                    break
+
+            results.append({
+                'run': r.run,
+                'text': msg.text if msg else "",
+                'visited_on': r.visited_on
+            })
+
+        return results
 
     @classmethod
     def prune(cls):
         """
-        Removes old steps leaving only PRUNE_TO most recent for each segment
+        Removes old recent run records leaving only PRUNE_TO most recent for each segment
         """
         last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
 
@@ -4062,7 +4083,7 @@ class FlowPathRecentMessage(models.Model):
               SELECT id FROM (
                   SELECT
                     r.id,
-                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY created_on DESC) AS pos
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY visited_on DESC) AS pos
                   FROM %(table)s r
                   WHERE (from_uuid, to_uuid) IN (
                     -- get the unique segments added to since last prune
@@ -4080,7 +4101,7 @@ class FlowPathRecentMessage(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
+            models.Index(fields=['from_uuid', 'to_uuid', '-visited_on'])
         ]
 
 
@@ -4289,8 +4310,7 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         message_ids = set()
         for r in runs:
-            if r.message_ids:
-                message_ids.update(r.message_ids)
+            message_ids.update(r.get_message_ids())
 
         messages = (
             Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
@@ -4303,7 +4323,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         msgs_by_run = defaultdict(list)
         for run in runs:
-            for msg_id in (run.message_ids or []):
+            for msg_id in run.get_message_ids():
                 msg = msgs_by_id.get(msg_id)
                 if msg:
                     msgs_by_run[run].append(msg)

@@ -793,7 +793,7 @@ class Contact(TembaModel):
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
 
-    def handle_update(self, attrs=(), urns=(), field=None, group=None):
+    def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
         """
         Handles an update to a contact which can be one of
           1. A change to one or more attributes
@@ -802,9 +802,9 @@ class Contact(TembaModel):
         """
         dynamic_group_change = False
 
-        if Contact.NAME in attrs or field or urns:
+        if field or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field)
+            dynamic_group_change = self.reevaluate_dynamic_groups(field, is_new=is_new)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -1031,6 +1031,7 @@ class Contact(TembaModel):
 
             # URNs correspond to one contact so update and return that
             if contact:
+                contact.is_new = False
                 # update contact name if provided
                 updated_attrs = []
                 if name:
@@ -1088,7 +1089,7 @@ class Contact(TembaModel):
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
         return contact
 
     @classmethod
@@ -1919,7 +1920,7 @@ class Contact(TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None):
+    def reevaluate_dynamic_groups(self, for_field=None, is_new=False):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
@@ -1932,7 +1933,7 @@ class Contact(TembaModel):
         group_change = False
         for group in affected_dynamic_groups:
             group.org = self.org
-            changed = group.reevaluate_contacts([self])
+            changed = group.reevaluate_contacts([self], is_new=is_new)
             if changed:
                 group_change = True
 
@@ -2379,7 +2380,7 @@ class ContactGroup(TembaModel):
 
         return self._update_contacts(user, contacts, add)
 
-    def reevaluate_contacts(self, contacts):
+    def reevaluate_contacts(self, contacts, is_new=False):
         """
         Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
         """
@@ -2389,7 +2390,7 @@ class ContactGroup(TembaModel):
         user = get_anonymous_user()
         changed = set()
         for contact in contacts:
-            qualifies = self._check_dynamic_membership(contact)
+            qualifies = self._check_dynamic_membership(contact, is_new=is_new)
             changed = self._update_contacts(user, [contact], qualifies)
             if changed:
                 changed.add(contact)
@@ -2459,13 +2460,14 @@ class ContactGroup(TembaModel):
             for field in extract_fields(self.org, self.query):
                 self.query_fields.add(field)
 
-            members = list(self._get_dynamic_members())
+            dynamic_members, _ = self._get_dynamic_members()
+            members = list(dynamic_members)
             self.contacts.clear()
             self.contacts.add(*members)
         else:
             raise ValueError('Cannot update a dynamic query that is not allowed')
 
-    def _get_dynamic_members(self, base_set=None):
+    def _get_dynamic_members(self, base_set=None, is_new=False):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
@@ -2475,17 +2477,27 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
-            return qs
+            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+
+            # if a contact has just been created than apply special contact search rules
+            if is_new:
+                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
+                    return qs, parsed
+                else:
+                    return Contact.objects.none(), None
+            else:
+                return qs, parsed
         except SearchException:  # pragma: no cover
-            return Contact.objects.none()
+            return Contact.objects.none(), None
 
     @time_monitor(threshold=10000)
-    def _check_dynamic_membership(self, contact):
+    def _check_dynamic_membership(self, contact, is_new=False):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members(base_set=[contact]).exists()
+
+        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
+        return qs.exists()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
