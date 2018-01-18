@@ -8618,3 +8618,78 @@ class TypeTest(TembaTest):
         self.assertEqual('Rwanda > Eastern Province > Gatsibo > Kageyo', results['ward']['value'])
         self.assertEqual('ya ok that\'s Kageyo', results['ward']['input'])
         self.assertEqual('ward', results['ward']['category'])
+
+
+class AssetServerTest(TembaTest):
+    @override_settings(FLOW_SERVER_AUTH_TOKEN="112233445566")
+    def test_authentication(self):
+        flows_url = reverse('flows.flow_assets', args=[self.org.id, "1234", "flow"])
+
+        # can't access without auth token
+        response = self.client.get(flows_url)
+        self.assertEqual(response.status_code, 302)
+
+        # can't access with incorrect auth token
+        response = self.client.get(flows_url, HTTP_AUTHORIZATION='Token 77888')
+        self.assertEqual(response.status_code, 302)
+
+        # can access with correct auth token
+        response = self.client.get(flows_url, HTTP_AUTHORIZATION='Token 112233445566')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+        # can access as regular user too
+        self.login(self.admin)
+
+        response = self.client.get(flows_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_flows(self):
+        flow1 = self.get_flow('color')
+        flow2 = self.get_flow('favorites')
+        self.login(self.admin)
+
+        # get all flows
+        response = self.client.get('/flow/assets/%d/1234/flow/' % self.org.id)
+        resp_json = response.json()
+        self.assertEqual(len(resp_json), 2)
+        self.assertEqual(resp_json[0]['uuid'], str(flow1.uuid))
+        self.assertEqual(resp_json[1]['uuid'], str(flow2.uuid))
+
+        # get a specific flow
+        response = self.client.get('/flow/assets/%d/1234/flow/%s/' % (self.org.id, str(flow2.uuid)))
+        resp_json = response.json()
+        self.assertEqual(resp_json['uuid'], str(flow2.uuid))
+
+    def test_location_hierarchy(self):
+        self.login(self.admin)
+
+        response = self.client.get('/flow/assets/%d/1234/location_hierarchy/' % self.org.id)
+        resp_json = response.json()
+        self.assertEqual(resp_json, {
+            'name': 'Rwanda',
+            'children': [
+                {
+                    'name': 'Kigali City',
+                    'children': [{'name': 'Nyarugenge'}],
+                },
+                {
+                    'name': 'Eastern Province',
+                    'children': [
+                        {
+                            'name': 'Gatsibo',
+                            'children': [{'name': 'Kageyo'}]
+                        },
+                        {
+                            'name': 'Kay\xf4nza',
+                            'children': [{'name': 'Kabare'}]
+                        },
+                        {
+                            'name': 'Rwamagana',
+                            'children': [{'name': 'Bukure'}]
+                        }
+                    ],
+                }
+            ],
+        })

@@ -51,15 +51,13 @@ def serialize_label(label):
     return {'uuid': str(label.uuid), 'name': label.name}
 
 
-def serialize_location_hierarchy(country, aliases_from_org):
+def serialize_location_hierarchy(country, aliases_from_org=None):
     """
     Serializes a country as a location hierarchy, e.g.
     {
-        "id": "34354",
         "name": "Rwanda",
         "children": [
             {
-                "id": "23452561"
                 "name": "Kigali City",
                 "aliases": ["Kigali", "Kigari"],
                 "children": [

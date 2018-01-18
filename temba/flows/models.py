@@ -536,7 +536,7 @@ class Flow(TembaModel):
         For now we manually switch flows to using the flow server, though in the settings we can override this for some
         flow types.
         """
-        if not settings.FLOW_SERVER_URL:
+        if not settings.FLOW_SERVER_URL:  # pragma: no cover
             return False
 
         if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE, self.FLOW):
@@ -3008,7 +3008,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.contact.name = event['value']
             update_fields.append("name")
         else:
-            raise Exception("Unknown field to update contact: %s" % event['field_name'])
+            raise ValueError("Unknown field to update contact: %s" % event['field_name'])
 
         self.contact.save(update_fields=update_fields)
 

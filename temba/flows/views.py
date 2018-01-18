@@ -1410,7 +1410,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.serializer = serializer
 
             def get_root(self, org):
-                return self.queryset.filter(org=org)
+                return self.queryset.filter(org=org).order_by('id')
 
             def get_item(self, org, uuid):
                 return self.get_root(org).filter(uuid=uuid).first()
