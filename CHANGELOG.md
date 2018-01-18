@@ -1,3 +1,7 @@
+v3.0.310
+----------
+ * Reimplement clickatell as a Courier only channel against new API
+
 v3.0.309
 ----------
  * Use database trigger for inserting new recent run records
