@@ -20,7 +20,7 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from HTMLParser import HTMLParser
@@ -161,7 +161,27 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-class TembaTest(SmartminTest):
+def rerun_with_flowserver(test_func):
+    """
+    Decorator to mark a test function as one that should also be re-run with the flow server
+    """
+    test_func._rerun_with_flowserver = True
+    return test_func
+
+
+class AddFlowServerTestsMeta(type):
+    def __new__(mcs, name, bases, dct):
+        new_tests = {}
+        for key, val in six.iteritems(dct):
+            if key.startswith('test_') and getattr(val, '_rerun_with_flowserver', False):
+                new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
+                new_tests[key + '_with_flowserver'] = new_func
+        dct.update(new_tests)
+
+        return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+
+
+class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def setUp(self):
         self.mock_server = mock_server
 

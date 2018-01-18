@@ -30,7 +30,7 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest
+from temba.tests import TembaTest, MockResponse, FlowFileTest, rerun_with_flowserver
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
@@ -2579,6 +2579,7 @@ class FlowTest(TembaTest):
         msg = Msg.objects.get(direction='O')
         self.assertEqual(msg.get_metadata(), {'quick_replies': ['Sim', 'No']})
 
+    @rerun_with_flowserver
     def test_multiple(self):
         run1, = self.flow.start([], [self.contact])
 
@@ -4262,6 +4263,7 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
+    @rerun_with_flowserver
     def test_simple(self):
         favorites = self.get_flow('favorites')
         action_set1 = favorites.action_sets.order_by('y').first()
@@ -4331,7 +4333,8 @@ class FlowsTest(FlowFileTest):
 
         msg5 = Msg.objects.get(id__gt=msg4.id)
         self.assertEqual(msg5.direction, 'O')
-        self.assertEqual(msg5.text, "Mmmmm... delicious Primus. If only they made red Primus! Lastly, what is your name?")
+        self.assertEqual(msg5.text,
+                         "Mmmmm... delicious Primus. If only they made red Primus! Lastly, what is your name?")
 
         msg6 = Msg.create_incoming(self.channel, 'tel:+12065552020', "Ben")
 
@@ -4342,10 +4345,6 @@ class FlowsTest(FlowFileTest):
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
-
-    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
-    def test_simple_with_flowserver(self):
-        self.test_simple()
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_payload(self):
