@@ -13,7 +13,7 @@ class ClaimView(AuthenticatedExternalClaimView):
     class ClickatellForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                     help_text=_("The country this phone number is used in"))
-        number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+        number = forms.CharField(max_length=18, min_length=1, label=_("Number"),
                                  help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
         api_key = forms.CharField(label=_("API Key"),
                                   help_text=_("The API key for your integration as provided by Clickatell"))
