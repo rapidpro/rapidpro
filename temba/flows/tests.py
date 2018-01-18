@@ -8153,6 +8153,36 @@ class TimeoutTest(FlowFileTest):
         self.assertEqual("Don't worry about it , we'll catch up next week.",
                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
+    def test_timeout_no_credits(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
+
+        # timeout in the past
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+
+        # mark our last message as not having a credit
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.topup_id = None
+        last_msg.save()
+
+        time.sleep(1)
+
+        # run our timeout check task
+        check_flow_timeouts_task()
+
+        # our timeout should be cleared
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertIsNone(run.timeout_on)
+
 
 class MigrationUtilsTest(TembaTest):
 
