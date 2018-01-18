@@ -6,9 +6,8 @@ import six
 
 from django.conf import settings
 from django.db.models import Prefetch
-from django.utils.timezone import now
+from django.utils import timezone
 from mptt.utils import get_cached_trees
-from temba.utils.dates import datetime_to_str
 from temba.values.models import Value
 
 
@@ -175,7 +174,7 @@ class RequestBuilder(object):
 
         self.request['events'].append({
             'type': "set_environment",
-            'created_on': datetime_to_str(now()),
+            'created_on': timezone.now().isoformat(),
             'date_format': "dd-MM-yyyy" if org.date_format == 'D' else "MM-dd-yyyy",
             'time_format': "hh:mm",
             'timezone': six.text_type(org.timezone),
@@ -194,15 +193,15 @@ class RequestBuilder(object):
         for v in values:
             field = org_fields[v.contact_field_id]
             field_values[field.key] = {
-                'value': Contact.serialize_field_value(field, v, use_location_names=False),
-                'created_on': datetime_to_str(v.created_on),
+                'value': Contact.serialize_field_value(field, v),
+                'created_on': v.created_on.isoformat()
             }
 
         _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
 
         event = {
             'type': "set_contact",
-            'created_on': datetime_to_str(now()),
+            'created_on': timezone.now().isoformat(),
             'contact': {
                 'uuid': contact.uuid,
                 'name': contact.name,
@@ -226,7 +225,7 @@ class RequestBuilder(object):
     def set_extra(self, extra):
         self.request['events'].append({
             'type': "set_extra",
-            'created_on': datetime_to_str(now()),
+            'created_on': timezone.now().isoformat(),
             'extra': extra
         })
         return self
@@ -234,7 +233,7 @@ class RequestBuilder(object):
     def msg_received(self, msg):
         event = {
             'type': "msg_received",
-            'created_on': datetime_to_str(msg.created_on),
+            'created_on': msg.created_on.isoformat(),
             'msg_uuid': str(msg.uuid),
             'text': msg.text,
             'contact_uuid': str(msg.contact.uuid),
@@ -253,7 +252,7 @@ class RequestBuilder(object):
     def run_expired(self, run):
         self.request['events'].append({
             'type': "run_expired",
-            'created_on': datetime_to_str(run.exited_on),
+            'created_on': run.exited_on.isoformat(),
             'run_uuid': str(run.uuid),
         })
         return self
@@ -277,7 +276,7 @@ class RequestBuilder(object):
         self.request['trigger'] = {
             'type': 'manual',
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
-            'triggered_on': datetime_to_str(now())
+            'triggered_on': timezone.now().isoformat()
         }
 
         return self.client.start(self.request)
@@ -358,7 +357,7 @@ class FlowServerClient:
 def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None):
     if settings.TESTING:
         url = 'http://localhost:8000/flow/assets/%d/%d/' % (org.id, timestamp)
-    else:
+    else:  # pragma: no cover
         url = 'https://%s/flow/assets/%d/%d/' % (settings.HOSTNAME, org.id, timestamp)
 
     if asset_type:
