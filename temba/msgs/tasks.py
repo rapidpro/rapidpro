@@ -108,18 +108,32 @@ def process_message_task(msg_event):
 
         # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
-            # pop the next message to process off our contact queue
-            with r.pipeline() as pipe:
-                pipe.zrange(contact_queue, 0, 0)
-                pipe.zremrangebyrank(contact_queue, 0, 0)
-                (contact_msg, deleted) = pipe.execute()
 
-            if contact_msg:
+            msg = None
+
+            # pop the next message off our contact queue until we find one that needs handling
+            while True:
+                with r.pipeline() as pipe:
+                    pipe.zrange(contact_queue, 0, 0)
+                    pipe.zremrangebyrank(contact_queue, 0, 0)
+                    (contact_msg, deleted) = pipe.execute()
+
+                # no more messages in the queue for this contact, we're done
+                if not contact_msg:
+                    return
+
+                # we have a message in our contact queue, look it up
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(id=msg_event['id']).order_by().select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = (
+                    Msg.objects.filter(id=msg_event['id'])
+                    .order_by()
+                    .select_related('org', 'contact', 'contact_urn', 'channel').first()
+                )
 
-                if msg and msg.status == PENDING:
+                # make sure we are still pending
+                if msg.status == PENDING:
                     process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
+                    return
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:

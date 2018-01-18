@@ -1,0 +1,147 @@
+{
+  "campaigns": [], 
+  "version": "11.2", 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "5d8b8512-e76e-4cb6-a74c-17f6d584bef5", 
+          "exit_uuid": "0c032f7f-b951-4814-8a18-62454cd8da2c", 
+          "y": 0, 
+          "x": 100, 
+          "destination": "2144f113-1b8e-438e-908f-8b2018865d97", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Let's call a webhook!"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "0f5f7871-8f8c-425d-9f26-da3e625a8dc6"
+            }
+          ]
+        }
+      ], 
+      "version": "11.2", 
+      "flow_type": "F", 
+      "entry": "5d8b8512-e76e-4cb6-a74c-17f6d584bef5", 
+      "rule_sets": [
+        {
+          "uuid": "2144f113-1b8e-438e-908f-8b2018865d97", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              }, 
+              "uuid": "68921cf2-589a-492c-9608-77b86c03e1eb", 
+              "destination": "52612a0f-4112-43b3-b6dd-0694a80682c6", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Failure"
+              }, 
+              "uuid": "bb3fadc1-5e12-49ff-bca4-cf3577b4dbcb", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 91, 
+          "x": 234, 
+          "config": {
+            "webhook": "http://localhost:49999/check_order.php?phone=@step.contact.tel_e164", 
+            "webhook_action": "GET", 
+            "webhook_headers": [
+              {
+                "name": "Authorization", 
+                "value": "Token 12345"
+              }
+            ]
+          }
+        }, 
+        {
+          "uuid": "52612a0f-4112-43b3-b6dd-0694a80682c6", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Valid"
+              }, 
+              "uuid": "453458d6-6dc7-4ec5-88ff-d98bb113a7ba", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "valid"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Invalid"
+              }, 
+              "uuid": "1ad18838-44e8-48e0-8526-76dee0537468", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "invalid"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "926437aa-a9d8-4113-aa39-b42b6a494050", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Order Status",
+          "operand": "@extra.text @extra.blank", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 226, 
+          "x": 158, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 15, 
+        "uuid": "4b2459a5-c9b2-4217-9aa4-cc4663457c47", 
+        "name": "Webhook", 
+        "saved_on": "2017-12-14T14:32:08.641540Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

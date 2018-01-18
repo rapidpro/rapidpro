@@ -115,4 +115,8 @@ ansible/vendor/
 ansible/site.retry
 
 # sublime projects
-*.sublime*
+*.sublime
+.project
+.pydevproject
+.settings/
+

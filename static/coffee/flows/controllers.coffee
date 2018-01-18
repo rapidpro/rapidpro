@@ -841,9 +841,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action_set = hovered.action_set
         action_set._showMessages = true
 
-        # TODO migrate all recent message records to use exit and stop including node UUID
-
-        Flow.fetchRecentMessages([action_set.exit_uuid, action_set.uuid], action_set.destination).then (response) ->
+        Flow.fetchRecentMessages([action_set.exit_uuid], action_set.destination).then (response) ->
           action_set._messages = response.data
 
       if hovered.category
@@ -1097,6 +1095,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
     formData.isWebhookAdditionalOptionsVisible = formData.webhook_headers.length > 0
+
+    if 'legacy_format' of ruleset.config
+      formData.newFormat = !ruleset.config.legacy_format
+      formData.supportsLegacy = true
+
   else
     formData.webhook_headers = []
     formData.isWebhookAdditionalOptionsVisible = false
@@ -1745,6 +1748,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           webhook_action: formData.webhook_action
           webhook_headers: webhook_headers
 
+        if formData.supportsLegacy
+          ruleset.config.legacy_format = !formData.newFormat
+
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
         ruleset.operand = '@contact.' + contactField.id
@@ -1824,7 +1830,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action = utils.clone(action)
   $scope.showAttachOptions = false
   $scope.showAttachVariable = false
-  
+
+  if 'legacy_format' of $scope.action
+    formData.newFormat = !$scope.action.legacy_format
+    formData.supportsLegacy = true
+
   if $scope.action._attachURL
     $scope.showAttachOptions = true
     $scope.showAttachVariable = true
@@ -2080,14 +2090,18 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # don't include headers without name
     webhook_headers = []
-    for header in $scope.action.webhook_headers
-      if header.name
-        webhook_headers.push(header)
+    if $scope.action.webhook_headers
+      for header in $scope.action.webhook_headers
+        if header.name
+          webhook_headers.push(header)
 
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
     $scope.action.webhook_headers = webhook_headers
+
+    if $scope.formData.supportsLegacy
+      $scope.action.legacy_format = !$scope.formData.newFormat
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
