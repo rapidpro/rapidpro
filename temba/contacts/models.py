@@ -11,7 +11,6 @@ import six
 import time
 import uuid
 
-from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError
@@ -906,19 +905,10 @@ class Contact(TembaModel):
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
-            params = dict(name=name)
-
-            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-            # assign them property names with added count
-            urns_for_scheme_counts = defaultdict(int)
-            scheme, path, display = URN.to_parts(urn)
-            urns_for_scheme_counts[scheme] += 1
-            params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
-
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
         return contact
 
     @classmethod
@@ -1076,16 +1066,6 @@ class Contact(TembaModel):
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
-            params = dict(name=name)
-
-            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-            # assign them property names with added count
-            urns_for_scheme_counts = defaultdict(int)
-            for urn in urn_objects.keys():
-                scheme, path, display = URN.to_parts(urn)
-                urns_for_scheme_counts[scheme] += 1
-                params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
-
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
