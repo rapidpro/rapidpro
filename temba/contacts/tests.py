@@ -82,10 +82,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create(self.org, 'tel:123', user=self.user, name='Joe')
+        self.joe, urn_obj = Contact.get_or_create(self.org, 'tel:123', user=self.user, name='Joe')
         self.joe.set_field(self.user, 'age', 20)
         self.joe.set_field(self.user, 'home', 'Kigali')
-        self.frank = Contact.get_or_create(self.org, "tel:124", user=self.user, name='Frank')
+        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name='Frank')
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
@@ -116,7 +116,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual(response.context['search_error'], "Search query contains an error")
 
     def testRead(self):
-        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.user, name='Joe')
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name='Joe')
 
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(read_url)
@@ -182,9 +182,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
-        self.frank = Contact.get_or_create(self.org, "tel:1234", user=self.admin, name="Frank Smith")
-        self.mary = Contact.get_or_create(self.org, "tel:345", user=self.admin, name="Mary Mo")
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
+        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.admin, name="Frank Smith")
+        self.mary, urn_obj = Contact.get_or_create(self.org, "tel:345", user=self.admin, name="Mary Mo")
 
     def test_create_static(self):
         group = ContactGroup.create_static(self.org, self.admin, " group one ")
@@ -244,7 +244,7 @@ class ContactGroupTest(TembaTest):
 
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
-        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
 
         fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
         for key in fields:
@@ -468,8 +468,8 @@ class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super(ContactGroupCRUDLTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
+        self.frank, urn_obj = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
@@ -648,16 +648,16 @@ class ContactTest(TembaTest):
         with self.assertRaises(ValueError):
             Contact.get_or_create(self.org, "tel:+250781111111", None)
 
-        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel)
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel)
         self.assertEqual(contact.pk, self.joe.pk)
 
-        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
         self.assertEqual(contact.name, "Joe Blow")  # should not change the name for existing contact
 
-        contact = Contact.get_or_create(self.org, "tel:124", self.channel, name="Kendrick")
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:124", self.channel, name="Kendrick")
         self.assertEqual(contact.name, "Kendrick")
 
-        contact = Contact.get_or_create(self.org, "tel:+250781111111", None, None, user=self.user)
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", None, None, user=self.user)
         self.assertEqual(contact.pk, self.joe.pk)
 
         urn = ContactURN.get_or_create(self.org, contact, "tel:+250781111111", self.channel)
@@ -665,7 +665,7 @@ class ContactTest(TembaTest):
         urn.save()
 
         # existing urn without a contact should be used on the new contact
-        contact = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
         self.assertEqual(contact.name, "Kendrick")  # should not change the name for existing contact
         self.assertEqual(1, contact.urns.all().count())
 

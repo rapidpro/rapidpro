@@ -229,11 +229,9 @@ class MsgTest(TembaTest):
 
     def test_create_outgoing(self):
         tel_urn = "tel:250788382382"
-        tel_contact = Contact.get_or_create(self.org, tel_urn, user=self.user)
-        tel_urn_obj = tel_contact.urn_objects[tel_urn]
+        tel_contact, tel_urn_obj = Contact.get_or_create(self.org, tel_urn, user=self.user)
         twitter_urn = "twitter:joe"
-        twitter_contact = Contact.get_or_create(self.org, twitter_urn, user=self.user)
-        twitter_urn_obj = twitter_contact.urn_objects[twitter_urn]
+        twitter_contact, twitter_urn_obj = Contact.get_or_create(self.org, twitter_urn, user=self.user)
 
         # check creating by URN string
         msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
@@ -440,7 +438,7 @@ class MsgTest(TembaTest):
     def test_outbox(self):
         self.login(self.admin)
 
-        contact = Contact.get_or_create(self.channel.org, 'tel:250788382382', user=self.admin)
+        contact, urn_obj = Contact.get_or_create(self.channel.org, 'tel:250788382382', user=self.admin)
         broadcast1 = Broadcast.create(self.channel.org, self.admin, 'How is it going?', [contact])
 
         # now send the broadcast so we have messages
@@ -1546,8 +1544,8 @@ class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
         super(BroadcastCRUDLTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
+        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
 
     def test_send(self):
         url = reverse('msgs.broadcast_send')
