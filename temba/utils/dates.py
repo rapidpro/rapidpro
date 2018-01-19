@@ -16,10 +16,10 @@ MAX_UTC_OFFSET = 14 * 60 * 60
 FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?([\+\-]\d{2}:\d{2}|Z)$')
 
 # patterns for date and time formats supported for human-entered data
-DD_MM_YYYY = regex.compile(r'([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})')
-MM_DD_YYYY = regex.compile(r'([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})')
-YYYY_MM_DD = regex.compile(r'([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})')
-HH_MM_SS = regex.compile(r'([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?')
+DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
+MM_DD_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
+YYYY_MM_DD = regex.compile(r'\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b')
+HH_MM_SS = regex.compile(r'\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b')
 
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
@@ -114,25 +114,22 @@ def _date_from_formats(date_str, current_year, pattern, d, m, y):
     Parses a human-entered date which should be in the org display format
     """
     for match in pattern.finditer(date_str):
-        # does our day look believable?
         day = _atoi(match[d])
-        if day == 0 or day > 31:
-            continue
-
         month = _atoi(match[m])
-        if month == 0 or month > 12:
-            continue
+        year = _atoi(match[y])
 
         # convert to four digit year
-        year = _atoi(match[y])
         if len(match[y]) == 2:
             if year > current_year % 1000:
                 year += 1900
             else:
                 year += 2000
 
-        # looks believable, let's return it
-        return datetime.date(year, month, day)
+        try:
+            return datetime.date(year, month, day)
+        except ValueError:
+            # if our numbers don't form a valid date keep trying
+            pass
 
     return None
 
@@ -143,34 +140,34 @@ def str_to_time(value):
     """
     for match in HH_MM_SS.finditer(value):
         hour = _atoi(match[1])
-
-        # do we have an AM/PM
-        if match[7] and match[7].lower() == "pm":
-            hour += 12
-
-        # is this a valid hour?
-        if hour > 24:
-            continue
-
         minute = _atoi(match[2])
-        if minute > 60:
-            continue
+
+        # do we have an AM/PM marker?
+        am_pm = match[7].lower() if match[7] else None
+
+        if hour < 12 and am_pm == 'pm':
+            hour += 12
+        elif hour == 12 and am_pm == 'am':
+            hour -= 12
 
         seconds = 0
+        micro = 0
+
         if match[4]:
             seconds = _atoi(match[4])
-            if seconds > 60:
-                continue
 
-        micro = 0
-        if match[6]:
-            micro = _atoi(match[6])
+            if match[6]:
+                micro = _atoi(match[6])
 
-            if len(match[6]) == 3:
-                # these are milliseconds, multi by 1,000,000 for micro
-                micro *= 1000
+                if len(match[6]) == 3:
+                    # these are milliseconds, multi by 1,000,000 for micro
+                    micro *= 1000
 
-        return datetime.time(hour, minute, seconds, micro)
+        try:
+            return datetime.time(hour, minute, seconds, micro)
+        except ValueError:
+            # if our numbers don't form a valid time keep trying
+            pass
 
     return None
 

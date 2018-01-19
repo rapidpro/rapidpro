@@ -234,7 +234,7 @@ class WebHookTest(TembaTest):
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([WebhookAction(str(uuid4()), org.get_webhook_url()).as_json()])
+        actionset.set_actions_dict([WebhookAction(str(uuid4()), org.get_webhook_url(), legacy_format=True).as_json()])
         actionset.save()
 
         # run a user through this flow

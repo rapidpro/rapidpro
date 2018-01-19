@@ -20,10 +20,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {
             'jiochat_app_id': cleaned_data.get('app_id'),
-            'jiochat_app_secret': cleaned_data.get('app_secret')
+            'jiochat_app_secret': cleaned_data.get('app_secret'),
+            'secret': Channel.generate_secret(32),
         }
 
-        self.object = Channel.create(org, self.request.user, None, self.channel_type, name='', address='',
-                                     config=config, secret=Channel.generate_secret(32))
+        self.object = Channel.create(org, self.request.user, None, self.channel_type, name='', address='', config=config)
 
         return super(ClaimView, self).form_valid(form)

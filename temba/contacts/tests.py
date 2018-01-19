@@ -31,6 +31,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
+from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
@@ -245,13 +246,12 @@ class ContactGroupTest(TembaTest):
         flow = self.get_flow('initialize')
         self.joe = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
 
-        from temba.utils.profiler import QueryTracker
         fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
         for key in fields:
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=230, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=215, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1431,6 +1431,37 @@ class ContactTest(TembaTest):
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
         self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters
 
+    def test_contact_create_with_dynamicgroup_reevaluation(self):
+
+        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
+
+        ContactGroup.create_dynamic(
+            self.org, self.admin, 'simple group',
+            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+        )
+        ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
+        ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
+
+        # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
+        with self.assertNumQueries(37):
+            contact = Contact.get_or_create(self.org, self.admin, name='Željko', urns=['twitter:helio'])
+
+        self.assertItemsEqual(
+            [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
+        )
+
+        # field update works as expected
+        contact.set_field(self.user, 'gender', 'male')
+        contact.set_field(self.user, 'age', 20)
+
+        self.assertItemsEqual(
+            [group.name for group in contact.user_groups.filter(is_active=True).all()],
+            ['cannon fodder', 'urn group', 'Age field is set']
+        )
+
     def test_omnibox(self):
         # add a group with members and an empty group
         self.create_field('gender', "Gender")
@@ -1641,7 +1672,7 @@ class ContactTest(TembaTest):
                                             description="It didn't send!!")
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_event(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
+            WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -1847,7 +1878,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
         result = WebHookResult.objects.get()
 
         item = {'type': 'webhook-result', 'obj': result}
@@ -3974,6 +4005,16 @@ class ContactTest(TembaTest):
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
 
+        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
+
+        ContactGroup.create_dynamic(
+            self.org, self.admin, 'simple group',
+            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+        )
+        ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "macklemore"')
+
         # create some channels of various types
         twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
         Channel.create(self.org, self.user, None, 'TG', name="Twitter Channel", address="@rapidpro")
@@ -3997,14 +4038,32 @@ class ContactTest(TembaTest):
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
         # simulate an incoming message from Mage on Twitter
-        msg = Msg.objects.create(org=self.org, channel=twitter, contact=self.joe,
-                                 contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
-                                 text="Incoming twitter DM", created_on=timezone.now())
+        msg = Msg.objects.create(
+            org=self.org, channel=twitter, contact=self.joe,
+            contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+            text="Incoming twitter DM", created_on=timezone.now()
+        )
 
-        process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
+        with self.assertNumQueries(12):
+            process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
+
+        # simulate an incoming message from Mage on Twitter, for a new contact
+        msg = Msg.objects.create(
+            org=self.org, channel=twitter, contact=self.joe,
+            contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+            text="Incoming twitter DM", created_on=timezone.now()
+        )
+
+        with self.assertNumQueries(20):
+            process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
+
+        self.assertItemsEqual(
+            [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
+            ['Empty age field', 'urn group']
+        )
 
 
 class ContactURNTest(TembaTest):

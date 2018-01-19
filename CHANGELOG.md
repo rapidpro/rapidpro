@@ -1,3 +1,67 @@
+v3.0.310
+----------
+ * Reimplement clickatell as a Courier only channel against new API
+
+v3.0.309
+----------
+ * Use database trigger for inserting new recent run records
+ * Handle stop contact channel events
+ * Remove no longer used FlowPathRecentRun model
+
+v3.0.308
+----------
+'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
+ * Update date for webhook change on api docs
+ * Don't use flow steps for calculating test contact activity
+
+v3.0.307
+----------
+ * Stop using FlowPathRecentMessage
+
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
+v3.0.305
+----------
+ * Add new model for tracking recent runs
+ * Add dynamic group optimization for new contacts
+
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
+v3.0.301
+----------
+ * Tweak process_message_task to not blow up if message doesn't exist
+ * Use FlowRun.message_ids for flow result exports
+
+v3.0.300
+----------
+ * Use config secret instead of secret field on Channel
+ * Add tests for datetime contact API field update
+
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
+v3.0.298
+----------
+ * Process contact queue until there's a pending message or empty
+ * Make date parsing much stricter
+ * Migration to fix run results which were numeric but parsed as dates
+ * Use transaction when creating contact URN
+ * Add support for v2 webhooks
+
 v3.0.294
 ----------
  * Fix run.path trigger to not blow up deleting old steps that don't have exit_uuids
@@ -18,15 +82,7 @@ v3.0.292
 
 v3.0.291
 ----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
+ * Ignore TMS callbacks
 
 v3.0.289
 ----------
