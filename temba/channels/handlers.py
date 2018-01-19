@@ -127,6 +127,12 @@ class ClickatellHandler(CourierHandler):
     courier_name = 'courier.ct'
 
 
+class ZenviaHandler(CourierHandler):
+    channel_name = "Zenvia"
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.zv'
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
@@ -469,76 +475,6 @@ class AfricasTalkingHandler(BaseChannelHandler):
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:  # pragma: no cover
-            return HttpResponse("Not handled", status=400)
-
-
-class ZenviaHandler(BaseChannelHandler):
-
-    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.zv'
-
-    handler_url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
-    handler_name = 'handlers.zenvia_handler'
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        request.encoding = "ISO-8859-1"
-
-        action = kwargs['action']
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ZV').first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'status':
-            status = self.get_param('status')
-            sms_id = self.get_param('id')
-
-            if status is None or sms_id is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
-
-            status = int(status)
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
-
-            # delivered
-            if status == 120:
-                sms.status_delivered()
-            elif status == 111:
-                sms.status_sent()
-            else:
-                sms.status_fail()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            sms_date = self.get_param('date')
-            from_tel = self.get_param('from')
-            msg = self.get_param('msg')
-
-            if sms_date is None or from_tel is None or msg is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
-
-            # dates come in the format 31/07/2013 14:45:00
-            sms_date = datetime.strptime(sms_date, "%d/%m/%Y %H:%M:%S")
-            brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
-
-            urn = URN.from_tel(from_tel)
-            sms = Msg.create_incoming(channel, urn, msg, date=brazil_date)
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:  # pragma: needs cover
             return HttpResponse("Not handled", status=400)
 
 
