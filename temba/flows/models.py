@@ -2733,6 +2733,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             return list_dict, count
 
+        elif fields is None:
+            return "", count + 1
         else:
             return six.text_type(fields), count + 1
 
