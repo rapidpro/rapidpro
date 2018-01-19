@@ -469,7 +469,7 @@ class ContactGroupCRUDLTest(TembaTest):
         super(ContactGroupCRUDLTest, self).setUp()
 
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank, urn_obj = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
+        self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
