@@ -1447,7 +1447,7 @@ class ContactTest(TembaTest):
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
         with self.assertNumQueries(37):
-            contact = Contact.get_or_create(self.org, self.admin, name='Željko', urns=['twitter:helio'])
+            contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         self.assertItemsEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']

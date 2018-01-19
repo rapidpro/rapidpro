@@ -1497,8 +1497,8 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
             user = get_anonymous_user()
-            contact = Contact.get_or_create(self.org, user, name=None, urns=[self.contact_urn.urn],
-                                            channel=self.channel)
+            contact = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)
+
             contact.stop(user)
             handled = True
 
