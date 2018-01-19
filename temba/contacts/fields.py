@@ -29,8 +29,7 @@ class OmniboxWidget(widgets.TextInput):
         if not org.is_anon:
             for number in raw_numbers:
                 urn = URN.from_tel(number)
-                contact = Contact.get_or_create(org, urn, user=user)
-                urn_obj = contact.urn_objects[urn]
+                contact, urn_obj = Contact.get_or_create(org, urn, user=user)
                 urn_ids.append(urn_obj.pk)
 
         groups = ContactGroup.user_groups.filter(uuid__in=group_uuids, org=org)

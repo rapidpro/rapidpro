@@ -64,7 +64,8 @@ class MessageConsole(cmd.Cmd):
         if ':' not in urn:
             urn = URN.from_tel(urn)  # assume phone number
 
-        return Contact.get_or_create(self.org, urn, user=self.user)
+        contact, urn_obj = Contact.get_or_create(self.org, urn, user=self.user)
+        return contact
 
     def do_org(self, line):
         """

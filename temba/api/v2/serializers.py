@@ -131,8 +131,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         for urn in self.validated_data.get('urns', []):
             # create contacts for URNs if necessary
-            contact = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
-            contact_urn = contact.urn_objects[urn]
+            contact, contact_urn = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
             recipients.append(contact_urn)
 
         text, base_language = self.validated_data['text']
@@ -770,7 +769,7 @@ class FlowStartWriteSerializer(WriteSerializer):
 
         # convert URNs to contacts
         for urn in urns:
-            contact = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
+            contact, urn_obj = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
             contacts.append(contact)
 
         # ok, let's go create our flow start, the actual starting will happen in our view

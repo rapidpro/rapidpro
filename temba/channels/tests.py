@@ -89,7 +89,8 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, URN.from_tel(number), user=user, name=None))
+            contact, urn_obj = Contact.get_or_create(org, URN.from_tel(number), user=user, name=None)
+            contacts.append(contact)
 
         group.contacts.add(*contacts)
 
@@ -2214,7 +2215,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact = Contact.get_or_create(self.org, 'tel:+250788111222', user=self.admin)
+        real_contact, urn_obj = Contact.get_or_create(self.org, 'tel:+250788111222', user=self.admin)
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 

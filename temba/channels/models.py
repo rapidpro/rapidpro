@@ -1456,8 +1456,7 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        contact = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
-        contact_urn = contact.urn_objects[urn]
+        contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
 
         extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
@@ -1497,7 +1496,7 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
             user = get_anonymous_user()
-            contact = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)
+            contact, urn_obj = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)[0]
 
             contact.stop(user)
             handled = True

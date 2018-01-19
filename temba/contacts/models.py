@@ -870,8 +870,6 @@ class Contact(TembaModel):
         else:
             country = org.get_country_code()
 
-        contact = None
-
         # limit our contact name to 128 chars
         if name:
             name = name[:128]
@@ -882,10 +880,7 @@ class Contact(TembaModel):
         if existing_urn and existing_urn.contact:
             contact = existing_urn.contact
             ContactURN.update_auth(existing_urn, auth)
-
-            # return our contact, mapping our existing urn appropriately
-            contact.urn_objects = {urn: existing_urn}
-            return contact
+            return contact, existing_urn
         else:
             kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
             contact = Contact.objects.create(**kwargs)
@@ -901,7 +896,6 @@ class Contact(TembaModel):
 
             # add attribute which allows import process to track new vs existing
             contact.is_new = True
-            contact.urn_objects = {urn: urn_obj}
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
@@ -909,7 +903,7 @@ class Contact(TembaModel):
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
-        return contact
+        return contact, urn_obj
 
     @classmethod
     def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
@@ -948,9 +942,6 @@ class Contact(TembaModel):
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
                 ContactURN.update_auth(existing_urn, auth)
-
-                # return our contact, mapping our existing urn appropriately
-                contact.urn_objects = {urns[0]: existing_urn}
                 return contact
 
         # if we were passed in a UUID, look it up by that
@@ -985,8 +976,6 @@ class Contact(TembaModel):
                         if updated_attrs:
                             contact.modified_by = user
                             contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
-
-                        contact.urn_objects = contact_urns
 
                         # handle group and campaign updates
                         contact.handle_update(attrs=updated_attrs)
@@ -1059,11 +1048,6 @@ class Contact(TembaModel):
             # save which urns were updated
             updated_urns = urn_objects.keys()
 
-            # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
-            # actual URN object for each URN tuple it requested
-            urn_objects.update(existing_owned_urns)
-            contact.urn_objects = urn_objects
-
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
             analytics.gauge('temba.contact_created')
@@ -1102,8 +1086,8 @@ class Contact(TembaModel):
                 test_urn_path += 1
                 existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
-                                                 is_test=True)
+            test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
+                                                          is_test=True)
         return test_contact
 
     @classmethod

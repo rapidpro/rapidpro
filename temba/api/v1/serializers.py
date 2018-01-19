@@ -799,7 +799,8 @@ class MsgCreateSerializer(WriteSerializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(channel.org, urn, user=self.user))
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, user=self.user)
+            contacts.append(contact)
 
         # add any contacts specified by uuids
         uuid_contacts = self.validated_data.get('contact', [])
