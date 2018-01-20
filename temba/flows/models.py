@@ -2708,7 +2708,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if isinstance(fields, six.string_types):
             return fields[:Value.MAX_VALUE_LEN], count + 1
 
-        elif isinstance(fields, numbers.Number):
+        elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
             return fields, count + 1
 
         elif isinstance(fields, dict):
@@ -2735,8 +2735,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         elif fields is None:
             return "", count + 1
-        else:
-            return six.text_type(fields), count + 1
+        else:  # pragma: no cover
+            raise ValueError("Unsupported type %s in extra" % six.text_type(type(fields)))
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
