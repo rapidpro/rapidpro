@@ -364,6 +364,17 @@ class IsSetCondition(Condition):
         if prop_type == ContactQuery.PROP_FIELD:
             values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
 
+            if prop_obj.value_type == Value.TYPE_TEXT:
+                values_query = values_query.filter(string_value__isnull=False)
+            elif prop_obj.value_type == Value.TYPE_DECIMAL:
+                values_query = values_query.filter(decimal_value__isnull=False)
+            elif prop_obj.value_type == Value.TYPE_DATETIME:
+                values_query = values_query.filter(datetime_value__isnull=False)
+            elif prop_obj.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+                values_query = values_query.filter(location_value__isnull=False)
+            else:  # pragma: no cover
+                raise ValueError("Unrecognized contact field type '%s'" % prop_obj.value_type)
+
             # optimize for the single membership test case
             if base_set:
                 values_query = values_query.filter(contact__in=base_set)
