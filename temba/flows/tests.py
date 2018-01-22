@@ -3747,6 +3747,21 @@ class FlowRunTest(TembaTest):
         (normalized, count) = FlowRun.normalize_fields(fields)
         self.assertEqual(normalized, dict(value_1='value1', value_2='value2'))
 
+        # nulls should become empty strings
+        (normalized, count) = FlowRun.normalize_fields({'value1': None})
+        self.assertEqual(normalized, {'value1': ""})
+
+        # numerics and booleans should stay as is
+        (normalized, count) = FlowRun.normalize_fields({'value1': 12, 'value2': 123.45})
+        self.assertEqual(normalized, {'value1': 12, 'value2': 123.45})
+
+        (normalized, count) = FlowRun.normalize_fields({'value1': True, 'value2': False})
+        self.assertEqual(normalized, {'value1': True, 'value2': False})
+
+        # anything else blows up
+        with self.assertRaises(ValueError):
+            FlowRun.normalize_fields({'value1': lambda: "x"})
+
         # field text too long
         fields['field2'] = "*" * 650
         (normalized, count) = FlowRun.normalize_fields(fields)
