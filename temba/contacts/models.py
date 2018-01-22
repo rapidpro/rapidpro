@@ -894,16 +894,12 @@ class Contact(TembaModel):
 
             updated_urns = [urn]
 
-            # add attribute which allows import process to track new vs existing
-            contact.is_new = True
-
-        # record contact creation in analytics
-        if getattr(contact, 'is_new', False):
+            # record contact creation in analytics
             analytics.gauge('temba.contact_created')
 
-        # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
-        return contact, urn_obj
+            # handle group and campaign updates
+            contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=True)
+            return contact, urn_obj
 
     @classmethod
     def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
@@ -929,6 +925,7 @@ class Contact(TembaModel):
             country = org.get_country_code()
 
         contact = None
+        is_new = False
 
         # limit our contact name to 128 chars
         if name:
@@ -1010,7 +1007,6 @@ class Contact(TembaModel):
 
             # URNs correspond to one contact so update and return that
             if contact:
-                contact.is_new = False
                 # update contact name if provided
                 updated_attrs = []
                 if name:
@@ -1032,7 +1028,7 @@ class Contact(TembaModel):
                 updated_attrs = kwargs.keys()
 
                 # add attribute which allows import process to track new vs existing
-                contact.is_new = True
+                is_new = True
 
             # attach all orphaned URNs
             ContactURN.objects.filter(pk__in=[urn.id for urn in existing_orphan_urns.values()]).update(contact=contact)
@@ -1053,7 +1049,7 @@ class Contact(TembaModel):
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=is_new)
         return contact
 
     @classmethod
