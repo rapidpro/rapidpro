@@ -14,9 +14,11 @@ from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
+from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.test import override_settings, SimpleTestCase
+from django.db import models
+from django.test import override_settings, SimpleTestCase, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
@@ -47,6 +49,7 @@ from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRI
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
+from .models import JSONAsTextField
 
 
 class InitTest(TembaTest):
@@ -1680,3 +1683,24 @@ class MakeTestDBTest(SimpleTestCase):
 
         # but simulate can
         call_command('test_db', 'simulate', num_runs=2)
+
+
+class TestJSONAsTextField(TestCase):
+
+    def test_invalid_default(self):
+
+        class JsonModel(models.Model):
+            field = JSONAsTextField(default={})
+
+        model = JsonModel()
+        self.assertEqual(model.check(), [
+            checks.Warning(
+                msg=(
+                    'JSONAsTextField default should be a callable instead of an instance so that it\'s not shared '
+                    'between all field instances.'
+                ),
+                hint='Use a callable instead, e.g., use `dict` instead of `{}`.',
+                obj=JsonModel._meta.get_field('field'),
+                id='postgres.E003',
+            )
+        ])

@@ -1,9 +1,11 @@
-from __future__ import print_function, unicode_literals
+from __future__ import print_function, unicode_literals, absolute_import, division
 
 import six
 import time
+import json
 
 from django.contrib.postgres.fields import HStoreField
+from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import models, connection
 from django.utils.functional import cached_property
@@ -39,6 +41,73 @@ class TranslatableField(HStoreField):
     @cached_property
     def validators(self):
         return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
+
+
+class CheckFieldDefaultMixin(object):
+    """
+    This was copied from https://github.com/django/django/commit/f6e1789654e82bac08cead5a2d2a9132f6403f52
+
+    More info: https://code.djangoproject.com/ticket/28577
+    """
+    _default_hint = ('<valid default>', '<invalid default>')
+
+    def _check_default(self):
+        if self.has_default() and self.default is not None and not callable(self.default):
+            return [
+                checks.Warning(
+                    '%s default should be a callable instead of an instance so that it\'s not shared between all field '
+                    'instances.' % (self.__class__.__name__,),
+                    hint='Use a callable instead, e.g., use `%s` instead of `%s`.' % self._default_hint,
+                    obj=self,
+                    id='postgres.E003',
+                )
+            ]
+        else:
+            return []
+
+    def check(self, **kwargs):
+        errors = super(CheckFieldDefaultMixin, self).check(**kwargs)
+        errors.extend(self._check_default())
+        return errors
+
+
+class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
+    """
+    Custom JSON field that is stored as Text in the database
+
+    Notes:
+        * uses standard JSON serializers so it expects that all data is a valid JSON data
+        * be careful with default values, it must be a callable returning a dict because using `default={}` will create
+          a mutable default that is share between all instances of the JSONAsTextField
+          * https://docs.djangoproject.com/en/1.11/ref/contrib/postgres/fields/#jsonfield
+    """
+
+    description = 'Custom JSON field that is stored as Text in the database'
+    _default_hint = ('dict', '{}')
+
+    def __init__(self, *args, **kwargs):
+        super(JSONAsTextField, self).__init__(*args, **kwargs)
+
+    def from_db_value(self, value, *args, **kwargs):
+        if value is None:
+            return value
+        if isinstance(value, six.string_types):
+            return json.loads(value)
+        else:
+            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))
+
+    def get_db_prep_value(self, value, *args, **kwargs):
+        if self.null and value is None and not kwargs.get('force'):
+            return None
+        return json.dumps(value)
+
+    def to_python(self, value):
+        if isinstance(value, six.string_types):
+            value = json.loads(value)
+        return value
+
+    def db_type(self, connection):
+        return 'text'
 
 
 class TembaModel(SmartModel):
