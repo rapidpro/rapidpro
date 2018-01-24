@@ -15,7 +15,7 @@ def migrate_twilio_app(channel):
     """
     Migrates a single Twilio channel to use a channel specific TwiML app with new channel-specific endpoints
     """
-    org_config = json.loads(channel.org.config)
+    org_config = channel.org.config
     client = TwilioRestClient(org_config['ACCOUNT_SID'], org_config['ACCOUNT_TOKEN'])
 
     number_sid = channel.bod
@@ -53,7 +53,7 @@ def migrate_twilio_app(channel):
     if old_app_sid:
         # remove app sid from org config
         del org_config['APPLICATION_SID']
-        channel.org.config = json.dumps(org_config)
+        channel.org.config = org_config
         channel.org.save(update_fields=('config',))
 
         # delete the old org-level app

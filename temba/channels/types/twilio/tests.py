@@ -33,7 +33,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_twilio_connect'))
 
         # attach a Twilio accont to the org
-        self.org.config = json.dumps({ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'})
+        self.org.config = {ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'}
         self.org.save()
 
         # hit the claim page, should now have a claim twilio link

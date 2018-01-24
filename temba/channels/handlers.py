@@ -1230,7 +1230,7 @@ class NexmoCallHandler(BaseChannelHandler):
             # make sure we got one, and that it matches the key for our org
             org_uuid = None
             if channel:
-                org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
+                org_uuid = channel.org.config.get(NEXMO_UUID, None)
 
             if not channel or org_uuid != request_uuid:
                 return HttpResponse("Channel not found for number: %s" % channel_number, status=404)

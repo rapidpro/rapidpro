@@ -450,7 +450,7 @@ class Channel(TembaModel):
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
         org = user.get_org()
-        org_config = org.config_json()
+        org_config = org.config
 
         config = {Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
                   Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
@@ -757,7 +757,7 @@ class Channel(TembaModel):
 
     def as_cached_json(self):
         # also save our org config, as it has twilio and nexmo keys
-        org_config = self.org.config_json()
+        org_config = self.org.config
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,

@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.urls import reverse
 from mock import patch
 from twilio import TwilioRestException
@@ -38,7 +36,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         twilio_config[ACCOUNT_TOKEN] = 'account-token'
         twilio_config[APPLICATION_SID] = 'TwilioTestSid'
 
-        self.org.config = json.dumps(twilio_config)
+        self.org.config = twilio_config
         self.org.save()
 
         response = self.client.get(reverse('channels.channel_claim'))

@@ -164,7 +164,7 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.supports_ivr())
 
         # pretend we are connected to twiliko
-        self.org.config = json.dumps(dict(ACCOUNT_SID='AccountSid', ACCOUNT_TOKEN='AccountToken', APPLICATION_SID='AppSid'))
+        self.org.config = dict(ACCOUNT_SID='AccountSid', ACCOUNT_TOKEN='AccountToken', APPLICATION_SID='AppSid')
         self.org.save()
 
         # add a delegate caller
@@ -735,9 +735,9 @@ class ChannelTest(TembaTest):
 
         # Add twilio credentials to make sure we can add calling for our android channel
         twilio_config = {ACCOUNT_SID: 'SID', ACCOUNT_TOKEN: 'TOKEN', APPLICATION_SID: 'APP SID'}
-        config = self.org.config_json()
+        config = self.org.config
         config.update(twilio_config)
-        self.org.config = json.dumps(config)
+        self.org.config = config
         self.org.save(update_fields=['config'])
 
         response = self.fetch_protected(reverse('orgs.org_home'), self.admin)
@@ -1226,9 +1226,9 @@ class ChannelTest(TembaTest):
 
         org = self.channel.org
 
-        config = org.config_json()
+        config = org.config
         config.update(nexmo_config)
-        org.config = json.dumps(config)
+        org.config = config
         org.save()
 
         search_nexmo_url = reverse('channels.channel_search_nexmo')
@@ -1844,14 +1844,13 @@ class ChannelTest(TembaTest):
                        config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel', FCM_NOTIFICATION=True),
                        uuid='00000000-0000-0000-0000-000000001234')
 
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config.update(dict(CHATBASE_API_KEY='123456abcdef', CHATBASE_VERSION='1.0'))
-        self.org.config = json.dumps(org_config)
         self.org.save()
 
         self.assertTrue(self.org.get_chatbase_credentials())
-        self.assertEqual(self.org.config_json()['CHATBASE_API_KEY'], '123456abcdef')
-        self.assertEqual(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+        self.assertEqual(self.org.config['CHATBASE_API_KEY'], '123456abcdef')
+        self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
         with self.settings(SEND_CHATBASE=True):
             joe = self.create_contact("Joe", urn="fcm:forrest_gump", auth="1234567890")
@@ -3470,9 +3469,8 @@ class NexmoTest(TembaTest):
 
         org = self.channel.org
 
-        config = org.config_json()
+        config = org.config
         config.update(nexmo_config)
-        org.config = json.dumps(config)
         org.save()
 
         self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
@@ -3534,12 +3532,11 @@ class NexmoTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send(self):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
         org_config[NEXMO_APP_ID] = 'nexmo-app-id'
         org_config[NEXMO_APP_PRIVATE_KEY] = 'nexmo-private-key'
-        self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
         self.channel.channel_type = 'NX'
@@ -3660,12 +3657,11 @@ class NexmoTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
         org_config[NEXMO_APP_ID] = 'nexmo-app-id'
         org_config[NEXMO_APP_PRIVATE_KEY] = 'nexmo-private-key'
-        self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
         self.channel.channel_type = 'NX'
@@ -5201,9 +5197,9 @@ class TwilioTest(TembaTest):
         self.account_token = "0b14d47901387c03f92253a4e4449d5e"
         self.application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
 
-        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
-                                              ACCOUNT_TOKEN: self.account_token,
-                                              APPLICATION_SID: self.application_sid})
+        self.channel.org.config = {ACCOUNT_SID: self.account_sid,
+                                   ACCOUNT_TOKEN: self.account_token,
+                                   APPLICATION_SID: self.application_sid}
         self.channel.org.save()
 
     def signed_request(self, url, data, validator=None):
@@ -5299,7 +5295,7 @@ class TwilioTest(TembaTest):
         validator = RequestValidator(client.auth[1])
 
         # remove twilio connection
-        self.channel.org.config = json.dumps({})
+        self.channel.org.config = {}
         self.channel.org.save()
 
         signature = validator.compute_signature('https://' + self.org.get_brand_domain() + '/handlers/twilio/', post_data)
@@ -5308,9 +5304,9 @@ class TwilioTest(TembaTest):
         self.assertEqual(400, response.status_code)
 
         # connect twilio again
-        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
-                                              ACCOUNT_TOKEN: self.account_token,
-                                              APPLICATION_SID: self.application_sid})
+        self.channel.org.config = {ACCOUNT_SID: self.account_sid,
+                                   ACCOUNT_TOKEN: self.account_token,
+                                   APPLICATION_SID: self.application_sid}
 
         self.channel.org.save()
 
@@ -5353,16 +5349,16 @@ class TwilioTest(TembaTest):
         validator = RequestValidator(self.org.get_twilio_client().auth[1])
 
         # remove twilio connection
-        self.channel.org.config = json.dumps({})
+        self.channel.org.config = {}
         self.channel.org.save()
 
         response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data, validator)
         self.assertEqual(response.status_code, 400)
 
         # connect twilio again
-        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
-                                              ACCOUNT_TOKEN: self.account_token,
-                                              APPLICATION_SID: self.application_sid})
+        self.channel.org.config = {ACCOUNT_SID: self.account_sid,
+                                   ACCOUNT_TOKEN: self.account_token,
+                                   APPLICATION_SID: self.application_sid}
         self.channel.org.save()
 
         self.channel.config = json.dumps(dict(auth_token=self.account_token,
@@ -5440,11 +5436,10 @@ class TwilioTest(TembaTest):
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[ACCOUNT_SID] = 'twilio_sid'
         org_config[ACCOUNT_TOKEN] = 'twilio_token'
         org_config[APPLICATION_SID] = 'twilio_sid'
-        self.org.config = json.dumps(org_config)
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -5597,11 +5592,10 @@ class TwilioTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[ACCOUNT_SID] = 'twilio_sid'
         org_config[ACCOUNT_TOKEN] = 'twilio_token'
         org_config[APPLICATION_SID] = 'twilio_sid'
-        self.org.config = json.dumps(org_config)
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -5676,8 +5670,8 @@ class TwilioMessagingServiceTest(TembaTest):
         account_token = "0b14d47901387c03f92253a4e4449d5e"
         application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
 
-        self.channel.org.config = json.dumps({ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
-                                              APPLICATION_SID: application_sid})
+        self.channel.org.config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
+                                   APPLICATION_SID: application_sid}
         self.channel.org.save()
 
         messaging_service_sid = self.channel.config_json()['messaging_service_sid']
@@ -5708,7 +5702,7 @@ class TwilioMessagingServiceTest(TembaTest):
         self.assertEqual("Hello World", msg1.text)
 
         # remove twilio connection
-        self.channel.org.config = json.dumps({})
+        self.channel.org.config = {}
         self.channel.org.save()
 
         signature = validator.compute_signature(

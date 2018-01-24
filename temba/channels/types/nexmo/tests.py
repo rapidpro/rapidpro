@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.urls import reverse
 from mock import patch
 
@@ -32,7 +30,7 @@ class NexmoTypeTest(TembaTest):
 
         nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
                             NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
-        self.org.config = json.dumps(nexmo_config)
+        self.org.config = nexmo_config
         self.org.save()
 
         # hit the claim page, should now have a claim nexmo link

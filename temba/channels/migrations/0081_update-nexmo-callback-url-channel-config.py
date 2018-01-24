@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
             for channel in nexmo_channels:
                 try:
                     org = Org.objects.get(pk=channel.org_id)
-                    org_config = org.config_json()
+                    org_config = org.config
                     app_id = org_config[NEXMO_APP_ID]
                     config = {'nexmo_app_id': app_id,
                               'nexmo_app_private_key': org_config[NEXMO_APP_PRIVATE_KEY],

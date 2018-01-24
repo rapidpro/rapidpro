@@ -1204,8 +1204,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, post_data)
 
             self.org.refresh_from_db()
-            self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-            self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+            self.assertEqual(self.org.config['ACCOUNT_SID'], "AccountSid")
+            self.assertEqual(self.org.config['ACCOUNT_TOKEN'], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
@@ -1220,15 +1220,15 @@ class OrgTest(TembaTest):
                     self.assertEqual(response.request['PATH_INFO'], reverse("channels.claim_twilio"))
 
                     self.org.refresh_from_db()
-                    self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-                    self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.assertEqual(self.org.config['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(self.org.config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
                     twilio_account_url = reverse('orgs.org_twilio_account')
                     response = self.client.get(twilio_account_url)
                     self.assertEqual("AccountSid", response.context['account_sid'])
 
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual('AccountSid', config['ACCOUNT_SID'])
                     self.assertEqual('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
@@ -1239,7 +1239,7 @@ class OrgTest(TembaTest):
 
                     # all our twilio creds should remain the same
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual(config['ACCOUNT_SID'], "AccountSid")
                     self.assertEqual(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
@@ -1324,8 +1324,8 @@ class OrgTest(TembaTest):
             # transferTo should be connected
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertTrue(self.org.is_connected_to_transferto())
-            self.assertEqual(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
-            self.assertEqual(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
+            self.assertEqual(self.org.config['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
+            self.assertEqual(self.org.config['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
 
             response = self.client.get(transferto_account_url)
             self.assertEqual(response.context['transferto_account_login'], 'login')
@@ -1337,8 +1337,8 @@ class OrgTest(TembaTest):
             self.assertNoFormErrors(response)
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertFalse(self.org.is_connected_to_transferto())
-            self.assertFalse(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'])
-            self.assertFalse(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'])
+            self.assertFalse(self.org.config['TRANSFERTO_ACCOUNT_LOGIN'])
+            self.assertFalse(self.org.config['TRANSFERTO_AIRTIME_API_TOKEN'])
 
             mock_post_transterto_request.side_effect = Exception('foo')
             response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
@@ -1390,9 +1390,9 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual(('api_key', '1.0'), self.org.get_chatbase_credentials())
 
-        self.assertEqual(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
-        self.assertEqual(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
-        self.assertEqual(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+        self.assertEqual(self.org.config['CHATBASE_API_KEY'], 'api_key')
+        self.assertEqual(self.org.config['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
         with self.assertRaises(Exception):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
@@ -1407,7 +1407,7 @@ class OrgTest(TembaTest):
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+        self.assertContains(response, self.org.config['CHATBASE_AGENT_NAME'])
 
         payload.update(dict(disconnect='true'))
 
@@ -1529,12 +1529,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
-        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], '')
+        self.assertEqual(self.org.config['SMTP_FROM_EMAIL'], 'foo@bar.com')
+        self.assertEqual(self.org.config['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config['SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
         self.assertEqual('foo@bar.com', response.context['flow_from_email'])
@@ -1564,7 +1564,7 @@ class OrgTest(TembaTest):
         # password shouldn't change
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
                                                           smtp_host='smtp.example.com',
@@ -1593,12 +1593,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
+        self.assertEqual(self.org.config['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config['SMTP_ENCRYPTION'], 'T')
 
     @patch('nexmo.Client.create_application')
     def test_connect_nexmo(self, mock_create_application):
@@ -1627,10 +1627,10 @@ class OrgTest(TembaTest):
                 # nexmo should now be connected
                 self.org = Org.objects.get(pk=self.org.pk)
                 self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEqual(self.org.config_json()['NEXMO_KEY'], 'key')
-                self.assertEqual(self.org.config_json()['NEXMO_SECRET'], 'secret')
+                self.assertEqual(self.org.config['NEXMO_KEY'], 'key')
+                self.assertEqual(self.org.config['NEXMO_SECRET'], 'secret')
 
-                nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+                nexmo_uuid = self.org.config['NEXMO_UUID']
 
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['answer_url'],
                                  "https://%s%s" % (self.org.get_brand_domain().lower(),
@@ -1654,7 +1654,7 @@ class OrgTest(TembaTest):
                 self.assertEqual("key", response.context['api_key'])
 
                 self.org.refresh_from_db()
-                config = self.org.config_json()
+                config = self.org.config
                 self.assertEqual('key', config[NEXMO_KEY])
                 self.assertEqual('secret', config[NEXMO_SECRET])
 
@@ -1665,7 +1665,7 @@ class OrgTest(TembaTest):
 
                 # nexmo config should remain the same
                 self.org.refresh_from_db()
-                config = self.org.config_json()
+                config = self.org.config
                 self.assertEqual('key', config[NEXMO_KEY])
                 self.assertEqual('secret', config[NEXMO_SECRET])
 
@@ -1686,7 +1686,7 @@ class OrgTest(TembaTest):
                                                              disconnect='false'), follow=True)
 
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual('other_key', config[NEXMO_KEY])
                     self.assertEqual('secret-too', config[NEXMO_SECRET])
 
@@ -1699,8 +1699,8 @@ class OrgTest(TembaTest):
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
-        self.assertFalse(self.org.config_json()['NEXMO_KEY'])
-        self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
+        self.assertFalse(self.org.config['NEXMO_KEY'])
+        self.assertFalse(self.org.config['NEXMO_SECRET'])
 
     @patch('nexmo.Client.create_application')
     def test_nexmo_configuration(self, mock_create_application):
