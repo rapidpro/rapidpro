@@ -37,7 +37,7 @@ def migrate_twilio_app(channel):
     )
 
     # store new app sid on the channel and clear bod as number sid is now in the channel config
-    channel.config = json.dumps({'application_sid': new_app.sid, 'number_sid': number_sid})
+    channel.config = {'application_sid': new_app.sid, 'number_sid': number_sid}
     channel.bod = None
     channel.save(update_fields=('config', 'bod'))
 

@@ -596,7 +596,7 @@ class TelegramHandler(BaseChannelHandler):
         """
         Fetches a file from Telegram's server based on their file id
         """
-        auth_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
+        auth_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
         url = 'https://api.telegram.org/bot%s/getFile' % auth_token
         response = requests.post(url, {'file_id': file_id})
 
@@ -1985,7 +1985,7 @@ class JunebugHandler(BaseChannelHandler):
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
         auth = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        secret = channel.config.get(Channel.CONFIG_SECRET)
         if secret is not None and (len(auth) != 2 or auth[0] != 'Token' or auth[1] != secret):
             return JsonResponse(dict(error="Incorrect authentication token"), status=401)
 
@@ -2190,7 +2190,7 @@ class JioChatHandler(BaseChannelHandler):
 
         client = JiochatClient.from_channel(channel)
         if client:
-            verified, echostr = client.verify_request(request, channel.config_json()[Channel.CONFIG_SECRET])
+            verified, echostr = client.verify_request(request, channel.config[Channel.CONFIG_SECRET])
 
             if verified:
                 refresh_jiochat_access_tokens.delay(channel.id)
@@ -2276,7 +2276,7 @@ class FacebookHandler(BaseChannelHandler):
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
-            if channel.config_json()[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
+            if channel.config[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
                 on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
@@ -2428,7 +2428,7 @@ class FacebookHandler(BaseChannelHandler):
                                     try:
                                         response = requests.get('https://graph.facebook.com/v2.5/' + six.text_type(sender_id),
                                                                 params=dict(fields='first_name,last_name',
-                                                                            access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
+                                                                            access_token=channel.config[Channel.CONFIG_AUTH_TOKEN]))
 
                                         if response.status_code == 200:
                                             user_stats = response.json()
@@ -2710,7 +2710,7 @@ class ViberPublicHandler(BaseChannelHandler):
 
         # calculate our signature
         signature = ViberPublicHandler.calculate_sig(request.body,
-                                                     channel.config_json()[Channel.CONFIG_AUTH_TOKEN])
+                                                     channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         # check it against the Viber header
         if signature != request.META.get('HTTP_X_VIBER_CONTENT_SIGNATURE'):
@@ -2964,7 +2964,7 @@ class TwitterHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
-        consumer_secret = channel.config_json()['api_secret']
+        consumer_secret = channel.config['api_secret']
         resp_token = generate_twitter_signature(crc_token, consumer_secret)
 
         return JsonResponse({'response_token': resp_token}, status=200)
@@ -2974,7 +2974,7 @@ class TwitterHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
-        channel_config = channel.config_json()
+        channel_config = channel.config
 
         # validate that request has come from Twitter
         expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']

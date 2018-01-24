@@ -1,6 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
 import phonenumbers
 
 from uuid import uuid4
@@ -74,7 +73,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if existing:
             existing.name = name
             existing.address = address
-            existing.config = json.dumps(config)
+            existing.config = config
             existing.country = country
             existing.role = role
             existing.save()
@@ -84,14 +83,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         # if they didn't set a username or password, generate them, we do this after the addition above
         # because we use the channel id in the configuration
-        config = self.object.config_json()
-        if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
-            config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+        if not self.object.config.get(ACCOUNT_SID, None):  # pragma: needs cover
+            self.object.config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-        if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
-            config[ACCOUNT_TOKEN] = str(uuid4())
+        if not self.object.config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
+            self.object.config[ACCOUNT_TOKEN] = str(uuid4())
 
-        self.object.config = json.dumps(config)
         self.object.save()
 
         return super(ClaimView, self).form_valid(form)

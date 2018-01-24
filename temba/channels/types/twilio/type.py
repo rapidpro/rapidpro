@@ -43,7 +43,6 @@ class TwilioType(ChannelType):
         return channel.country in ('US', 'CA')
 
     def deactivate(self, channel):
-        config = channel.config_json()
         client = channel.org.get_twilio_client()
         number_update_args = dict()
 
@@ -54,7 +53,7 @@ class TwilioType(ChannelType):
             number_update_args['voice_application_sid'] = ""
 
         try:
-            number_sid = channel.bod or channel.config_json()['number_sid']
+            number_sid = channel.bod or channel.config['number_sid']
             client.phone_numbers.update(number_sid, **number_update_args)
         except Exception:
             if client:
@@ -62,9 +61,9 @@ class TwilioType(ChannelType):
                 if matching:
                     client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-        if 'application_sid' in config:
+        if 'application_sid' in channel.config:
             try:
-                client.applications.delete(sid=config['application_sid'])
+                client.applications.delete(sid=channel.config['application_sid'])
             except TwilioRestException:  # pragma: no cover
                 pass
 

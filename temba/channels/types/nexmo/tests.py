@@ -149,11 +149,10 @@ class NexmoTypeTest(TembaTest):
                 self.assertTrue(Channel.ROLE_ANSWER in channel.role)
                 self.assertTrue(Channel.ROLE_CALL in channel.role)
 
-                channel_config = channel.config_json()
-                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], 'nexmo-key')
-                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], 'nexmo-secret')
-                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'nexmo-app-id')
-                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'nexmo-app-private-key')
+                self.assertEqual(channel.config[Channel.CONFIG_NEXMO_API_KEY], 'nexmo-key')
+                self.assertEqual(channel.config[Channel.CONFIG_NEXMO_API_SECRET], 'nexmo-secret')
+                self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_ID], 'nexmo-app-id')
+                self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], 'nexmo-app-private-key')
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])

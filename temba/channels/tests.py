@@ -256,7 +256,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
         # if we have prefixes matching set should honor those
-        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.config = {Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']}
         mtn.save()
 
         self.org.clear_cached_channels()
@@ -667,7 +667,7 @@ class ChannelTest(TembaTest):
         channel.schemes = [TWITTER_SCHEME]
         channel.address = 'billy_bob'
         channel.scheme = 'twitter'
-        channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
+        channel.config = {'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'}
         channel.save()
 
         self.assertEqual('@billy_bob', channel.get_address_display())
@@ -735,9 +735,7 @@ class ChannelTest(TembaTest):
 
         # Add twilio credentials to make sure we can add calling for our android channel
         twilio_config = {ACCOUNT_SID: 'SID', ACCOUNT_TOKEN: 'TOKEN', APPLICATION_SID: 'APP SID'}
-        config = self.org.config
-        config.update(twilio_config)
-        self.org.config = config
+        self.org.config.update(twilio_config)
         self.org.save(update_fields=['config'])
 
         response = self.fetch_protected(reverse('orgs.org_home'), self.admin)
@@ -1107,7 +1105,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
         self.assertEqual(nexmo.tps, 1)
-        channel_config = nexmo.config_json()
+        channel_config = nexmo.config
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
@@ -1726,7 +1724,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.refresh_from_db()
         self.assertIsNone(self.tel_channel.gcm_id)
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
-        self.assertEqual(self.tel_channel.config_json()[Channel.CONFIG_FCM_ID], '12345')
+        self.assertEqual(self.tel_channel.config[Channel.CONFIG_FCM_ID], '12345')
 
     def test_signing(self):
         # good signature
@@ -2369,7 +2367,7 @@ class AfricasTalkingTest(TembaTest):
             self.clear_cache()
 
         # test with a non-dedicated shortcode
-        self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key', is_shared=True))
+        self.channel.config = dict(username='at-user', api_key='africa-key', is_shared=True)
         self.channel.save()
 
         with patch('requests.post') as mock:
@@ -2607,8 +2605,8 @@ class ExternalTest(TembaTest):
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
-        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send&text={{text}}&to={{to_no_plus}}',
-                                          Channel.CONFIG_SEND_METHOD: 'GET'})
+        self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send&text={{text}}&to={{to_no_plus}}',
+                               Channel.CONFIG_SEND_METHOD: 'GET'}
         self.channel.save()
 
         with self.settings(SEND_MESSAGES=True):
@@ -2617,8 +2615,7 @@ class ExternalTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send&text=Test+message&to=250788383383')
 
-        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
-                                          Channel.CONFIG_SEND_METHOD: 'POST'})
+        self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send', Channel.CONFIG_SEND_METHOD: 'POST'}
         self.channel.save()
         self.clear_cache()
 
@@ -2631,10 +2628,10 @@ class ExternalTest(TembaTest):
                                                             'from=%%2B250788123123&from_no_plus=250788123123&'
                                                             'channel=%d' % (msg.id, self.channel.id))
 
-        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
-                                          Channel.CONFIG_SEND_BODY: '{ "text": {{text}}, "to": {{to_no_plus}} }',
-                                          Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_JSON,
-                                          Channel.CONFIG_SEND_METHOD: 'PUT'})
+        self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
+                               Channel.CONFIG_SEND_BODY: '{ "text": {{text}}, "to": {{to_no_plus}} }',
+                               Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_JSON,
+                               Channel.CONFIG_SEND_METHOD: 'PUT'}
 
         self.channel.save()
         self.clear_cache()
@@ -2647,10 +2644,10 @@ class ExternalTest(TembaTest):
                 self.assertEqual(mock.call_args[1]['data'], '{ "text": "Test message", "to": "250788383383" }')
                 self.assertEqual(mock.call_args[1]['headers']['Content-Type'], "application/json")
 
-        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
-                                          Channel.CONFIG_SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
-                                          Channel.CONFIG_SEND_METHOD: 'POST',
-                                          Channel.CONFIG_MAX_LENGTH: 320})
+        self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
+                               Channel.CONFIG_SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                               Channel.CONFIG_SEND_METHOD: 'POST',
+                               Channel.CONFIG_MAX_LENGTH: 320}
 
         msg.text = "A" * 180
         msg.save()
@@ -2664,10 +2661,10 @@ class ExternalTest(TembaTest):
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], 'text=' + msg.text + '&to=250788383383')
 
-        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
-                                          Channel.CONFIG_SEND_BODY: '<msg><text>{{text}}</text><to>{{to_no_plus}}</to></msg>',
-                                          Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_XML,
-                                          Channel.CONFIG_SEND_METHOD: 'PUT'})
+        self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
+                               Channel.CONFIG_SEND_BODY: '<msg><text>{{text}}</text><to>{{to_no_plus}}</to></msg>',
+                               Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_XML,
+                               Channel.CONFIG_SEND_METHOD: 'PUT'}
         self.channel.save()
 
         arabic = "التوطين"
@@ -3321,9 +3318,9 @@ class KannelTest(TembaTest):
             self.assertEqual(mock.call_args[1]['params']['text'], 'Test message')
             self.clear_cache()
 
-        self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
-                                              encoding=Channel.ENCODING_SMART, use_national=True,
-                                              send_url='http://foo/', verify_ssl=False))
+        self.channel.config = dict(username='kannel-user', password='kannel-pass',
+                                   encoding=Channel.ENCODING_SMART, use_national=True,
+                                   send_url='http://foo/', verify_ssl=False)
         self.channel.save()
 
         msg.text = "No capital accented È!"
@@ -3393,10 +3390,10 @@ class KannelTest(TembaTest):
 
             self.clear_cache()
 
-        self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
-                                              encoding=Channel.ENCODING_UNICODE,
-                                              callback_domain='custom-domain.io',
-                                              send_url='http://foo/', verify_ssl=False))
+        self.channel.config = dict(username='kannel-user', password='kannel-pass',
+                                   encoding=Channel.ENCODING_UNICODE,
+                                   callback_domain='custom-domain.io',
+                                   send_url='http://foo/', verify_ssl=False)
         self.channel.save()
 
         with patch('requests.get') as mock:
@@ -3418,8 +3415,8 @@ class KannelTest(TembaTest):
 
             self.clear_cache()
 
-        self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
-                                              send_url='http://foo/', verify_ssl=False))
+        self.channel.config = dict(username='kannel-user', password='kannel-pass',
+                                   send_url='http://foo/', verify_ssl=False)
         self.channel.save()
 
         with patch('requests.get') as mock:
@@ -3473,10 +3470,10 @@ class NexmoTest(TembaTest):
         config.update(nexmo_config)
         org.save()
 
-        self.channel.config = json.dumps({Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
-                                          Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
-                                          Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
-                                          Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]})
+        self.channel.config = {Channel.CONFIG_NEXMO_APP_ID: nexmo_config[NEXMO_APP_ID],
+                               Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: nexmo_config[NEXMO_APP_PRIVATE_KEY],
+                               Channel.CONFIG_NEXMO_API_KEY: nexmo_config[NEXMO_KEY],
+                               Channel.CONFIG_NEXMO_API_SECRET: nexmo_config[NEXMO_SECRET]}
         self.channel.save()
 
     def test_status(self):
@@ -5361,8 +5358,8 @@ class TwilioTest(TembaTest):
                                    APPLICATION_SID: self.application_sid}
         self.channel.org.save()
 
-        self.channel.config = json.dumps(dict(auth_token=self.account_token,
-                                              account_sid=self.account_sid))
+        self.channel.config = dict(auth_token=self.account_token,
+                                   account_sid=self.account_sid)
         self.channel.save()
 
         response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
@@ -5407,9 +5404,9 @@ class TwilioTest(TembaTest):
 
         send_url = "https://api.twilio.com"
 
-        self.channel.config = json.dumps({Channel.CONFIG_ACCOUNT_SID: self.account_sid,
-                                          Channel.CONFIG_AUTH_TOKEN: self.account_token,
-                                          Channel.CONFIG_SEND_URL: send_url})
+        self.channel.config = {Channel.CONFIG_ACCOUNT_SID: self.account_sid,
+                               Channel.CONFIG_AUTH_TOKEN: self.account_token,
+                               Channel.CONFIG_SEND_URL: send_url}
         self.channel.save()
 
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
@@ -5454,13 +5451,13 @@ class TwilioTest(TembaTest):
 
                     self.channel.channel_type = channel_type
                     if channel_type == 'TMS':
-                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
-                                                              auth_token='twilio_token',
-                                                              account_sid='twilio_sid'))
+                        self.channel.config = dict(messaging_service_sid="MSG-SERVICE-SID",
+                                                   auth_token='twilio_token',
+                                                   account_sid='twilio_sid')
                     elif channel_type == 'TW':
-                        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
-                                                          Channel.CONFIG_ACCOUNT_SID: 'twilio_sid',
-                                                          Channel.CONFIG_AUTH_TOKEN: 'twilio_token'})
+                        self.channel.config = {Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
+                                               Channel.CONFIG_ACCOUNT_SID: 'twilio_sid',
+                                               Channel.CONFIG_AUTH_TOKEN: 'twilio_token'}
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
@@ -5674,7 +5671,7 @@ class TwilioMessagingServiceTest(TembaTest):
                                    APPLICATION_SID: application_sid}
         self.channel.org.save()
 
-        messaging_service_sid = self.channel.config_json()['messaging_service_sid']
+        messaging_service_sid = self.channel.config['messaging_service_sid']
 
         post_data = dict(message_service_sid=messaging_service_sid, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
@@ -7140,8 +7137,7 @@ class ChikkaTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, 'PH', 'CK', None, '920920',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-        config = {Channel.CONFIG_USERNAME: 'username', Channel.CONFIG_PASSWORD: 'password'}
-        self.channel.config = json.dumps(config)
+        self.channel.config = {Channel.CONFIG_USERNAME: 'username', Channel.CONFIG_PASSWORD: 'password'}
         self.channel.save()
 
     def test_status(self):
@@ -7622,9 +7618,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                 data['message_id'],))
 
     def test_status_with_auth(self):
-        config = self.channel.config_json()
-        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.config = json.dumps(config)
+        self.channel.config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.save(update_fields=['config'])
 
         data = self.mk_event()
@@ -7651,9 +7645,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_status_incorrect_auth(self):
-        config = self.channel.config_json()
-        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.config = json.dumps(config)
+        self.channel.config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.save(update_fields=['config'])
 
         # ok, what happens with an invalid uuid?
@@ -7693,9 +7685,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_auth(self):
-        config = self.channel.config_json()
-        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.config = json.dumps(config)
+        self.channel.config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
@@ -7717,9 +7707,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_incorrect_auth(self):
-        config = self.channel.config_json()
-        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.config = json.dumps(config)
+        self.channel.config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
@@ -7835,9 +7823,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        config = self.channel.config_json()
-        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.config = json.dumps(config)
+        self.channel.config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.save(update_fields=['config'])
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -8832,7 +8818,7 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        value = "".join(sorted([self.channel.config_json()[Channel.CONFIG_SECRET], timestamp, nonce]))
+        value = "".join(sorted([self.channel.config[Channel.CONFIG_SECRET], timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()

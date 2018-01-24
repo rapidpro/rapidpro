@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
@@ -40,20 +38,21 @@ class TwitterActivityType(ChannelType):
         return user.is_beta()
 
     def activate(self, channel):
-        config = channel.config_json()
-        client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
+        client = TembaTwython(
+            channel.config['api_key'], channel.config['api_secret'], channel.config['access_token'],
+            channel.config['access_token_secret']
+        )
 
         callback_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.twt', args=[channel.uuid]))
         webhook = client.register_webhook(callback_url)
         client.subscribe_to_webhook(webhook['id'])
 
         # save this webhook for later so we can delete it
-        config['webhook_id'] = webhook['id']
-        channel.config = json.dumps(config)
+        channel.config['webhook_id'] = webhook['id']
         channel.save(update_fields=('config',))
 
     def deactivate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
 
         client.delete_webhook(config['webhook_id'])

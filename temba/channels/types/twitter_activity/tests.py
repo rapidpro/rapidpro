@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
@@ -83,7 +81,7 @@ class TwitterActivityTypeTest(TembaTest):
 
         channel = Channel.objects.get(address='jimmy')
         self.assertEqual(
-            json.loads(channel.config), {
+            channel.config, {
                 'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at',
                 'access_token_secret': 'ats', 'webhook_id': '1234567', 'callback_domain': channel.callback_domain
             }

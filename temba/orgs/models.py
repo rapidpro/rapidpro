@@ -492,8 +492,7 @@ class Org(SmartModel):
                 # if we have more than one match, find the one with the highest overlap
                 if len(senders) > 1:
                     for sender in senders:
-                        config = sender.config_json()
-                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+                        channel_prefixes = sender.config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
                         if not channel_prefixes or not isinstance(channel_prefixes, list):
                             channel_prefixes = [sender.address.strip('+')]
 

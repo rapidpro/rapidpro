@@ -27,11 +27,11 @@
       .config-value
         .name
           -trans "Username:"
-        .value {{ object.config_json.username }}
+        .value {{ object.config.username }}
       .config-value
         .name
           -trans "API Key:"
-        .value {{ object.config_json.api_key }}
+        .value {{ object.config.api_key }}
 
     .clearfix
     %hr
@@ -113,11 +113,11 @@
       .config-value
         .name
           -trans "Account:"
-        .value {{ object.config_json.account }}
+        .value {{ object.config.account }}
       .config-value
         .name
           -trans "Code:"
-        .value {{ object.config_json.code }}
+        .value {{ object.config.code }}
 
     .clearfix
     %hr
@@ -193,7 +193,7 @@
       .config-value
         .name
           -trans "Username:"
-        .value {{ object.config_json.username }}
+        .value {{ object.config.username }}
       .config-value
         .name
           -trans "Password:"
@@ -318,7 +318,7 @@
         The endpoint which will receive Twilio API requests for this channel
 
     %code
-      {{ object.config_json.send_url }}
+      {{ object.config.send_url }}
 
     %h4
       -trans "Request URL"
@@ -440,7 +440,7 @@
       .config-value
         .name
           -trans "Username:"
-        .value {{ object.config_json.username }}
+        .value {{ object.config.username }}
       .config-value
         .name
           -trans "Password:"
@@ -494,7 +494,7 @@
       .config-value
         .name
           -trans "Username:"
-        .value {{ object.config_json.username }}
+        .value {{ object.config.username }}
       .config-value
         .name
           -trans "Password:"
@@ -576,13 +576,13 @@
         .name
           -trans "Conversation Key:"
         .value
-          {{ object.config_json.conversation_key }}
+          {{ object.config.conversation_key }}
 
       .config-value
         .name
           -trans "Account Key:"
         .value
-          {{ object.config_json.account_key }}
+          {{ object.config.account_key }}
 
     .clearfix
 
@@ -596,7 +596,7 @@
         This token is used to authenticate with your Vumi account, set it by editing the "Content" page on your conversation.
 
     %code
-      {{ object.config_json.access_token }}
+      {{ object.config.access_token }}
 
     %hr
 
@@ -638,8 +638,8 @@
         ######################################################################
 
         group = sendsms-user
-        username = "{{channel.config_json.username}}"
-        password = "{{channel.config_json.password}}"
+        username = "{{channel.config.username}}"
+        password = "{{channel.config.password}}"
         concatenation = true
         max-messages = 10
         user-allow-ip = "*.*.*.*"
@@ -756,7 +756,7 @@
       -trans "Verify Token"
 
     %code
-      {{ channel.config_json.secret }}
+      {{ channel.config.secret }}
 
   -elif object.channel_type == 'JC'
     %h4
@@ -775,7 +775,7 @@
       -trans "Token"
 
     %code
-      {{ channel.config_json.secret }}
+      {{ channel.config.secret }}
 
 
   -elif object.channel_type == 'VI'
@@ -935,13 +935,13 @@
     %h4
       -trans "Send URL"
       %code
-        {{ object.config_json.send_url }}
+        {{ object.config.send_url }}
 
     %p
       -blocktrans
         When we need to send an outgoing message it will make a
 
-      {{ object.config_json.method|default:"POST" }}
+      {{ object.config.method|default:"POST" }}
 
       -blocktrans
         to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
@@ -949,16 +949,16 @@
     %h4
       -trans "Example"
 
-    -if object.config_json.method == "GET"
+    -if object.config.method == "GET"
 
       %pre.prettyprint.example<
         :plain
-          {{ object.config_json.method }} {{ example_url }}
+          {{ object.config.method }} {{ example_url }}
 
     -else
       %pre.prettyprint.example<
         :plain
-          {{ object.config_json.method }} {{ example_url }}
+          {{ object.config.method }} {{ example_url }}
           {{ example_content_type }}
 
           {{ example_body }}

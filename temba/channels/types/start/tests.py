@@ -39,8 +39,8 @@ class StartTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('UA', channel.country)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('ST', channel.channel_type)
 
@@ -67,7 +67,7 @@ class StartTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('UA', channel.country)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('20050', channel.address)
         self.assertEqual('ST', channel.channel_type)

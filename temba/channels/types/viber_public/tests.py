@@ -45,7 +45,7 @@ class ViberPublicTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address="viberId")
-        self.assertEqual(channel.config_json()['auth_token'], '123456')
+        self.assertEqual(channel.config['auth_token'], '123456')
         self.assertEqual(channel.name, 'viberName')
 
         # should have been called with our webhook URL

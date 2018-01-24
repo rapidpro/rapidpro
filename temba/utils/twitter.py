@@ -27,7 +27,7 @@ class TembaTwython(Twython):  # pragma: no cover
     @classmethod
     def from_channel(cls, channel):
         # could be passed a ChannelStruct or a Channel model instance
-        config = channel.config_json() if isinstance(channel, Model) else channel.config
+        config = channel.config if isinstance(channel, Model) else channel.config
 
         # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
         if 'api_key' in config:

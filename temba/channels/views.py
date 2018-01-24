@@ -669,9 +669,7 @@ def sync(request, channel_id):
                         # update our fcm and uuid
 
                         channel.gcm_id = None
-                        config = channel.config_json()
-                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
-                        channel.config = json.dumps(config)
+                        channel.config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
                         channel.uuid = cmd.get('uuid', None)
                         channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
@@ -1290,7 +1288,7 @@ class ChannelCRUDL(SmartCRUDL):
             #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
             #  "domain_action_type": "add"
             # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
-            access_token = self.object.config_json()[Channel.CONFIG_AUTH_TOKEN]
+            access_token = self.object.config[Channel.CONFIG_AUTH_TOKEN]
             response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
                                      json=dict(setting_type='domain_whitelisting',
                                                whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
@@ -1369,10 +1367,8 @@ class ChannelCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             if obj.config:
-                config = json.loads(obj.config)
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    config[field] = bool(self.form.cleaned_data[field])
-                obj.config = json.dumps(config)
+                    obj.config[field] = bool(self.form.cleaned_data[field])
             return obj
 
         def post_save(self, obj):
@@ -1607,9 +1603,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == 'EX':
-                config = self.object.config_json()
-                send_url = config[Channel.CONFIG_SEND_URL]
-                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+                send_url = self.object.config[Channel.CONFIG_SEND_URL]
+                send_body = self.object.config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
 
                 example_payload = {
                     'to': '+250788123123',
@@ -1621,7 +1616,7 @@ class ChannelCRUDL(SmartCRUDL):
                     'channel': str(self.object.id)
                 }
 
-                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+                content_type = self.object.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
                 context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
                 context['example_url'] = Channel.replace_variables(send_url, example_payload)
                 context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)

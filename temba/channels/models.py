@@ -39,7 +39,7 @@ from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from temba.utils.http import HttpEvent, http_headers
 from temba.utils.nexmo import NCCOResponse
-from temba.utils.models import SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
 from temba.utils.text import random_string
 from twilio import twiml, TwilioRestException
 from xml.sax.saxutils import escape
@@ -334,8 +334,8 @@ class Channel(TembaModel):
     alert_email = models.EmailField(verbose_name=_("Alert Email"), null=True, blank=True,
                                     help_text=_("We will send email alerts to this address if experiencing issues sending"))
 
-    config = models.TextField(verbose_name=_("Config"), null=True,
-                              help_text=_("Any channel specific configuration, used for the various aggregators"))
+    config = JSONAsTextField(default=dict, verbose_name=_("Config"), null=True,
+                             help_text=_("Any channel specific configuration, used for the various aggregators"))
 
     schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
                          verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
@@ -376,7 +376,7 @@ class Channel(TembaModel):
                            country=country,
                            channel_type=channel_type.code,
                            name=name, address=address,
-                           config=json.dumps(config),
+                           config=config,
                            role=role, schemes=schemes)
         create_args.update(kwargs)
 
@@ -502,10 +502,7 @@ class Channel(TembaModel):
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            config = existing.config_json()
-            config.update({Channel.CONFIG_FCM_ID: fcm_id})
-
-            existing.config = json.dumps(config)
+            existing.config.update({Channel.CONFIG_FCM_ID: fcm_id})
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -606,7 +603,7 @@ class Channel(TembaModel):
         """
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
-        callback_domain = self.config_json().get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
         if callback_domain is None:
             callback_domain = self.org.get_brand_domain()
 
@@ -646,12 +643,10 @@ class Channel(TembaModel):
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
 
-        config = self.config_json()
-
-        if config:
-            account_sid = config.get(Channel.CONFIG_ACCOUNT_SID, None)
-            auth_token = config.get(Channel.CONFIG_AUTH_TOKEN, None)
-            base = config.get(Channel.CONFIG_SEND_URL, None)
+        if self.config:
+            account_sid = self.config.get(Channel.CONFIG_ACCOUNT_SID, None)
+            auth_token = self.config.get(Channel.CONFIG_AUTH_TOKEN, None)
+            base = self.config.get(Channel.CONFIG_SEND_URL, None)
 
             if account_sid and auth_token:
                 return TwilioClient(account_sid, auth_token, org=self, base=base)
@@ -702,7 +697,7 @@ class Channel(TembaModel):
             return '@%s' % self.address
 
         elif FACEBOOK_SCHEME in self.schemes:
-            return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
+            return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
 
@@ -721,12 +716,6 @@ class Channel(TembaModel):
             tel_e164 = ''
 
         return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
-
-    def config_json(self):
-        if self.config:
-            return json.loads(self.config)
-        else:  # pragma: no cover
-            return dict()
 
     @classmethod
     def get_cached_channel(cls, channel_id):
@@ -761,7 +750,7 @@ class Channel(TembaModel):
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
-                    callback_domain=self.callback_domain, config=self.config_json(), org_config=org_config)
+                    callback_domain=self.callback_domain, config=self.config, org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -893,7 +882,6 @@ class Channel(TembaModel):
         Releases this channel, removing it from the org and making it inactive
         """
         channel_type = self.get_type()
-        config = self.config_json()
 
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
@@ -918,7 +906,7 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        fcm_id = config.get(Channel.CONFIG_FCM_ID)
+        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
@@ -949,8 +937,7 @@ class Channel(TembaModel):
         """
         # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            config = self.config_json()
-            fcm_id = config.get(Channel.CONFIG_FCM_ID)
+            fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
             if fcm_id is not None:
                 if getattr(settings, 'FCM_API_KEY', None):
@@ -981,9 +968,7 @@ class Channel(TembaModel):
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                config = channel.config_json()
-                config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.config = json.dumps(config)
+                channel.config.pop(Channel.CONFIG_FCM_ID, None)
                 channel.save()
 
     @classmethod

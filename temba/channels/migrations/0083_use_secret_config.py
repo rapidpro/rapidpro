@@ -3,7 +3,6 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-import json
 
 
 # migrates to using `secret` config variable instead of `secret` field on Channel for FB, JN and JC channels
@@ -13,16 +12,12 @@ def use_secret_config(apps, schema_editor):
 
     # for each facebook, junebug and jiochat channel, move secret into config
     for ch in Channel.objects.filter(channel_type__in=['FB', 'JN', 'JC']):
-        config = json.loads(ch.config)
-        config['secret'] = ch.secret
-        ch.config = json.dumps(config)
+        ch.config['secret'] = ch.secret
         ch.save(update_fields=['config'])
 
     # for each line channel, move to `secret` from `channel_secret`
     for ch in Channel.objects.filter(channel_type='LN'):
-        config = json.loads(ch.config)
-        config['secret'] = config['channel_secret']
-        ch.config = json.dumps(config)
+        ch.config['secret'] = ch.config['channel_secret']
         ch.save(update_fields=['config'])
 
 

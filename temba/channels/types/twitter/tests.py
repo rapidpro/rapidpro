@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.test import override_settings
 from django.urls import reverse
 from mock import patch
@@ -85,10 +83,9 @@ class TwitterTypeTest(TembaTest):
         channel = response.context['object']
         self.assertEqual(channel.address, 'jimmy')
         self.assertEqual(channel.name, '@jimmy')
-        config = json.loads(channel.config)
-        self.assertEqual(config['handle_id'], 123)
-        self.assertEqual(config['oauth_token'], 'bcdef')
-        self.assertEqual(config['oauth_token_secret'], '23456')
+        self.assertEqual(channel.config['handle_id'], 123)
+        self.assertEqual(channel.config['oauth_token'], 'bcdef')
+        self.assertEqual(channel.config['oauth_token_secret'], '23456')
 
     @override_settings(IS_PROD=True)
     @patch('temba.utils.mage.MageClient._request')
