@@ -3809,6 +3809,7 @@ class FlowRunTest(TembaTest):
         run.update_fields(["zero", "one", "two"])
         self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
 
+    @rerun_with_flowserver
     def test_is_completed(self):
         self.flow.start([], [self.contact])
 
