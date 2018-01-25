@@ -2974,6 +2974,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 return Msg.create_outgoing(self.org, user, self.contact,
                                            text=event['text'],
                                            attachments=attachments,
+                                           quick_replies=event.get('quick_replies', []),
                                            channel=msg.channel if msg else None,
                                            high_priority=self.session.responded,
                                            created_on=created_on,

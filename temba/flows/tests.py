@@ -2568,6 +2568,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual(len(run.get_path()), 2)
 
+    @rerun_with_flowserver
     def test_quick_replies(self):
         flow = self.get_flow('quick_replies')
         run, = flow.start([], [self.contact4])
