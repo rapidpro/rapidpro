@@ -1686,13 +1686,12 @@ class MakeTestDBTest(SimpleTestCase):
 
 
 class TestJSONAsTextField(TestCase):
-
     def test_invalid_default(self):
 
-        class JsonModel(models.Model):
+        class InvalidJsonModel(models.Model):
             field = JSONAsTextField(default={})
 
-        model = JsonModel()
+        model = InvalidJsonModel()
         self.assertEqual(model.check(), [
             checks.Warning(
                 msg=(
@@ -1700,7 +1699,15 @@ class TestJSONAsTextField(TestCase):
                     'between all field instances.'
                 ),
                 hint='Use a callable instead, e.g., use `dict` instead of `{}`.',
-                obj=JsonModel._meta.get_field('field'),
+                obj=InvalidJsonModel._meta.get_field('field'),
                 id='postgres.E003',
             )
         ])
+
+    def test_to_python(self):
+
+        field = JSONAsTextField(default=dict)
+
+        self.assertEqual(field.to_python({}), {})
+
+        self.assertEqual(field.to_python('{}'), {})

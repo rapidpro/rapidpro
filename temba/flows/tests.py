@@ -2896,7 +2896,7 @@ class ActionTest(TembaTest):
         config = {
             "ussd_message": {"base": "test"}
         }
-        ussd_ruleset.config = json.dumps(config)
+        ussd_ruleset.config = config
         action = UssdAction.from_ruleset(ussd_ruleset, run)
         execution = self.execute_action(action, run, msg)
 
@@ -2937,7 +2937,7 @@ class ActionTest(TembaTest):
             "ussd_message": {"eng": "testENG", "hun": "testHUN"}
         }
 
-        ussd_ruleset.config = json.dumps(config)
+        ussd_ruleset.config = config
         action = UssdAction.from_ruleset(ussd_ruleset, run)
         execution = self.execute_action(action, run, msg)
 
@@ -4018,9 +4018,7 @@ class WebhookTest(TembaTest):
 
         # change our webhook to a POST
         webhook = RuleSet.objects.get(flow=flow, label="Response 1")
-        config = webhook.config_json()
-        config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
-        webhook.config = json.dumps(config)
+        webhook.config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
         webhook.save()
 
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Post", "blank": "" }')
@@ -4398,9 +4396,7 @@ class FlowsTest(FlowFileTest):
         for delimiter in ['+', '.']:
             # now let's switch to pluses and make sure they do the right thing
             for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
-                config = ruleset.config_json()
-                config['field_delimiter'] = delimiter
-                ruleset.set_config(config)
+                ruleset.config['field_delimiter'] = delimiter
                 ruleset.save()
 
             ctx = dict(delim=delimiter)
@@ -6016,7 +6012,9 @@ class FlowsTest(FlowFileTest):
     def test_parsing(self):
         # test a preprocess url
         flow = self.get_flow('preprocess')
-        self.assertEqual('http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEqual(
+            'http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].config[RuleSet.CONFIG_WEBHOOK]
+        )
 
     def test_flow_loops(self):
         self.get_flow('flow_loop')
@@ -7367,8 +7365,8 @@ class FlowMigrationTest(FlowFileTest):
         # we should now be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEqual('webhook', webhook.ruleset_type)
-        self.assertEqual('http://localhost:49999/status', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
-        self.assertEqual('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
+        self.assertEqual('http://localhost:49999/status', webhook.config[RuleSet.CONFIG_WEBHOOK])
+        self.assertEqual('POST', webhook.config[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEqual('@step.value', webhook.operand)
         self.assertEqual('Color Webhook', webhook.label)
 
@@ -7445,7 +7443,7 @@ class FlowMigrationTest(FlowFileTest):
         # check replacement
         order_checker = self.org.flows.filter(name='Sample Flow - Order Status Checker').first()
         ruleset = order_checker.rule_sets.filter(y=298).first()
-        self.assertEqual('https://app.rapidpro.io/demo/status/', ruleset.config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEqual('https://app.rapidpro.io/demo/status/', ruleset.config[RuleSet.CONFIG_WEBHOOK])
 
         # our test user doesn't use an email address, check for Administrator for the email
         actionset = order_checker.action_sets.filter(y=991).first()

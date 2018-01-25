@@ -94,7 +94,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if isinstance(value, six.string_types):
             return json.loads(value)
         else:
-            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))
+            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
         if self.null and value is None and not kwargs.get('force'):

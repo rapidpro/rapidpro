@@ -46,7 +46,7 @@ from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.values.models import Value
 from temba_expressions.utils import tokenize
@@ -819,7 +819,7 @@ class Flow(TembaModel):
         else:
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
                 if not resume_parent_run:
-                    flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                    flow_uuid = ruleset.config.get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
                     flow.org = run.org
                     message_context = run.flow.build_expressions_context(run.contact, msg, run=run)
@@ -1908,7 +1908,7 @@ class Flow(TembaModel):
 
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow_uuid = ruleset.config['flow']['uuid']
                 flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
                     dependencies.add(flow)
@@ -2267,7 +2267,7 @@ class Flow(TembaModel):
                     existing.label = label
                     existing.finished_key = finished_key
                     existing.ruleset_type = ruleset_type
-                    existing.set_config(config)
+                    existing.config = config
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2279,7 +2279,7 @@ class Flow(TembaModel):
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
-                                                      config=json.dumps(config),
+                                                      config=config,
                                                       x=x, y=y)
 
                 existing_rulesets[uuid] = existing
@@ -2483,12 +2483,12 @@ class Flow(TembaModel):
         # find references in our rulesets
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                flow_uuid = ruleset.config.get('flow').get('uuid')
                 flow = Flow.objects.filter(org=self.org, uuid=flow_uuid).first()
                 if flow:
                     flows.add(flow)
             elif ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
-                webhook_url = json.loads(ruleset.config).get('webhook')
+                webhook_url = ruleset.config.get('webhook')
                 fields.update(collector.get_contact_fields(webhook_url))
             else:
                 # check our operand for expressions
@@ -3440,8 +3440,8 @@ class RuleSet(models.Model):
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
-    config = models.TextField(null=True, verbose_name=_("Ruleset Configuration"),
-                              help_text=_("RuleSet type specific configuration"))
+    config = JSONAsTextField(null=True, verbose_name=_("Ruleset Configuration"),
+                             help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -3466,15 +3466,6 @@ class RuleSet(models.Model):
 
         # match @step.value or @(step.value)
         return text and text[0] == '@' and 'step' in text
-
-    def config_json(self):
-        if not self.config:  # pragma: needs cover
-            return dict()
-        else:
-            return json.loads(self.config)
-
-    def set_config(self, config):
-        self.config = json.dumps(config)
 
     def get_value_type(self):
         """
@@ -3557,11 +3548,11 @@ class RuleSet(models.Model):
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
-                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
-                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
+                urls = [self.config[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
-                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config:
+                    headers = self.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
                     for item in headers:
                         header[item.get('name')] = item.get('value')
 
@@ -3569,7 +3560,7 @@ class RuleSet(models.Model):
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook_slug = self.config[RuleSet.CONFIG_RESTHOOK]
                 resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
                 urls = resthook.get_subscriber_urls()
 
@@ -3589,7 +3580,7 @@ class RuleSet(models.Model):
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
                 # resthooks trigger legacy api for now
-                legacy_format = resthook or self.config_json().get('legacy_format', False)
+                legacy_format = resthook or self.config.get('legacy_format', False)
 
                 if legacy_format:
                     result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
@@ -3632,9 +3623,10 @@ class RuleSet(models.Model):
         else:
             # if it's a form field, construct an expression accordingly
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-                config = self.config_json()
-                delim = config.get('field_delimiter', ' ')
-                self.operand = '@(FIELD(%s, %d, "%s"))' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
+                delim = self.config.get('field_delimiter', ' ')
+                self.operand = '@(FIELD(%s, %d, "%s"))' % (
+                    self.operand[1:], self.config.get('field_index', 0) + 1, delim
+                )
 
             # if we have a custom operand, figure that out
             text = None
@@ -3718,7 +3710,7 @@ class RuleSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+                    operand=self.operand, config=self.config)
 
     def __str__(self):
         if self.label:
@@ -5387,15 +5379,14 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict):
             # initial message, menu obj
-            obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
-            msg = obj.get(cls.MESSAGE, '')
+            msg = ruleset.config.get(cls.MESSAGE, '')
             org = run.flow.org
 
             # TODO: this will be arbitrary unless UI is changed to maintain consistent uuids
-            uuid = obj.get(cls.UUID, six.text_type(uuid4()))
+            uuid = ruleset.config.get(cls.UUID, six.text_type(uuid4()))
 
             # define languages
             base_language = run.flow.base_language
