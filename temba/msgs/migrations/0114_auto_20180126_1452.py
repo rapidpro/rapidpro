@@ -17,11 +17,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='broadcast',
             name='media',
-            field=temba.utils.models.TranslatableField(help_text='The localized versions of the media', max_length=1024, null=True, verbose_name='Media'),
+            field=temba.utils.models.TranslatableField(help_text='The localized versions of the media', max_length=2048, null=True, verbose_name='Media'),
         ),
         migrations.AlterField(
             model_name='msg',
             name='attachments',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.URLField(max_length=1024), help_text='The media attachments on this message if any', null=True, size=None),
+            field=django.contrib.postgres.fields.ArrayField(base_field=models.URLField(max_length=2048), help_text='The media attachments on this message if any', null=True, size=None),
         ),
     ]

@@ -227,7 +227,7 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media = TranslatableField(verbose_name=_("Media"), max_length=1024,
+    media = TranslatableField(verbose_name=_("Media"), max_length=2048,
                               help_text=_("The localized versions of the media"), null=True)
 
     send_all = models.BooleanField(default=False,
@@ -744,7 +744,7 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    attachments = ArrayField(models.URLField(max_length=1024), null=True,
+    attachments = ArrayField(models.URLField(max_length=2048), null=True,
                              help_text=_("The media attachments on this message if any"))
 
     connection = models.ForeignKey('channels.ChannelSession', null=True,
