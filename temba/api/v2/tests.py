@@ -2320,7 +2320,7 @@ class APITest(TembaTest):
                     'value': "blue",
                     'category': "Blue",
                     'node': color_ruleset.uuid,
-                    'time': format_datetime(iso8601.parse_date(joe_run1.get_results()['color']['created_on']))
+                    'time': format_datetime(iso8601.parse_date(joe_run1.results['color']['created_on']))
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),

@@ -225,7 +225,7 @@ class WebHookEvent(SmartModel):
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
         post_data['contact'] = dict(uuid=contact.uuid, name=contact.name)
         post_data['path'] = run.get_path()
-        post_data['results'] = run.get_results()
+        post_data['results'] = run.results
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
 
@@ -336,7 +336,7 @@ class WebHookEvent(SmartModel):
         json_time = datetime_to_str(timezone.now())
 
         values = []
-        for key, result in six.iteritems(run.get_results()):
+        for key, result in six.iteritems(run.results):
             category = result[FlowRun.RESULT_CATEGORY]
             values.append({
                 'node': result[FlowRun.RESULT_NODE_UUID],

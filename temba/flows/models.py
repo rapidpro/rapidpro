@@ -2609,8 +2609,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
-    results = models.TextField(null=True,
-                               help_text=_("The results collected during this flow run in JSON format"))
+    results = JSONAsTextField(null=True, default=dict,
+                              help_text=_("The results collected during this flow run in JSON format"))
 
     path = models.TextField(null=True,
                             help_text=_("The path taken during this flow run in JSON format"))
@@ -2674,7 +2674,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         context = {}
         default_lines = []
 
-        for key, result in six.iteritems(self.get_results()):
+        for key, result in six.iteritems(self.results):
             context[key] = result_wrapper(result)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
@@ -3098,9 +3098,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return msg
 
-    def get_results(self):
-        return json.loads(self.results) if self.results else dict()
-
     def get_path(self):
         return json.loads(self.path) if self.path else []
 
@@ -3124,8 +3121,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         key = Flow.label_to_slug(name)
 
         # create our result dict
-        results = self.get_results()
-        results[key] = {
+
+        self.results[key] = {
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
@@ -3136,14 +3133,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # if we have a different localized name for our category, save it as well
         if category != category_localized:
-            results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
+            self.results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
 
-        self.results = json.dumps(results)
         self.modified_on = timezone.now()
         self.save(update_fields=['results', 'modified_on'])
 
     def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.get_results(), indent=2))
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
 @six.python_2_unicode_compatible
@@ -4430,7 +4426,7 @@ class ExportFlowResultsTask(BaseExportTask):
                         current_contact_values.append(self.prepare_value(field_value))
 
                 # get this run's results by node UUID
-                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.get_results().values()}
+                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.results.values()}
 
                 result_values = []
                 for n, node in enumerate(result_nodes):
@@ -5378,7 +5374,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict) and ruleset.config != {}:
             # initial message, menu obj
             rules = json.loads(ruleset.rules)
             msg = ruleset.config.get(cls.MESSAGE, '')

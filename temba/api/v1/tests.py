@@ -708,7 +708,7 @@ class APITest(TembaTest):
         self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
 
         # check results
-        results = run.get_results()
+        results = run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")

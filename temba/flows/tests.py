@@ -527,7 +527,7 @@ class FlowTest(TembaTest):
         self.assertNotIn('exit_uuid', contact1_path[2])
 
         # we should also have a result for this RuleSet
-        results = contact1_run.get_results()
+        results = contact1_run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")
@@ -552,9 +552,9 @@ class FlowTest(TembaTest):
         self.assertEqual(self.channel.get_address_display(), context['channel']['__default__'])
 
         # change our value instead be decimal
-        results = contact1_run.get_results()
+        results = contact1_run.results
         results['color']['value'] = '10'
-        contact1_run.results = json.dumps(results)
+        contact1_run.results = results
         contact1_run.save(update_fields=('results',))
 
         # check our message context again
@@ -1804,7 +1804,7 @@ class FlowTest(TembaTest):
 
         # get our run and assert our value is saved (as a string)
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
-        results = run.get_results()
+        results = run.results
         self.assertEqual(results['color']['value'], "15")
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['category'], "> 10")
@@ -2637,7 +2637,7 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.runs.count(), 2)
 
         # check our run results
-        results = self.flow.runs.order_by('-id').first().get_results()
+        results = self.flow.runs.order_by('-id').first().results
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['name'], 'color')
@@ -4007,7 +4007,7 @@ class WebhookTest(TembaTest):
         run1.refresh_from_db()
         self.assertEqual(run1.field_dict(), {'text': "Get", 'blank': ""})
 
-        results = run1.get_results()
+        results = run1.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Get", "blank": "" }')
@@ -4026,7 +4026,7 @@ class WebhookTest(TembaTest):
         run2, = flow.start([], [contact], restart_participants=True)
         run2.refresh_from_db()
 
-        results = run2.get_results()
+        results = run2.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Post", "blank": "" }')
@@ -4067,7 +4067,7 @@ class WebhookTest(TembaTest):
         run6.refresh_from_db()
         self.assertEqual(run6.field_dict(), {})
 
-        results = run6.get_results()
+        results = run6.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'asdfasdfasdf')
@@ -4080,7 +4080,7 @@ class WebhookTest(TembaTest):
         run7.refresh_from_db()
         self.assertEqual(run7.field_dict(), {})
 
-        results = run7.get_results()
+        results = run7.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'Server Error')
@@ -4093,7 +4093,7 @@ class WebhookTest(TembaTest):
         run8.refresh_from_db()
         self.assertEqual(run8.field_dict(), {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
-        results = run8.get_results()
+        results = run8.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
@@ -7481,7 +7481,7 @@ class DuplicateResultTest(FlowFileTest):
         run = FlowRun.objects.get(contact=self.contact, flow=flow)
 
         # we should have one result for this run, "Other"
-        results = run.get_results()
+        results = run.results
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['category'], "Other")
@@ -7491,7 +7491,7 @@ class DuplicateResultTest(FlowFileTest):
 
         # we should now still have only one value, but the category should be Red now
         run.refresh_from_db()
-        results = run.get_results()
+        results = run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['category'], "Red")
 
@@ -8513,7 +8513,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
 
-        results = FlowRun.objects.get().get_results()
+        results = FlowRun.objects.get().results
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
@@ -8531,7 +8531,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo")))
 
-        results = FlowRun.objects.get().get_results()
+        results = FlowRun.objects.get().results
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
