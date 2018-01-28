@@ -723,16 +723,10 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
-    extra = serializers.SerializerMethodField()
+    extra = serializers.JSONField(required=False)
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
-
-    def get_extra(self, obj):
-        if not obj.extra:
-            return None
-        else:
-            return json.loads(obj.extra)
 
     class Meta:
         model = FlowStart

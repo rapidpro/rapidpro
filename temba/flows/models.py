@@ -4606,8 +4606,8 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
-    extra = models.TextField(null=True,
-                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+    extra = JSONAsTextField(null=True,
+                            help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod
     def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None, include_active=True):
@@ -4620,7 +4620,7 @@ class FlowStart(SmartModel):
         start = FlowStart.objects.create(flow=flow,
                                          restart_participants=restart_participants,
                                          include_active=include_active,
-                                         extra=json.dumps(extra) if extra else None,
+                                         extra=extra,
                                          created_by=user, modified_by=user)
 
         for contact in contacts:
@@ -4644,7 +4644,7 @@ class FlowStart(SmartModel):
             contacts = [c for c in self.contacts.all().only('is_test')]
 
             # load up our extra if any
-            extra = json.loads(self.extra) if self.extra else None
+            extra = self.extra if self.extra else None
 
             return self.flow.start(groups, contacts, flow_start=self, extra=extra,
                                    restart_participants=self.restart_participants, include_active=self.include_active)
