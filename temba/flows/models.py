@@ -3440,7 +3440,7 @@ class RuleSet(models.Model):
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
-    config = JSONAsTextField(null=True, verbose_name=_("Ruleset Configuration"),
+    config = JSONAsTextField(null=True, default=dict, verbose_name=_("Ruleset Configuration"),
                              help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
@@ -4207,8 +4207,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    config = models.TextField(null=True,
-                              help_text=_("Any configuration options for this flow export"))
+    config = JSONAsTextField(null=True, default=dict,
+                             help_text=_("Any configuration options for this flow export"))
 
     @classmethod
     def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs, extra_urns):
@@ -4218,7 +4218,7 @@ class ExportFlowResultsTask(BaseExportTask):
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
                   ExportFlowResultsTask.EXTRA_URNS: extra_urns}
 
-        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=json.dumps(config))
+        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)
         for flow in flows:
             export.flows.add(flow)
 
@@ -4330,12 +4330,11 @@ class ExportFlowResultsTask(BaseExportTask):
         return msgs_by_run
 
     def write_export(self):
-        config = json.loads(self.config) if self.config else dict()
-        include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
-        include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
-        responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
-        contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
-        extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
+        include_runs = self.config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
+        include_msgs = self.config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
+        responded_only = self.config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
+        contact_field_ids = self.config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
+        extra_urns = self.config.get(ExportFlowResultsTask.EXTRA_URNS, [])
 
         contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
 
@@ -4606,7 +4605,7 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
-    extra = JSONAsTextField(null=True,
+    extra = JSONAsTextField(null=True, default=dict,
                             help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod

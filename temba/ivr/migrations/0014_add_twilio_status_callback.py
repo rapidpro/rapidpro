@@ -6,15 +6,12 @@ from django.db import migrations
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from twilio.rest import TwilioRestClient, TwilioException
-import json
 
 
 def get_twilio_client(org):
-    config = org.config
-    if config:
-        config = json.loads(config)
-        account_sid = config.get('ACCOUNT_SID', None)
-        auth_token = config.get('ACCOUNT_TOKEN', None)
+    if org.config:
+        account_sid = org.config.get('ACCOUNT_SID', None)
+        auth_token = org.config.get('ACCOUNT_TOKEN', None)
         if account_sid and auth_token:
             return TwilioRestClient(account_sid, auth_token)
     return None
