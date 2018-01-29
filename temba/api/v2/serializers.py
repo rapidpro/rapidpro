@@ -688,7 +688,8 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(arrived_on)
             }
 
-        return [convert_step(s) for s in obj.get_path()]
+        path = obj.path if obj.path else []
+        return [convert_step(s) for s in path]
 
     def get_values(self, obj):
         def convert_result(result):

@@ -1102,7 +1102,7 @@ class Flow(TembaModel):
 
         for run in simulator_runs:
             prev_step = None
-            for step in run.get_path():
+            for step in run.path:
                 if prev_step:
                     exit_uuid = prev_step['exit_uuid']
                     node_uuid = step['node_uuid']
@@ -1845,7 +1845,7 @@ class Flow(TembaModel):
         # for each message, associate it with this step and set the label on it
         run.add_messages(msgs, step=step)
 
-        path = run.get_path()
+        path = run.path if run.path else []
 
         # complete previous step
         if path and exit_uuid:
@@ -1858,7 +1858,7 @@ class Flow(TembaModel):
         if len(path) > FlowRun.PATH_MAX_STEPS:
             path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
 
-        run.path = json.dumps(path)
+        run.path = path
         run.current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=('path', 'current_node_uuid'))
 
@@ -2612,8 +2612,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     results = JSONAsTextField(null=True, default=dict,
                               help_text=_("The results collected during this flow run in JSON format"))
 
-    path = models.TextField(null=True,
-                            help_text=_("The path taken during this flow run in JSON format"))
+    path = JSONAsTextField(null=True,
+                           help_text=_("The path taken during this flow run in JSON format"))
 
     message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
                              help_text=_("The IDs of messages associated with this run"))
@@ -3097,9 +3097,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.voice_response.say(text)
 
         return msg
-
-    def get_path(self):
-        return json.loads(self.path) if self.path else []
 
     @classmethod
     def serialize_value(cls, value):

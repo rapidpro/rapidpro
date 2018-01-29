@@ -463,7 +463,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': flow.entry_uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -632,7 +632,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -697,7 +697,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00', 'exit_uuid': color_prompt.exit_uuid},
             {'node_uuid': color_ruleset.uuid, 'arrived_on': '2015-08-25T11:11:30.088000+00:00', 'exit_uuid': orange_rule.uuid},
             {'node_uuid': color_reply.uuid, 'arrived_on': '2015-08-25T11:13:30.088000+00:00', 'exit_uuid': color_reply.exit_uuid},

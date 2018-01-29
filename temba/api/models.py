@@ -224,7 +224,7 @@ class WebHookEvent(SmartModel):
         post_data = {}
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
         post_data['contact'] = dict(uuid=contact.uuid, name=contact.name)
-        post_data['path'] = run.get_path()
+        post_data['path'] = run.path if run.path else []
         post_data['results'] = run.results
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
