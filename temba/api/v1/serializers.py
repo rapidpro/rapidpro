@@ -614,7 +614,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not flow_revision:
             raise serializers.ValidationError("Invalid revision: %s" % revision)
 
-        definition = json.loads(flow_revision.definition)
+        definition = flow_revision.definition
 
         # make sure we are operating off a current spec
         definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())

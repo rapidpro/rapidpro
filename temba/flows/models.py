@@ -2408,7 +2408,7 @@ class Flow(TembaModel):
                 revision_num = last_revision.revision + 1
 
             # create a new version
-            revision = self.revisions.create(definition=json.dumps(json_dict),
+            revision = self.revisions.create(definition=json_dict,
                                              created_by=user,
                                              modified_by=user,
                                              spec_version=get_current_export_version(),
@@ -3797,7 +3797,7 @@ class FlowRevision(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='revisions')
 
-    definition = models.TextField(help_text=_("The JSON flow definition"))
+    definition = JSONAsTextField(help_text=_("The JSON flow definition"))
 
     spec_version = models.CharField(default=get_current_export_version, max_length=8,
                                     help_text=_("The flow version this definition is in"))
@@ -3899,12 +3899,12 @@ class FlowRevision(SmartModel):
 
     def get_definition_json(self):
 
-        definition = json.loads(self.definition)
+        definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
         # mirror our exports for those versions
         if Flow.is_before_version(self.spec_version, "6"):
-            definition = dict(definition=definition, flow_type=self.flow.flow_type,
+            definition = dict(definition=self.definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
 

@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import json
 import six
 import pytz
 
@@ -71,7 +70,7 @@ class CampaignTest(TembaTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 

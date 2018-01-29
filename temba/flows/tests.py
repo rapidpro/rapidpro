@@ -6758,7 +6758,7 @@ class FlowMigrationTest(FlowFileTest):
                                          saved_by=self.admin, version_number=7))
 
         flow_json = self.get_flow_json('favorites')
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=7, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -6804,7 +6804,7 @@ class FlowMigrationTest(FlowFileTest):
 
         flow_json = self.get_flow_json('malformed_single_message')['definition']
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -6823,7 +6823,7 @@ class FlowMigrationTest(FlowFileTest):
 
         flow_json = self.get_flow_json('string_group')['definition']
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -6841,7 +6841,7 @@ class FlowMigrationTest(FlowFileTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -6856,7 +6856,7 @@ class FlowMigrationTest(FlowFileTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -6930,11 +6930,11 @@ class FlowMigrationTest(FlowFileTest):
             version_number=1)
         )
         FlowRevision.create_instance(dict(
-            flow=flow1, definition=json.dumps(fre_definition), spec_version=1, revision=1, created_by=self.admin,
+            flow=flow1, definition=fre_definition, spec_version=1, revision=1, created_by=self.admin,
             modified_by=self.admin)
         )
         FlowRevision.create_instance(dict(
-            flow=flow2, definition=json.dumps(fre_definition), spec_version=1, revision=1, created_by=self.admin,
+            flow=flow2, definition=fre_definition, spec_version=1, revision=1, created_by=self.admin,
             modified_by=self.admin)
         )
 
@@ -7008,7 +7008,7 @@ class FlowMigrationTest(FlowFileTest):
         )
 
         FlowRevision.create_instance(dict(
-            flow=flow, definition=json.dumps(definition), spec_version=1, revision=1, created_by=self.admin,
+            flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin,
             modified_by=self.admin)
         )
 
@@ -7419,7 +7419,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # remove our flow version from the flow
         del json_flow[Flow.VERSION]
-        rev.definition = json.dumps(json_flow)
+        rev.definition = json_flow
         rev.spec_version = '10'
         rev.save()
 
@@ -7742,7 +7742,7 @@ class SendActionTest(FlowFileTest):
         # create a flow object, we just need this to test our flow revision
         flow = Flow.objects.create(org=self.org, name="Import Flow", created_by=self.admin, modified_by=self.admin,
                                    saved_by=self.admin)
-        revision = FlowRevision.objects.create(flow=flow, definition=json.dumps(exported_json), spec_version='8',
+        revision = FlowRevision.objects.create(flow=flow, definition=exported_json, spec_version='8',
                                                revision=1, created_by=self.admin, modified_by=self.admin)
         flow.version_number = '8'
         flow.save()

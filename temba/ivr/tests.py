@@ -1180,7 +1180,7 @@ class IVRTests(FlowFileTest):
 
         # go back to our original version
         flow_json = self.get_flow_json('call_me_maybe')['definition']
-        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+        FlowRevision.objects.create(flow=flow, definition=flow_json,
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
@@ -1306,7 +1306,7 @@ class IVRTests(FlowFileTest):
         flow_json = self.get_flow_json('call_me_maybe')['definition']
 
         from temba.flows.models import FlowRevision
-        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+        FlowRevision.objects.create(flow=flow, definition=flow_json,
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # event for non-existing external_id call
