@@ -816,7 +816,7 @@ class TriggerTest(TembaTest):
         action_set = ActionSet.objects.get(uuid=flow.entry_uuid)
         actions = action_set.as_json()['actions']
         actions[0]['msg']['base'] = 'Echo: @step.value'
-        action_set.set_actions_dict(actions)
+        action_set.actions = actions
         action_set.save()
 
         self.assertFalse(catch_all_trigger)

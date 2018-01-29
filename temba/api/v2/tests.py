@@ -2651,9 +2651,9 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
-                                                       dict(base="Hi @extra.first_name @extra.last_name, "
-                                                                 "what's your favorite color?")).as_json()])
+        first_action.actions = [ReplyAction(str(uuid4()),
+                                            dict(base="Hi @extra.first_name @extra.last_name, "
+                                                      "what's your favorite color?")).as_json()]
         first_action.save()
 
         # try to create an empty flow start

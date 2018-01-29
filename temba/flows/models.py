@@ -2324,7 +2324,7 @@ class Flow(TembaModel):
                         existing.destination = destination_uuid
                         existing.destination_type = destination_type
                         existing.exit_uuid = exit_uuid
-                        existing.set_actions_dict(actions)
+                        existing.actions = actions
                         (existing.x, existing.y) = (x, y)
                         existing.save()
                     else:
@@ -2333,7 +2333,7 @@ class Flow(TembaModel):
                                                             destination=destination_uuid,
                                                             destination_type=destination_type,
                                                             exit_uuid=exit_uuid,
-                                                            actions=json.dumps(actions),
+                                                            actions=actions,
                                                             x=x, y=y)
 
                         existing_actionsets[uuid] = existing
@@ -3717,7 +3717,7 @@ class ActionSet(models.Model):
 
     exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
-    actions = models.TextField(help_text=_("The JSON encoded actions for this action set"))
+    actions = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -3780,18 +3780,12 @@ class ActionSet(models.Model):
 
         return msgs
 
-    def get_actions_dict(self):
-        return json.loads(self.actions)
-
     def get_actions(self):
-        return Action.from_json_array(self.flow.org, json.loads(self.actions))
-
-    def set_actions_dict(self, json_dict):
-        self.actions = json.dumps(json_dict)
+        return Action.from_json_array(self.flow.org, self.actions)
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
-                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
+                    actions=self.actions, exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)

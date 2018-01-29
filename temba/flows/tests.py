@@ -1202,7 +1202,7 @@ class FlowTest(TembaTest):
         actions = [AddToGroupAction(str(uuid4()), [self.other_group]).as_json(),
                    SendAction(str(uuid4()), "Outgoing Message", [self.other_group], [self.contact], []).as_json()]
 
-        action_set.set_actions_dict(actions)
+        action_set.actions = actions
         action_set.save()
 
         # check expanding our groups
@@ -5553,8 +5553,7 @@ class FlowsTest(FlowFileTest):
         flow = Flow.objects.filter(name='Dependencies').first()
         group_count = 0
         for actionset in flow.action_sets.all():
-            actions = json.loads(actionset.actions)
-            for action in actions:
+            for action in actionset.actions:
                 if action['type'] in ('add_group', 'del_group'):
                     for group in action['groups']:
                         if isinstance(group, dict):
@@ -7397,9 +7396,9 @@ class FlowMigrationTest(FlowFileTest):
 
         # now try executing our migrated flow
         first_response = ActionSet.objects.get(flow=flow, x=131)
-        actions = first_response.get_actions_dict()
+        actions = first_response.actions
         actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
-        first_response.set_actions_dict(actions)
+        first_response.actions = actions
         first_response.save()
 
         self.mockRequest('POST', '/status', '{ "status": "valid" }')
