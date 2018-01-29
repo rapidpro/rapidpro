@@ -171,7 +171,7 @@ class FlowTest(TembaTest):
         revision = revisions[1]
         definition = revision.get_definition_json()
         del definition['base_language']
-        revision.definition = json.dumps(definition)
+        revision.definition = definition
         revision.save()
 
         # should be back to one valid flow
@@ -192,7 +192,7 @@ class FlowTest(TembaTest):
         revision = revisions[0]
         definition = revision.get_definition_json()
         del definition['rule_sets']
-        revision.definition = json.dumps(definition)
+        revision.definition = definition
         revision.save()
 
         # no valid revisions (but we didn't throw!)

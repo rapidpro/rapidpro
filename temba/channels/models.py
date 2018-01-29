@@ -1427,8 +1427,8 @@ class ChannelEvent(models.Model):
                                 help_text=_("The contact associated with this event"))
     contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
                                     help_text=_("The contact URN associated with this event"))
-    extra = models.TextField(verbose_name=_("Extra"), null=True,
-                             help_text=_("Any extra properties on this event as JSON"))
+    extra = JSONAsTextField(verbose_name=_("Extra"), null=True,
+                            help_text=_("Any extra properties on this event as JSON"))
     occurred_on = models.DateTimeField(verbose_name=_("Occurred On"),
                                        help_text=_("When this event took place"))
     created_on = models.DateTimeField(verbose_name=_("Created On"), default=timezone.now,
@@ -1445,9 +1445,8 @@ class ChannelEvent(models.Model):
         contact = Contact.get_or_create(org, get_anonymous_user(), name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
-        extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
-                                   occurred_on=occurred_on, event_type=event_type, extra=extra_json)
+                                   occurred_on=occurred_on, event_type=event_type, extra=extra)
 
         if event_type in cls.CALL_TYPES:
             analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))
@@ -1476,7 +1475,7 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_REFERRAL:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
-                                             referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
+                                             referrer_id=self.extra.get('referrer_id'), extra=self.extra)
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
@@ -1492,12 +1491,6 @@ class ChannelEvent(models.Model):
 
     def release(self):
         self.delete()
-
-    def extra_json(self):
-        if self.extra:
-            return json.loads(self.extra)
-        else:
-            return dict()
 
 
 class SendException(Exception):

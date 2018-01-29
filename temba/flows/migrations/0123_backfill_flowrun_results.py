@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 from temba.utils import chunk_list
-import json
 import regex
 from datetime import datetime
 import six
@@ -162,7 +161,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
 
                         # if we found results, update this run
                         if results:
-                            run.results = json.dumps(results)
+                            run.results = results
                             run.save(update_fields=['results'])
 
                     update_count += len(runs)

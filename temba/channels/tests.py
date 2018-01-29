@@ -1890,7 +1890,7 @@ class ChannelEventTest(TembaTest):
         self.assertEqual(event.contact, contact)
         self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
         self.assertEqual(event.occurred_on, now)
-        self.assertEqual(event.extra_json()['duration'], 300)
+        self.assertEqual(event.extra['duration'], 300)
 
 
 class ChannelEventCRUDLTest(TembaTest):

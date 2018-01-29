@@ -547,7 +547,7 @@ class WebHookEvent(SmartModel):
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    extra=call.extra_json(),
+                    extra=call.extra,
                     occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
                                         created_by=api_user, modified_by=api_user)
