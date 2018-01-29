@@ -73,7 +73,6 @@ class APITest(TembaTest):
             url += '.json'
             if query:
                 url += ('?' + query)
-
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
         # this will fail if our response isn't valid json
@@ -2615,14 +2614,14 @@ class APITest(TembaTest):
 
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
-                                             data=json.dumps(dict(event='new mother',
-                                                                  values=json.dumps(dict(name="Greg")),
-                                                                  steps=json.dumps(dict(uuid='abcde')))),
+                                             data=dict(event='new mother',
+                                                       values=json.dumps(dict(name="Greg")),
+                                                       steps=json.dumps(dict(uuid='abcde'))),
                                              created_by=self.admin, modified_by=self.admin)
         event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
-                                             data=json.dumps(dict(event='new father',
-                                                                  values=json.dumps(dict(name="Yo")),
-                                                                  steps=json.dumps(dict(uuid='12345')))),
+                                             data=dict(event='new father',
+                                                       values=json.dumps(dict(name="Yo")),
+                                                       steps=json.dumps(dict(uuid='12345'))),
                                              created_by=self.admin, modified_by=self.admin)
 
         # no filtering

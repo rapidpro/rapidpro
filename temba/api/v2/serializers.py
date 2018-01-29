@@ -998,7 +998,7 @@ class WebHookEventReadSerializer(ReadSerializer):
         return obj.resthook.slug
 
     def get_data(self, obj):
-        decoded = json.loads(obj.data)
+        decoded = obj.data
 
         # also decode values and steps
         decoded['values'] = json.loads(decoded['values'])

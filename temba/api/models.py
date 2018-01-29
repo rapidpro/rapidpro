@@ -28,6 +28,7 @@ from temba.utils import prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.dates import datetime_to_str
 from temba.utils.http import http_headers
+from temba.utils.models import JSONAsTextField
 from urllib import urlencode
 
 
@@ -196,7 +197,7 @@ class WebHookEvent(SmartModel):
                                 help_text="The channel that this event is relating to")
     event = models.CharField(max_length=16, choices=TYPE_CHOICES,
                              help_text="The event type for this event")
-    data = models.TextField(help_text="The JSON encoded data that will be POSTED to the web hook")
+    data = JSONAsTextField(help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0,
                                     help_text="The number of times this event has been tried")
     next_attempt = models.DateTimeField(null=True, blank=True,
@@ -233,7 +234,7 @@ class WebHookEvent(SmartModel):
         if not action:  # pragma: needs cover
             action = 'POST'
 
-        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(post_data),
+        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=post_data,
                                            run=run, try_count=1, action=action, resthook=resthook,
                                            created_by=api_user, modified_by=api_user)
 
@@ -315,7 +316,7 @@ class WebHookEvent(SmartModel):
                                                   status_code=status_code,
                                                   body=body,
                                                   message=message,
-                                                  data=json.dumps(post_data),
+                                                  data=post_data,
                                                   request_time=request_time,
                                                   created_by=api_user,
                                                   modified_by=api_user)
@@ -392,7 +393,7 @@ class WebHookEvent(SmartModel):
         if not action:  # pragma: needs cover
             action = 'POST'
 
-        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(data),
+        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=data,
                                            run=run, try_count=1, action=action, resthook=resthook,
                                            created_by=api_user, modified_by=api_user)
 
@@ -514,7 +515,7 @@ class WebHookEvent(SmartModel):
                     status=msg.status,
                     direction=msg.direction)
 
-        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -549,7 +550,7 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(call.contact_urn),
                     extra=call.extra,
                     occurred_on=json_time)
-        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -579,7 +580,7 @@ class WebHookEvent(SmartModel):
                     retry_message_count=sync_event.retry_message_count,
                     last_seen=json_time)
 
-        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -589,7 +590,7 @@ class WebHookEvent(SmartModel):
         start = time.time()
 
         # create our post parameters
-        post_data = json.loads(self.data)
+        post_data = self.data
         post_data['event'] = self.event
         post_data['relayer'] = self.channel.pk if self.channel else ''
         post_data['channel'] = self.channel.pk if self.channel else ''

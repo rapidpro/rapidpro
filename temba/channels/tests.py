@@ -6819,7 +6819,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(self.welcome_topup, msg.topup)
 
         # check for a web hook event
-        event = json.loads(WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data)
+        event = WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data
         self.assertEqual(msg.id, event['sms'])
 
         msg_counts = SystemLabel.get_counts(self.org)
