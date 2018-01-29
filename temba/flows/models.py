@@ -2262,7 +2262,7 @@ class Flow(TembaModel):
 
                 if existing:
                     existing.label = ruleset.get(Flow.LABEL, None)
-                    existing.set_rules_dict(rules)
+                    existing.rules = rules
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
@@ -2275,7 +2275,7 @@ class Flow(TembaModel):
                     existing = RuleSet.objects.create(flow=self,
                                                       uuid=uuid,
                                                       label=label,
-                                                      rules=json.dumps(rules),
+                                                      rules=rules,
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
@@ -3420,7 +3420,7 @@ class RuleSet(models.Model):
     webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
                                       help_text=_('How the webhook should be executed'))
 
-    rules = models.TextField(help_text=_("The JSON encoded actions for this action set"))
+    rules = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"))
 
     finished_key = models.CharField(max_length=1, null=True, blank=True,
                                     help_text="During IVR, this is the key to indicate we are done waiting")
@@ -3682,26 +3682,21 @@ class RuleSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_RULE_SET
 
-    def get_rules_dict(self):
-        return json.loads(self.rules)
-
     def get_rules(self):
-        return Rule.from_json_array(self.flow.org, json.loads(self.rules))
+        return Rule.from_json_array(self.flow.org, self.rules)
 
     def get_rule_uuids(self):  # pragma: needs cover
-        return [rule['uuid'] for rule in json.loads(self.rules)]
-
-    def set_rules_dict(self, json_dict):
-        self.rules = json.dumps(json_dict)
+        return [rule['uuid'] for rule in self.rules]
 
     def set_rules(self, rules):
         rules_dict = []
         for rule in rules:
             rules_dict.append(rule.as_json())
-        self.set_rules_dict(rules_dict)
+
+        self.rules = rules_dict
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
+        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.rules,
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config)
 
@@ -5373,7 +5368,7 @@ class UssdAction(ReplyAction):
     def from_ruleset(cls, ruleset, run):
         if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict) and ruleset.config != {}:
             # initial message, menu obj
-            rules = json.loads(ruleset.rules)
+            rules = ruleset.rules
             msg = ruleset.config.get(cls.MESSAGE, '')
             org = run.flow.org
 

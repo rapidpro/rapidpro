@@ -1778,7 +1778,7 @@ class FlowTest(TembaTest):
         color_ruleset = RuleSet.objects.get(label="color")
 
         # update our rule to include decimal parsing
-        color_ruleset.set_rules_dict([
+        color_ruleset.rules = [
             Rule(
                 "1c75fd71-027b-40e8-a819-151a0f8140e6",
                 {self.flow.base_language: "< 10"},
@@ -1793,7 +1793,7 @@ class FlowTest(TembaTest):
                 'A',
                 GteTest(10)
             ).as_json()
-        ])
+        ]
 
         color_ruleset.save()
 
@@ -2876,7 +2876,7 @@ class ActionTest(TembaTest):
         menu_uuid = str(uuid4())
 
         ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
-        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()])
+        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()]
         ussd_ruleset.save()
 
         # without USSD config we only get an empty UssdAction
@@ -2887,9 +2887,9 @@ class ActionTest(TembaTest):
         self.assertEqual(execution, [])
 
         # add menu rules
-        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
-                                    Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(base="Test1")).as_json(),
-                                    Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(base="Test2")).as_json()])
+        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
+                              Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(base="Test1")).as_json(),
+                              Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(base="Test2")).as_json()]
         ussd_ruleset.save()
 
         # add ussd message
@@ -2918,7 +2918,7 @@ class ActionTest(TembaTest):
         menu_uuid = str(uuid4())
 
         ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
-        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()])
+        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()]
         ussd_ruleset.save()
 
         english = Language.create(self.org, self.admin, "English", 'eng')
@@ -2927,9 +2927,9 @@ class ActionTest(TembaTest):
         self.flow.org.primary_language = english
 
         # add menu rules
-        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
-                                    Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")).as_json(),
-                                    Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(eng="label2ENG")).as_json()])
+        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
+                              Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")).as_json(),
+                              Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(eng="label2ENG")).as_json()]
         ussd_ruleset.save()
 
         # add ussd message
@@ -5540,7 +5540,7 @@ class FlowsTest(FlowFileTest):
 
         # make sure the groups in our rules exist as expected
         ruleset = RuleSet.objects.filter(label="Member").first()
-        rules = ruleset.get_rules_dict()
+        rules = ruleset.rules
         group_count = 0
         for rule in rules:
             if rule['test']['type'] == 'in_group':
@@ -5570,7 +5570,7 @@ class FlowsTest(FlowFileTest):
         rulesets = RuleSet.objects.filter(flow=flow)
         group_count = 0
         for ruleset in rulesets:
-            rules = ruleset.get_rules_dict()
+            rules = ruleset.rules
             for rule in rules:
                 if rule['test']['type'] == 'in_group':
                     group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
