@@ -5447,6 +5447,9 @@ class VariableContactAction(Action):
     GROUPS = 'groups'
     VARIABLES = 'variables'
     PHONE = 'phone'
+    PATH = 'path'
+    SCHEME = 'scheme'
+    URNS = 'urns'
     NAME = 'name'
     ID = 'id'
 
@@ -5482,9 +5485,20 @@ class VariableContactAction(Action):
             phone = contact.get(VariableContactAction.PHONE, None)
             contact_uuid = contact.get(VariableContactAction.UUID, None)
 
+            urns = []
+            for urn in contact.get(VariableContactAction.URNS, []):
+                scheme = urn.get(VariableContactAction.SCHEME)
+                path = urn.get(VariableContactAction.PATH)
+
+                if scheme and path:
+                    urns.append(URN.from_parts(scheme, path))
+
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
-            if not contact and phone:  # pragma: needs cover
-                contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
+            if not contact and (phone or urns):  # pragma: needs cover
+                if phone:
+                    contact = Contact.get_or_create(org, org.created_by, name=None, urns=[URN.from_parts(TEL_SCHEME, phone)])
+                elif urns:
+                    contact = Contact.get_or_create(org, org.created_by, name=None, urns=urns)
 
                 # if they dont have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
