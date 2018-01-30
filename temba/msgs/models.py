@@ -34,7 +34,7 @@ from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.http import http_headers
-from temba.utils.models import SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
 from .handler import MessageHandler
@@ -252,7 +252,7 @@ class Broadcast(models.Model):
                 if base_language not in quick_reply:
                     raise ValueError("Base language '%s' doesn't exist for one or more of the provided quick replies" % base_language)
 
-        metadata = json.dumps(dict(quick_replies=quick_replies)) if quick_replies else None
+        metadata = dict(quick_replies=quick_replies) if quick_replies else None
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
@@ -376,7 +376,7 @@ class Broadcast(models.Model):
         return preferred_languages
 
     def get_metadata(self):
-        return json.loads(self.metadata) if self.metadata else {}
+        return self.metadata if self.metadata else {}
 
     def get_default_text(self):
         """
@@ -750,7 +750,7 @@ class Msg(models.Model):
     connection = models.ForeignKey('channels.ChannelSession', null=True,
                                    help_text=_("The session this message was a part of if any"))
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for this msg"))
+    metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"))
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -1037,7 +1037,7 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def get_metadata(self):
-        return json.loads(self.metadata) if self.metadata else {}
+        return self.metadata if self.metadata else {}
 
     def as_json(self):
         return dict(direction=self.direction,
@@ -1531,7 +1531,7 @@ class Msg(models.Model):
                 (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
                 if value:
                     quick_replies[counter] = value
-            metadata = json.dumps(dict(quick_replies=quick_replies))
+            metadata = dict(quick_replies=quick_replies)
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,

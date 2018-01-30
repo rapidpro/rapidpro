@@ -6739,7 +6739,7 @@ class TwitterTest(TembaTest):
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, "000000000000000000")
-            self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
+            self.assertEqual(msg.metadata, dict(quick_replies=quick_replies))
             data_args = json.loads(mock.call_args[1]['data'])
             message_data = data_args['event']['message_create']['message_data']
             self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
@@ -9966,7 +9966,7 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, "999")
-            self.assertEqual(json.loads(msg.metadata), dict(quick_replies=quick_replies))
+            self.assertEqual(msg.metadata, dict(quick_replies=quick_replies))
             self.clear_cache()
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Yes')
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][1]['Text'], 'No')
