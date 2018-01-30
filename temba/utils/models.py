@@ -80,19 +80,24 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         * be careful with default values, it must be a callable returning a dict because using `default={}` will create
           a mutable default that is share between all instances of the JSONAsTextField
           * https://docs.djangoproject.com/en/1.11/ref/contrib/postgres/fields/#jsonfield
+        * arg `object_paris_hook` depends on the json serializer implementation
+          * Python 3.7 will guarantees keeping dict insert order
+            * https://mail.python.org/pipermail/python-dev/2017-December/151283.html
     """
 
     description = 'Custom JSON field that is stored as Text in the database'
     _default_hint = ('dict', '{}')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, object_pairs_hook=dict, *args, **kwargs):
+
+        self.object_pairs_hook = object_pairs_hook
         super(JSONAsTextField, self).__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
         if value is None:
             return value
         if isinstance(value, six.string_types):
-            return json.loads(value)
+            return json.loads(value, object_pairs_hook=self.object_pairs_hook)
         else:
             raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
 
@@ -108,6 +113,13 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
 
     def db_type(self, connection):
         return 'text'
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(JSONAsTextField, self).deconstruct()
+        # Only include kwarg if it's not the default
+        if self.object_pairs_hook != dict:
+            kwargs['object_pairs_hook'] = self.object_pairs_hook
+        return name, path, args, kwargs
 
 
 class TembaModel(SmartModel):

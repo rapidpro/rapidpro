@@ -1311,7 +1311,7 @@ class Flow(TembaModel):
             run.org = self.org
             run.contact = contact
 
-            run_context = run.field_dict()
+            run_context = run.fields if run.fields else {}
             flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
@@ -1651,7 +1651,7 @@ class Flow(TembaModel):
         if extra:
             # we keep more values in @extra for new flow runs because we might be passing the state
             (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.FLOWRUN_FIELDS_SIZE * 4)
-            run_fields = json.dumps(normalized_fields)
+            run_fields = normalized_fields
 
         # create all our flow runs for this set of contacts at once
         batch = []
@@ -2569,8 +2569,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
 
-    fields = models.TextField(blank=True, null=True,
-                              help_text=_("A JSON representation of any custom flow values the user has saved away"))
+    fields = JSONAsTextField(blank=True, null=True, object_pairs_hook=OrderedDict,
+                             help_text=_("A JSON representation of any custom flow values the user has saved away"))
 
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
@@ -3048,18 +3048,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     def update_fields(self, field_map):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map)
-
         if not self.fields:
-            self.fields = json.dumps(field_map)
+            self.fields = field_map
         else:
-            existing_map = json.loads(self.fields, object_pairs_hook=OrderedDict)
+            existing_map = self.fields
             existing_map.update(field_map)
-            self.fields = json.dumps(existing_map)
+            self.fields = existing_map
 
         self.save(update_fields=['fields'])
-
-    def field_dict(self):
-        return json.loads(self.fields, object_pairs_hook=OrderedDict) if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -3767,7 +3763,7 @@ class ActionSet(models.Model):
             # if there are more actions, rebuild the parts of the context that may have changed
             if a < len(actions) - 1:
                 context['contact'] = run.contact.build_expressions_context()
-                context['extra'] = run.field_dict()
+                context['extra'] = run.fields if run.fields else {}
 
         return msgs
 
