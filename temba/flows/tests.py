@@ -8623,6 +8623,55 @@ class TypeTest(TembaTest):
         self.assertEqual('ward', results['ward']['category'])
 
 
+class FlowServerTest(TembaTest):
+    def setUp(self):
+        super(FlowServerTest, self).setUp()
+
+        self.contact = self.create_contact("Joe", "+250788373373")
+
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
+    def test_session_bulk_start(self):
+        flow = self.get_flow('favorites')
+
+        # regular start
+        run1, = flow.start([], [self.contact])
+
+        self.assertTrue(run1.session.is_goflow())
+        self.assertEqual(run1.flow, flow)
+        self.assertEqual(run1.contact, self.contact)
+
+        # regular re-start
+        run2, = flow.start([], [self.contact], restart_participants=True)
+
+        self.assertTrue(run2.session.is_goflow())
+        self.assertNotEqual(run1, run2)
+
+        # with flow start object
+        start = FlowStart.create(flow, self.admin, [], [self.contact], restart_participants=True)
+        run3, = start.start()
+
+        self.assertTrue(run3.session.is_goflow())
+        self.assertNotEqual(run1, run3)
+
+        start.refresh_from_db()
+
+        self.assertEqual(start.status, 'C')
+        self.assertEqual(set(start.runs.all()), {run3})
+
+        # with some extra
+        run4, = flow.start([], [self.contact], restart_participants=True, extra={'foo': "bar"})
+
+        self.assertTrue(run4.session.as_json()['runs'][0]['extra'], {'foo': "bar"})
+
+        # with an initial message
+        msg = self.create_msg(direction='I', text="Hello", contact=self.contact)
+        run5, = flow.start([], [self.contact], restart_participants=True, start_msg=msg)
+        run5_output = run5.session.as_json()['runs'][0]
+
+        self.assertTrue(run5_output['path'][0]['events'][2]['type'], "msg_received")
+        self.assertTrue(run5_output['path'][0]['events'][2]['text'], "Hello")
+
+
 class AssetServerTest(TembaTest):
     @override_settings(FLOW_SERVER_AUTH_TOKEN="112233445566")
     def test_authentication(self):

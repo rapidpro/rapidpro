@@ -1790,11 +1790,11 @@ class Flow(TembaModel):
         if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
             # try to start the session against our flow server
             contacts = Contact.objects.filter(id__in=all_contact_ids).order_by('id')
-
             runs = FlowSession.bulk_start(contacts, self, start_msg, extra)
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
+
             return runs
 
         start_msg_id = start_msg.id if start_msg else None
@@ -3013,7 +3013,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         self.contact.save(update_fields=update_fields)
 
-        if self.contact.is_test:
+        if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated %s to '%s'") % (event['field_name'], event['value']))
 
     def apply_save_contact_field(self, event, msg):
@@ -3034,12 +3034,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         self.contact.set_field(user, field.key, value)
 
-        if self.contact.is_test:
+        if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
 
     def apply_save_flow_result(self, event, msg):
         # flow results are actually saved in FlowRun.create_or_update_from_goflow
-        if self.contact.is_test:
+        if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['result_name'])),
                              created_on=iso8601.parse_date(event['created_on']))
 
@@ -3051,7 +3051,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             label = Label.label_objects.get(org=self.org, uuid=label_ref['uuid'])
             if not self.contact.is_test:
                 label.toggle_label([msg], True)
-            else:
+            else:  # pragma: no cover
                 ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg.text))
 
     def apply_add_to_group(self, event, msg):
@@ -3064,7 +3064,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=True)
 
-            if self.contact.is_test:
+            if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
     def apply_remove_from_group(self, event, msg):
@@ -3077,7 +3077,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=False)
 
-            if self.contact.is_test:
+            if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
     def apply_start_session(self, event, msg):
