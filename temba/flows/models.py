@@ -236,8 +236,8 @@ class Flow(TembaModel):
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW,
                                  help_text=_("The type of this flow"))
 
-    metadata = models.TextField(null=True, blank=True,
-                                help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
+    metadata = JSONAsTextField(null=True, blank=True,
+                               help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
 
     expires_after_minutes = models.IntegerField(default=FLOW_DEFAULT_EXPIRES_AFTER,
                                                 help_text=_("Minutes of inactivity that will cause expiration from flow"))
@@ -1212,15 +1212,6 @@ class Flow(TembaModel):
         self.update(flow_json)
         return self
 
-    def set_metadata_json(self, metadata):
-        self.metadata = json.dumps(metadata)
-
-    def get_metadata_json(self):
-        metadata = {}
-        if self.metadata:
-            metadata = json.loads(self.metadata)
-        return metadata
-
     def archive(self):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
@@ -2033,7 +2024,7 @@ class Flow(TembaModel):
 
         metadata = dict()
         if self.metadata:
-            metadata = json.loads(self.metadata)
+            metadata = self.metadata
 
         revision = self.revisions.all().order_by('-revision').first()
 
@@ -2382,7 +2373,7 @@ class Flow(TembaModel):
             # set our metadata
             self.metadata = None
             if Flow.METADATA in json_dict:
-                self.metadata = json.dumps(json_dict[Flow.METADATA])
+                self.metadata = json_dict[Flow.METADATA]
 
             if user:
                 self.saved_by = user

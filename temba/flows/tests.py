@@ -1035,13 +1035,13 @@ class FlowTest(TembaTest):
         self.flow.save()
 
         # make sure our metadata got saved
-        metadata = json.loads(self.flow.metadata)
+        metadata = self.flow.metadata
         self.assertEqual("Ryan Lewis", metadata['author'])
 
         # now create a copy
         copy = Flow.copy(self.flow, self.admin)
 
-        metadata = json.loads(copy.metadata)
+        metadata = copy.metadata
         self.assertEqual("Ryan Lewis", metadata['author'])
 
         # expiration should be copied too
@@ -2198,7 +2198,7 @@ class FlowTest(TembaTest):
         post_data['contact_creation'] = Flow.CONTACT_PER_LOGIN
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         flow3.refresh_from_db()
-        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
+        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.metadata.get('contact_creation'))
 
         # can see results for a flow
         response = self.client.get(reverse('flows.flow_results', args=[self.flow.uuid]))
