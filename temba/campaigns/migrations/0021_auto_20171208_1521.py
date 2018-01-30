@@ -32,6 +32,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('campaigns', '0020_auto_20171030_1637'),
+        ('orgs', '0041_auto_20180130_1538')
     ]
 
     operations = [

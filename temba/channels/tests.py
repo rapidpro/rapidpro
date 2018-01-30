@@ -6752,7 +6752,7 @@ class MageHandlerTest(TembaTest):
     def setUp(self):
         super(MageHandlerTest, self).setUp()
 
-        self.org.webhook = u'{"url": "http://fake.com/webhook.php"}'
+        self.org.webhook_config = {"url": "http://fake.com/webhook.php"}
         self.org.webhook_events = ALL_EVENTS
         self.org.save()
 

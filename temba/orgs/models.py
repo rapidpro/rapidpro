@@ -2,7 +2,6 @@ from __future__ import print_function, unicode_literals
 
 import calendar
 import itertools
-import json
 import logging
 import mimetypes
 import os
@@ -201,8 +200,8 @@ class Org(SmartModel):
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
-    webhook = models.TextField(null=True, verbose_name=_("Webhook"),
-                               help_text=_("Webhook endpoint and configuration"))
+    webhook_config = JSONAsTextField(null=True, verbose_name=_("Webhook"),
+                                     help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -600,7 +599,7 @@ class Org(SmartModel):
         """
         Returns a string with webhook url.
         """
-        return json.loads(self.webhook).get('url') if self.webhook else None
+        return self.webhook_config.get('url') if self.webhook_config else None
 
     def get_webhook_headers(self):
         """
@@ -608,7 +607,7 @@ class Org(SmartModel):
         {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
          'X-My-Special-Header': 'woo'}
         """
-        return json.loads(self.webhook).get('headers', dict()) if self.webhook else dict()
+        return self.webhook_config.get('headers', dict()) if self.webhook_config else dict()
 
     def get_channel_countries(self):
         channel_countries = []

@@ -1973,7 +1973,7 @@ class OrgCRUDL(SmartCRUDL):
             if data['headers']:
                 webhook_data.update({'headers': data['headers']})
 
-            obj.webhook = json.dumps(webhook_data)
+            obj.webhook_config = webhook_data
 
             return obj
 
