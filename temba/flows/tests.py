@@ -4294,7 +4294,8 @@ class FlowsTest(FlowFileTest):
         # TODO currently not working in new engine
         # self.assertEqual(recent[0]['text'], "What is your favorite color?")
 
-        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
+                                   attachments=['image/jpeg:http://example.com/test.jpg'])
 
         run.refresh_from_db()
         results = json.loads(run.results)

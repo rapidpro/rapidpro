@@ -1466,8 +1466,8 @@ class FlowCRUDL(SmartCRUDL):
                 if page_size is None:
                     # the flow engine doesn't want results paged, so just return the entire set
                     return JsonResponse([resource.serializer(o) for o in result], safe=False)
-                else:
-                    # the flow editor however will specify what kind of pagination it wants
+                else:  # pragma: no cover
+                    # TODO make this meet the needs of the new editor
                     paginator = Paginator(result, page_size)
                     page = paginator.page(page_num)
 
