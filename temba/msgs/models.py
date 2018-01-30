@@ -233,7 +233,7 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for messages of this broadcast"))
+    metadata = JSONAsTextField(null=True, help_text=_("The metadata for messages of this broadcast"))
 
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
