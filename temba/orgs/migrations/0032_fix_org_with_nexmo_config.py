@@ -24,8 +24,9 @@ def update_nexmo_config(Org):
 
         for org in nexmo_orgs:
             try:
-                nexmo_api_key = org.config.get(NEXMO_KEY, None)
-                nexmo_secret = org.config.get(NEXMO_SECRET, None)
+                config = org.config_json()
+                nexmo_api_key = config.get(NEXMO_KEY, None)
+                nexmo_secret = config.get(NEXMO_SECRET, None)
                 nexmo_uuid = str(uuid4())
 
                 nx_client = nx.Client(key=nexmo_api_key, secret=nexmo_secret)
@@ -42,10 +43,11 @@ def update_nexmo_config(Org):
                 app_id = response.get('id', None)
                 private_key = response.get("keys", dict()).get("private_key", None)
 
-                org.config[NEXMO_APP_ID] = app_id
-                org.config[NEXMO_APP_PRIVATE_KEY] = private_key
-                org.config[NEXMO_UUID] = nexmo_uuid
+                config[NEXMO_APP_ID] = app_id
+                config[NEXMO_APP_PRIVATE_KEY] = private_key
+                config[NEXMO_UUID] = nexmo_uuid
 
+                org.config = config
                 org.save()
 
                 org_channels = org.channels.exclude(channel_type='A')

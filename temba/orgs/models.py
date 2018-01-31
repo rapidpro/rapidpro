@@ -209,7 +209,7 @@ class Org(SmartModel):
     country = models.ForeignKey('locations.AdminBoundary', null=True, blank=True, on_delete=models.SET_NULL,
                                 help_text="The country this organization should map results for.")
 
-    config = JSONAsTextField(default=dict, null=True, verbose_name=_("Configuration"),
+    config = JSONAsTextField(null=True, verbose_name=_("Configuration"),
                              help_text=_("More Organization specific configuration"))
 
     slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True,
@@ -313,7 +313,10 @@ class Org(SmartModel):
                         *active_topup_keys)
 
     def set_status(self, status):
-        self.config[ORG_STATUS] = status
+        config = self.config_json()
+        config[ORG_STATUS] = status
+
+        self.config = config
         self.save(update_fields=['config'])
 
     def set_suspended(self):
@@ -326,10 +329,10 @@ class Org(SmartModel):
         self.set_status(RESTORED)
 
     def is_suspended(self):
-        return self.config.get(ORG_STATUS, None) == SUSPENDED
+        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
 
     def is_whitelisted(self):
-        return self.config.get(ORG_STATUS, None) == WHITELISTED
+        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
@@ -384,6 +387,9 @@ class Org(SmartModel):
                     flows=exported_flows,
                     campaigns=exported_campaigns,
                     triggers=exported_triggers)
+
+    def config_json(self):
+        return self.config if self.config else {}
 
     def can_add_sender(self):  # pragma: needs cover
         """
@@ -671,7 +677,9 @@ class Org(SmartModel):
                        SMTP_HOST: host, SMTP_USERNAME: username, SMTP_PASSWORD: password,
                        SMTP_PORT: port, SMTP_ENCRYPTION: encryption}
 
-        self.config.update(smtp_config)
+        config = self.config_json()
+        config.update(smtp_config)
+        self.config = config
         self.modified_by = user
         self.save()
 
@@ -723,20 +731,24 @@ class Org(SmartModel):
         transferto_config = {TRANSFERTO_ACCOUNT_LOGIN: account_login.strip(),
                              TRANSFERTO_AIRTIME_API_TOKEN: airtime_api_token.strip()}
 
-        self.config.update(transferto_config)
+        config = self.config_json()
+        config.update(transferto_config)
+        self.config = config
         self.modified_by = user
         self.save()
 
     def refresh_transferto_account_currency(self):
-        account_login = self.config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-        airtime_api_token = self.config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+        config = self.config_json()
+        account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+        airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
 
         from temba.airtime.models import AirtimeTransfer
         response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token,
                                                                 action='check_wallet')
         parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
         account_currency = parsed_response.get('currency', '')
-        self.config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
+        config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
+        self.config = config
         self.save()
 
     def is_connected_to_transferto(self):
@@ -780,7 +792,9 @@ class Org(SmartModel):
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
 
-        self.config.update(nexmo_config)
+        config = self.config_json()
+        config.update(nexmo_config)
+        self.config = config
         self.modified_by = user
         self.save()
 
@@ -788,12 +802,15 @@ class Org(SmartModel):
         self.clear_channel_caches()
 
     def nexmo_uuid(self):
-        return self.config.get(NEXMO_UUID, None)
+        config = self.config_json()
+        return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token, user):
         twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
 
-        self.config.update(twilio_config)
+        config = self.config_json()
+        config.update(twilio_config)
+        self.config = config
         self.modified_by = user
         self.save()
 
@@ -854,12 +871,14 @@ class Org(SmartModel):
             CHATBASE_VERSION: version
         }
 
-        self.config.update(chatbase_config)
+        config = self.config_json()
+        config.update(chatbase_config)
+        self.config = config
         self.modified_by = user
         self.save()
 
     def remove_chatbase_account(self, user):
-        config = self.config
+        config = self.config_json()
 
         if CHATBASE_AGENT_NAME in config:
             del config[CHATBASE_AGENT_NAME]
@@ -870,6 +889,7 @@ class Org(SmartModel):
         if CHATBASE_VERSION in config:
             del config[CHATBASE_VERSION]
 
+        self.config = config
         self.modified_by = user
         self.save()
 

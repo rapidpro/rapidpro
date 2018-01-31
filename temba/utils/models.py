@@ -80,7 +80,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         * be careful with default values, it must be a callable returning a dict because using `default={}` will create
           a mutable default that is share between all instances of the JSONAsTextField
           * https://docs.djangoproject.com/en/1.11/ref/contrib/postgres/fields/#jsonfield
-        * arg `object_paris_hook` depends on the json serializer implementation
+        * arg `object_pairs_hook` depends on the json serializer implementation
           * Python 3.7 will guarantees keeping dict insert order
             * https://mail.python.org/pipermail/python-dev/2017-December/151283.html
     """

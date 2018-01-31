@@ -10,7 +10,7 @@ def populate_twilio_auth(apps, schema_editor):
 
     # copy our org level configs into our channel configs
     for channel in Channel.objects.filter(channel_type__in=['T', 'TMS'], is_active=True).select_related('org'):
-        org_config = channel.org.config
+        org_config = channel.org.config_json()
         channel.config['account_sid'] = org_config.get('ACCOUNT_SID')
         channel.config['auth_token'] = org_config.get('ACCOUNT_TOKEN')
         channel.save(update_fields=['config'])
