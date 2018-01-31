@@ -50,7 +50,7 @@ class TwitterActivityType(ChannelType):
         try:
             client.register_webhook(config['env_name'], callback_url)
             client.subscribe_to_webhook(config['env_name'])
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logger.exception(six.text_type(e))
 
     def deactivate(self, channel):
