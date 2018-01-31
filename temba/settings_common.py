@@ -1218,7 +1218,7 @@ FLOW_SERVER_FORCE = False
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK', 'WA'])
+COURIER_CHANNELS = set(['DK', 'WA', 'CT', 'ZV'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

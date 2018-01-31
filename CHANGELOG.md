@@ -1,3 +1,13 @@
+v3.0.310
+----------
+ * Reimplement clickatell as a Courier only channel against new API
+
+v3.0.309
+----------
+ * Use database trigger for inserting new recent run records
+ * Handle stop contact channel events
+ * Remove no longer used FlowPathRecentRun model
+
 v3.0.308
 ----------
 '# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown

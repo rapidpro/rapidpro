@@ -106,41 +106,6 @@ class FlowPropsCache(Enum):
     category_nodes = 2
 
 
-def edit_distance(s1, s2):  # pragma: no cover
-    """
-    Compute the Damerau-Levenshtein distance between two given
-    strings (s1 and s2)
-    """
-    # if first letters are different, infinite distance
-    if s1 and s2 and s1[0] != s2[0]:
-        return 100
-
-    d = {}
-    lenstr1 = len(s1)
-    lenstr2 = len(s2)
-
-    for i in range(-1, lenstr1 + 1):
-        d[(i, -1)] = i + 1
-    for j in range(-1, lenstr2 + 1):
-        d[(-1, j)] = j + 1
-
-    for i in range(0, lenstr1):
-        for j in range(0, lenstr2):
-            if s1[i] == s2[j]:
-                cost = 0
-            else:
-                cost = 1
-            d[(i, j)] = min(
-                d[(i - 1, j)] + 1,  # deletion
-                d[(i, j - 1)] + 1,  # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
-            )
-            if i > 1 and j > 1 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
-
-    return d[lenstr1 - 1, lenstr2 - 1]
-
-
 @six.python_2_unicode_compatible
 class FlowSession(models.Model):
     STATUS_WAITING = 'W'
@@ -3195,7 +3160,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if isinstance(fields, six.string_types):
             return fields[:Value.MAX_VALUE_LEN], count + 1
 
-        elif isinstance(fields, numbers.Number):
+        elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
             return fields, count + 1
 
         elif isinstance(fields, dict):
@@ -3220,8 +3185,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             return list_dict, count
 
-        else:
-            return six.text_type(fields), count + 1
+        elif fields is None:
+            return "", count + 1
+        else:  # pragma: no cover
+            raise ValueError("Unsupported type %s in extra" % six.text_type(type(fields)))
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
@@ -3421,8 +3388,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 # get the last outgoing msg for this contact
                 msg = self.get_last_msg(OUTGOING)
 
+                # if the last outgoing message wasn't assigned a credit, then clear our timeout
+                if msg and msg.topup_id is None:
+                    self.timeout_on = None
+                    self.save(update_fields=['timeout_on', 'modified_on'])
+
                 # check that our last outgoing msg was sent and our timeout is in the past, otherwise reschedule
-                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
+                elif msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
                     self.update_timeout(msg.sent_on if msg.sent_on else timezone.now(), timeout)
 
                 # look good, lets resume this run
@@ -6899,12 +6871,6 @@ class ContainsTest(Test):
             if word == test:
                 matches.append(index)
                 continue
-
-            # words are over 4 characters and start with the same letter
-            if len(word) > 4 and len(test) > 4 and word[0] == test[0]:
-                # edit distance of 1 or less is a match
-                if edit_distance(word, test) <= 1:
-                    matches.append(index)
 
         return matches
 

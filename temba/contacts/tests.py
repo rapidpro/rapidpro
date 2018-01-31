@@ -1389,6 +1389,13 @@ class ContactTest(TembaTest):
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
         self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters
 
+    def test_contact_search_is_set(self):
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+        self.joe.set_field(self.admin, 'age', "X")  # creates a value with string_value=X decimal_value=None
+
+        self.assertIn(self.joe, Contact.search(self.org, 'age = ""')[0])
+        self.assertNotIn(self.joe, Contact.search(self.org, 'age != ""')[0])
+
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
         ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
