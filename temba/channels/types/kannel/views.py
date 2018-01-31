@@ -54,12 +54,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         # if they didn't set a username or password, generate them, we do this after the addition above
         # because we use the channel id in the configuration
-        if not self.object.config.get(Channel.CONFIG_USERNAME, None):
-            self.object.config[Channel.CONFIG_USERNAME] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+        config = self.object.config_json()
+        if not config.get(Channel.CONFIG_USERNAME, None):
+            config[Channel.CONFIG_USERNAME] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-        if not self.object.config.get(Channel.CONFIG_PASSWORD, None):
-            self.object.config[Channel.CONFIG_PASSWORD] = str(uuid4())
+        if not config.get(Channel.CONFIG_PASSWORD, None):
+            config[Channel.CONFIG_PASSWORD] = str(uuid4())
 
+        self.object.config = config
         self.object.save()
 
         return super(ClaimView, self).form_valid(form)

@@ -16,6 +16,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='channel',
             name='config',
-            field=temba.utils.models.JSONAsTextField(default=dict, help_text='Any channel specific configuration, used for the various aggregators', null=True, verbose_name='Config'),
+            field=temba.utils.models.JSONAsTextField(help_text='Any channel specific configuration, used for the various aggregators', null=True, verbose_name='Config'),
         ),
     ]

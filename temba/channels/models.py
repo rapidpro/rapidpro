@@ -334,7 +334,7 @@ class Channel(TembaModel):
     alert_email = models.EmailField(verbose_name=_("Alert Email"), null=True, blank=True,
                                     help_text=_("We will send email alerts to this address if experiencing issues sending"))
 
-    config = JSONAsTextField(default=dict, verbose_name=_("Config"), null=True,
+    config = JSONAsTextField(verbose_name=_("Config"), null=True,
                              help_text=_("Any channel specific configuration, used for the various aggregators"))
 
     schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
@@ -502,7 +502,9 @@ class Channel(TembaModel):
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            existing.config.update({Channel.CONFIG_FCM_ID: fcm_id})
+            config = existing.config_json()
+            config.update({Channel.CONFIG_FCM_ID: fcm_id})
+            existing.config = config
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -603,7 +605,7 @@ class Channel(TembaModel):
         """
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
-        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        callback_domain = self.config_json().get(Channel.CONFIG_CALLBACK_DOMAIN, None)
         if callback_domain is None:
             callback_domain = self.org.get_brand_domain()
 
@@ -697,7 +699,7 @@ class Channel(TembaModel):
             return '@%s' % self.address
 
         elif FACEBOOK_SCHEME in self.schemes:
-            return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
+            return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
 
@@ -716,6 +718,9 @@ class Channel(TembaModel):
             tel_e164 = ''
 
         return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
+
+    def config_json(self):
+        return self.config if self.config else {}
 
     @classmethod
     def get_cached_channel(cls, channel_id):
@@ -750,7 +755,7 @@ class Channel(TembaModel):
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
-                    callback_domain=self.callback_domain, config=self.config, org_config=org_config)
+                    callback_domain=self.callback_domain, config=self.config_json(), org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -906,7 +911,7 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
+        fcm_id = self.config_json().get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
@@ -937,7 +942,7 @@ class Channel(TembaModel):
         """
         # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
+            fcm_id = self.config_json().get(Channel.CONFIG_FCM_ID)
 
             if fcm_id is not None:
                 if getattr(settings, 'FCM_API_KEY', None):
@@ -968,7 +973,9 @@ class Channel(TembaModel):
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                channel.config.pop(Channel.CONFIG_FCM_ID, None)
+                config = channel.config_json()
+                config.pop(Channel.CONFIG_FCM_ID, None)
+                channel.config = config
                 channel.save()
 
     @classmethod

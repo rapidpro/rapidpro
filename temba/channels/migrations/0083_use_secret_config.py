@@ -12,12 +12,16 @@ def use_secret_config(apps, schema_editor):
 
     # for each facebook, junebug and jiochat channel, move secret into config
     for ch in Channel.objects.filter(channel_type__in=['FB', 'JN', 'JC']):
-        ch.config['secret'] = ch.secret
+        config = ch.config_json()
+        config['secret'] = ch.secret
+        ch.config = config
         ch.save(update_fields=['config'])
 
     # for each line channel, move to `secret` from `channel_secret`
     for ch in Channel.objects.filter(channel_type='LN'):
-        ch.config['secret'] = ch.config['channel_secret']
+        config = ch.config_json()
+        config['secret'] = config['channel_secret']
+        ch.config = config
         ch.save(update_fields=['config'])
 
 

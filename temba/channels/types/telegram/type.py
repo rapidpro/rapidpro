@@ -37,11 +37,13 @@ class TelegramType(ChannelType):
     free_sending = True
 
     def activate(self, channel):
-        bot = telegram.Bot(channel.config['auth_token'])
+        config = channel.config_json()
+        bot = telegram.Bot(config['auth_token'])
         bot.set_webhook("https://" + channel.callback_domain + reverse('courier.tg', args=[channel.uuid]))
 
     def deactivate(self, channel):
-        bot = telegram.Bot(channel.config['auth_token'])
+        config = channel.config_json()
+        bot = telegram.Bot(config['auth_token'])
         bot.delete_webhook()
 
     def send(self, channel, msg, text):

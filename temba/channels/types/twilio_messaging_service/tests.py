@@ -76,6 +76,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
 
-        self.assertEqual(channel.config['messaging_service_sid'], 'MSG-SERVICE-SID')
-        self.assertTrue(channel.config['account_sid'])
-        self.assertTrue(channel.config['auth_token'])
+        channel_config = channel.config_json()
+        self.assertEqual(channel_config['messaging_service_sid'], 'MSG-SERVICE-SID')
+        self.assertTrue(channel_config['account_sid'])
+        self.assertTrue(channel_config['auth_token'])

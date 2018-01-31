@@ -83,9 +83,10 @@ class TwitterTypeTest(TembaTest):
         channel = response.context['object']
         self.assertEqual(channel.address, 'jimmy')
         self.assertEqual(channel.name, '@jimmy')
-        self.assertEqual(channel.config['handle_id'], 123)
-        self.assertEqual(channel.config['oauth_token'], 'bcdef')
-        self.assertEqual(channel.config['oauth_token_secret'], '23456')
+        config = channel.config_json()
+        self.assertEqual(config['handle_id'], 123)
+        self.assertEqual(config['oauth_token'], 'bcdef')
+        self.assertEqual(config['oauth_token_secret'], '23456')
 
     @override_settings(IS_PROD=True)
     @patch('temba.utils.mage.MageClient._request')

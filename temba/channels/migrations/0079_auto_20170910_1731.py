@@ -17,10 +17,12 @@ def populate_twilio_auth(apps, schema_editor):
 
     # for consistency, remap TWIML keys as well
     for channel in Channel.objects.filter(channel_type='TW', is_active=True):
-        channel.config['account_sid'] = channel.config.get('ACCOUNT_SID')
-        channel.config['auth_token'] = channel.config.get('ACCOUNT_TOKEN')
-        del channel.config['ACCOUNT_SID']
-        del channel.config['ACCOUNT_TOKEN']
+        config = channel.config_json()
+        config['account_sid'] = config.get('ACCOUNT_SID')
+        config['auth_token'] = config.get('ACCOUNT_TOKEN')
+        del config['ACCOUNT_SID']
+        del config['ACCOUNT_TOKEN']
+        channel.config = config
         channel.save(update_fields=['config'])
 
 

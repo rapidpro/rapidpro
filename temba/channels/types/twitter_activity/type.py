@@ -38,21 +38,20 @@ class TwitterActivityType(ChannelType):
         return user.is_beta()
 
     def activate(self, channel):
-        client = TembaTwython(
-            channel.config['api_key'], channel.config['api_secret'], channel.config['access_token'],
-            channel.config['access_token_secret']
-        )
+        config = channel.config_json()
+        client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
 
         callback_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.twt', args=[channel.uuid]))
         webhook = client.register_webhook(callback_url)
         client.subscribe_to_webhook(webhook['id'])
 
         # save this webhook for later so we can delete it
-        channel.config['webhook_id'] = webhook['id']
+        config['webhook_id'] = webhook['id']
+        channel.config = config
         channel.save(update_fields=('config',))
 
     def deactivate(self, channel):
-        config = channel.config
+        config = channel.config_json()
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
 
         client.delete_webhook(config['webhook_id'])

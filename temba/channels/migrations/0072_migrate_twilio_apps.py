@@ -75,7 +75,7 @@ def migrate_all_twilio_apps(Channel):
 
     for c, channel in enumerate(twilio_channels):
         try:
-            if 'application_sid' in channel.config:
+            if 'application_sid' in channel.config_json():
                 print(" > Skipping channel %s as it appears to be already migrated" % channel.uuid)
                 continue
 

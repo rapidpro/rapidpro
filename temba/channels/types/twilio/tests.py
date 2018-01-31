@@ -112,10 +112,11 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(channel.role,
                                  Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
-                self.assertEqual(channel.config[Channel.CONFIG_ACCOUNT_SID], 'account-sid')
-                self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], 'account-token')
-                self.assertTrue(channel.config[Channel.CONFIG_APPLICATION_SID])
-                self.assertTrue(channel.config[Channel.CONFIG_NUMBER_SID])
+                channel_config = channel.config_json()
+                self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], 'account-sid')
+                self.assertEqual(channel_config[Channel.CONFIG_AUTH_TOKEN], 'account-token')
+                self.assertTrue(channel_config[Channel.CONFIG_APPLICATION_SID])
+                self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         # voice only number
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:

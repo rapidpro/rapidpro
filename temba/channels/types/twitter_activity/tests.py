@@ -81,7 +81,7 @@ class TwitterActivityTypeTest(TembaTest):
 
         channel = Channel.objects.get(address='jimmy')
         self.assertEqual(
-            channel.config, {
+            channel.config_json(), {
                 'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at',
                 'access_token_secret': 'ats', 'webhook_id': '1234567', 'callback_domain': channel.callback_domain
             }
