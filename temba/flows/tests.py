@@ -33,6 +33,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest, rerun_with_flowserver
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
+from temba.utils.goflow import FlowServerException
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -8637,6 +8638,7 @@ class FlowServerTest(TembaTest):
         run1, = flow.start([], [self.contact])
 
         self.assertTrue(run1.session.is_goflow())
+        self.assertEqual(run1.session.status, 'W')
         self.assertEqual(run1.flow, flow)
         self.assertEqual(run1.contact, self.contact)
 
@@ -8670,6 +8672,37 @@ class FlowServerTest(TembaTest):
 
         self.assertTrue(run5_output['path'][0]['events'][2]['type'], "msg_received")
         self.assertTrue(run5_output['path'][0]['events'][2]['text'], "Hello")
+
+        # when flowserver returns an error
+        with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:
+            mock_start.side_effect = FlowServerException("nope")
+
+            self.assertEqual(flow.start([], [self.contact], restart_participants=True), [])
+
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
+    def test_session_resume(self):
+        flow = self.get_flow('favorites')
+
+        run1, = flow.start([], [self.contact])
+
+        # resume with an incoming message
+        msg1 = self.create_msg(direction='I', text="Blue", contact=self.contact)
+        run1.session.resume(msg_in=msg1)
+
+        run1.refresh_from_db()
+        self.assertIn('color', run1.get_results())
+
+        # when flowserver returns an error
+        with patch('temba.utils.goflow.FlowServerClient.resume') as mock_resume:
+            mock_resume.side_effect = FlowServerException("nope")
+
+            msg2 = self.create_msg(direction='I', text="Primus", contact=self.contact)
+            run1.session.resume(msg_in=msg2)
+
+        run1.refresh_from_db()
+        self.assertEqual(run1.session.status, 'E')
+        self.assertEqual(run1.exit_type, 'C')
+        self.assertIsNotNone(run1.exited_on)
 
 
 class AssetServerTest(TembaTest):

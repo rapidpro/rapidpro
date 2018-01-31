@@ -317,7 +317,7 @@ class FlowSession(models.Model):
                 first_run = run
 
         # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
-        if self.contact.is_test and not self.status == self.STATUS_WAITING:
+        if self.contact.is_test and not self.status == self.STATUS_WAITING:  # pragma: no cover
             ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
         # trigger message sending
@@ -2917,7 +2917,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                                      created_on=now, modified_on=now)
 
             # old simulation needs an action log showing we entered the flow
-            if contact.is_test:
+            if contact.is_test:  # pragma: no cover
                 log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
                 ActionLog.create(run, log_text, created_on=created_on)
 
@@ -2968,33 +2968,45 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
 
-        # is this a reply to the run contact? if so just send as single message
-        if len(contacts) == 1 and self.contact == contacts[0]:
+        all_contacts = set(contacts)
+        for group in groups:
+            for contact in group.contacts.all():
+                all_contacts.add(contact)
+
+        is_reply = len(all_contacts) == 1 and contacts[0] == self.contact
+
+        for contact in all_contacts:
             try:
-                return Msg.create_outgoing(self.org, user, self.contact,
-                                           text=event['text'],
-                                           attachments=attachments,
-                                           quick_replies=event.get('quick_replies', []),
-                                           channel=msg.channel if msg else None,
-                                           high_priority=self.session.responded,
-                                           created_on=created_on,
-                                           response_to=msg if msg and msg.id else None)
-            except UnreachableException:
+                msg = Msg.create_outgoing(
+                    self.org, user, contact,
+                    text=event['text'],
+                    attachments=attachments,
+                    quick_replies=event.get('quick_replies', []),
+                    channel=msg.channel if msg else None,
+                    high_priority=is_reply and self.session.responded,
+                    created_on=created_on,
+                    response_to=msg if msg and msg.id else None
+                )
+                if is_reply:
+                    return msg
+            except UnreachableException:  # pragma: no cover
                 return None
 
-        # if not, then send as a broadcast
-        # TODO attachments
-
-        broadcast = Broadcast.create(self.org, user, event['text'], contacts + groups)
-        broadcast.send()
         return None
 
     def apply_send_email(self, event, msg):
         """
         Email being sent out
         """
-        pass
-        # send_raw_email([event['email']], event['subject'], event['body'])
+        from .tasks import send_email_action_task
+
+        subject, body, addresses = event['subject'], event['body'], event['addresses']
+
+        if not self.contact.is_test:
+            on_transaction_commit(lambda: send_email_action_task.delay(self.org_id, valid_addresses, subject, body))
+        else:  # pragma: no cover
+            valid_addresses = ['"%s"' % elt for elt in addresses]
+            ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(valid_addresses)))
 
     def apply_update_contact(self, event, msg):
         """
