@@ -913,6 +913,28 @@ class FlowTest(TembaTest):
             for s, sheet in enumerate(workbook.worksheets):
                 self.assertEqual((sheet.title, len(list(sheet.rows))), expected_sheets[s])
 
+        # test we can export archived flows
+        self.flow.is_archived = True
+        self.flow.save()
+
+        workbook = self.export_flow_results(self.flow)
+
+        tz = self.org.timezone
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+
+        # check runs sheet...
+        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
+        self.assertEqual(len(list(sheet_runs.columns)), 9)
+
+        # check contacts sheet...
+        self.assertEqual(len(list(sheet_contacts.rows)), 4)  # header + 3 contacts
+        self.assertEqual(len(list(sheet_contacts.columns)), 7)
+
+        # check messages sheet...
+        self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
+        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
 
@@ -1331,9 +1353,9 @@ class FlowTest(TembaTest):
         sms.text = "Greenish is ok too"
         self.assertTest(False, None, test)
 
-        # edit distance
+        # no edit distance
         sms.text = "Greenn is ok though"
-        self.assertTest(True, "Greenn", test)
+        self.assertTest(False, None, test)
 
         sms.text = "RESIST!!"
         test = ContainsOnlyPhraseTest(test=dict(base="resist"))
@@ -3746,6 +3768,21 @@ class FlowRunTest(TembaTest):
         fields = {'value 1': 'value1', 'value-2': 'value2'}
         (normalized, count) = FlowRun.normalize_fields(fields)
         self.assertEqual(normalized, dict(value_1='value1', value_2='value2'))
+
+        # nulls should become empty strings
+        (normalized, count) = FlowRun.normalize_fields({'value1': None})
+        self.assertEqual(normalized, {'value1': ""})
+
+        # numerics and booleans should stay as is
+        (normalized, count) = FlowRun.normalize_fields({'value1': 12, 'value2': 123.45})
+        self.assertEqual(normalized, {'value1': 12, 'value2': 123.45})
+
+        (normalized, count) = FlowRun.normalize_fields({'value1': True, 'value2': False})
+        self.assertEqual(normalized, {'value1': True, 'value2': False})
+
+        # anything else blows up
+        with self.assertRaises(ValueError):
+            FlowRun.normalize_fields({'value1': lambda: "x"})
 
         # field text too long
         fields['field2'] = "*" * 650
