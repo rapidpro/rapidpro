@@ -131,9 +131,20 @@ class TembaTwython(Twython):  # pragma: no cover
 
         return content
 
+    def get_webhooks(self, env_name):
+        """
+        Returns the webhooks currently active for this app. (Twitter claims there can only be one)
+        Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
+        """
+        return self.get('https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json' % env_name)
+
     def delete_webhook(self, env_name):
+        """
+        Deletes the webhook for the current app / user and passed in environment name.
+        Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
+        """
         # grab our current webhooks
-        resp = self.get('https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json' % env_name)
+        resp = self.get_webhooks(env_name)
 
         # if we have one, delete it
         if len(resp) > 0:
@@ -150,7 +161,7 @@ class TembaTwython(Twython):  # pragma: no cover
     def subscribe_to_webhook(self, env_name):
         """
         Subscribes all user's events for this apps webhook
-        https://api.twitter.com/1.1/account_activity/all/:env_name/subscriptions.json
+        Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
         """
         return self.post('https://api.twitter.com/1.1/account_activity/all/%s/subscriptions.json' % env_name)
 
