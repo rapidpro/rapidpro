@@ -1,5 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
+import logging
+import six
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
@@ -8,6 +10,9 @@ from .views import ClaimView
 from .tasks import resolve_twitter_ids
 from ...models import Channel, ChannelType
 from ...views import UpdateTwitterForm
+
+
+logger = logging.getLogger(__name__)
 
 
 class TwitterActivityType(ChannelType):
@@ -46,7 +51,7 @@ class TwitterActivityType(ChannelType):
             client.register_webhook(config['env_name'], callback_url)
             client.subscribe_to_webhook(config['env_name'])
         except Exception as e:
-            print(e)
+            logger.exception(six.text_type(e))
 
     def deactivate(self, channel):
         config = channel.config_json()
