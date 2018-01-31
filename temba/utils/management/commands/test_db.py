@@ -24,13 +24,14 @@ from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import FlowStart, FlowRun
-from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts, prune_recentmessages
+from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
 from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
-from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
+from temba.utils import chunk_list
+from temba.utils.dates import ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
 
 
@@ -569,7 +570,6 @@ class Command(BaseCommand):
         squash_channelcounts()
         squash_flowpathcounts()
         squash_flowruncounts()
-        prune_recentmessages()
         squash_topupcredits()
         squash_labelcounts()
 

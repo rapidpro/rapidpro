@@ -29,8 +29,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
+from temba.utils import analytics, chunk_list, on_transaction_commit, dict_to_json, get_anonymous_user
+from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_s
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.http import http_headers
@@ -172,6 +172,8 @@ class Broadcast(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    METADATA_QUICK_REPLIES = 'quick_replies'
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -225,7 +227,7 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media = TranslatableField(verbose_name=_("Media"), max_length=255,
+    media = TranslatableField(verbose_name=_("Media"), max_length=2048,
                               help_text=_("The localized versions of the media"), null=True)
 
     send_all = models.BooleanField(default=False,
@@ -242,13 +244,15 @@ class Broadcast(models.Model):
             text = {base_language: text}
 
         if base_language not in text:  # pragma: no cover
-            raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
+            raise ValueError("Base language '%s' doesn't exist in the provided translations dict" % base_language)
         if media and base_language not in media:  # pragma: no cover
-            raise ValueError("Base language %s doesn't exist in the provided translations dict")
-
-        metadata = None
+            raise ValueError("Base language '%s' doesn't exist in the provided media dict" % base_language)
         if quick_replies:
-            metadata = json.dumps(dict(quick_replies=quick_replies))
+            for quick_reply in quick_replies:
+                if base_language not in quick_reply:
+                    raise ValueError("Base language '%s' doesn't exist for one or more of the provided quick replies" % base_language)
+
+        metadata = json.dumps(dict(quick_replies=quick_replies)) if quick_replies else None
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
@@ -371,6 +375,9 @@ class Broadcast(models.Model):
 
         return preferred_languages
 
+    def get_metadata(self):
+        return json.loads(self.metadata) if self.metadata else {}
+
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact
@@ -390,11 +397,11 @@ class Broadcast(models.Model):
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
-        if self.metadata:
-            metadata = json.loads(self.metadata)
-            for item in metadata.get('quick_replies'):
-                text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
-                language_metadata.append(text)
+        metadata = self.get_metadata()
+
+        for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
 
         return language_metadata
 
@@ -737,7 +744,7 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    attachments = ArrayField(models.URLField(max_length=255), null=True,
+    attachments = ArrayField(models.URLField(max_length=2048), null=True,
                              help_text=_("The media attachments on this message if any"))
 
     connection = models.ForeignKey('channels.ChannelSession', null=True,
@@ -1029,6 +1036,9 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    def get_metadata(self):
+        return json.loads(self.metadata) if self.metadata else {}
+
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1036,7 +1046,7 @@ class Msg(models.Model):
                     attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg",
-                    metadata=json.loads(self.metadata) if self.metadata else {})
+                    metadata=self.get_metadata())
 
     def simulator_json(self):
         msg_json = self.as_json()
@@ -1226,7 +1236,8 @@ class Msg(models.Model):
                                     direction=self.direction,
                                     topup_id=topup_id,
                                     status=PENDING,
-                                    broadcast=self.broadcast)
+                                    broadcast=self.broadcast,
+                                    metadata=self.metadata)
 
         # mark ourselves as resent
         self.status = RESENT
@@ -1239,6 +1250,7 @@ class Msg(models.Model):
 
         # send our message
         self.org.trigger_send([cloned])
+        return cloned
 
     def as_task_json(self):
         """
@@ -1253,6 +1265,7 @@ class Msg(models.Model):
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on,
                     high_priority=self.high_priority,
+                    metadata=self.get_metadata(),
                     connection_id=self.connection_id)
 
         if self.contact_urn.auth:
@@ -1262,9 +1275,6 @@ class Msg(models.Model):
         if chatbase_api_key:
             data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
                              is_org_connected_to_chatbase=True))
-
-        if self.metadata:
-            data['metadata'] = json.loads(self.metadata)
 
         return data
 

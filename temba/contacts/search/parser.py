@@ -16,7 +16,7 @@ from django.utils.encoding import force_unicode
 from django.utils.translation import gettext as _
 from functools import reduce
 from temba.locations.models import AdminBoundary
-from temba.utils import str_to_datetime, date_to_utc_range
+from temba.utils.dates import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from temba.contacts.models import ContactField, ContactURN
 
@@ -118,6 +118,13 @@ class ContactQuery(object):
 
         return not(prop_names.intersection(props_not_allowed))
 
+    def has_is_not_set_condition(self):
+        return 'NOTSET' in set(self.root.get_prop_comparators())
+
+    def has_urn_condition(self):
+        urn_search = set(self.root.get_prop_names()).intersection(self.SEARCHABLE_SCHEMES)
+        return bool(urn_search)
+
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -132,6 +139,7 @@ class QueryNode(object):
     """
     A search query node which is either a condition or a boolean combination of other conditions
     """
+
     def simplify(self):
         return self
 
@@ -178,6 +186,9 @@ class Condition(QueryNode):
 
     def get_prop_names(self):
         return [self.prop]
+
+    def get_prop_comparators(self):
+        return [self.comparator]
 
     def as_query(self, org, prop_map, base_set):
         prop_type, prop_obj = prop_map[self.prop]
@@ -337,6 +348,9 @@ class IsSetCondition(Condition):
     def __init__(self, prop, comparator):
         super(IsSetCondition, self).__init__(prop, comparator, "")
 
+    def get_prop_comparators(self):
+        return ['SET' if self.comparator.lower() in self.IS_SET_LOOKUPS else 'NOTSET']
+
     def as_query(self, org, prop_map, base_set):
         prop_type, prop_obj = prop_map[self.prop]
 
@@ -349,6 +363,17 @@ class IsSetCondition(Condition):
 
         if prop_type == ContactQuery.PROP_FIELD:
             values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
+
+            if prop_obj.value_type == Value.TYPE_TEXT:
+                values_query = values_query.filter(string_value__isnull=False)
+            elif prop_obj.value_type == Value.TYPE_DECIMAL:
+                values_query = values_query.filter(decimal_value__isnull=False)
+            elif prop_obj.value_type == Value.TYPE_DATETIME:
+                values_query = values_query.filter(datetime_value__isnull=False)
+            elif prop_obj.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+                values_query = values_query.filter(location_value__isnull=False)
+            else:  # pragma: no cover
+                raise ValueError("Unrecognized contact field type '%s'" % prop_obj.value_type)
 
             # optimize for the single membership test case
             if base_set:
@@ -390,6 +415,12 @@ class BoolCombination(QueryNode):
         for child in self.children:
             names += child.get_prop_names()
         return names
+
+    def get_prop_comparators(self):
+        comparators = []
+        for child in self.children:
+            comparators += child.get_prop_comparators()
+        return comparators
 
     def simplify(self):
         """

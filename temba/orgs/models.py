@@ -8,7 +8,6 @@ import mimetypes
 import os
 import pycountry
 import random
-
 import re
 import regex
 import six
@@ -38,9 +37,10 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
+from temba.utils import analytics, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
+from temba.utils.dates import str_to_datetime, get_datetime_format, datetime_to_str
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
 from temba.utils.text import random_string
@@ -433,6 +433,11 @@ class Org(SmartModel):
             return channel.get_delegate(role)
         else:
             return channel
+
+    @cached_property
+    def cached_all_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
 
     @cached_property
     def cached_channels(self):

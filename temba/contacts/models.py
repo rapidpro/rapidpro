@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -26,7 +26,7 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
-from temba.utils.languages import iso6392_to_iso6393
+from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -790,13 +790,10 @@ class Contact(TembaModel):
             if not importing:
                 self.handle_update(field=field)
 
-            # invalidate our value cache for this contact field
-            Value.invalidate_cache(contact_field=field)
-
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
 
-    def handle_update(self, attrs=(), urns=(), field=None, group=None):
+    def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
         """
         Handles an update to a contact which can be one of
           1. A change to one or more attributes
@@ -805,9 +802,9 @@ class Contact(TembaModel):
         """
         dynamic_group_change = False
 
-        if Contact.NAME in attrs or field or urns:
+        if field or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field)
+            dynamic_group_change = self.reevaluate_dynamic_groups(field, is_new=is_new)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -962,6 +959,7 @@ class Contact(TembaModel):
 
             # URNs correspond to one contact so update and return that
             if contact:
+                contact.is_new = False
                 # update contact name if provided
                 updated_attrs = []
                 if name:
@@ -1019,7 +1017,7 @@ class Contact(TembaModel):
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
         return contact
 
     @classmethod
@@ -1063,7 +1061,7 @@ class Contact(TembaModel):
         from .search import contact_search
 
         if not base_group:
-            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
+            base_group = org.cached_all_contacts_group
 
         return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
@@ -1142,8 +1140,10 @@ class Contact(TembaModel):
             urns.append(urn)
 
         if not urns and not (org.is_anon or uuid):
-            error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
+            urn_headers = ", ".join(possible_urn_headers)
+            error_str = "Missing any valid URNs; at least one among %s should be provided or a Contact UUID" % (
+                urn_headers,
+            )
 
             raise SmartImportRowError(error_str)
 
@@ -1154,13 +1154,9 @@ class Contact(TembaModel):
 
         language = field_dict.get(Contact.LANGUAGE)
         if language is not None and len(language) != 3:
-            language = None  # ignore anything that's not a 3-letter code
-        else:
-            try:
-                # convert every language to the iso639-3
-                language = iso6392_to_iso6393(language, org.get_country_code())
-            except ValueError:
-                language = None
+            language = None
+        if language is not None and _get_language_name_iso6393(language) is None:
+            raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
         contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
@@ -1537,7 +1533,7 @@ class Contact(TembaModel):
         self.modified_by = user
         self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
-        self.clear_all_groups(get_anonymous_user())
+        self.clear_all_groups(user)
 
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1850,7 +1846,7 @@ class Contact(TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None):
+    def reevaluate_dynamic_groups(self, for_field=None, is_new=False):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
@@ -1862,7 +1858,8 @@ class Contact(TembaModel):
 
         group_change = False
         for group in affected_dynamic_groups:
-            changed = group.reevaluate_contacts([self])
+            group.org = self.org
+            changed = group.reevaluate_contacts([self], is_new=is_new)
             if changed:
                 group_change = True
 
@@ -2028,9 +2025,13 @@ class ContactURN(models.Model):
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-            if contact:
-                contact.clear_urn_cache()
+            try:
+                with transaction.atomic():
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                if contact:
+                    contact.clear_urn_cache()
+            except IntegrityError:
+                urn = cls.lookup(org, urn_as_string)
 
         return urn
 
@@ -2305,7 +2306,7 @@ class ContactGroup(TembaModel):
 
         return self._update_contacts(user, contacts, add)
 
-    def reevaluate_contacts(self, contacts):
+    def reevaluate_contacts(self, contacts, is_new=False):
         """
         Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
         """
@@ -2315,7 +2316,7 @@ class ContactGroup(TembaModel):
         user = get_anonymous_user()
         changed = set()
         for contact in contacts:
-            qualifies = self._check_dynamic_membership(contact)
+            qualifies = self._check_dynamic_membership(contact, is_new=is_new)
             changed = self._update_contacts(user, [contact], qualifies)
             if changed:
                 changed.add(contact)
@@ -2357,10 +2358,7 @@ class ContactGroup(TembaModel):
                 changed.add(contact.pk)
                 contact.handle_update(group=self)
 
-        # invalidate our result cache for anybody depending on this group if it changed
         if changed:
-            Value.invalidate_cache(group=self)
-
             # update modified on in small batches to avoid long table lock, and having too many non-unique values for
             # modified_on which is the primary ordering for the API
             for batch in chunk_list(changed, 100):
@@ -2388,13 +2386,14 @@ class ContactGroup(TembaModel):
             for field in extract_fields(self.org, self.query):
                 self.query_fields.add(field)
 
-            members = list(self._get_dynamic_members())
+            dynamic_members, _ = self._get_dynamic_members()
+            members = list(dynamic_members)
             self.contacts.clear()
             self.contacts.add(*members)
         else:
             raise ValueError('Cannot update a dynamic query that is not allowed')
 
-    def _get_dynamic_members(self, base_set=None):
+    def _get_dynamic_members(self, base_set=None, is_new=False):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
@@ -2404,17 +2403,27 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
-            return qs
+            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+
+            # if a contact has just been created than apply special contact search rules
+            if is_new:
+                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
+                    return qs, parsed
+                else:
+                    return Contact.objects.none(), None
+            else:
+                return qs, parsed
         except SearchException:  # pragma: no cover
-            return Contact.objects.none()
+            return Contact.objects.none(), None
 
     @time_monitor(threshold=10000)
-    def _check_dynamic_membership(self, contact):
+    def _check_dynamic_membership(self, contact, is_new=False):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members(base_set=[contact]).exists()
+
+        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
+        return qs.exists()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
@@ -2448,8 +2457,6 @@ class ContactGroup(TembaModel):
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
-
-        Value.invalidate_cache(group=self)
 
     @property
     def is_dynamic(self):
@@ -2528,9 +2535,11 @@ class ExportContactsTask(BaseExportTask):
         return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
 
     def get_export_fields_and_schemes(self):
-
-        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
-                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+        fields = [
+            dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+            dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None),
+            dict(label='Language', key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None)
+        ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
@@ -2603,6 +2612,8 @@ class ExportContactsTask(BaseExportTask):
                         field_value = contact.name
                     elif field['key'] == Contact.UUID:
                         field_value = contact.uuid
+                    elif field['key'] == Contact.LANGUAGE:
+                        field_value = contact.language
                     elif field['key'] == Contact.ID:
                         field_value = six.text_type(contact.id)
                     elif field['urn_scheme'] is not None:

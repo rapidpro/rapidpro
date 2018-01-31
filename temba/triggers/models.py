@@ -334,12 +334,6 @@ class Trigger(SmartModel):
             return False
 
         contact = msg.contact
-
-        if not contact.is_test:
-            trigger.last_triggered = msg.created_on
-            trigger.trigger_count += 1
-            trigger.save()
-
         contact.ensure_unstopped()
 
         # if we have an associated flow, start this contact in it
@@ -369,10 +363,6 @@ class Trigger(SmartModel):
             return None
 
         trigger = matching[0]
-        trigger.last_triggered = timezone.now()
-        trigger.trigger_count += 1
-        trigger.save()
-
         return trigger.flow
 
     @classmethod
@@ -392,10 +382,6 @@ class Trigger(SmartModel):
             return None
 
         trigger = matching.first()
-        trigger.last_triggered = timezone.now()
-        trigger.trigger_count += 1
-        trigger.save()
-
         return trigger
 
     @classmethod
@@ -407,7 +393,7 @@ class Trigger(SmartModel):
 
     @classmethod
     def apply_action_restore(cls, user, triggers):
-        restore_priority = triggers.order_by('-last_triggered', '-modified_on')
+        restore_priority = triggers.order_by('-modified_on')
         trigger_scopes = set()
 
         # work through all the restored triggers in order of most recent used
@@ -452,6 +438,4 @@ class Trigger(SmartModel):
             start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
             start.async_start()
 
-        self.last_triggered = timezone.now()
-        self.trigger_count += 1
         self.save()

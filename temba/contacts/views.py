@@ -25,7 +25,8 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartT
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
+from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
@@ -390,6 +391,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 export = ExportContactsTask.create(org, user, group, search)
 
+                # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover

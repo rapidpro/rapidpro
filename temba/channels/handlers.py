@@ -34,7 +34,8 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import get_anonymous_user, on_transaction_commit
+from temba.utils.dates import json_date_to_datetime, ms_to_datetime
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils.jiochat import JiochatClient
@@ -94,28 +95,42 @@ def get_channel_handlers():
     return all_subclasses(BaseChannelHandler)
 
 
-class DMarkHandler(BaseChannelHandler):
+class CourierHandler(BaseChannelHandler):
+    channel_name = None
+
+    def get(self, request, *args, **kwargs):  # pragma: no cover
+        if self.__class__.channel_name is None:
+            raise Exception("CourierHandler subclasses must specify handler name")
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+
+    def post(self):  # pragma: no cover
+        if self.__class__.channel_name is None:
+            raise Exception("CourierHandler subclasses must specify handler name")
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+
+
+class DMarkHandler(CourierHandler):
+    channel_name = "DMark"
     courier_url = r'^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.dk'
 
-    def get(self, request, *args, **kwargs):  # pragma: no cover
-        return HttpResponse("Illegal Method", status_code=405)
 
-    def post(self):  # pragma: no cover
-        logger.error('DMark handling only implemented in courier')
-        return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
-
-
-class WhatsApp(BaseChannelHandler):
+class WhatsApp(CourierHandler):
+    channel_name = "WhatsApp"
     courier_url = r'^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.wa'
 
-    def get(self, request, *args, **kwargs):  # pragma: no cover
-        return HttpResponse("Illegal Method", status_code=405)
 
-    def post(self):  # pragma: no cover
-        logger.error('WhatsApp handling only implemented in courier')
-        return HttpResponse("WhatsApp handling only implemented in Courier.", status_code=401)
+class ClickatellHandler(CourierHandler):
+    channel_name = "Clickatell"
+    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.ct'
+
+
+class ZenviaHandler(CourierHandler):
+    channel_name = "Zenvia"
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.zv'
 
 
 class TwimlAPIHandler(BaseChannelHandler):
@@ -295,10 +310,10 @@ class TwimlAPIHandler(BaseChannelHandler):
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
     def get_ringing_channel(self, uuid):
-        return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
+        return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).first()
 
     def get_receive_channel(self, uuid=None):
-        return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).first()
 
     def get_client(self, channel):
         return channel.get_ivr_client()
@@ -340,7 +355,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TMS').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TMS').first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -422,7 +437,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='AT').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='AT').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -463,76 +478,6 @@ class AfricasTalkingHandler(BaseChannelHandler):
             return HttpResponse("Not handled", status=400)
 
 
-class ZenviaHandler(BaseChannelHandler):
-
-    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.zv'
-
-    handler_url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
-    handler_name = 'handlers.zenvia_handler'
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        request.encoding = "ISO-8859-1"
-
-        action = kwargs['action']
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ZV').exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'status':
-            status = self.get_param('status')
-            sms_id = self.get_param('id')
-
-            if status is None or sms_id is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
-
-            status = int(status)
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
-
-            # delivered
-            if status == 120:
-                sms.status_delivered()
-            elif status == 111:
-                sms.status_sent()
-            else:
-                sms.status_fail()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            sms_date = self.get_param('date')
-            from_tel = self.get_param('from')
-            msg = self.get_param('msg')
-
-            if sms_date is None or from_tel is None or msg is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
-
-            # dates come in the format 31/07/2013 14:45:00
-            sms_date = datetime.strptime(sms_date, "%d/%m/%Y %H:%M:%S")
-            brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
-
-            urn = URN.from_tel(from_tel)
-            sms = Msg.create_incoming(channel, urn, msg, date=brazil_date)
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:  # pragma: needs cover
-            return HttpResponse("Not handled", status=400)
-
-
 class ExternalHandler(BaseChannelHandler):
 
     courier_url = r'^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
@@ -559,7 +504,7 @@ class ExternalHandler(BaseChannelHandler):
         else:
             channel_q = Q(address=uuid_or_address) | Q(address=('+' + uuid_or_address))
 
-        channel = Channel.objects.filter(channel_q).filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channel = Channel.objects.filter(channel_q).filter(is_active=True, channel_type=self.get_channel_type()).first()
         if not channel:
             return HttpResponse("Channel with uuid or address %s not found." % uuid_or_address, status=400)
 
@@ -701,7 +646,7 @@ class TelegramHandler(BaseChannelHandler):
             ChannelLog.log_message(msg, description, event)
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TG').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TG').first()
 
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
@@ -819,7 +764,7 @@ class InfobipHandler(BaseChannelHandler):
         channel_uuid = kwargs['uuid']
         action = kwargs['action']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).first()
         if not channel:  # pragma: needs cover
             return make_response("Channel with uuid: %s not found." % channel_uuid, status_code=404)
 
@@ -903,7 +848,7 @@ class Hub9Handler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -980,7 +925,7 @@ class HighConnectionHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='HX').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='HX').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1042,7 +987,7 @@ class BlackmynaHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='BM').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='BM').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1100,7 +1045,7 @@ class SMSCentralHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='SC').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='SC').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1134,7 +1079,7 @@ class MacroKioskHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='MK').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='MK').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1280,8 +1225,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             # look up the channel
             address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
-            channel = Channel.objects.filter(address_q).filter(is_active=True,
-                                                               channel_type='NX').exclude(org=None).first()
+            channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type='NX').first()
 
             # make sure we got one, and that it matches the key for our org
             org_uuid = None
@@ -1348,7 +1292,7 @@ class NexmoHandler(BaseChannelHandler):
             return HttpResponse("No to parameter, ignoring")
 
         # look up the channel
-        channel = Channel.objects.filter(is_active=True, channel_type='NX', uuid=kwargs['uuid']).exclude(org=None).first()
+        channel = Channel.objects.filter(is_active=True, channel_type='NX', uuid=kwargs['uuid']).first()
 
         if not channel:
             return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
@@ -1394,7 +1338,8 @@ class VerboiceHandler(BaseChannelHandler):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_VERBOICE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True,
+                                         channel_type=Channel.TYPE_VERBOICE).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
@@ -1443,8 +1388,7 @@ class VumiHandler(BaseChannelHandler):
         channel_type = 'VMU' if is_ussd else 'VM'
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(
-            org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
@@ -1570,7 +1514,7 @@ class KannelHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='KN').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='KN').first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -1632,131 +1576,6 @@ class KannelHandler(BaseChannelHandler):
 
             urn = URN.from_tel(sms_sender)
             sms = Msg.create_incoming(channel, urn, sms_message, date=gmt_date)
-
-            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:  # pragma: needs cover
-            return HttpResponse("Not handled", status=400)
-
-
-class ClickatellHandler(BaseChannelHandler):
-    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.ct'
-
-    handler_url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    handler_name = 'handlers.clickatell_handler'
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CT').exclude(org=None).first()
-        if not channel:  # pragma: needs cover
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        api_id = self.get_param('api_id')
-
-        # make sure the API id matches if it is included (pings from clickatell don't include them)
-        if api_id is not None and channel.config_json()[Channel.CONFIG_API_ID] != api_id:  # pragma: needs cover
-            return HttpResponse("Invalid API id for message delivery: %s" % api_id, status=400)
-
-        # Clickatell is telling us a message status changed
-        if action == 'status':
-            sms_id = self.get_param('apiMsgId')
-            status_code = self.get_param('status')
-
-            if sms_id is None or status_code is None:  # pragma: needs cover
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
-            if not sms:  # pragma: needs cover
-                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
-
-            # possible status codes Clickatell will send us
-            STATUS_CHOICES = {'001': FAILED,      # incorrect msg id
-                              '002': WIRED,       # queued
-                              '003': SENT,        # delivered to upstream gateway
-                              '004': DELIVERED,   # received by handset
-                              '005': FAILED,      # error in message
-                              '006': FAILED,      # terminated by user
-                              '007': FAILED,      # error delivering
-                              '008': WIRED,       # msg received
-                              '009': FAILED,      # error routing
-                              '010': FAILED,      # expired
-                              '011': WIRED,       # delayed but queued
-                              '012': FAILED,      # out of credit
-                              '014': FAILED}      # too long
-
-            # check our status
-            status = STATUS_CHOICES.get(status_code, None)
-
-            # we don't recognize this status code
-            if not status:  # pragma: needs cover
-                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
-
-            # only update to SENT status if still in WIRED state
-            if status == SENT:  # pragma: needs cover
-                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
-                    sms_obj.status_sent()
-            elif status == DELIVERED:
-                for sms_obj in sms:
-                    sms_obj.status_delivered()
-            elif status == FAILED:
-                for sms_obj in sms:
-                    sms_obj.status_fail()
-                    Channel.track_status(sms_obj.channel, "Failed")
-            else:
-                # ignore wired, we are wired by default
-                pass
-
-            # update the broadcast status
-            bcast = sms.first().broadcast
-            if bcast:  # pragma: needs cover
-                bcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            sms_from = self.get_param('from')
-            sms_text = self.get_param('text')
-            sms_id = self.get_param('moMsgId')
-            sms_timestamp = self.get_param('timestamp')
-
-            if sms_from is None or sms_text is None or sms_id is None or sms_timestamp is None:  # pragma: needs cover
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
-
-            # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = parse_datetime(sms_timestamp)
-
-            # Posix makes this timezone name back-asswards:
-            # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
-            gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
-            charset = self.get_param('charset', 'utf-8')
-
-            # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
-            # this into utf-8 through the insane process below, Python is retarded about encodings
-            if charset == 'UTF-16BE':
-                text_bytes = bytearray()
-                for text_byte in sms_text:
-                    text_bytes.append(ord(text_byte))
-
-                # now encode back into utf-8
-                sms_text = text_bytes.decode('utf-16be').encode('utf-8')
-            elif charset == 'ISO-8859-1':
-                sms_text = sms_text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
-
-            sms = Msg.create_incoming(channel, URN.from_tel(sms_from), sms_text, date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -1943,7 +1762,7 @@ class StartHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ST').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ST').first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1996,7 +1815,7 @@ class ChikkaHandler(BaseChannelHandler):
         action = self.get_param('message_type').lower()
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CK').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CK').first()
         if not channel:
             return HttpResponse("Error, channel not found for id: %s" % request_uuid, status=400)
 
@@ -2077,7 +1896,7 @@ class JasminHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='JS').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='JS').first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2160,19 +1979,14 @@ class JunebugHandler(BaseChannelHandler):
         channel_types = ('JNU', 'JN')
 
         # look up the channel
-        channel = Channel.objects.filter(
-            uuid=request_uuid,
-            is_active=True,
-            channel_type__in=channel_types).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type__in=channel_types).first()
 
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
-        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-
-        if channel.secret is not None and (
-                len(authorization) != 2 or authorization[0] != 'Token' or
-                authorization[1] != channel.secret):
+        auth = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        if secret is not None and (len(auth) != 2 or auth[0] != 'Token' or auth[1] != secret):
             return JsonResponse(dict(error="Incorrect authentication token"), status=401)
 
         # Junebug is sending an event
@@ -2300,8 +2114,7 @@ class MbloxHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True,
-                                         channel_type='MB').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='MB').first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2368,8 +2181,7 @@ class JioChatHandler(BaseChannelHandler):
 
     def lookup_channel(self, kwargs):
         # look up the channel
-        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                      channel_type='JC').exclude(org=None).first()
+        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True, channel_type='JC').first()
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
@@ -2378,7 +2190,7 @@ class JioChatHandler(BaseChannelHandler):
 
         client = JiochatClient.from_channel(channel)
         if client:
-            verified, echostr = client.verify_request(request, channel.secret)
+            verified, echostr = client.verify_request(request, channel.config_json()[Channel.CONFIG_SECRET])
 
             if verified:
                 refresh_jiochat_access_tokens.delay(channel.id)
@@ -2453,8 +2265,7 @@ class FacebookHandler(BaseChannelHandler):
 
     def lookup_channel(self, kwargs):
         # look up the channel
-        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='FB').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True, channel_type='FB').first()
         return channel
 
     def get(self, request, *args, **kwargs):
@@ -2465,7 +2276,7 @@ class FacebookHandler(BaseChannelHandler):
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
-            if channel.secret == request.GET.get('hub.verify_token'):
+            if channel.config_json()[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
                 on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
@@ -2706,7 +2517,7 @@ class GlobeHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='GL').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='GL').first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2770,7 +2581,7 @@ class ViberHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2838,7 +2649,7 @@ class LineHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -2887,7 +2698,7 @@ class ViberPublicHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='VP').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='VP').first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=200)
 
@@ -3093,8 +2904,7 @@ class FCMHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').exclude(
-            org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').first()
 
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
@@ -3150,8 +2960,7 @@ class TwitterHandler(BaseChannelHandler):
     def get(self, request, *args, **kwargs):
         crc_token = request.GET['crc_token']
 
-        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TWT').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True, channel_type='TWT').first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
@@ -3161,8 +2970,7 @@ class TwitterHandler(BaseChannelHandler):
         return JsonResponse({'response_token': resp_token}, status=200)
 
     def post(self, request, *args, **kwargs):
-        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TWT').exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True, channel_type='TWT').first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
