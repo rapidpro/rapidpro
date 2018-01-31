@@ -2998,6 +2998,28 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual(ActionLog.objects.all().order_by('id')[3].text,
                          'Contact not updated, missing connection for contact')
 
+    def test_set_language_action(self):
+
+        self.org.set_languages(self.admin, ['eng', 'spa'], 'eng')
+        self.start_flow()
+        self.send('spanish')
+        self.contact.refresh_from_db()
+        self.assertEqual('spa', self.contact.language)
+
+        # check that some messages come back in spanish
+        self.send('startover')
+        msg = Msg.objects.filter(direction='O').order_by('-id').first()
+        self.assertEqual('Como te llamas?', msg.text)
+
+        # setting the language to something thats not three characters, should clear language
+        self.update_action_field(self.flow, 'bcfaa58c-e088-477a-933b-3a5bba01284d', 'lang', 'base')
+        self.flow.start([], [self.contact], restart_participants=True)
+        self.send("Trey Anastasio")
+        self.send('niño')
+        self.send('spanish')
+        self.contact.refresh_from_db()
+        self.assertIsNone(self.contact.language)
+
 
 class ActionTest(TembaTest):
 
