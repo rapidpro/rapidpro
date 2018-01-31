@@ -11,7 +11,6 @@ import six
 import time
 import uuid
 
-from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError
@@ -850,7 +849,60 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
+    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, is_test=False):
+        """
+        Gets or creates a contact with the given URN
+        """
+
+        # if we don't have an org blow up, this is required
+        if not org:
+            raise ValueError("Attempt to create contact without org")
+
+        if not channel and not user:
+            raise ValueError("Attempt to create contact without channel and without user")
+
+        if not user:
+            user = channel.created_by
+
+        # get country from channel or org
+        if channel:
+            country = channel.country.code
+        else:
+            country = org.get_country_code()
+
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
+        normalized = URN.normalize(urn, country)
+        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
+
+        if existing_urn and existing_urn.contact:
+            contact = existing_urn.contact
+            ContactURN.update_auth(existing_urn, auth)
+            return contact, existing_urn
+        else:
+            kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
+            contact = Contact.objects.create(**kwargs)
+            updated_attrs = kwargs.keys()
+
+            if existing_urn:
+                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
+                urn_obj = existing_urn
+            else:
+                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
+
+            updated_urns = [urn]
+
+            # record contact creation in analytics
+            analytics.gauge('temba.contact_created')
+
+            # handle group and campaign updates
+            contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=True)
+            return contact, urn_obj
+
+    @classmethod
+    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -886,9 +938,6 @@ class Contact(TembaModel):
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
                 ContactURN.update_auth(existing_urn, auth)
-
-                # return our contact, mapping our existing urn appropriately
-                contact.urn_objects = {urns[0]: existing_urn}
                 return contact
 
         # if we were passed in a UUID, look it up by that
@@ -923,8 +972,6 @@ class Contact(TembaModel):
                         if updated_attrs:
                             contact.modified_by = user
                             contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
-
-                        contact.urn_objects = contact_urns
 
                         # handle group and campaign updates
                         contact.handle_update(attrs=updated_attrs)
@@ -997,23 +1044,8 @@ class Contact(TembaModel):
             # save which urns were updated
             updated_urns = urn_objects.keys()
 
-            # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
-            # actual URN object for each URN tuple it requested
-            urn_objects.update(existing_owned_urns)
-            contact.urn_objects = urn_objects
-
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
-            params = dict(name=name)
-
-            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-            # assign them property names with added count
-            urns_for_scheme_counts = defaultdict(int)
-            for urn in urn_objects.keys():
-                scheme, path, display = URN.to_parts(urn)
-                urns_for_scheme_counts[scheme] += 1
-                params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
-
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
@@ -1050,7 +1082,8 @@ class Contact(TembaModel):
                 test_urn_path += 1
                 existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
+            test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
+                                                          is_test=True)
         return test_contact
 
     @classmethod
@@ -1159,7 +1192,8 @@ class Contact(TembaModel):
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
+        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language,
+                                                force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:

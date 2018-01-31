@@ -5449,7 +5449,7 @@ class VariableContactAction(Action):
 
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
             if not contact and phone:  # pragma: needs cover
-                contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
+                contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
 
                 # if they dont have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
@@ -5483,7 +5483,7 @@ class VariableContactAction(Action):
 
                 # otherwise, really create the contact
                 else:
-                    contacts.append(Contact.get_or_create(run.org, get_flow_user(run.org), name=None, urns=()))
+                    contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -5502,7 +5502,7 @@ class VariableContactAction(Action):
                     country = run.flow.org.get_country_code()
                     (number, valid) = URN.normalize_number(variable, country)
                     if number and valid:
-                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contact, contact_urn = Contact.get_or_create(run.org, URN.from_tel(number), user=get_flow_user(run.org))
                         contacts.append(contact)
 
         return groups, contacts
