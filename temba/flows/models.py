@@ -104,41 +104,6 @@ class FlowPropsCache(Enum):
     category_nodes = 2
 
 
-def edit_distance(s1, s2):  # pragma: no cover
-    """
-    Compute the Damerau-Levenshtein distance between two given
-    strings (s1 and s2)
-    """
-    # if first letters are different, infinite distance
-    if s1 and s2 and s1[0] != s2[0]:
-        return 100
-
-    d = {}
-    lenstr1 = len(s1)
-    lenstr2 = len(s2)
-
-    for i in range(-1, lenstr1 + 1):
-        d[(i, -1)] = i + 1
-    for j in range(-1, lenstr2 + 1):
-        d[(-1, j)] = j + 1
-
-    for i in range(0, lenstr1):
-        for j in range(0, lenstr2):
-            if s1[i] == s2[j]:
-                cost = 0
-            else:
-                cost = 1
-            d[(i, j)] = min(
-                d[(i - 1, j)] + 1,  # deletion
-                d[(i, j - 1)] + 1,  # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
-            )
-            if i > 1 and j > 1 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
-
-    return d[lenstr1 - 1, lenstr2 - 1]
-
-
 @six.python_2_unicode_compatible
 class FlowSession(models.Model):
     org = models.ForeignKey(Org, help_text="The organization this session belongs to")
@@ -6412,12 +6377,6 @@ class ContainsTest(Test):
             if word == test:
                 matches.append(index)
                 continue
-
-            # words are over 4 characters and start with the same letter
-            if len(word) > 4 and len(test) > 4 and word[0] == test[0]:
-                # edit distance of 1 or less is a match
-                if edit_distance(word, test) <= 1:
-                    matches.append(index)
 
         return matches
 
