@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import requests
+import urllib
 
 from django.conf import settings
 from django.db.models import Model
@@ -130,44 +131,28 @@ class TembaTwython(Twython):  # pragma: no cover
 
         return content
 
-    def get_webhooks(self):  # pragma: no cover
-        """
-        Returns all URLs and their statuses for the given app.
+    def delete_webhook(self, env_name):
+        # grab our current webhooks
+        resp = self.get('https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json' % env_name)
 
-        Docs: https://dev.twitter.com/webhooks/reference/get/account_activity/webhooks
-        """
-        return self.get('account_activity/webhooks')
+        # if we have one, delete it
+        if len(resp) > 0:
+            self.request('https://api.twitter.com/1.1/account_activity/all/%s/webhooks/%s.json' % (env_name, resp[0]['id']), method='DELETE')
 
-    def recheck_webhook(self, webhook_id):  # pragma: no cover
-        """
-        Triggers the challenge response check (CRC) for the given webhook's URL.
-
-        Docs: https://dev.twitter.com/webhooks/reference/put/account_activity/webhooks
-        """
-        return self.request('account_activity/webhooks/%s' % webhook_id, method='PUT')
-
-    def register_webhook(self, url):
+    def register_webhook(self, env_name, url):
         """
         Registers a new webhook URL for the given application context.
+        Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
+        """
+        set_webhook_url = 'https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json?url=%s' % (env_name, urllib.quote_plus(url))
+        return self.post(set_webhook_url)
 
-        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks
+    def subscribe_to_webhook(self, env_name):
         """
-        return self.post('account_activity/webhooks', params={'url': url})
-
-    def delete_webhook(self, webhook_id):
+        Subscribes all user's events for this apps webhook
+        https://api.twitter.com/1.1/account_activity/all/:env_name/subscriptions.json
         """
-        Removes the webhook from the provided application's configuration.
-        Docs: https://dev.twitter.com/webhooks/reference/del/account_activity/webhooks
-        """
-        return self.request('account_activity/webhooks/%s' % webhook_id, method='DELETE')
-
-    def subscribe_to_webhook(self, webhook_id):
-        """
-        Subscribes the provided app to events for the provided user context.
-
-        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
-        """
-        return self.post('account_activity/webhooks/%s/subscriptions' % webhook_id)
+        return self.post('https://api.twitter.com/1.1/account_activity/all/%s/subscriptions.json' % env_name)
 
 
 def generate_twitter_signature(content, consumer_secret):
