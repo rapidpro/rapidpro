@@ -4183,7 +4183,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    config = JSONAsTextField(null=True, default=dict,
+    config = JSONAsTextField(null=True,
                              help_text=_("Any configuration options for this flow export"))
 
     @classmethod
@@ -4306,11 +4306,12 @@ class ExportFlowResultsTask(BaseExportTask):
         return msgs_by_run
 
     def write_export(self):
-        include_runs = self.config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
-        include_msgs = self.config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
-        responded_only = self.config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
-        contact_field_ids = self.config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
-        extra_urns = self.config.get(ExportFlowResultsTask.EXTRA_URNS, [])
+        config = self.config if self.config else {}
+        include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
+        include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
+        responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
+        contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
+        extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
 
         contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
 
