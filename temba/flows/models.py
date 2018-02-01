@@ -1102,7 +1102,7 @@ class Flow(TembaModel):
 
         for run in simulator_runs:
             prev_step = None
-            for step in run.path:
+            for step in run.get_path():
                 if prev_step:
                     exit_uuid = prev_step['exit_uuid']
                     node_uuid = step['node_uuid']
@@ -1836,7 +1836,7 @@ class Flow(TembaModel):
         # for each message, associate it with this step and set the label on it
         run.add_messages(msgs, step=step)
 
-        path = run.path if run.path else []
+        path = run.get_path()
 
         # complete previous step
         if path and exit_uuid:
@@ -3087,6 +3087,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def get_results(self):
         return self.results if self.results else {}
+
+    def get_path(self):
+        return self.path if self.path else []
 
     @classmethod
     def serialize_value(cls, value):
