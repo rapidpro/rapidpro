@@ -220,14 +220,25 @@ class WebHookEvent(SmartModel):
         contact = run.contact
         org = flow.org
         channel = msg.channel if msg else None
+        contact_urn = msg.contact_urn if msg else None
+
+        # if we still don't have an urn, use the highest priority one for the contact
+        if not contact_urn:
+            contact_urn = contact.get_urn()
 
         post_data = {}
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
-        post_data['contact'] = dict(uuid=contact.uuid, name=contact.name)
         post_data['path'] = run.get_path()
         post_data['results'] = run.get_results()
+
+        contact_dict = dict(uuid=contact.uuid, name=contact.name)
+        if contact_urn:
+            contact_dict['urn'] = contact_urn.urn
+
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
+
+        post_data['contact'] = contact_dict
 
         api_user = get_api_user()
         if not action:  # pragma: needs cover
