@@ -4316,7 +4316,7 @@ class FlowsTest(FlowFileTest):
 
         msg = Msg.objects.all().order_by('-id').first()
 
-        # if there is no urn, it still works, but is omittee
+        # if there is no urn, it still works, but is omitted
         empty_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
         empty = self.create_contact('Empty Contact')
         flow.start([], [empty])
