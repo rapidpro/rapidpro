@@ -1,3 +1,9 @@
+v3.0.313
+----------
+ * have URNs resolve to dicts instead of just the display
+ * order transfer credit options by name
+ * show dashboard link even if org is chosen
+
 v3.0.312
 ----------
  * include contact URN in webhook payload
