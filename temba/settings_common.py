@@ -1214,7 +1214,6 @@ COURIER_CHANNELS = set(['DK', 'WA', 'CT', 'ZV'])
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = 'https://chatbase.com/api/message'
 
-
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
 
