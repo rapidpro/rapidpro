@@ -1311,7 +1311,7 @@ class Flow(TembaModel):
             run.org = self.org
             run.contact = contact
 
-            run_context = run.fields_dict()
+            run_context = run.field_dict()
             flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
@@ -3776,7 +3776,7 @@ class ActionSet(models.Model):
             # if there are more actions, rebuild the parts of the context that may have changed
             if a < len(actions) - 1:
                 context['contact'] = run.contact.build_expressions_context()
-                context['extra'] = run.fields_dict()
+                context['extra'] = run.field_dict()
 
         return msgs
 
