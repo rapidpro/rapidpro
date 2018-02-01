@@ -1702,7 +1702,7 @@ class Contact(TembaModel):
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
-            context[scheme] = self.get_urn_context(scheme=scheme, org=org)
+            context[scheme] = self.get_urn_context(org, scheme=scheme)
 
         # populate twitter address if we have a twitter id
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
@@ -1923,14 +1923,11 @@ class Contact(TembaModel):
 
         return truncate(res, 20) if short else res
 
-    def get_urn_context(self, org=None, scheme=None):
+    def get_urn_context(self, org, scheme=None):
         """
         Returns a dictionary suitable for use in an expression context for the URN mapping to the
         passed in scheme.
         """
-        if not org:
-            org = self.org
-
         urn = self.get_urn(scheme)
 
         if not urn:
