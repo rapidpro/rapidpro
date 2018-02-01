@@ -2744,7 +2744,7 @@ class BulkExportTest(TembaTest):
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
-        actions = action_set.actions
+        actions = action_set.get_actions_dict()
         self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
 
         # same with our trigger

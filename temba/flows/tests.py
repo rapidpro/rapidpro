@@ -2198,7 +2198,7 @@ class FlowTest(TembaTest):
         post_data['contact_creation'] = Flow.CONTACT_PER_LOGIN
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         flow3.refresh_from_db()
-        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.metadata.get('contact_creation'))
+        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
 
         # can see results for a flow
         response = self.client.get(reverse('flows.flow_results', args=[self.flow.uuid]))
@@ -4018,7 +4018,9 @@ class WebhookTest(TembaTest):
 
         # change our webhook to a POST
         webhook = RuleSet.objects.get(flow=flow, label="Response 1")
-        webhook.config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
+        config = webhook.config_json()
+        config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
+        webhook.config = config
         webhook.save()
 
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Post", "blank": "" }')
@@ -5542,7 +5544,7 @@ class FlowsTest(FlowFileTest):
 
         # make sure the groups in our rules exist as expected
         ruleset = RuleSet.objects.filter(label="Member").first()
-        rules = ruleset.rules
+        rules = ruleset.get_rules_dict()
         group_count = 0
         for rule in rules:
             if rule['test']['type'] == 'in_group':
@@ -5571,7 +5573,7 @@ class FlowsTest(FlowFileTest):
         rulesets = RuleSet.objects.filter(flow=flow)
         group_count = 0
         for ruleset in rulesets:
-            rules = ruleset.rules
+            rules = ruleset.get_rules_dict()
             for rule in rules:
                 if rule['test']['type'] == 'in_group':
                     group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
@@ -7366,8 +7368,8 @@ class FlowMigrationTest(FlowFileTest):
         # we should now be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEqual('webhook', webhook.ruleset_type)
-        self.assertEqual('http://localhost:49999/status', webhook.config[RuleSet.CONFIG_WEBHOOK])
-        self.assertEqual('POST', webhook.config[RuleSet.CONFIG_WEBHOOK_ACTION])
+        self.assertEqual('http://localhost:49999/status', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEqual('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEqual('@step.value', webhook.operand)
         self.assertEqual('Color Webhook', webhook.label)
 

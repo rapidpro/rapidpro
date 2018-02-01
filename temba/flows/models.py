@@ -1212,6 +1212,9 @@ class Flow(TembaModel):
         self.update(flow_json)
         return self
 
+    def get_metadata_json(self):
+        return self.metadata if self.metadata else {}
+
     def archive(self):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
@@ -3682,6 +3685,9 @@ class RuleSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_RULE_SET
 
+    def get_rules_dict(self):
+        return self.rules
+
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, self.rules)
 
@@ -3696,7 +3702,7 @@ class RuleSet(models.Model):
         self.rules = rules_dict
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.rules,
+        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())
 

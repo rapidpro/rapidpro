@@ -315,7 +315,6 @@ class Org(SmartModel):
     def set_status(self, status):
         config = self.config_json()
         config[ORG_STATUS] = status
-
         self.config = config
         self.save(update_fields=['config'])
 
