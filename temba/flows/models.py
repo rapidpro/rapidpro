@@ -3780,12 +3780,15 @@ class ActionSet(models.Model):
 
         return msgs
 
+    def get_actions_dict(self):
+        return self.actions if self.actions else {}
+
     def get_actions(self):
         return Action.from_json_array(self.flow.org, self.actions)
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
-                    actions=self.actions, exit_uuid=self.exit_uuid)
+                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)

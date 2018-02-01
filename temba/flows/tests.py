@@ -7398,7 +7398,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # now try executing our migrated flow
         first_response = ActionSet.objects.get(flow=flow, x=131)
-        actions = first_response.actions
+        actions = first_response.get_actions_dict()
         actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
         first_response.actions = actions
         first_response.save()

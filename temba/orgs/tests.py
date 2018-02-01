@@ -2683,7 +2683,8 @@ class BulkExportTest(TembaTest):
         event = campaign.events.all().first()
 
         action_set = event.flow.action_sets.order_by('-y').first()
-        action_msg = action_set.actions[0]['msg']
+        actions = action_set.get_actions_dict()
+        action_msg = actions[0]['msg']
 
         self.assertEqual(event.message['swa'], 'hello')
         self.assertEqual(event.message['eng'], 'Hey')
@@ -2720,7 +2721,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment.save()
 
         action_set = confirm_appointment.action_sets.order_by('-y').first()
-        actions = action_set.actions
+        actions = action_set.get_actions_dict()
         actions[0]['msg']['base'] = 'Thanks for nothing'
         action_set.actions = actions
         action_set.save()
@@ -2731,7 +2732,7 @@ class BulkExportTest(TembaTest):
 
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
-        actions = action_set.actions
+        actions = action_set.get_actions_dict()
         self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.actions = actions
@@ -2756,7 +2757,7 @@ class BulkExportTest(TembaTest):
         # find our new message flow, and see that the original message is there
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
-        actions = action_set.actions
+        actions = action_set.get_actions_dict()
         self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
