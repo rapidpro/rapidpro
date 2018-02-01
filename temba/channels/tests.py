@@ -89,7 +89,8 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[URN.from_tel(number)]))
+            contact, urn_obj = Contact.get_or_create(org, URN.from_tel(number), user=user, name=None)
+            contacts.append(contact)
 
         group.contacts.add(*contacts)
 
@@ -2214,7 +2215,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact = Contact.get_or_create(self.org, self.admin, urns=['tel:+250788111222'])
+        real_contact, urn_obj = Contact.get_or_create(self.org, 'tel:+250788111222', user=self.admin)
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
@@ -3952,146 +3953,6 @@ class VumiTest(TembaTest):
             self.assertTrue(msg.sent_on)
             self.assertEqual("1515", msg.external_id)
             self.assertEqual(1, mock.call_count)
-
-
-class ZenviaTest(TembaTest):
-
-    def setUp(self):
-        super(ZenviaTest, self).setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'BR', 'ZV', None, '+250788123123',
-                                      config=dict(account='zv-account', code='zv-code'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
-
-    def test_status(self):
-        # ok, what happens with an invalid uuid?
-        data = dict(id="-1", status="500")
-        response = self.client.get(reverse('handlers.zenvia_handler', args=['status', 'not-real-uuid']), data)
-
-        self.assertEqual(404, response.status_code)
-
-        # ok, try with a valid uuid, but invalid message id -1
-        delivery_url = reverse('handlers.zenvia_handler', args=['status', self.channel.uuid])
-        response = self.client.get(delivery_url, data)
-
-        self.assertEqual(404, response.status_code)
-
-        # ok, lets create an outgoing message to update
-        joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
-
-        data['id'] = msg.pk
-
-        def assertStatus(sms, status, assert_status):
-            data['status'] = status
-            response = self.client.get(delivery_url, data)
-            self.assertEqual(200, response.status_code)
-            sms = Msg.objects.get(pk=sms.id)
-            self.assertEqual(assert_status, sms.status)
-
-        assertStatus(msg, '120', DELIVERED)
-        assertStatus(msg, '111', SENT)
-        assertStatus(msg, '140', FAILED)
-        assertStatus(msg, '999', FAILED)
-        assertStatus(msg, '131', FAILED)
-
-    def test_receive(self):
-        data = {'from': '5511996458779', 'date': '31/07/2013 14:45:00'}
-        encoded_message = "?msg=H%E9llo World%21"
-
-        callback_url = reverse('handlers.zenvia_handler', args=['receive', self.channel.uuid]) + encoded_message
-        response = self.client.post(callback_url, data)
-
-        self.assertEqual(200, response.status_code)
-
-        # load our message
-        msg = Msg.objects.get()
-        self.assertEqual("+5511996458779", msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg.direction)
-        self.assertEqual(self.org, msg.org)
-        self.assertEqual(self.channel, msg.channel)
-        self.assertEqual("Héllo World!", msg.text)
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, '000-ok', method='GET')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-
-            self.assertEqual(mock.call_args[1]['params']['msg'], "Test message")
-
-            self.clear_cache()
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(400, "Error", method='POST')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(1, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-        with patch('requests.get') as mock:
-            mock.side_effect = Exception('Kaboom!')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(2, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
-                                                                              "referenced before assignment"))
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, '001-error', method='GET')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(FAILED, msg.status)
-            self.assertEqual(2, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send_media(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, '000-ok', method='GET')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-
-            self.assertEqual(mock.call_args[1]['params']['msg'],
-                             "Test message\nhttps://example.com/attachments/pic.jpg")
-
-            self.clear_cache()
 
 
 class InfobipTest(TembaTest):
@@ -5860,320 +5721,6 @@ class TwilioMessagingServiceTest(TembaTest):
         self.assertEqual(400, response.status_code)
 
 
-class ClickatellTest(TembaTest):
-
-    def setUp(self):
-        super(ClickatellTest, self).setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'CT', None, '+250788123123',
-                                      config=dict(username='uname', password='pword', api_id='api1'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
-
-    def test_receive_utf16(self):
-        self.channel.org.config = json.dumps({Channel.CONFIG_API_ID: '12345', Channel.CONFIG_USERNAME: 'uname', Channel.CONFIG_PASSWORD: 'pword'})
-        self.channel.org.save()
-
-        data = {'to': self.channel.address,
-                'from': '250788383383',
-                'timestamp': '2012-10-10 10:10:10',
-                'moMsgId': 'id1234'}
-
-        encoded_message = urlencode(data)
-        encoded_message += "&text=%00m%00e%00x%00i%00c%00o%00+%00k%00+%00m%00i%00s%00+%00p%00a%00p%00a%00s%00+%00n%00o%00+%00t%00e%00n%00%ED%00a%00+%00d%00i%00n%00e%00r%00o%00+%00p%00a%00r%00a%00+%00c%00o%00m%00p%00r%00a%00r%00n%00o%00s%00+%00l%00o%00+%00q%00+%00q%00u%00e%00r%00%ED%00a%00m%00o%00s%00.%00."
-        encoded_message += "&charset=UTF-16BE"
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual(u"mexico k mis papas no ten\xeda dinero para comprarnos lo q quer\xedamos..", msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-        self.assertEqual('id1234', msg1.external_id)
-
-    def test_receive_iso_8859_1(self):
-        self.channel.org.config = json.dumps({Channel.CONFIG_API_ID: '12345', Channel.CONFIG_USERNAME: 'uname', Channel.CONFIG_PASSWORD: 'pword'})
-        self.channel.org.save()
-
-        data = {'to': self.channel.address,
-                'from': '250788383383',
-                'timestamp': '2012-10-10 10:10:10',
-                'moMsgId': 'id1234'}
-
-        encoded_message = urlencode(data)
-        encoded_message += "&text=%05%EF%BF%BD%EF%BF%BD%034%02%41i+mapfumbamwe+vana+4+kuwacha+handingapedze+izvozvo+ndozvikukonzera+kt+varoorwe+varipwere+ngapaonekwe+ipapo+ndatenda."
-        encoded_message += "&charset=ISO-8859-1"
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual(u'4Ai mapfumbamwe vana 4 kuwacha handingapedze izvozvo ndozvikukonzera kt varoorwe varipwere ngapaonekwe ipapo ndatenda.', msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-        self.assertEqual('id1234', msg1.external_id)
-
-        Msg.objects.all().delete()
-
-        encoded_message = urlencode(data)
-        encoded_message += "&text=Artwell+S%ECbbnda"
-        encoded_message += "&charset=ISO-8859-1"
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual("Artwell Sìbbnda", msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-        self.assertEqual('id1234', msg1.external_id)
-
-        Msg.objects.all().delete()
-
-        encoded_message = urlencode(data)
-        encoded_message += "&text=a%3F+%A3irvine+stinta%3F%A5.++"
-        encoded_message += "&charset=ISO-8859-1"
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual("a? £irvine stinta?¥.  ", msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-        self.assertEqual('id1234', msg1.external_id)
-
-        Msg.objects.all().delete()
-
-        data['text'] = 'when? or What? is this '
-
-        encoded_message = urlencode(data)
-        encoded_message += "&charset=ISO-8859-1"
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual("when? or What? is this ", msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-        self.assertEqual('id1234', msg1.external_id)
-
-    def test_receive(self):
-        self.channel.org.config = json.dumps({Channel.CONFIG_API_ID: '12345', Channel.CONFIG_USERNAME: 'uname', Channel.CONFIG_PASSWORD: 'pword'})
-        self.channel.org.save()
-
-        data = {'to': self.channel.address,
-                'from': '250788383383',
-                'text': "Hello World",
-                'timestamp': '2012-10-10 10:10:10',
-                'moMsgId': 'id1234'}
-
-        encoded_message = urlencode(data)
-        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
-
-        response = self.client.get(receive_url)
-
-        self.assertEqual(200, response.status_code)
-
-        # and we should have a new message
-        msg1 = Msg.objects.get()
-        self.assertEqual("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(INCOMING, msg1.direction)
-        self.assertEqual(self.org, msg1.org)
-        self.assertEqual(self.channel, msg1.channel)
-        self.assertEqual("Hello World", msg1.text)
-        self.assertEqual(2012, msg1.sent_on.year)
-
-        # times are sent as GMT+2
-        self.assertEqual(8, msg1.sent_on.hour)
-        self.assertEqual('id1234', msg1.external_id)
-
-    def test_status(self):
-        self.channel.org.config = json.dumps({Channel.CONFIG_API_ID: '12345', Channel.CONFIG_USERNAME: 'uname', Channel.CONFIG_PASSWORD: 'pword'})
-        self.channel.org.save()
-
-        contact = self.create_contact("Joe", "+250788383383")
-        msg = Msg.create_outgoing(self.org, self.user, contact, "test")
-        msg.external_id = 'id1234'
-        msg.save(update_fields=('external_id',))
-
-        data = {'apiMsgId': 'id1234', 'status': '001'}
-        encoded_message = urlencode(data)
-
-        callback_url = reverse('handlers.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
-
-        self.assertEqual(200, response.status_code)
-
-        # reload our message
-        msg = Msg.objects.get(pk=msg.pk)
-
-        # make sure it is marked as failed
-        self.assertEqual(FAILED, msg.status)
-
-        # reset our status to WIRED
-        msg.status = WIRED
-        msg.save()
-
-        # and do it again with a received state
-        data = {'apiMsgId': 'id1234', 'status': '004'}
-        encoded_message = urlencode(data)
-
-        callback_url = reverse('handlers.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
-
-        # load our message
-        msg = Msg.objects.all().order_by('-pk').first()
-
-        # make sure it is marked as delivered
-        self.assertEqual(DELIVERED, msg.status)
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
-
-        with patch('requests.get') as mock:
-            msg.text = "Test message"
-            mock.return_value = MockResponse(200, "000")
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-            params = {'api_id': 'api1',
-                      'user': 'uname',
-                      'password': 'pword',
-                      'from': '250788123123',
-                      'concat': 3,
-                      'callback': 7,
-                      'mo': 1,
-                      'unicode': 0,
-                      'to': "250788383383",
-                      'text': "Test message"}
-            mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
-                                    timeout=5)
-
-            self.clear_cache()
-
-        with patch('requests.get') as mock:
-            msg.text = "Test message ☺"
-            mock.return_value = MockResponse(200, "ID: 15")
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(msg.external_id, "15")
-            params = {'api_id': 'api1',
-                      'user': 'uname',
-                      'password': 'pword',
-                      'from': '250788123123',
-                      'concat': 3,
-                      'callback': 7,
-                      'mo': 1,
-                      'unicode': 1,
-                      'to': "250788383383",
-                      'text': "Test message ☺"}
-            mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
-                                    timeout=5)
-
-            self.clear_cache()
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(400, "Error", method='POST')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(1, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-        with patch('requests.get') as mock:
-            mock.side_effect = Exception('Kaboom!')
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(2, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
-                                                                              "referenced before assignment"))
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send_media(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
-
-        with patch('requests.get') as mock:
-            msg.text = "Test message"
-            mock.return_value = MockResponse(200, "000")
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-            params = {'api_id': 'api1',
-                      'user': 'uname',
-                      'password': 'pword',
-                      'from': '250788123123',
-                      'concat': 3,
-                      'callback': 7,
-                      'mo': 1,
-                      'unicode': 0,
-                      'to': "250788383383",
-                      'text': "Test message\nhttps://example.com/attachments/pic.jpg"}
-            mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=http_headers(),
-                                    timeout=5)
-
-            self.clear_cache()
-
-
 class TelegramTest(TembaTest):
 
     def setUp(self):
@@ -6965,6 +6512,30 @@ class TwitterTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Msg.objects.count(), 1)
+
+        # check we do not overwrite the existing contact name
+        data = self.webhook_payload('ext3', "Awesome!",
+                                    dict(id='10002', name="Davis", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 2)
+        msg = Msg.objects.filter(text='Awesome!').first()
+        self.assertEqual(msg.contact, self.joe)
+        self.assertEqual(msg.contact.name, "Joe")  # name should not be updated to Davis
+        self.assertEqual(msg.contact_urn, self.joe.get_urns()[0])
+        self.assertEqual(msg.external_id, 'ext3')
+
+        # we create a contact if it does not exist yet
+        data = self.webhook_payload('ext4', "Hello!",
+                                    dict(id='10003', name="Kelly", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 3)
+        msg = Msg.objects.filter(text='Hello!').first()
+        self.assertEqual(msg.contact.name, "Kelly")
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
@@ -8082,8 +7653,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                 data['message_id'],))
 
     def test_status_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_event()
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -8109,8 +7682,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_status_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         # ok, what happens with an invalid uuid?
         data = self.mk_event()
@@ -8149,8 +7724,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8171,8 +7748,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_incorrect_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         data = self.mk_msg(content="événement")
         callback_url = reverse('handlers.junebug_handler',
@@ -8287,8 +7866,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
-        self.channel.save()
+        config = self.channel.config_json()
+        config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.config = json.dumps(config)
+        self.channel.save(update_fields=['config'])
 
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("événement", self.admin, trigger_send=False)[0]
@@ -9232,9 +8813,9 @@ class JiochatTest(TembaTest):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
                                       config={'jiochat_app_id': 'app-id',
-                                              'jiochat_app_secret': 'app-secret'},
-                                      uuid='00000000-0000-0000-0000-000000001234',
-                                      secret=Channel.generate_secret(32))
+                                              'jiochat_app_secret': 'app-secret',
+                                              'secret': Channel.generate_secret(32)},
+                                      uuid='00000000-0000-0000-0000-000000001234')
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
@@ -9282,7 +8863,7 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        value = "".join(sorted([self.channel.secret, timestamp, nonce]))
+        value = "".join(sorted([self.channel.config_json()[Channel.CONFIG_SECRET], timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()
@@ -9481,6 +9062,34 @@ class JiochatTest(TembaTest):
         self.assertEqual(msg.text, "Test")
         self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
+        mock_get.return_value = MockResponse(200, '{"nickname":"Kendrick"}')
+        other_data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'text',
+            'MsgId': '1234567',
+            "Content": "Hello",
+        }
+
+        response = self.client.post(callback_url, json.dumps(other_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
+
+        msg = Msg.objects.all().last()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.name, "Shinonda")  # the name should not change to Kendrick
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Hello")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
         Msg.objects.all().delete()
         Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
@@ -9504,6 +9113,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         data = {
@@ -9548,6 +9158,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(mock_get.call_count, 3)
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         with patch('requests.get') as mock_get:
@@ -9905,7 +9516,7 @@ class LineTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'LN', '123456789', '123456789',
-                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
+                                      config=dict(channel_id='1234', secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
@@ -10711,7 +10322,7 @@ class CourierTest(TembaTest):
 
 
 class HandleEventTest(TembaTest):
-    def test_stop_contact_task(self):
+    def test_new_conversation_channel_event(self):
         self.joe = self.create_contact("Joe", "+12065551212")
         flow = self.get_flow('favorites')
         Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow)
@@ -10721,3 +10332,13 @@ class HandleEventTest(TembaTest):
 
         # should have been started in our flow
         self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.joe))
+
+    def test_stop_contact_channel_event(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+
+        self.assertFalse(self.joe.is_stopped)
+        event = ChannelEvent.create(self.channel, "tel:+12065551212", ChannelEvent.TYPE_STOP_CONTACT, timezone.now())
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=CHANNEL_EVENT, event_id=event.id))
+
+        self.joe.refresh_from_db()
+        self.assertTrue(self.joe.is_stopped)

@@ -197,7 +197,8 @@
 
     <table class="table table-params">
         <tr><td>flow</td><td>The name and uuid of the flow that triggered the webhook</td></tr>
-        <tr><td>contact</td><td>The name and uuid of the contact in the flow</td></tr>
+        <tr><td>contact</td><td>The name, uuid, and urn of the contact in the flow</td></tr>
+        <tr><td>channel</td><td>The name and uuid of the channel the run is going over</td></tr>
         <tr><td>path</td><td>A list of node uuids along with when the contact arrived there and where they whent next</td></tr>
         <tr><td>results</td><td>A map of result keys to values collected during the flow</td></tr>
     </table>
@@ -211,7 +212,12 @@
             },
             "contact": {
                 "uuid": "dc2b3709-3261-465f-b39a-fc7312b2ab95",
-                "name": "Ben Haggerty"
+                "name": "Ben Haggerty",
+                "urn": "tel:+12065551212"
+            },
+            "channel": {
+                "name": "Twilio +12065552020",
+                "uuid": "f49d3dd6-beef-40ba-b86b-f526c649175c"
             },
             "path": [
                 {
@@ -239,7 +245,7 @@
   :markdown
     ### Legacy Flow Events
 
-    This format has been deprecated and will be removed on December 31, 2017. Please use the <a href="#flow">current format</a>.
+    This format has been deprecated and will be removed on Februrary 5, 2018. Please use the <a href="#flow">current format</a>.
 
         POST http://www.yourapp.com/app.php?password=akabanga
         event=flow&relayer=254&relayer_phone=%2B250788111111&phone=%2B250788123123&flow=1524&step=12341234-1234-1234-1234-1234-12341234&values=[]

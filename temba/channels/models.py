@@ -194,6 +194,7 @@ class Channel(TembaModel):
     CONFIG_PASSWORD = 'password'
     CONFIG_KEY = 'key'
     CONFIG_API_ID = 'api_id'
+    CONFIG_API_KEY = 'api_key'
     CONFIG_CONTENT_TYPE = 'content_type'
     CONFIG_VERIFY_SSL = 'verify_ssl'
     CONFIG_USE_NATIONAL = 'use_national'
@@ -203,8 +204,8 @@ class Channel(TembaModel):
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
     CONFIG_AUTH_TOKEN = 'auth_token'
+    CONFIG_SECRET = 'secret'
     CONFIG_CHANNEL_ID = 'channel_id'
-    CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
     CONFIG_FCM_ID = 'FCM_ID'
     CONFIG_MAX_LENGTH = 'max_length'
@@ -1412,6 +1413,7 @@ class ChannelEvent(models.Model):
     TYPE_NEW_CONVERSATION = 'new_conversation'
     TYPE_REFERRAL = 'referral'
     TYPE_FOLLOW = 'follow'
+    TYPE_STOP_CONTACT = 'stop_contact'
 
     EXTRA_REFERRER_ID = 'referrer_id'
 
@@ -1421,6 +1423,7 @@ class ChannelEvent(models.Model):
                    (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'),
                    (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
                    (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
+                   (TYPE_STOP_CONTACT, _("Stop Contact"), 'stop-contact'),
                    (TYPE_NEW_CONVERSATION, _("New Conversation"), 'new-conversation'),
                    (TYPE_REFERRAL, _("Referral"), 'referral'),
                    (TYPE_FOLLOW, _("Follow"), 'follow'))
@@ -1453,9 +1456,7 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-
-        contact = Contact.get_or_create(org, get_anonymous_user(), name=None, urns=[urn], channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
 
         extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
@@ -1479,6 +1480,7 @@ class ChannelEvent(models.Model):
         Handles takes care of any processing of this channel event that needs to take place, such as
         trigger any flows based on new conversations or referrals.
         """
+        from temba.contacts.models import Contact
         from temba.triggers.models import Trigger
         handled = False
 
@@ -1491,6 +1493,13 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
+
+        elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
+            user = get_anonymous_user()
+            contact, urn_obj = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)
+
+            contact.stop(user)
+            handled = True
 
         return handled
 

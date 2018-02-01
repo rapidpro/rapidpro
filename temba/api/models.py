@@ -114,8 +114,8 @@ class Resthook(SmartModel):
 
     def release(self, user):
         # release any active subscribers
-        for s in self.subscribers.filter(is_active=True):  # pragma: needs cover
-            s.release()
+        for s in self.subscribers.filter(is_active=True):
+            s.release(user)
 
         # then ourselves
         self.is_active = False
@@ -220,14 +220,21 @@ class WebHookEvent(SmartModel):
         contact = run.contact
         org = flow.org
         channel = msg.channel if msg else None
+        contact_urn = msg.contact_urn if msg else contact.get_urn()
 
         post_data = {}
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
-        post_data['contact'] = dict(uuid=contact.uuid, name=contact.name)
         post_data['path'] = run.get_path()
         post_data['results'] = run.get_results()
+
+        contact_dict = dict(uuid=contact.uuid, name=contact.name)
+        if contact_urn:
+            contact_dict['urn'] = contact_urn.urn
+
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
+
+        post_data['contact'] = contact_dict
 
         api_user = get_api_user()
         if not action:  # pragma: needs cover

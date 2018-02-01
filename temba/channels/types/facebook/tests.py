@@ -54,7 +54,7 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(channel.address, '10')
 
         # should be on our configuration page displaying our secret
-        self.assertContains(response, channel.secret)
+        self.assertContains(response, channel.config_json()[Channel.CONFIG_SECRET])
 
         # test validating our secret
         handler_url = reverse('courier.fb', args=['invalid'])
@@ -68,7 +68,7 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # test actual token
-        payload['hub.verify_token'] = channel.secret
+        payload['hub.verify_token'] = channel.config_json()[Channel.CONFIG_SECRET]
 
         # try with unsuccessful callback to subscribe (this fails silently)
         mock_post.return_value = MockResponse(400, json.dumps({'success': True}))

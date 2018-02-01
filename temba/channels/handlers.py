@@ -95,28 +95,42 @@ def get_channel_handlers():
     return all_subclasses(BaseChannelHandler)
 
 
-class DMarkHandler(BaseChannelHandler):
+class CourierHandler(BaseChannelHandler):
+    channel_name = None
+
+    def get(self, request, *args, **kwargs):  # pragma: no cover
+        if self.__class__.channel_name is None:
+            raise Exception("CourierHandler subclasses must specify handler name")
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+
+    def post(self):  # pragma: no cover
+        if self.__class__.channel_name is None:
+            raise Exception("CourierHandler subclasses must specify handler name")
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+
+
+class DMarkHandler(CourierHandler):
+    channel_name = "DMark"
     courier_url = r'^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.dk'
 
-    def get(self, request, *args, **kwargs):  # pragma: no cover
-        return HttpResponse("Illegal Method", status_code=405)
 
-    def post(self):  # pragma: no cover
-        logger.error('DMark handling only implemented in courier')
-        return HttpResponse("DMark handling only implemented in Courier.", status_code=401)
-
-
-class WhatsApp(BaseChannelHandler):
+class WhatsApp(CourierHandler):
+    channel_name = "WhatsApp"
     courier_url = r'^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.wa'
 
-    def get(self, request, *args, **kwargs):  # pragma: no cover
-        return HttpResponse("Illegal Method", status_code=405)
 
-    def post(self):  # pragma: no cover
-        logger.error('WhatsApp handling only implemented in courier')
-        return HttpResponse("WhatsApp handling only implemented in Courier.", status_code=401)
+class ClickatellHandler(CourierHandler):
+    channel_name = "Clickatell"
+    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.ct'
+
+
+class ZenviaHandler(CourierHandler):
+    channel_name = "Zenvia"
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.zv'
 
 
 class TwimlAPIHandler(BaseChannelHandler):
@@ -176,8 +190,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 from temba.ivr.models import IVRCall
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
-                urn_obj = contact.urn_objects[urn]
+                contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
@@ -464,76 +477,6 @@ class AfricasTalkingHandler(BaseChannelHandler):
             return HttpResponse("Not handled", status=400)
 
 
-class ZenviaHandler(BaseChannelHandler):
-
-    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.zv'
-
-    handler_url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
-    handler_name = 'handlers.zenvia_handler'
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        request.encoding = "ISO-8859-1"
-
-        action = kwargs['action']
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ZV').first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'status':
-            status = self.get_param('status')
-            sms_id = self.get_param('id')
-
-            if status is None or sms_id is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
-
-            status = int(status)
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
-
-            # delivered
-            if status == 120:
-                sms.status_delivered()
-            elif status == 111:
-                sms.status_sent()
-            else:
-                sms.status_fail()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            sms_date = self.get_param('date')
-            from_tel = self.get_param('from')
-            msg = self.get_param('msg')
-
-            if sms_date is None or from_tel is None or msg is None:  # pragma: needs cover
-                return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
-
-            # dates come in the format 31/07/2013 14:45:00
-            sms_date = datetime.strptime(sms_date, "%d/%m/%Y %H:%M:%S")
-            brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
-
-            urn = URN.from_tel(from_tel)
-            sms = Msg.create_incoming(channel, urn, msg, date=brazil_date)
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:  # pragma: needs cover
-            return HttpResponse("Not handled", status=400)
-
-
 class ExternalHandler(BaseChannelHandler):
 
     courier_url = r'^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
@@ -734,7 +677,7 @@ class TelegramHandler(BaseChannelHandler):
             if channel.org.is_anon:
                 name = None
 
-            contact = Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
+            Contact.get_or_create(channel.org, urn, channel, name)
 
         text = ""
         attachments = []
@@ -1292,8 +1235,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
             urn = URN.from_tel(from_number)
-            contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
-            urn_obj = contact.urn_objects[urn]
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
             flow = Trigger.find_flow_for_inbound_call(contact)
 
@@ -1632,131 +1574,6 @@ class KannelHandler(BaseChannelHandler):
 
             urn = URN.from_tel(sms_sender)
             sms = Msg.create_incoming(channel, urn, sms_message, date=gmt_date)
-
-            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:  # pragma: needs cover
-            return HttpResponse("Not handled", status=400)
-
-
-class ClickatellHandler(BaseChannelHandler):
-    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.ct'
-
-    handler_url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    handler_name = 'handlers.clickatell_handler'
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CT').first()
-        if not channel:  # pragma: needs cover
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        api_id = self.get_param('api_id')
-
-        # make sure the API id matches if it is included (pings from clickatell don't include them)
-        if api_id is not None and channel.config_json()[Channel.CONFIG_API_ID] != api_id:  # pragma: needs cover
-            return HttpResponse("Invalid API id for message delivery: %s" % api_id, status=400)
-
-        # Clickatell is telling us a message status changed
-        if action == 'status':
-            sms_id = self.get_param('apiMsgId')
-            status_code = self.get_param('status')
-
-            if sms_id is None or status_code is None:  # pragma: needs cover
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
-            if not sms:  # pragma: needs cover
-                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
-
-            # possible status codes Clickatell will send us
-            STATUS_CHOICES = {'001': FAILED,      # incorrect msg id
-                              '002': WIRED,       # queued
-                              '003': SENT,        # delivered to upstream gateway
-                              '004': DELIVERED,   # received by handset
-                              '005': FAILED,      # error in message
-                              '006': FAILED,      # terminated by user
-                              '007': FAILED,      # error delivering
-                              '008': WIRED,       # msg received
-                              '009': FAILED,      # error routing
-                              '010': FAILED,      # expired
-                              '011': WIRED,       # delayed but queued
-                              '012': FAILED,      # out of credit
-                              '014': FAILED}      # too long
-
-            # check our status
-            status = STATUS_CHOICES.get(status_code, None)
-
-            # we don't recognize this status code
-            if not status:  # pragma: needs cover
-                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
-
-            # only update to SENT status if still in WIRED state
-            if status == SENT:  # pragma: needs cover
-                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
-                    sms_obj.status_sent()
-            elif status == DELIVERED:
-                for sms_obj in sms:
-                    sms_obj.status_delivered()
-            elif status == FAILED:
-                for sms_obj in sms:
-                    sms_obj.status_fail()
-                    Channel.track_status(sms_obj.channel, "Failed")
-            else:
-                # ignore wired, we are wired by default
-                pass
-
-            # update the broadcast status
-            bcast = sms.first().broadcast
-            if bcast:  # pragma: needs cover
-                bcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            sms_from = self.get_param('from')
-            sms_text = self.get_param('text')
-            sms_id = self.get_param('moMsgId')
-            sms_timestamp = self.get_param('timestamp')
-
-            if sms_from is None or sms_text is None or sms_id is None or sms_timestamp is None:  # pragma: needs cover
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
-
-            # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = parse_datetime(sms_timestamp)
-
-            # Posix makes this timezone name back-asswards:
-            # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
-            gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
-            charset = self.get_param('charset', 'utf-8')
-
-            # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
-            # this into utf-8 through the insane process below, Python is retarded about encodings
-            if charset == 'UTF-16BE':
-                text_bytes = bytearray()
-                for text_byte in sms_text:
-                    text_bytes.append(ord(text_byte))
-
-                # now encode back into utf-8
-                sms_text = text_bytes.decode('utf-16be').encode('utf-8')
-            elif charset == 'ISO-8859-1':
-                sms_text = sms_text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
-
-            sms = Msg.create_incoming(channel, URN.from_tel(sms_from), sms_text, date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -2165,11 +1982,9 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
-        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-
-        if channel.secret is not None and (
-                len(authorization) != 2 or authorization[0] != 'Token' or
-                authorization[1] != channel.secret):
+        auth = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        if secret is not None and (len(auth) != 2 or auth[0] != 'Token' or auth[1] != secret):
             return JsonResponse(dict(error="Incorrect authentication token"), status=401)
 
         # Junebug is sending an event
@@ -2373,7 +2188,7 @@ class JioChatHandler(BaseChannelHandler):
 
         client = JiochatClient.from_channel(channel)
         if client:
-            verified, echostr = client.verify_request(request, channel.secret)
+            verified, echostr = client.verify_request(request, channel.config_json()[Channel.CONFIG_SECRET])
 
             if verified:
                 refresh_jiochat_access_tokens.delay(channel.id)
@@ -2405,13 +2220,14 @@ class JioChatHandler(BaseChannelHandler):
         external_id = body.get('MsgId', None)
 
         urn = URN.from_jiochat(sender_id)
-        contact_name = None
-        if not channel.org.is_anon:
-            contact_detail = client.get_user_detail(sender_id, channel.id)
-            contact_name = contact_detail.get('nickname')
+        contact = Contact.from_urn(channel.org, urn)
+        if not contact:
+            contact_name = None
+            if not channel.org.is_anon:
+                contact_detail = client.get_user_detail(sender_id, channel.id)
+                contact_name = contact_detail.get('nickname')
 
-        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
-                                        urns=[urn], channel=channel)
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, contact_name)
 
         if msg_type == 'event':
             event = body.get('Event')
@@ -2459,7 +2275,7 @@ class FacebookHandler(BaseChannelHandler):
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
-            if channel.secret == request.GET.get('hub.verify_token'):
+            if channel.config_json()[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
                 on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
@@ -2545,8 +2361,7 @@ class FacebookHandler(BaseChannelHandler):
                             continue
 
                         if not contact:
-                            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                            urns=[urn], channel=channel)
+                            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
                         event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
                                                     extra=trigger_extra)
@@ -2622,8 +2437,7 @@ class FacebookHandler(BaseChannelHandler):
                                         import traceback
                                         traceback.print_exc()
 
-                                    contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                    name=name, urns=[urn], channel=channel)
+                                    contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, name)
 
                         # we received a new message, create and handle it
                         if content:
@@ -2931,7 +2745,7 @@ class ViberPublicHandler(BaseChannelHandler):
             viber_id = body['user']['id']
             contact_name = None if channel.org.is_anon else body['user'].get('name')
             urn = URN.from_viber(viber_id)
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            Contact.get_or_create(channel.org, urn, channel, contact_name)
             event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
             event.handle()
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
@@ -3062,10 +2876,7 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-
-            contact = Contact.from_urn(channel.org, urn)
-            if not contact:
-                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, contact_name)
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)
@@ -3106,8 +2917,7 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('from'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token)
+                contact, urn_obj = Contact.get_or_create(channel.org, fcm_urn, channel, name, fcm_token)
 
                 sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
                 return HttpResponse("Msg Accepted: %d" % sms.id)
@@ -3119,10 +2929,8 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('urn'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
-                contact_uuid = self.get_param('contact_uuid', None)
 
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token, uuid=contact_uuid)
+                contact, urn_obj = Contact.get_or_create(channel.org, fcm_urn, channel, name, fcm_token)
 
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
@@ -3181,7 +2989,7 @@ class TwitterHandler(BaseChannelHandler):
 
                 urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+                contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, name)
 
                 external_id = dm_event['id']
                 created_on = ms_to_datetime(int(dm_event['created_timestamp']))
