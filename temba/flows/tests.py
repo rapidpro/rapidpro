@@ -4328,7 +4328,7 @@ class FlowsTest(FlowFileTest):
         fallback_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
         empty_flow = self.get_flow('empty_payload')
         empty_flow.start([], [self.contact], restart_participants=True)
-        self.assertEqual('+12065552020', fallback_post.data['contact']['urn'])
+        self.assertEqual('tel:+12065552020', fallback_post.data['contact']['urn'])
 
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid, urn='tel:+12065552020'), payload['contact'])
