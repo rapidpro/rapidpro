@@ -4582,7 +4582,7 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
-    extra = JSONAsTextField(null=True, default=dict,
+    extra = JSONAsTextField(null=True,
                             help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod
