@@ -1062,7 +1062,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-                results = run.results
+                results = run.get_results()
                 run.value_list = []
                 for ruleset in context['rulesets']:
                     key = Flow.label_to_slug(ruleset.label)

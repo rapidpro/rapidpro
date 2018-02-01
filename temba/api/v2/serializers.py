@@ -701,7 +701,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
+        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
