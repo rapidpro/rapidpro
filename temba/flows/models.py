@@ -1311,7 +1311,7 @@ class Flow(TembaModel):
             run.org = self.org
             run.contact = contact
 
-            run_context = run.fields if run.fields else {}
+            run_context = run.fields_dict()
             flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
@@ -3057,6 +3057,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         self.save(update_fields=['fields'])
 
+    def field_dict(self):
+        return self.fields if self.fields else {}
+
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
@@ -3773,7 +3776,7 @@ class ActionSet(models.Model):
             # if there are more actions, rebuild the parts of the context that may have changed
             if a < len(actions) - 1:
                 context['contact'] = run.contact.build_expressions_context()
-                context['extra'] = run.fields if run.fields else {}
+                context['extra'] = run.fields_dict()
 
         return msgs
 

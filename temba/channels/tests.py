@@ -7839,7 +7839,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        config = self.channel.config
+        config = self.channel.config_json()
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])

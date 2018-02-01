@@ -94,7 +94,7 @@ def backfill_flowrun_messages(FlowRun, FlowStep, Msg):
                     for msg in step.messages.all():
                         msg_ids.add(msg.id)
 
-                path = run.path if run.path else []
+                path = run.get_path()
                 current_node_uuid = path[-1]['node_uuid'] if path else None
 
                 run.current_node_uuid = UUID(current_node_uuid) if current_node_uuid else None
