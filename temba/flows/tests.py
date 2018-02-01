@@ -4316,8 +4316,22 @@ class FlowsTest(FlowFileTest):
 
         msg = Msg.objects.all().order_by('-id').first()
 
+        # if there is no urn, it still works, but is omitted
+        empty_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+        empty = self.create_contact('Empty Contact')
+        flow.start([], [empty])
+        self.send('39', empty)
+        self.send('tornado', empty)
+        self.assertNotIn('urn', empty_post.data['contact'])
+
+        # test fallback urn
+        fallback_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
+        empty_flow = self.get_flow('empty_payload')
+        empty_flow.start([], [self.contact], restart_participants=True)
+        self.assertEqual('tel:+12065552020', fallback_post.data['contact']['urn'])
+
         def assert_payload(payload, path_length, result_count, results):
-            self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid), payload['contact'])
+            self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid, urn='tel:+12065552020'), payload['contact'])
             self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
             self.assertEqual(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
             self.assertEqual(path_length, len(payload['path']))
@@ -4346,7 +4360,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(ruleset_get.data)
 
         # make sure triggering without a url fails properly
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), None, '', msg)
+        WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, '', msg)
         result = WebHookResult.objects.all().order_by('-id').first()
         self.assertIn('No webhook_url specified, skipping send', result.message)
 
