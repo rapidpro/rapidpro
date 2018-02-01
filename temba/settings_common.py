@@ -497,6 +497,7 @@ PERMISSIONS = {
                          ),
 }
 
+
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
@@ -505,6 +506,9 @@ GROUP_PERMISSIONS = {
     "Alpha": (
     ),
     "Beta": (
+    ),
+    "Dashboard": (
+        'orgs.org_dashboard',
     ),
     "Surveyors": (
         'contacts.contact_api',
