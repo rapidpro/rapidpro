@@ -143,7 +143,7 @@ class AirtimeTransfer(SmartModel):
 
             country_name = content_json.get('country', '')
             country_code = get_country_code_by_name(country_name)
-            country_config = ruleset.config.get(country_code, dict())
+            country_config = ruleset.config_json().get(country_code, dict())
             amount = country_config.get('amount', 0)
 
             airtime.amount = amount

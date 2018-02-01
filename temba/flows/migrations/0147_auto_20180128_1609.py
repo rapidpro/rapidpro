@@ -22,10 +22,5 @@ class Migration(migrations.Migration):
             model_name='flowstart',
             name='extra',
             field=temba.utils.models.JSONAsTextField(default=dict, help_text='Any extra parameters to pass to the flow start (json)', null=True),
-        ),
-        migrations.AlterField(
-            model_name='ruleset',
-            name='config',
-            field=temba.utils.models.JSONAsTextField(default=dict, help_text='RuleSet type specific configuration', null=True, verbose_name='Ruleset Configuration'),
-        ),
+        )
     ]
