@@ -1,3 +1,7 @@
+v3.0.312
+----------
+ * include contact URN in webhook payload
+
 v3.0.311
 ----------
  * Allow exporting results of archived flows
