@@ -89,7 +89,8 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[URN.from_tel(number)]))
+            contact, urn_obj = Contact.get_or_create(org, URN.from_tel(number), user=user, name=None)
+            contacts.append(contact)
 
         group.contacts.add(*contacts)
 
@@ -2214,7 +2215,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact = Contact.get_or_create(self.org, self.admin, urns=['tel:+250788111222'])
+        real_contact, urn_obj = Contact.get_or_create(self.org, 'tel:+250788111222', user=self.admin)
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
@@ -6512,6 +6513,30 @@ class TwitterTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Msg.objects.count(), 1)
 
+        # check we do not overwrite the existing contact name
+        data = self.webhook_payload('ext3', "Awesome!",
+                                    dict(id='10002', name="Davis", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 2)
+        msg = Msg.objects.filter(text='Awesome!').first()
+        self.assertEqual(msg.contact, self.joe)
+        self.assertEqual(msg.contact.name, "Joe")  # name should not be updated to Davis
+        self.assertEqual(msg.contact_urn, self.joe.get_urns()[0])
+        self.assertEqual(msg.external_id, 'ext3')
+
+        # we create a contact if it does not exist yet
+        data = self.webhook_payload('ext4', "Hello!",
+                                    dict(id='10003', name="Kelly", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 3)
+        msg = Msg.objects.filter(text='Hello!').first()
+        self.assertEqual(msg.contact.name, "Kelly")
+
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         msg = self.joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
@@ -9037,6 +9062,34 @@ class JiochatTest(TembaTest):
         self.assertEqual(msg.text, "Test")
         self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
+        mock_get.return_value = MockResponse(200, '{"nickname":"Kendrick"}')
+        other_data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'text',
+            'MsgId': '1234567',
+            "Content": "Hello",
+        }
+
+        response = self.client.post(callback_url, json.dumps(other_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
+
+        msg = Msg.objects.all().last()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.name, "Shinonda")  # the name should not change to Kendrick
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Hello")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
         Msg.objects.all().delete()
         Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
@@ -9060,6 +9113,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         data = {
@@ -9104,6 +9158,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(mock_get.call_count, 3)
 
         Msg.objects.all().delete()
+        Contact.objects.all().delete()
         ChannelLog.objects.all().delete()
 
         with patch('requests.get') as mock_get:

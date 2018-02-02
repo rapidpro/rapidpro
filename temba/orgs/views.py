@@ -2349,8 +2349,8 @@ class OrgCRUDL(SmartCRUDL):
 
                 super(OrgCRUDL.TransferCredits.TransferForm, self).__init__(*args, **kwargs)
 
-                self.fields['from_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'id')
-                self.fields['to_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'id')
+                self.fields['from_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'name', 'id')
+                self.fields['to_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'name', 'id')
 
             def clean(self):
                 cleaned_data = super(OrgCRUDL.TransferCredits.TransferForm, self).clean()

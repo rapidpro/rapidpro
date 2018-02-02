@@ -190,8 +190,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 from temba.ivr.models import IVRCall
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
-                urn_obj = contact.urn_objects[urn]
+                contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
@@ -678,7 +677,7 @@ class TelegramHandler(BaseChannelHandler):
             if channel.org.is_anon:
                 name = None
 
-            contact = Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
+            Contact.get_or_create(channel.org, urn, channel, name)
 
         text = ""
         attachments = []
@@ -1236,8 +1235,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
             urn = URN.from_tel(from_number)
-            contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
-            urn_obj = contact.urn_objects[urn]
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
             flow = Trigger.find_flow_for_inbound_call(contact)
 
@@ -2222,13 +2220,14 @@ class JioChatHandler(BaseChannelHandler):
         external_id = body.get('MsgId', None)
 
         urn = URN.from_jiochat(sender_id)
-        contact_name = None
-        if not channel.org.is_anon:
-            contact_detail = client.get_user_detail(sender_id, channel.id)
-            contact_name = contact_detail.get('nickname')
+        contact = Contact.from_urn(channel.org, urn)
+        if not contact:
+            contact_name = None
+            if not channel.org.is_anon:
+                contact_detail = client.get_user_detail(sender_id, channel.id)
+                contact_name = contact_detail.get('nickname')
 
-        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
-                                        urns=[urn], channel=channel)
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, contact_name)
 
         if msg_type == 'event':
             event = body.get('Event')
@@ -2362,8 +2361,7 @@ class FacebookHandler(BaseChannelHandler):
                             continue
 
                         if not contact:
-                            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                            urns=[urn], channel=channel)
+                            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel)
 
                         event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
                                                     extra=trigger_extra)
@@ -2439,8 +2437,7 @@ class FacebookHandler(BaseChannelHandler):
                                         import traceback
                                         traceback.print_exc()
 
-                                    contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                    name=name, urns=[urn], channel=channel)
+                                    contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, name)
 
                         # we received a new message, create and handle it
                         if content:
@@ -2748,7 +2745,7 @@ class ViberPublicHandler(BaseChannelHandler):
             viber_id = body['user']['id']
             contact_name = None if channel.org.is_anon else body['user'].get('name')
             urn = URN.from_viber(viber_id)
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            Contact.get_or_create(channel.org, urn, channel, contact_name)
             event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
             event.handle()
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
@@ -2879,10 +2876,7 @@ class ViberPublicHandler(BaseChannelHandler):
             urn = URN.from_viber(body['sender']['id'])
 
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
-
-            contact = Contact.from_urn(channel.org, urn)
-            if not contact:
-                contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, contact_name)
 
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
                                       external_id=body['message_token'], attachments=attachments)
@@ -2923,8 +2917,7 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('from'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token)
+                contact, urn_obj = Contact.get_or_create(channel.org, fcm_urn, channel, name, fcm_token)
 
                 sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
                 return HttpResponse("Msg Accepted: %d" % sms.id)
@@ -2936,10 +2929,8 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('urn'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
-                contact_uuid = self.get_param('contact_uuid', None)
 
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token, uuid=contact_uuid)
+                contact, urn_obj = Contact.get_or_create(channel.org, fcm_urn, channel, name, fcm_token)
 
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
@@ -2998,7 +2989,7 @@ class TwitterHandler(BaseChannelHandler):
 
                 urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
-                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+                contact, urn_obj = Contact.get_or_create(channel.org, urn, channel, name)
 
                 external_id = dm_event['id']
                 created_on = ms_to_datetime(int(dm_event['created_timestamp']))
