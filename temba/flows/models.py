@@ -3752,7 +3752,7 @@ class ActionSet(models.Model):
         return msgs
 
     def get_actions_dict(self):
-        return self.actions if self.actions else {}
+        return self.actions
 
     def get_actions(self):
         return Action.from_json_array(self.flow.org, self.actions)
@@ -5335,7 +5335,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict) and ruleset.config != {}:
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict):
             # initial message, menu obj
             rules = ruleset.rules
             msg = ruleset.config.get(cls.MESSAGE, '')
