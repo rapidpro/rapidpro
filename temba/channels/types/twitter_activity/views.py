@@ -1,6 +1,9 @@
 from __future__ import unicode_literals, absolute_import
 
+import six
+
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
@@ -15,6 +18,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         api_secret = forms.CharField(label=_('Consumer Secret'))
         access_token = forms.CharField(label=_('Access Token'))
         access_token_secret = forms.CharField(label=_('Access Token Secret'))
+        env_name = forms.CharField(label=_('Environment Name'))
 
         def clean(self):
             cleaned_data = super(ClaimView.Form, self).clean()
@@ -50,10 +54,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         api_secret = cleaned_data['api_secret']
         access_token = cleaned_data['access_token']
         access_token_secret = cleaned_data['access_token_secret']
+        env_name = cleaned_data['env_name']
 
         twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
         account_info = twitter.verify_credentials()
-        handle_id = account_info['id']
+        handle_id = six.text_type(account_info['id'])
         screen_name = account_info['screen_name']
 
         config = {
@@ -62,7 +67,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             'api_secret': api_secret,
             'access_token': access_token,
             'access_token_secret': access_token_secret,
-            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
+            'env_name': env_name,
+            Channel.CONFIG_CALLBACK_DOMAIN: settings.HOSTNAME,
         }
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name="@%s" % screen_name,

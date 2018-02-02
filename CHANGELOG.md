@@ -1,3 +1,26 @@
+v3.0.313
+----------
+ * have URNs resolve to dicts instead of just the display
+ * order transfer credit options by name
+ * show dashboard link even if org is chosen
+
+v3.0.312
+----------
+ * include contact URN in webhook payload
+
+v3.0.311
+----------
+ * Allow exporting results of archived flows
+ * Update Twitter Activity channels to work with latest beta changes
+ * Increase maximum attachment URL length to 2048
+ * Tweak contact searching so that set/not-set conditions check the type specific column
+ * Migration to delete value decimal/datetime instances where string value is "None"
+ * Don't normalize nulls in @extra as "None"
+ * Clear timeouts for msgs which dont have credits assigned to them
+ * Simpler contact get_or_create method to lookup a contact by urn and channel
+ * Prevent updating name for existing contact when we receive a message
+ * Remove fuzzy matching for ContainsTest
+
 v3.0.310
 ----------
  * Reimplement clickatell as a Courier only channel against new API

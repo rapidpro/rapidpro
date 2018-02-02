@@ -4806,7 +4806,7 @@ class ExportFlowResultsTask(BaseExportTask):
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
         result_nodes = []
-        flows = list(self.flows.filter(is_active=True, is_archived=False).prefetch_related(
+        flows = list(self.flows.filter(is_active=True).prefetch_related(
             Prefetch('rule_sets', RuleSet.objects.exclude(label=None).order_by('y', 'id'))
         ))
         for flow in flows:
@@ -5906,6 +5906,9 @@ class VariableContactAction(Action):
     GROUPS = 'groups'
     VARIABLES = 'variables'
     PHONE = 'phone'
+    PATH = 'path'
+    SCHEME = 'scheme'
+    URNS = 'urns'
     NAME = 'name'
     ID = 'id'
 
@@ -5941,9 +5944,21 @@ class VariableContactAction(Action):
             phone = contact.get(VariableContactAction.PHONE, None)
             contact_uuid = contact.get(VariableContactAction.UUID, None)
 
+            urns = []
+            for urn in contact.get(VariableContactAction.URNS, []):
+                scheme = urn.get(VariableContactAction.SCHEME)
+                path = urn.get(VariableContactAction.PATH)
+
+                if scheme and path:
+                    urns.append(URN.from_parts(scheme, path))
+
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
-            if not contact and phone:  # pragma: needs cover
-                contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
+
+            if not contact and (phone or urn):
+                if phone:  # pragma: needs cover
+                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=[URN.from_tel(phone)])
+                elif urns:
+                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
 
                 # if they dont have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
@@ -5977,7 +5992,7 @@ class VariableContactAction(Action):
 
                 # otherwise, really create the contact
                 else:
-                    contacts.append(Contact.get_or_create(run.org, get_flow_user(run.org), name=None, urns=()))
+                    contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -5996,7 +6011,7 @@ class VariableContactAction(Action):
                     country = run.flow.org.get_country_code()
                     (number, valid) = URN.normalize_number(variable, country)
                     if number and valid:
-                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contact, contact_urn = Contact.get_or_create(run.org, URN.from_tel(number), user=get_flow_user(run.org))
                         contacts.append(contact)
 
         return groups, contacts
