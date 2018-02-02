@@ -2423,13 +2423,13 @@ class ContactGroup(TembaModel):
 
         return changed
 
-    def update_query(self, query, force_update=False):
+    def update_query(self, query):
         """
         Updates the query for a dynamic group
         """
         from .search import extract_fields, parse_query
 
-        if not self.is_dynamic and not force_update:
+        if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
         parsed_query = parse_query(text=query)

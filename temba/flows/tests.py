@@ -2783,7 +2783,8 @@ class ActionPackedTest(FlowFileTest):
         # convert the static groups created by import into dynamic ones
         groups = ContactGroup.user_groups.filter(name__in=('Males', 'Females'))
         for group in groups:
-            group.update_query('gender="%s"' % group.name[0:-1], force_update=True)
+            group.query = 'gender="%s"' % group.name[0:-1]
+            group.update_query(group.query)
 
         self.start_flow()
 
@@ -2907,12 +2908,12 @@ class ActionPackedTest(FlowFileTest):
 
     # @rerun_with_flowserver
     def test_update_reserved_keys(self):
-        NAME = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
+        name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
             if word not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(ValueError):
-                    action = self.get_action_json(self.flow, NAME)
+                    action = self.get_action_json(self.flow, name_action_uuid)
                     action['label'] = word
                     action['field'] = word
                     action['value'] = ''
@@ -2921,8 +2922,8 @@ class ActionPackedTest(FlowFileTest):
     # TODO: @rerun_with_flowserver
     def test_update_contact(self):
 
-        GENDER = '8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671'
-        NAME = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
+        gender_action_uuid = '8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671'
+        name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
 
         def update_save_fields(action, label, value):
             action['label'] = label
@@ -2937,19 +2938,19 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual('Trey Anastasio', self.contact.name)
 
         # update action to instead clear the gender field
-        self.update_action_field(self.flow, GENDER, 'value', '')
+        self.update_action_field(self.flow, gender_action_uuid, 'value', '')
         self.start_flow()
         self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_raw('gender'))
 
         # test setting just the first name
-        action = update_save_fields(self.get_action_json(self.flow, NAME), 'First Name', 'Frank')
+        action = update_save_fields(self.get_action_json(self.flow, name_action_uuid), 'First Name', 'Frank')
         self.update_action_json(self.flow, action)
         self.start_flow()
         self.contact.refresh_from_db()
         self.assertEqual("Frank Anastasio", self.contact.name)
 
         # we should strip whitespace
-        self.update_action_field(self.flow, NAME, 'value', ' Jackson ')
+        self.update_action_field(self.flow, name_action_uuid, 'value', ' Jackson ')
         self.start_flow()
         self.contact.refresh_from_db()
         self.assertEqual('Jackson Anastasio', self.contact.name)
@@ -2957,13 +2958,13 @@ class ActionPackedTest(FlowFileTest):
         # first name works starting with a single word
         self.contact.name = 'Percy'
         self.contact.save()
-        self.update_action_field(self.flow, NAME, 'value', ' Cole')
+        self.update_action_field(self.flow, name_action_uuid, 'value', ' Cole')
         self.start_flow()
         self.contact.refresh_from_db()
         self.assertEqual('Cole', self.contact.name)
 
         # test saving something really long to a new field
-        action = self.get_action_json(self.flow, GENDER)
+        action = self.get_action_json(self.flow, gender_action_uuid)
         action = update_save_fields(action, 'Last Message',
                                     'This is a long message, longer than 160 characters, longer '
                                     'than 250 characters, all the way up to 500 some characters '
@@ -2978,10 +2979,10 @@ class ActionPackedTest(FlowFileTest):
     # TODO: @rerun_with_flowserver
     def test_add_phone_number(self):
 
-        NAME = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
+        name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
 
         # test saving a contact's phone number
-        action = self.get_action_json(self.flow, NAME)
+        action = self.get_action_json(self.flow, name_action_uuid)
         action['label'] = 'Phone Number'
         action['field'] = 'tel_e164'
         action['value'] = '+12065551212'
