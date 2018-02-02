@@ -2756,7 +2756,7 @@ class ActionPackedTest(FlowFileTest):
         self.send("Trey Anastasio")
         self.send("Male")
 
-    # TODO: @rerun_with_flowserver
+    @rerun_with_flowserver
     def test_send_message(self):
 
         self.start_flow()
@@ -2780,7 +2780,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual(2, Msg.objects.filter(text='This is going to all urns', direction=OUTGOING).count())
         self.assertIsNotNone(Msg.objects.filter(text="Thanks Trey Anastasio, you are male.").first())
 
-    # @rerun_with_flowserver
+    @rerun_with_flowserver
     def test_add_remove_from_group(self):
 
         # convert the static groups created by import into dynamic ones
@@ -2843,7 +2843,7 @@ class ActionPackedTest(FlowFileTest):
         self.update_action_json(self.flow, action)
         self.assertIsNotNone(ContactGroup.user_groups.filter(name='Customers', is_active=True).first())
 
-    # @rerun_with_flowserver
+    @rerun_with_flowserver
     def test_labeling(self):
         self.start_flow()
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
@@ -2867,7 +2867,7 @@ class ActionPackedTest(FlowFileTest):
         msg = triggered_run.get_messages().first()
         self.assertEqual('Started by Trey Anastasio. What is your favorite color?', msg.text)
 
-    # TODO: @rerun_with_flowserver
+    @rerun_with_flowserver
     @override_settings(SEND_EMAILS=True)
     def test_email(self):
         self.start_flow()
@@ -2922,7 +2922,7 @@ class ActionPackedTest(FlowFileTest):
                     action['value'] = ''
                     self.update_action_json(self.flow, action)
 
-    # TODO: @rerun_with_flowserver
+    @rerun_with_flowserver
     def test_update_contact(self):
 
         gender_action_uuid = '8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671'
@@ -2979,7 +2979,7 @@ class ActionPackedTest(FlowFileTest):
         self.start_flow()
         self.assertEqual(action['value'], self.contact.get_field('last_message').string_value)
 
-    # TODO: @rerun_with_flowserver
+    @rerun_with_flowserver
     def test_add_phone_number(self):
 
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'

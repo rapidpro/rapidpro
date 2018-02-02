@@ -2,6 +2,7 @@
 from __future__ import print_function, unicode_literals
 
 import iso8601
+import itertools
 import json
 import logging
 import numbers
@@ -2904,10 +2905,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         for entry in run_log:
             if entry.event['type'] == 'send_msg':
-                msg = self.apply_send_msg(entry.event, msg_in)
-                if msg:
-                    msgs_to_send.append(msg)
-                    msgs_by_step[entry.step_uuid].append(msg)
+                msgs = self.apply_send_msg(entry.event, msg_in)
+
+                msgs_to_send += msgs
+                msgs_by_step[entry.step_uuid] += msgs
             else:
                 apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
                 if apply_func:
@@ -2929,35 +2930,41 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         attachments = []
         for attachment in event.get('attachments', []):
             media_type, media_url = attachment.split(':', 1)
-            attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
 
-        contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+            if not media_url.startswith('http://') and not media_url.startswith('https://'):
+                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
 
-        all_contacts = set(contacts)
+            attachments.append("%s:%s" % (media_type, media_url))
+
+        urns, contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+
+        # resolve group contacts
+        contacts = set(contacts)
         for group in groups:
             for contact in group.contacts.all():
-                all_contacts.add(contact)
+                contacts.add(contact)
 
-        is_reply = len(all_contacts) == 1 and contacts[0] == self.contact
+        msgs = []
+        for recipient in itertools.chain(urns, contacts):
+            high_priority = (recipient == self.contact and self.session.responded)
+            channel = msg.channel if msg and msg.contact == recipient else None
 
-        for contact in all_contacts:
             try:
-                msg = Msg.create_outgoing(
-                    self.org, user, contact,
+                msg_out = Msg.create_outgoing(
+                    self.org, user, recipient,
                     text=event['text'],
                     attachments=attachments,
                     quick_replies=event.get('quick_replies', []),
-                    channel=msg.channel if msg else None,
-                    high_priority=is_reply and self.session.responded,
+                    channel=channel,
+                    high_priority=high_priority,
                     created_on=created_on,
                     response_to=msg if msg and msg.id else None
                 )
-                if is_reply:
-                    return msg
+                msgs.append(msg_out)
             except UnreachableException:  # pragma: no cover
-                return None
+                continue
 
-        return None
+        return msgs
 
     def apply_send_email(self, event, msg):
         """
@@ -2968,10 +2975,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         subject, body, addresses = event['subject'], event['body'], event['addresses']
 
         if not self.contact.is_test:
-            on_transaction_commit(lambda: send_email_action_task.delay(self.org_id, valid_addresses, subject, body))
+            on_transaction_commit(lambda: send_email_action_task.delay(self.org_id, addresses, subject, body))
         else:  # pragma: no cover
-            valid_addresses = ['"%s"' % elt for elt in addresses]
-            ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(valid_addresses)))
+            quoted_addresses = ['"%s"' % elt for elt in addresses]
+            ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(quoted_addresses)))
 
     def apply_update_contact(self, event, msg):
         """
@@ -2992,6 +2999,21 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated %s to '%s'") % (event['field_name'], event['value']))
+
+    def apply_add_urn(self, event, msg):
+        """
+        New URN being added to the contact
+        """
+        user = get_flow_user(self.org)
+        urns = [six.text_type(urn) for urn in self.contact.urns.order_by('-priority')]
+        urns.append(event['urn'])
+
+        # don't really update URNs on test contacts
+        if self.contact.is_test:
+            scheme, path, display = URN.to_parts(event['urn'])
+            ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
+        else:
+            self.contact.update_urns(user, urns)
 
     def apply_save_contact_field(self, event, msg):
         """
@@ -3015,9 +3037,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
 
     def apply_save_flow_result(self, event, msg):
-        # flow results are actually saved in FlowRun.create_or_update_from_goflow
-        if self.contact.is_test:  # pragma: no cover
-            ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['result_name'])),
+        # flow results are actually saved in create_or_update_from_goflow
+        if self.contact.is_test:
+            ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['name'])),
                              created_on=iso8601.parse_date(event['created_on']))
 
     def apply_add_label(self, event, msg):
@@ -3069,11 +3091,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         flow = self.org.flows.filter(is_active=True, is_archived=False, uuid=flow_ref['uuid'])
         if flow:
-            contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+            urns, contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+
+            # extract only unique contacts
+            contacts = set(contacts)
+            for urn in urns:
+                contacts.add(urn.contact)
 
             flow.start(groups, contacts, restart_participants=True)
 
-    def _resolve_contacts_and_groups(self, user, urns, contact_refs, group_refs):
+    def _resolve_contacts_and_groups(self, user, urn_strs, contact_refs, group_refs):
         """
         Helper function for send_msg and start_session events which include lists of urns, contacts and groups
         """
@@ -3081,10 +3108,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                                                uuid__in=[c['uuid'] for c in contact_refs]))
         groups = list(ContactGroup.user_groups.filter(org=self.org, is_active=True,
                                                       uuid__in=[g['uuid'] for g in group_refs]))
-        for urn in urns:
-            contacts.append(Contact.get_or_create(self.org, user, urns=[urn]))
+        urns = []
+        for urn_str in urn_strs:
+            contact, urn = Contact.get_or_create(self.org, urn_str, user=user)
+            urns.append(urn)
 
-        return contacts, groups
+        return urns, contacts, groups
 
     @classmethod
     def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
