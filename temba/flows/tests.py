@@ -2776,6 +2776,47 @@ class ActionPackedTest(FlowFileTest):
         self.send("Female", self.contact2)
         self.assertInUserGroups(self.contact2, ('Females', 'Cat Facts', 'Customers'), only=True)
 
+        # can't create groups dynamically
+        self.contact.refresh_from_db()
+        group_name = self.contact.name
+        action = self.get_action_json(self.flow, '948877da-64f5-4667-978a-3e3febcb4664')
+        action['groups'][0] = '@step.contact'
+        self.update_action_json(self.flow, action)
+        self.start_flow()
+        self.assertIsNone(ContactGroup.user_groups.filter(name=group_name).first())
+
+        # but if that group exists already, we can add to it
+        ContactGroup.get_or_create(self.org, self.admin, self.contact.name)
+        self.start_flow()
+        self.assertInUserGroups(self.contact, [group_name])
+
+        # try matching with a trailing space
+        group = ContactGroup.user_groups.filter(name=group_name).first()
+        group.update_contacts(self.admin, [self.contact], False)
+        self.contact.name += ' '
+        self.contact.save()
+        self.start_flow()
+        self.assertInUserGroups(self.contact, [group_name])
+
+        # try adding explicitly to a dynamic group, count should stay the same
+        start_count = group.contacts.count()
+        group = ContactGroup.user_groups.filter(name='Females').first()
+        action['groups'][0] = {'name': group.name, 'uuid': group.uuid}
+        self.update_action_json(self.flow, action)
+        self.start_flow()
+        self.assertEqual(start_count, group.contacts.count())
+
+        # adding to inactive group
+        customers = ContactGroup.user_groups.filter(name='Customers').first()
+        customers.is_active = False
+        customers.save()
+        self.assertIsNone(ContactGroup.user_groups.filter(name='Customers', is_active=True).first())
+
+        # updating with our inactive group will recreate it
+        action['groups'][0] = {'name': 'Customers'}
+        self.update_action_json(self.flow, action)
+        self.assertIsNotNone(ContactGroup.user_groups.filter(name='Customers', is_active=True).first())
+
     # @rerun_with_flowserver
     def test_labeling(self):
         self.start_flow()
