@@ -1,0 +1,848 @@
+{
+  "campaigns": [], 
+  "version": "11.3", 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "6175bb69-d3a8-4a40-a898-f9505b9498f4", 
+          "exit_uuid": "79cd7503-c21b-4b67-aa42-19ee5ff81556", 
+          "y": 0, 
+          "x": 100, 
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Started by @parent.contact.name. What is your favorite color?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "1e2771e2-5446-4e4c-a5b4-f2f62b72d71e"
+            }
+          ]
+        }, 
+        {
+          "uuid": "dee2737a-9e76-4095-a4f0-07fc15b59f75", 
+          "exit_uuid": "96a6a24f-c792-4463-ab07-5034f7c41d32", 
+          "y": 89, 
+          "x": 725, 
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "don't know that one"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "9d0b966a-070e-4ddb-9cfa-6eb7857d91be"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "6175bb69-d3a8-4a40-a898-f9505b9498f4", 
+      "rule_sets": [
+        {
+          "uuid": "778741a8-47df-4fe8-a853-2470eed00eb9", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Red"
+              }, 
+              "uuid": "b48fa375-c3ad-4b3e-bf93-43292e3b1cfa", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "Red"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Green"
+              }, 
+              "uuid": "83562725-1f39-4dd6-a167-f4280f94fa15", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "fra": "grune", 
+                  "eng": "Green"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Blue"
+              }, 
+              "uuid": "480acf40-4abb-4661-b2af-6ac31d21251c", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "Blue"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "bc11051b-efa8-4562-9f9a-37d831299694", 
+              "destination": "dee2737a-9e76-4095-a4f0-07fc15b59f75", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Color", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 146, 
+          "x": 258, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "saved_on": "2018-01-27T00:59:40.975488Z", 
+        "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247", 
+        "name": "Favorite Color", 
+        "revision": 22
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "293ecaff-35f0-4758-abf0-7653897e6b08", 
+          "exit_uuid": "a653631a-721c-4f9a-b86d-f946fd6756f5", 
+          "y": 0, 
+          "x": 100, 
+          "destination": "767a029c-4da9-4c96-93b8-2927c4fb11c6", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {
+                "eng": "image/png:attachments/3/94475/steps/4de254db-9d96-4420-8ba6-337d7f280010.png"
+              }, 
+              "msg": {
+                "spa": "Como te llamas?", 
+                "eng": "What is your name?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "ffcd4a4d-08d0-47a5-bd9c-364eedb4f6cc"
+            }
+          ]
+        }, 
+        {
+          "uuid": "c38fc271-e54f-4029-b49d-f9d9634d2b1c", 
+          "exit_uuid": "63c4f54e-09ab-4620-8f91-15d9e6b60ff1", 
+          "y": 217, 
+          "x": 100, 
+          "destination": "ee98bb89-77cc-4f1c-9948-7d82cad9a6f7", 
+          "actions": [
+            {
+              "quick_replies": [
+                {
+                  "spa": "ni\u00f1o", 
+                  "eng": "Male"
+                }, 
+                {
+                  "spa": "ni\u00f1a", 
+                  "eng": "Female"
+                }
+              ], 
+              "media": {}, 
+              "msg": {
+                "spa": "\u00bfEs usted un ni\u00f1o o una ni\u00f1a?", 
+                "eng": "Are you male or female?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "39124553-f7dc-4f29-8af2-e45584a94236"
+            }
+          ]
+        }, 
+        {
+          "uuid": "b739b672-1fa6-443f-b8f6-113017f9948f", 
+          "exit_uuid": "9e187409-a200-4d7e-9d74-1dd18e3c0e32", 
+          "y": 449, 
+          "x": 92, 
+          "destination": "e1f8af3e-a9af-4a36-9261-9eccce1d66a0", 
+          "actions": [
+            {
+              "field": "name", 
+              "type": "save", 
+              "uuid": "0afb91da-9eb7-4e11-9cd8-ae01952c1153", 
+              "value": "@flow.name", 
+              "label": "Contact Name"
+            }, 
+            {
+              "field": "gender", 
+              "type": "save", 
+              "uuid": "8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671", 
+              "value": "@flow.gender.category", 
+              "label": "Gender"
+            }, 
+            {
+              "type": "add_group", 
+              "uuid": "948877da-64f5-4667-978a-3e3febcb4664", 
+              "groups": [
+                {
+                  "name": "Customers", 
+                  "uuid": "d43b8a53-5fbf-4497-a714-8b298ab6af9b"
+                }
+              ]
+            }, 
+            {
+              "type": "add_group", 
+              "uuid": "df3d5f59-a43a-4285-bb72-032480b460bd", 
+              "groups": [
+                {
+                  "name": "Cat Facts", 
+                  "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                }
+              ]
+            }, 
+            {
+              "labels": [
+                {
+                  "name": "Friends", 
+                  "uuid": "9c2d5ba5-0e92-437a-9dff-5a7b70965037"
+                }
+              ], 
+              "type": "add_label", 
+              "uuid": "f1fbd65b-6eeb-46d7-8c85-4786b027a4db"
+            }, 
+            {
+              "quick_replies": [], 
+              "media": {
+                "eng": "image:http://textit.in/static?gender=@contact.gender"
+              }, 
+              "msg": {
+                "eng": "Thanks @contact.name, you are @(LOWER(contact.gender))."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "38b07089-ab02-48a7-9065-ec2d8f02104f"
+            }, 
+            {
+              "uuid": "0b387b74-cf44-461d-9970-054c5892eecf", 
+              "contacts": [
+                {
+                  "urns": [
+                    {
+                      "priority": 50, 
+                      "path": "+12065552121",
+                      "scheme": "tel"
+                    }
+                  ], 
+                  "name": "Oprah Winfrey"
+                }
+              ], 
+              "variables": [], 
+              "flow": {
+                "name": "Favorite Color", 
+                "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
+              }, 
+              "groups": [], 
+              "type": "trigger-flow"
+            }
+          ]
+        }, 
+        {
+          "uuid": "06c6f5a2-7b2f-4abb-a26d-2b728decb336", 
+          "exit_uuid": "7373c1c0-0dbd-4617-805a-fac3f5ab1f78", 
+          "y": 1094, 
+          "x": 332, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "uuid": "4c729279-b30f-471d-8995-cd1667117194", 
+              "contacts": [], 
+              "media": {}, 
+              "variables": [], 
+              "groups": [
+                {
+                  "name": "Females", 
+                  "uuid": "f8f2ce18-b585-4969-8e58-237c1aa26d88"
+                }
+              ], 
+              "msg": {
+                "spa": "Hola chicas!", 
+                "eng": "Hey ladies."
+              }, 
+              "type": "send"
+            }, 
+            {
+              "type": "del_group", 
+              "uuid": "b4c7c2c7-987d-47e2-8b6c-fd30ef3196c0", 
+              "groups": [
+                {
+                  "name": "Customers", 
+                  "uuid": "d43b8a53-5fbf-4497-a714-8b298ab6af9b"
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          "uuid": "749c056f-cbd1-4f3e-932b-62086182e4f9", 
+          "exit_uuid": "81013d08-e447-4ad5-ab51-ab2892fb647d", 
+          "y": 209, 
+          "x": 659, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "field": "telegram", 
+              "type": "save", 
+              "uuid": "fc9d70f8-a58b-448b-88ff-9ede42629c1e", 
+              "value": "12345", 
+              "label": "Telegram identifier"
+            }, 
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "This is going to all urns"
+              }, 
+              "send_all": true, 
+              "type": "reply", 
+              "uuid": "f3584194-39af-4216-8e15-8106569be906"
+            }
+          ]
+        }, 
+        {
+          "uuid": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "exit_uuid": "8f96ce4c-abb8-4363-b380-567cd6b7acfe", 
+          "y": 1015, 
+          "x": 720, 
+          "destination": "cca6c5d2-ca6b-48de-b759-80de04f6400b", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "spa": "Enviar un comando", 
+                "eng": "Send a command"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "05806b30-9d57-4bbd-9a99-649ea35661dc"
+            }
+          ]
+        }, 
+        {
+          "uuid": "bb9d9bba-794e-4e33-9884-9b3311bf2252", 
+          "exit_uuid": "33fa796a-ce48-465b-a292-37903f7a9aa5", 
+          "y": 256, 
+          "x": 368, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Your GET code is @extra.code"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "c40e7bc8-5fa0-41a3-976a-43b26d6e6ba3"
+            }, 
+            {
+              "action": "POST", 
+              "type": "api", 
+              "webhook": "http://localhost:5999/code", 
+              "uuid": "07bf0c33-16b7-4fc8-ac9a-6ad182008692", 
+              "webhook_headers": [
+                {
+                  "name": "WebhookType", 
+                  "value": "POST"
+                }
+              ]
+            }, 
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Your POST code is @extra.code"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "7cf4bece-ad0f-4f48-abc6-fc2124c4f4dd"
+            }
+          ]
+        }, 
+        {
+          "uuid": "018a7202-bb58-4094-b999-5e2fd72ddcde", 
+          "exit_uuid": "a7c714e8-18d9-416e-bb97-4014ae466d42", 
+          "y": 490, 
+          "x": 484, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Webhook call failed"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "36c15ff9-4e48-4c59-9246-8739c18bb7e7"
+            }
+          ]
+        }, 
+        {
+          "uuid": "cc7b4519-ffba-4ed4-b890-7b3fce72274f", 
+          "exit_uuid": "fa1a0571-dec0-47a8-b0da-4eb33d0a0e32", 
+          "y": 203, 
+          "x": 899, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "msg": "Hi there, my name is @contact.name.",
+              "type": "email", 
+              "uuid": "431b0c69-cc9f-4017-b667-0823e5017d3e", 
+              "emails": [
+                "support@website.com"
+              ], 
+              "subject": "Message \n from\t@contact.name"
+            }
+          ]
+        }, 
+        {
+          "uuid": "bbd23b5b-5d63-4628-a2e9-db0ab769a4e1", 
+          "exit_uuid": "b799a83e-cf15-4a02-8a01-5bde65464edc", 
+          "y": 128, 
+          "x": 1075, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "lang": "spa", 
+              "type": "lang", 
+              "name": "Spanish", 
+              "uuid": "bcfaa58c-e088-477a-933b-3a5bba01284d"
+            }
+          ]
+        }, 
+        {
+          "uuid": "0d87510f-bef9-4016-a762-d5db79573d5d", 
+          "exit_uuid": "daaa6804-d7f3-4a4a-8dca-755f2de73840", 
+          "y": 590, 
+          "x": 934, 
+          "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "You picked @child.color.category."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "0da39fa6-7f9d-4671-9426-f52e1aaee115"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "293ecaff-35f0-4758-abf0-7653897e6b08", 
+      "rule_sets": [
+        {
+          "uuid": "767a029c-4da9-4c96-93b8-2927c4fb11c6", 
+          "rules": [
+            {
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "uuid": "04baa819-4c29-4622-b7b2-aef3e842ca30", 
+              "destination": "c38fc271-e54f-4029-b49d-f9d9634d2b1c", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Name", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 112, 
+          "x": 85, 
+          "config": {}
+        }, 
+        {
+          "uuid": "ee98bb89-77cc-4f1c-9948-7d82cad9a6f7", 
+          "rules": [
+            {
+              "category": {
+                "spa": "Ni\u00f1o", 
+                "eng": "Male"
+              }, 
+              "uuid": "e9583dfc-4410-4e4c-a0be-fed59c53c61a", 
+              "destination": "b739b672-1fa6-443f-b8f6-113017f9948f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "spa": "ni\u00f1o", 
+                  "eng": "Male m"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "spa": "Ni\u00f1a", 
+                "eng": "Female"
+              }, 
+              "uuid": "7e33018c-6e20-4b06-b1e3-14aa6dc072ed", 
+              "destination": "b739b672-1fa6-443f-b8f6-113017f9948f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "spa": "ni\u00f1a", 
+                  "eng": "Female f"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "spa": "Otro", 
+                "eng": "Other"
+              }, 
+              "uuid": "c9180b9f-bdcc-4434-be0d-d5ffc3e599c2", 
+              "destination": "c38fc271-e54f-4029-b49d-f9d9634d2b1c", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Gender", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 332, 
+          "x": 67, 
+          "config": {}
+        }, 
+        {
+          "uuid": "e1f8af3e-a9af-4a36-9261-9eccce1d66a0", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Males"
+              }, 
+              "uuid": "13cfb694-b202-4623-ba38-f7f64575fbed", 
+              "destination": "06c6f5a2-7b2f-4abb-a26d-2b728decb336", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "uuid": "d944401d-9cd5-4ea3-94b0-90af6c21b50f", 
+                  "name": "Males"
+                }, 
+                "type": "in_group"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Females"
+              }, 
+              "uuid": "9f3cf05d-9d27-4ead-bae8-23fdff07d0e2", 
+              "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "uuid": "f8f2ce18-b585-4969-8e58-237c1aa26d88", 
+                  "name": "Females"
+                }, 
+                "type": "in_group"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "b5fd431b-ddb9-4a81-a82c-411feff9bf8e", 
+              "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "group", 
+          "label": "Response 3", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 864, 
+          "x": 388, 
+          "config": {}
+        }, 
+        {
+          "uuid": "50faf55a-b4b6-4eb4-84ec-ed03fae5c628", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              }, 
+              "uuid": "f982dcc4-87be-4d49-b8c6-bfd7e86d9568", 
+              "destination": "bb9d9bba-794e-4e33-9884-9b3311bf2252", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Failure"
+              }, 
+              "uuid": "fcb32ef3-e201-4339-a342-9613a01116e9", 
+              "destination": "018a7202-bb58-4094-b999-5e2fd72ddcde", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Webhook GET", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 133, 
+          "x": 411, 
+          "config": {
+            "webhook": "http://localhost:5999/code", 
+            "webhook_action": "GET", 
+            "webhook_headers": [
+              {
+                "name": "WebhookType", 
+                "value": "GET"
+              }
+            ]
+          }
+        }, 
+        {
+          "uuid": "cca6c5d2-ca6b-48de-b759-80de04f6400b", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Webhook"
+              }, 
+              "uuid": "6ae41353-72b9-4242-8dec-bae9b9f9c8a2", 
+              "destination": "50faf55a-b4b6-4eb4-84ec-ed03fae5c628", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "test": {
+                  "eng": "webhook"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Sendall"
+              }, 
+              "uuid": "5638bf01-020e-4b0b-a887-7547eaa13056", 
+              "destination": "749c056f-cbd1-4f3e-932b-62086182e4f9", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "sendall"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Email"
+              }, 
+              "uuid": "87b73c31-5ada-4a83-849d-0d303c120c01", 
+              "destination": "cc7b4519-ffba-4ed4-b890-7b3fce72274f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "email"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Subflow"
+              }, 
+              "uuid": "50a7a872-f69e-4c83-8788-f83f28cdaa40", 
+              "destination": "e617065c-55f6-4d7c-b1e0-8176dadd67e2", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "test": {
+                  "eng": "subflow"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Spanish"
+              }, 
+              "uuid": "06ff4571-6c69-4bb4-82fc-db8d8a0293ac", 
+              "destination": "bbd23b5b-5d63-4628-a2e9-db0ab769a4e1", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "spanish"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Removeall"
+              }, 
+              "uuid": "7472b4f4-1c7f-43dd-a899-d4fdbad857a5", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "removeall"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Telegram"
+              }, 
+              "uuid": "4256c40b-dc17-4ce5-bc09-5ee018da3321", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "test": {
+                  "eng": "telegram"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "6d62342a-62e8-4082-afdf-cb36e0aa9f80", 
+              "destination": "293ecaff-35f0-4758-abf0-7653897e6b08",
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Command", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 27, 
+          "x": 650, 
+          "config": {}
+        }, 
+        {
+          "uuid": "e617065c-55f6-4d7c-b1e0-8176dadd67e2", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Completed"
+              }, 
+              "uuid": "4d8aba13-4e3c-47a6-8e5f-0a3d41d73558", 
+              "destination": "0d87510f-bef9-4016-a762-d5db79573d5d", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "dafaf15f-4783-46f8-bcc7-6f31e1375402", 
+              "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 6", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 374, 
+          "x": 1034, 
+          "config": {
+            "flow": {
+              "name": "Favorite Color", 
+              "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "uuid": "0125d3da-7f00-4b2b-91f9-f503595d70da", 
+        "notes": [], 
+        "expires": 10080, 
+        "name": "Action Packed", 
+        "saved_on": "2018-01-27T00:59:15.403038Z", 
+        "revision": 229
+      }
+    }
+  ], 
+  "triggers": []
+}
