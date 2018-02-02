@@ -5461,7 +5461,7 @@ class VariableContactAction(Action):
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
 
             if not contact and (phone or urn):
-                if phone:
+                if phone:  # pragma: needs cover
                     contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=[URN.from_tel(phone)])
                 elif urns:
                     contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
