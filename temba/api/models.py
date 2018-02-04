@@ -226,7 +226,7 @@ class WebHookEvent(SmartModel):
         post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
         post_data['path'] = run.get_path()
         post_data['results'] = run.get_results()
-
+        post_data['run'] = dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
         contact_dict = dict(uuid=contact.uuid, name=contact.name)
         if contact_urn:
             contact_dict['urn'] = contact_urn.urn
