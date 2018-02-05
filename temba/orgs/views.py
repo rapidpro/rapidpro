@@ -107,9 +107,11 @@ class OrgPermsMixin(object):
 
     def dispatch(self, request, *args, **kwargs):
 
-        # authenticated but without orgs get the org chooser
-        if self.get_user().is_authenticated() and not self.derive_org():
-            return HttpResponseRedirect(reverse('orgs.org_choose'))
+        # non admin authenticated users without orgs get the org chooser
+        user = self.get_user()
+        if user.is_authenticated() and not (user.is_superuser or user.is_staff):
+            if not self.derive_org():
+                return HttpResponseRedirect(reverse('orgs.org_choose'))
 
         return super(OrgPermsMixin, self).dispatch(request, *args, **kwargs)
 
