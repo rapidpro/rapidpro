@@ -1757,8 +1757,8 @@ class Flow(TembaModel):
     def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
                        flow_start=None, parent_run=None):
 
-        if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
-            # try to start the session against our flow server
+        # only use flowserver if flow supports it, message is an actual message, and parent wasn't run in old engine
+        if self.use_flow_server() and not (start_msg and not start_msg.contact_urn) and not parent_run:
             contacts = Contact.objects.filter(id__in=all_contact_ids).order_by('id')
             runs = FlowSession.bulk_start(contacts, self, msg_in=start_msg, extra=extra)
             if flow_start:
@@ -2861,7 +2861,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing.save(update_fields=('path', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
-            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in)
+            msgs_to_send, run_messages = run.apply_events(run_log, msg_in)
 
         else:
             # use our now for created_on/modified_on as this needs to be as close as possible to database time for API
@@ -2891,22 +2891,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
                 ActionLog.create(run, log_text, created_on=created_on)
 
-            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in)
-
-            # old flow engine appends a list of start messages on run creation
-            start_msgs = []
-            if msg_in:
-                start_msgs.append(msg_in)
-            for msgs in six.itervalues(msgs_out_by_step):
-                start_msgs.extend(msgs)
-            run.start_msgs = start_msgs
+            msgs_to_send, run_messages = run.apply_events(run_log, msg_in)
 
         # attach any messages to this run
         if not run.message_ids:
             run.message_ids = []
         if msg_in:
             run.message_ids.append(msg_in.id)
-        for m in msgs_to_send:
+        for m in run_messages:
             run.message_ids.append(m.id)
         if run.message_ids:
             run.save(update_fields=('message_ids',))
@@ -2914,23 +2906,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return run, msgs_to_send
 
     def apply_events(self, run_log, msg_in=None):
-        msgs_to_send = []
-        msgs_by_step = defaultdict(list)
+        all_msgs_to_send = []
+        all_run_messages = []
 
         for entry in run_log:
             # print("⚡ %s %s" % (entry.event['type'], json.dumps({k: v for k, v in six.iteritems(entry.event) if k != 'type'})))
 
             if entry.event['type'] == 'send_msg':
-                msgs = self.apply_send_msg(entry.event, msg_in)
+                msgs_to_send, run_messages = self.apply_send_msg(entry.event, msg_in)
 
-                msgs_to_send += msgs
-                msgs_by_step[entry.step_uuid] += msgs
+                all_msgs_to_send += msgs_to_send
+                all_run_messages += run_messages
             else:
                 apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
                 if apply_func:
                     apply_func(entry.event, msg_in)
 
-        return msgs_to_send, msgs_by_step
+        return all_msgs_to_send, all_run_messages
 
     def apply_send_msg(self, event, msg):
         """
@@ -2954,7 +2946,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
 
-        msgs = []
+        msgs_to_send = []
+        run_messages = []
+
         for recipient in itertools.chain(urns, contacts):
             high_priority = (recipient == self.contact and self.session.responded)
             channel = msg.channel if msg and msg.contact == recipient else None
@@ -2970,11 +2964,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     created_on=created_on,
                     response_to=msg if msg and msg.id else None
                 )
-                msgs.append(msg_out)
+                msgs_to_send.append(msg_out)
+                if msg_out.contact == self.contact:
+                    run_messages.append(msg_out)
+
             except UnreachableException:  # pragma: no cover
                 continue
 
-        return msgs
+        return msgs_to_send, run_messages
 
     def apply_send_email(self, event, msg):
         """

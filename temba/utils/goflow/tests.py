@@ -94,6 +94,6 @@ class ClientTest(TembaTest):
         flow = self.get_flow('color')
 
         with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(1234).start(flow)
+            self.client.request_builder(1234).start_manual(flow)
 
         self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
