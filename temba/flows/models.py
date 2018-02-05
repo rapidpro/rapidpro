@@ -2840,11 +2840,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # we store a simplified version of the path
         path = []
         for s in run_output['path']:
-            path.append({
+            step = {
                 FlowRun.PATH_NODE_UUID: s['node_uuid'],
-                FlowRun.PATH_EXIT_UUID: s.get('exit_uuid'),
                 FlowRun.PATH_ARRIVED_ON: s['arrived_on']
-            })
+            }
+            if 'exit_uuid' in s:
+                step[FlowRun.PATH_EXIT_UUID] = s['exit_uuid']
+            path.append(step)
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         if existing:

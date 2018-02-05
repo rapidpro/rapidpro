@@ -6449,6 +6449,7 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.expires_on > starting_expiration)
         self.assertTrue(run.modified_on > starting_modified)
 
+    @also_in_flowserver
     def test_initial_expiration(self):
         flow = self.get_flow('favorites')
         flow.start(groups=[], contacts=[self.contact])
@@ -6588,6 +6589,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(0, Msg.objects.filter(high_priority=False).count())
         self.assertEqual(4, Msg.objects.filter(direction='O', high_priority=True).count())
 
+    @also_in_flowserver
     def test_subflow(self):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
