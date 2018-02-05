@@ -8,11 +8,12 @@ import six
 import time
 import urlparse
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 
 from django.template import Engine
 from enum import Enum
 from datetime import timedelta
+from django.template import Context
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
@@ -89,6 +90,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     claim_blurb = None
     claim_view = None
 
+    configuration_blurb = None
+
     update_form = None
 
     max_length = -1
@@ -155,11 +158,11 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         if IS_PROD setting is True.
         """
 
-    @abstractmethod
-    def send(self, channel, msg, text):
+    def send(self, channel, msg, text):  # pragma: no cover
         """
         Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
+        raise NotImplemented("sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
@@ -172,6 +175,15 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         Allows a ChannelType to register periodic tasks it wants celery to run.
         ex: sender.add_periodic_task(300, remap_twitter_ids)
         """
+
+    def get_configuration_blurb(self, channel):
+        """
+        Allows ChannelTypes to define the blurb to show on the channel configuration page.
+        """
+        if self.__class__.configuration_blurb is not None:
+            return Engine.get_default().from_string(self.configuration_blurb).render(context=Context(dict(channel=channel)))
+        else:
+            return ""
 
     def __str__(self):
         return self.name

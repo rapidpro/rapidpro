@@ -133,6 +133,12 @@ class ZenviaHandler(CourierHandler):
     courier_name = 'courier.zv'
 
 
+class MtargetHandler(CourierHandler):
+    channel_name = "Mtarget"
+    courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive|stop)$'
+    courier_name = 'courier.mt'
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'

@@ -17,7 +17,10 @@
           (v{{channel.os}})
 
 -block content
-  -if object.channel_type == 'AT'
+  -if configuration_blurb
+    {{configuration_blurb}}
+
+  -elif object.channel_type == 'AT'
     %h4
       -blocktrans
         To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the
@@ -1026,6 +1029,7 @@
         POST https://{{ domain }}{% url 'courier.ex' object.uuid 'failed' %}
         id=2599235
     %hr
+
 
 -block extra-script
   {{ block.super }}

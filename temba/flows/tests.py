@@ -4749,6 +4749,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great work.", self.send_message(flow, "yes"))
 
         msg = Msg.objects.all().order_by('-id').first()
+        run = FlowRun.objects.all().order_by('id').first()
 
         # if there is no urn, it still works, but is omitted
         empty_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
@@ -4770,6 +4771,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
             self.assertEqual(path_length, len(payload['path']))
             self.assertEqual(result_count, len(payload['results']))
+            self.assertEqual(dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat()), payload['run'])
 
             # make sure things don't sneak into our path format unintentionally
             # first item in the path should have node, arrived, and exit
