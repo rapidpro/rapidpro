@@ -149,7 +149,7 @@ class FlowSession(models.Model):
         cls.objects.filter(contact__in=contacts, status=cls.STATUS_WAITING).update(status=cls.STATUS_INTERRUPTED)
 
     @classmethod
-    def bulk_start(cls, contacts, flow, msg_in=None, extra=None):
+    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, extra=None):
         """
         Starts a contact in the given flow
         """
@@ -180,7 +180,11 @@ class FlowSession(models.Model):
                 request = request.set_extra(extra)
 
             try:
-                output = request.start(flow)
+                if parent_run_summary:
+                    output = request.start_by_flow_action(flow, parent_run_summary)
+                else:
+                    output = request.start_manual(flow)
+
             except goflow.FlowServerException:
                 continue
 
@@ -1756,7 +1760,7 @@ class Flow(TembaModel):
         if self.use_flow_server() and not (start_msg and not start_msg.contact_urn):
             # try to start the session against our flow server
             contacts = Contact.objects.filter(id__in=all_contact_ids).order_by('id')
-            runs = FlowSession.bulk_start(contacts, self, start_msg, extra)
+            runs = FlowSession.bulk_start(contacts, self, msg_in=start_msg, extra=extra)
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
@@ -2897,6 +2901,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 start_msgs.extend(msgs)
             run.start_msgs = start_msgs
 
+        # attach any messages to this run
+        if not run.message_ids:
+            run.message_ids = []
+        if msg_in:
+            run.message_ids.append(msg_in.id)
+        for m in msgs_to_send:
+            run.message_ids.append(m.id)
+        if run.message_ids:
+            run.save(update_fields=('message_ids',))
+
         return run, msgs_to_send
 
     def apply_events(self, run_log, msg_in=None):
@@ -2904,6 +2918,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         msgs_by_step = defaultdict(list)
 
         for entry in run_log:
+            # print("⚡ %s %s" % (entry.event['type'], json.dumps({k: v for k, v in six.iteritems(entry.event) if k != 'type'})))
+
             if entry.event['type'] == 'send_msg':
                 msgs = self.apply_send_msg(entry.event, msg_in)
 
@@ -2936,13 +2952,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             attachments.append("%s:%s" % (media_type, media_url))
 
-        urns, contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
-
-        # resolve group contacts
-        contacts = set(contacts)
-        for group in groups:
-            for contact in group.contacts.all():
-                contacts.add(contact)
+        urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
 
         msgs = []
         for recipient in itertools.chain(urns, contacts):
@@ -2994,7 +3004,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         elif field_name == "name":
             self.contact.name = value
             update_fields.append("name")
-        else:
+        else:  # pragma: no cover
             raise ValueError("Unknown field to update contact: %s" % field_name)
 
         self.contact.save(update_fields=update_fields)
@@ -3011,7 +3021,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         urns.append(event['urn'])
 
         # don't really update URNs on test contacts
-        if self.contact.is_test:  # pragma: no cover
+        if self.contact.is_test:
             scheme, path, display = URN.to_parts(event['urn'])
             ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
         else:
@@ -3025,17 +3035,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         field = ContactField.objects.get(org=self.org, key=event['field']['key'])
         value = event['value']
 
-        # TODO goflow will send location values back as OSM IDs, but set_field currently needs location names
-        if field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-            boundary = AdminBoundary.objects.filter(osm_id=value).first()
-            if boundary:
-                value = boundary.name
-            else:
-                raise ValueError("No such admin boundary with OSM ID: '%s'" % value)
-
         self.contact.set_field(user, field.key, value)
 
-        if self.contact.is_test:  # pragma: no cover
+        if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
 
     def apply_save_flow_result(self, event, msg):
@@ -3081,7 +3083,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
-    def apply_start_session(self, event, msg):
+    def apply_session_triggered(self, event, msg):
         """
         New sessions being started for other contacts
         """
@@ -3089,20 +3091,42 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         flow_ref = event['flow']
         contact_refs = event.get('contacts', [])
         group_refs = event.get('groups', [])
+        parent_run_summary = event['run']
         user = get_flow_user(self.org)
 
-        flow = self.org.flows.filter(is_active=True, is_archived=False, uuid=flow_ref['uuid'])
+        flow = self.org.flows.filter(is_active=True, is_archived=False, uuid=flow_ref['uuid']).first()
         if flow:
-            urns, contacts, groups = self._resolve_contacts_and_groups(user, urns, contact_refs, group_refs)
+            urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
 
             # extract only unique contacts
             contacts = set(contacts)
             for urn in urns:
                 contacts.add(urn.contact)
 
-            flow.start(groups, contacts, restart_participants=True)
+            FlowSession.bulk_start(contacts, flow, parent_run_summary=parent_run_summary)
 
-    def _resolve_contacts_and_groups(self, user, urn_strs, contact_refs, group_refs):
+        else:  # pragma: no cover
+            raise ValueError("No such flow with UUID %s" % flow_ref['uuid'])
+
+    def apply_error(self, event, msg):
+        """
+        The flowserver recorded a non-fatal error event
+        """
+        # only interested in errors for turning them into simulator messages
+        if not self.contact.is_test:  # pragma: no cover
+            return
+
+        error = event['text']
+
+        if error.startswith("invalid URN: "):
+            invalid_urn = error[14:-1]
+            try:
+                URN.to_parts(invalid_urn)
+                ActionLog.info(self, _("Contact not updated, invalid connection for contact (%s)") % invalid_urn)
+            except ValueError:
+                ActionLog.info(self, _("Contact not updated, missing connection for contact"))
+
+    def _resolve_urns_and_contacts(self, user, urn_strs, contact_refs, group_refs):
         """
         Helper function for send_msg and start_session events which include lists of urns, contacts and groups
         """
@@ -3115,7 +3139,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             contact, urn = Contact.get_or_create(self.org, urn_str, user=user)
             urns.append(urn)
 
-        return urns, contacts, groups
+        # resolve group contacts
+        contacts = set(contacts)
+        for group in groups:
+            for contact in group.contacts.all():
+                contacts.add(contact)
+
+        return urns, contacts
 
     @classmethod
     def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,

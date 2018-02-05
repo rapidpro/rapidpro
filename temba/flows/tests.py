@@ -2849,7 +2849,7 @@ class ActionPackedTest(FlowFileTest):
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
         self.assertEqual('Friends', msg.labels.all().first().name)
 
-    # TODO: @also_in_flowserver
+    @also_in_flowserver
     def test_trigger_flow_action(self):
 
         self.create_contact('Oprah Winfrey', '+12065552121')
@@ -2909,8 +2909,10 @@ class ActionPackedTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.update_action_field(self.flow, '431b0c69-cc9f-4017-b667-0823e5017d3e', 'emails', [])
 
-    # @also_in_flowserver
     def test_update_reserved_keys(self):
+        """
+        Reserved field names only applies to old engine
+        """
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
@@ -3027,7 +3029,7 @@ class ActionPackedTest(FlowFileTest):
         # robzor shouldn't have a number anymore
         self.assertFalse(robbed.urns.all())
 
-    # TODO: @also_in_flowserver
+    @also_in_flowserver
     def test_save_contact_simulator_messages(self):
 
         action = self.get_action_json(self.flow, '0afb91da-9eb7-4e11-9cd8-ae01952c1153')

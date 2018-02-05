@@ -270,11 +270,27 @@ class RequestBuilder(object):
         self.request['asset_server'] = {'type_urls': type_urls}
         return self
 
-    def start(self, flow):
+    def start_manual(self, flow):
+        """
+        User is manually starting this session
+        """
         self.request['trigger'] = {
             'type': 'manual',
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
             'triggered_on': timezone.now().isoformat()
+        }
+
+        return self.client.start(self.request)
+
+    def start_by_flow_action(self, flow, parent_run_summary):
+        """
+        New session was triggered by a flow action in a different run
+        """
+        self.request['trigger'] = {
+            'type': 'flow_action',
+            'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'triggered_on': timezone.now().isoformat(),
+            'run': parent_run_summary
         }
 
         return self.client.start(self.request)
