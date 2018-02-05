@@ -158,11 +158,11 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         if IS_PROD setting is True.
         """
 
-    def send(self, channel, msg, text):
+    def send(self, channel, msg, text):  # pragma: no cover
         """
         Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
-        raise Exception("sending not implemented for channel type: %s" % self.__class__.code)
+        raise NotImplemented("sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
