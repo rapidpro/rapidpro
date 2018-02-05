@@ -161,21 +161,26 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def rerun_with_flowserver(test_func):
+def also_in_flowserver(test_func):
     """
-    Decorator to mark a test function as one that should also be re-run with the flow server
+    Decorator to mark a test function as one that should also be run with the flow server
     """
-    test_func._rerun_with_flowserver = True
+    test_func._also_in_flowserver = True
     return test_func
 
 
 class AddFlowServerTestsMeta(type):
+    """
+    Metaclass with adds new flowserver-based tests based on existing tests decorated with @also_in_flowserver. For
+    example a test method called test_foo will become two test methods - the original test_foo which runs in the old
+    engine, and a new one called test_foo_flowserver with is run using the flowserver.
+    """
     def __new__(mcs, name, bases, dct):
         new_tests = {}
         for key, val in six.iteritems(dct):
-            if key.startswith('test_') and getattr(val, '_rerun_with_flowserver', False):
+            if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
                 new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                new_tests[key + '_with_flowserver'] = new_func
+                new_tests[key + '_flowserver'] = new_func
         dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)

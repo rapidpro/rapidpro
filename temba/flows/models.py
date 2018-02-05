@@ -2984,21 +2984,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Name or language being updated
         """
+        field_name = event['field_name']
+        value = event['value']
         update_fields = []
 
-        if event['field_name'].lower() == "language":
-            self.contact.language = event['value']
+        if field_name == "language":
+            self.contact.language = value or None
             update_fields.append('language')
-        elif event['field_name'] == "name":
-            self.contact.name = event['value']
+        elif field_name == "name":
+            self.contact.name = value
             update_fields.append("name")
         else:
-            raise ValueError("Unknown field to update contact: %s" % event['field_name'])
+            raise ValueError("Unknown field to update contact: %s" % field_name)
 
         self.contact.save(update_fields=update_fields)
 
         if self.contact.is_test:  # pragma: no cover
-            ActionLog.create(self, _("Updated %s to '%s'") % (event['field_name'], event['value']))
+            ActionLog.create(self, _("Updated %s to '%s'") % (field_name, value))
 
     def apply_add_urn(self, event, msg):
         """
@@ -3009,7 +3011,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         urns.append(event['urn'])
 
         # don't really update URNs on test contacts
-        if self.contact.is_test:
+        if self.contact.is_test:  # pragma: no cover
             scheme, path, display = URN.to_parts(event['urn'])
             ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
         else:
@@ -3029,7 +3031,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if boundary:
                 value = boundary.name
             else:
-                raise Exception("No such admin boundary with OSM ID: '%s'" % value)
+                raise ValueError("No such admin boundary with OSM ID: '%s'" % value)
 
         self.contact.set_field(user, field.key, value)
 
@@ -3043,7 +3045,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                              created_on=iso8601.parse_date(event['created_on']))
 
     def apply_add_label(self, event, msg):
-        if not msg:
+        if not msg:  # pragma: no cover
             return
 
         for label_ref in event['labels']:

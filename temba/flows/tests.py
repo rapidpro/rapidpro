@@ -30,7 +30,7 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest, rerun_with_flowserver
+from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException
@@ -2591,7 +2591,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual(len(run.get_path()), 2)
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_quick_replies(self):
         flow = self.get_flow('quick_replies')
         run, = flow.start([], [self.contact4])
@@ -2603,7 +2603,7 @@ class FlowTest(TembaTest):
         msg = Msg.objects.get(direction='O')
         self.assertEqual(msg.get_metadata(), {'quick_replies': ['Sim', 'No']})
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_multiple(self):
         run1, = self.flow.start([], [self.contact])
 
@@ -2756,7 +2756,7 @@ class ActionPackedTest(FlowFileTest):
         self.send("Trey Anastasio")
         self.send("Male")
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_send_message(self):
 
         self.start_flow()
@@ -2780,7 +2780,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual(2, Msg.objects.filter(text='This is going to all urns', direction=OUTGOING).count())
         self.assertIsNotNone(Msg.objects.filter(text="Thanks Trey Anastasio, you are male.").first())
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_add_remove_from_group(self):
 
         # convert the static groups created by import into dynamic ones
@@ -2843,13 +2843,13 @@ class ActionPackedTest(FlowFileTest):
         self.update_action_json(self.flow, action)
         self.assertIsNotNone(ContactGroup.user_groups.filter(name='Customers', is_active=True).first())
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_labeling(self):
         self.start_flow()
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
         self.assertEqual('Friends', msg.labels.all().first().name)
 
-    # TODO: @rerun_with_flowserver
+    # TODO: @also_in_flowserver
     def test_trigger_flow_action(self):
 
         self.create_contact('Oprah Winfrey', '+12065552121')
@@ -2867,7 +2867,7 @@ class ActionPackedTest(FlowFileTest):
         msg = triggered_run.get_messages().first()
         self.assertEqual('Started by Trey Anastasio. What is your favorite color?', msg.text)
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     @override_settings(SEND_EMAILS=True)
     def test_email(self):
         self.start_flow()
@@ -2909,7 +2909,7 @@ class ActionPackedTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.update_action_field(self.flow, '431b0c69-cc9f-4017-b667-0823e5017d3e', 'emails', [])
 
-    # @rerun_with_flowserver
+    # @also_in_flowserver
     def test_update_reserved_keys(self):
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
         # throw exception for other reserved words except name and first_name
@@ -2922,7 +2922,7 @@ class ActionPackedTest(FlowFileTest):
                     action['value'] = ''
                     self.update_action_json(self.flow, action)
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_update_contact(self):
 
         gender_action_uuid = '8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671'
@@ -2979,7 +2979,7 @@ class ActionPackedTest(FlowFileTest):
         self.start_flow()
         self.assertEqual(action['value'], self.contact.get_field('last_message').string_value)
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_add_phone_number(self):
 
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
@@ -3027,7 +3027,7 @@ class ActionPackedTest(FlowFileTest):
         # robzor shouldn't have a number anymore
         self.assertFalse(robbed.urns.all())
 
-    # TODO: @rerun_with_flowserver
+    # TODO: @also_in_flowserver
     def test_save_contact_simulator_messages(self):
 
         action = self.get_action_json(self.flow, '0afb91da-9eb7-4e11-9cd8-ae01952c1153')
@@ -3065,6 +3065,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual(ActionLog.objects.all().order_by('id')[3].text,
                          'Contact not updated, missing connection for contact')
 
+    @also_in_flowserver
     def test_set_language_action(self):
 
         self.org.set_languages(self.admin, ['eng', 'spa'], 'eng')
@@ -3078,8 +3079,8 @@ class ActionPackedTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O').order_by('-id').first()
         self.assertEqual('Como te llamas?', msg.text)
 
-        # setting the language to something thats not three characters, should clear language
-        self.update_action_field(self.flow, 'bcfaa58c-e088-477a-933b-3a5bba01284d', 'lang', 'base')
+        # setting the language to blank should clear language
+        self.update_action_field(self.flow, 'bcfaa58c-e088-477a-933b-3a5bba01284d', 'lang', '')
         self.flow.start([], [self.contact], restart_participants=True)
         self.send("Trey Anastasio")
         self.send('niño')
@@ -4192,7 +4193,7 @@ class FlowRunTest(TembaTest):
         run.update_fields(["zero", "one", "two"])
         self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_is_completed(self):
         self.flow.start([], [self.contact])
 
@@ -4648,7 +4649,7 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
-    @rerun_with_flowserver
+    @also_in_flowserver
     def test_simple(self):
         favorites = self.get_flow('favorites')
         action_set1 = favorites.action_sets.order_by('y').first()
