@@ -489,7 +489,7 @@ class OrgTest(TembaTest):
         # or just not an org user
         self.login(self.non_org_user)
         response = self.client.post(reverse('api.apitoken_refresh'))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
