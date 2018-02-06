@@ -42,9 +42,6 @@ class MtargetType(ChannelType):
         <h4>Status URL</h4>
         <code>https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'status' %}</code>
         <hr/>
-
-        <h4>Stop URL</h4>
-        <code>https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'stop' %}</code>
         """
     )
 
