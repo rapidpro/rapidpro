@@ -3534,7 +3534,6 @@ class RuleSet(models.Model):
                 from temba.api.models import WebHookEvent
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
-
                 result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
                                                            resthook=resthook,
                                                            headers=header)
