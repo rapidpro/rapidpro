@@ -28,4 +28,3 @@ class MtargetTypeTest(TembaTest):
         channel = Channel.objects.get(channel_type='MT', address='+33509758351', country='FR')
         self.assertContains(response, reverse('courier.mt', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.mt', args=[channel.uuid, 'status']))
-        self.assertContains(response, reverse('courier.mt', args=[channel.uuid, 'stop']))
