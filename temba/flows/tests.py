@@ -5808,7 +5808,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('Hi there Tupac', msg.text)
 
     def test_webhook_rule_first(self):
-
         flow = self.get_flow('webhook_rule_first')
         tupac = self.create_contact('Tupac', '+15432')
         flow.start(groups=[], contacts=[tupac])

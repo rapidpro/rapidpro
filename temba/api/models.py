@@ -232,8 +232,9 @@ class WebHookEvent(SmartModel):
             'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
         }
 
-        if msg:
-            post_data['input'] = dict(urn=msg.contact_urn.urn, text=msg.text, attachments=(msg.attachments or []))
+        if msg and msg.id > 0:
+            post_data['input'] = dict(urn=msg.contact_urn.urn if msg.contact_urn else None, text=msg.text, attachments=(msg.attachments or []))
+
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
 
