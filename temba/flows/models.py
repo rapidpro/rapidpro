@@ -3659,10 +3659,10 @@ class RuleSet(models.Model):
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:  # pragma: no cover
+        else:
             return "RuleSet: %s" % (self.uuid,)
 
 
