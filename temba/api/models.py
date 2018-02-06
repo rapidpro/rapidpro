@@ -233,7 +233,10 @@ class WebHookEvent(SmartModel):
         }
 
         if msg:
-            post_data['input'] = dict(urn=msg.contact_urn.urn, text=msg.text, attachments=msg.attachments)
+            input_dict = dict(urn=msg.contact_urn.urn, text=msg.text)
+            if msg.attachments:
+                input_dict['attachments'] = msg.attachments
+            post_data['input'] = input_dict
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
 
