@@ -49,7 +49,7 @@ from .models import (
     DateBeforeTest, DateTest, StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest, HasStateTest,
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
-    DeleteFromGroupAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
+    DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
     FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 )
 
@@ -4006,6 +4006,27 @@ class ActionTest(TembaTest):
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
         self.assertEqual(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
         self.assertEqual(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
+
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_webhook_action_simulator(self):
+        # check simulator warns of webhook URL errors
+        action = WebhookAction(str(uuid4()), 'http://localhost:49999/token?xyz=@contact.xyz')
+        test_contact = Contact.get_test_contact(self.user)
+        test_run = FlowRun.create(self.flow, test_contact)
+
+        self.mockRequest('POST', '/token?xyz=@contact.xyz', '{"coupon":"NEXUS4"}', content_type='application_json')
+        self.execute_action(action, test_run, None)
+
+        event = WebHookEvent.objects.order_by('-pk').first()
+
+        logs = list(ActionLog.objects.order_by('pk'))
+        self.assertEqual(logs[0].level, ActionLog.LEVEL_WARN)
+        self.assertEqual(logs[0].text, "URL appears to contain errors: Undefined variable: contact.xyz")
+        self.assertEqual(logs[1].level, ActionLog.LEVEL_INFO)
+        self.assertEqual(logs[1].text, "Triggered <a href='/webhooks/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
+
+        # check all our mocked requests were made
+        self.assertAllRequestsMade()
 
 
 class FlowRunTest(TembaTest):

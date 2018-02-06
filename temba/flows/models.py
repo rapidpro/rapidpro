@@ -3289,24 +3289,6 @@ class FlowStep(models.Model):
 
         self.save(update_fields=('rule_uuid', 'rule_value'))
 
-    def get_text(self, run=None):
-        """
-        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
-        useful but needed for backwards compatibility in API v1.
-        """
-        msg = self.messages.all().first()
-        if msg:
-            return msg.text
-
-        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
-        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
-        broadcasts = list(self.broadcasts.all())
-        if broadcasts:  # pragma: needs cover
-            run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, org=run.org)
-
-        return None
-
     def get_node(self):
         """
         Returns the node (i.e. a RuleSet or ActionSet) associated with this step
