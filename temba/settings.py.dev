@@ -20,7 +20,7 @@ from .settings_common import *  # noqa
 # -----------------------------------------------------------------------------------
 HOSTNAME = 'rapidpro.datos.gob.mx'
 TEMBA_HOST = 'rapidpro.datos.gob.mx'
-
+HTTP_HOST = "rapidpro.datos.gob.mx"
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
 # -----------------------------------------------------------------------------------
