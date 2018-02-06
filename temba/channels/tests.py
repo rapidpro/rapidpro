@@ -712,7 +712,7 @@ class ChannelTest(TembaTest):
         # non-org users can't view our channels
         self.login(self.non_org_user)
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
         # org users can
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.user)
@@ -891,7 +891,8 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
                                                                "Sweden, United Kingdom or United States")
 
-        self.assertEqual(len(response.context['recommended_channels']), 0)
+        # one recommended channel (Mtarget in Rwanda)
+        self.assertEqual(len(response.context['recommended_channels']), 1)
 
         self.assertEqual(response.context['channel_types']['PHONE'][0].code, 'T')
         self.assertEqual(response.context['channel_types']['PHONE'][1].code, 'TMS')

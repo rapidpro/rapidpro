@@ -497,6 +497,7 @@ PERMISSIONS = {
                          ),
 }
 
+
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
@@ -505,6 +506,9 @@ GROUP_PERMISSIONS = {
     "Alpha": (
     ),
     "Beta": (
+    ),
+    "Dashboard": (
+        'orgs.org_dashboard',
     ),
     "Surveyors": (
         'contacts.contact_api',
@@ -1146,6 +1150,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.line.LineType',
     'temba.channels.types.m3tech.M3TechType',
     'temba.channels.types.macrokiosk.MacrokioskType',
+    'temba.channels.types.mtarget.MtargetType',
     'temba.channels.types.mblox.MbloxType',
     'temba.channels.types.plivo.PlivoType',
     'temba.channels.types.redrabbit.RedRabbitType',
@@ -1207,7 +1212,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK', 'WA', 'CT', 'ZV'])
+COURIER_CHANNELS = set(['CT', 'DK', 'MT', 'WA', 'ZV'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

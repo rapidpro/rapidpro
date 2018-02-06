@@ -3813,12 +3813,22 @@ class ContactTest(TembaTest):
         self.assertEqual("Joe", context['first_name'])
         self.assertEqual("Joe Blow", context['name'])
         self.assertEqual("Joe Blow", context['__default__'])
-        self.assertEqual("0781 111 111", context['tel'])
+
+        self.assertEqual("0781 111 111", context['tel']['__default__'])
+        self.assertEqual("+250781111111", context['tel']['path'])
+        self.assertEqual("tel", context['tel']['scheme'])
+        self.assertEqual("0781 111 111", context['tel']['display'])
+        self.assertEqual("tel:+250781111111", context['tel']['urn'])
+
         self.assertEqual("", context['groups'])
         self.assertEqual(context['uuid'], self.joe.uuid)
         self.assertEqual(self.joe.uuid, context['uuid'])
-        self.assertEqual("therealjoe", context['twitter'])
-        self.assertEqual("therealjoe", context['twitterid'])
+
+        self.assertEqual("therealjoe", context['twitter']['__default__'])
+
+        self.assertEqual("therealjoe", context['twitterid']['__default__'])
+        self.assertEqual("12345", context['twitterid']['path'])
+        self.assertEqual("twitterid:12345#therealjoe", context['twitterid']['urn'])
 
         # add him to a group
         self.create_group("Reporters", [self.joe])
@@ -3840,7 +3850,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Joe", context['first_name'])
         self.assertEqual("Joe Blow", context['name'])
         self.assertEqual("Joe Blow", context['__default__'])
-        self.assertEqual("0781 111 111", context['tel'])
+        self.assertEqual("0781 111 111", context['tel']['__default__'])
         self.assertEqual("Reporters", context['groups'])
         self.assertNotIn('id', context)
 

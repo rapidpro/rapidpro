@@ -196,11 +196,12 @@
     JSON payload will be included as the body
 
     <table class="table table-params">
-        <tr><td>flow</td><td>The name and uuid of the flow that triggered the webhook</td></tr>
-        <tr><td>contact</td><td>The name, uuid, and urn of the contact in the flow</td></tr>
-        <tr><td>channel</td><td>The name and uuid of the channel the run is going over</td></tr>
-        <tr><td>path</td><td>A list of node uuids along with when the contact arrived there and where they whent next</td></tr>
+        <tr><td>flow</td><td>The name and UUID of the flow that triggered the webhook</td></tr>
+        <tr><td>contact</td><td>The name, UUID, and urn of the contact in the flow</td></tr>
+        <tr><td>channel</td><td>The name and UUID of the channel the run is going over</td></tr>
+        <tr><td>path</td><td>A list of node UUIDs along with when the contact arrived there and where they whent next</td></tr>
         <tr><td>results</td><td>A map of result keys to values collected during the flow</td></tr>
+        <tr><td>run</td><td>The UUID and date the run was started on</td></tr>
     </table>
 
     For example, the webhook POST body will look something similar to the following:
@@ -218,6 +219,10 @@
             "channel": {
                 "name": "Twilio +12065552020",
                 "uuid": "f49d3dd6-beef-40ba-b86b-f526c649175c"
+            },
+            "run": {
+                "uuid": "7facea33-9fbc-4bdd-ba63-b2600cd4f69b",
+                "created_on":"2014-06-03T08:20:03.242525+00:00"
             },
             "path": [
                 {
@@ -245,7 +250,7 @@
   :markdown
     ### Legacy Flow Events
 
-    This format has been deprecated and will be removed on Februrary 5, 2018. Please use the <a href="#flow">current format</a>.
+    This format has been deprecated and will be removed on February 5, 2018. Please use the <a href="#flow">current format</a>.
 
         POST http://www.yourapp.com/app.php?password=akabanga
         event=flow&relayer=254&relayer_phone=%2B250788111111&phone=%2B250788123123&flow=1524&step=12341234-1234-1234-1234-1234-12341234&values=[]

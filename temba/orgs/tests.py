@@ -489,7 +489,7 @@ class OrgTest(TembaTest):
         # or just not an org user
         self.login(self.non_org_user)
         response = self.client.post(reverse('api.apitoken_refresh'))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
@@ -1942,8 +1942,18 @@ class OrgTest(TembaTest):
         self.assertIsNotNone(sub_org)
         self.assertIn(self.admin, sub_org.administrators.all())
 
+        # create a second org to test sorting
+        new_org = dict(name='A Second Org', timezone=self.org.timezone, date_format=self.org.date_format)
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertEqual(302, response.status_code)
+
         # load the transfer credit page
         response = self.client.get(reverse('orgs.org_transfer_credits'))
+
+        # check that things are ordered correctly
+        orgs = list(response.context['form']['from_org'].field._queryset)
+        self.assertEqual('A Second Org', orgs[1].name)
+        self.assertEqual('Sub Org', orgs[2].name)
         self.assertEqual(200, response.status_code)
 
         # try to transfer more than we have

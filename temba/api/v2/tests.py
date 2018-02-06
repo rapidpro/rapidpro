@@ -1783,6 +1783,27 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
         self.assertResultsByUUID(response, [color])
 
+        # Inactive flows hidden
+        registration.is_active = False
+        registration.save()
+
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json['next'], None)
+        self.assertEqual(resp_json['results'], [
+            {
+                'uuid': color.uuid,
+                'name': "Color Flow",
+                'archived': False,
+                'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
+                'expires': 720,
+                'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
+            }
+        ])
+
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse('api.v2.groups')
