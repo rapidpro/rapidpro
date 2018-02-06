@@ -3553,17 +3553,9 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
-                # resthooks trigger legacy api for now
-                legacy_format = resthook or self.config_json().get('legacy_format', False)
-
-                if legacy_format:
-                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
-                                                                      resthook=resthook,
-                                                                      headers=header)
-                else:
-                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
-                                                               resthook=resthook,
-                                                               headers=header)
+                result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                           resthook=resthook,
+                                                           headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4868,35 +4860,23 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    # old webhooks support legacy format
-    LEGACY_FORMAT = 'legacy_format'
-
-    def __init__(self, uuid, webhook, action='POST', webhook_headers=None, legacy_format=None):
+    def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
         super(WebhookAction, self).__init__(uuid)
 
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
-        self.legacy_format = legacy_format
 
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID),
                    json_obj.get('webhook', org.get_webhook_url()),
                    json_obj.get('action', 'POST'),
-                   json_obj.get('webhook_headers', []),
-                   json_obj.get(cls.LEGACY_FORMAT))
+                   json_obj.get('webhook_headers', []))
 
     def as_json(self):
-
-        json_dict = dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
-                         webhook_headers=self.webhook_headers)
-
-        # only include legacy format flag if it is true or false
-        if self.legacy_format is not None:
-            json_dict[self.LEGACY_FORMAT] = self.legacy_format
-
-        return json_dict
+        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4911,10 +4891,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        if self.legacy_format:
-            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
-        else:
-            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
+        WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 
