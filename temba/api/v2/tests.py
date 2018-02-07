@@ -2636,13 +2636,13 @@ class APITest(TembaTest):
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
                                              data=dict(event='new mother',
-                                                       values=json.dumps(dict(name="Greg")),
-                                                       steps=json.dumps(dict(uuid='abcde'))),
+                                                       values=dict(name="Greg"),
+                                                       steps=dict(uuid='abcde')),
                                              created_by=self.admin, modified_by=self.admin)
         event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
                                              data=dict(event='new father',
-                                                       values=json.dumps(dict(name="Yo")),
-                                                       steps=json.dumps(dict(uuid='12345'))),
+                                                       values=dict(name="Yo"),
+                                                       steps=dict(uuid='12345')),
                                              created_by=self.admin, modified_by=self.admin)
 
         # no filtering

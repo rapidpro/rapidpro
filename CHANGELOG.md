@@ -1,3 +1,8 @@
+v3.0.317
+----------
+ * Remove support for legacy webhook payload format
+ * Fix org-choose redirects for brands
+
 v3.0.316
 ----------
  * Remove stop endpoint for MT
