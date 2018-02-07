@@ -17,7 +17,7 @@ from django.contrib.auth.models import User, Group
 from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.db import models
+from django.db import models, connection
 from django.test import override_settings, SimpleTestCase, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -1711,3 +1711,45 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(field.to_python({}), {})
 
         self.assertEqual(field.to_python('{}'), {})
+
+    def test_default_with_null(self):
+        class JsonModelTestDefaultNull(models.Model):
+            field = JSONAsTextField(default=dict, null=True)
+
+        with connection.cursor() as cur:
+            cur.execute('CREATE TABLE utils_jsonmodeltestdefaultnull (id SERIAL, field text);')
+
+        model = JsonModelTestDefaultNull()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database is null, and we have set the default value so we get the default value
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefaultnull')
+
+            data = cur.fetchall()
+        # but in the database the field is saved as null
+        self.assertEqual(data[0][1], None)
+
+    def test_default_without_null(self):
+        class JsonModelTestDefault(models.Model):
+            field = JSONAsTextField(default=dict, null=False)
+
+        with connection.cursor() as cur:
+            cur.execute('CREATE TABLE utils_jsonmodeltestdefault (id SERIAL, field text NOT NULL);')
+
+        model = JsonModelTestDefault()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database saves the default value, and we get the default value back
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefault')
+
+            data = cur.fetchall()
+        # and in the database the field saved as default value
+        self.assertEqual(data[0][1], '{}')

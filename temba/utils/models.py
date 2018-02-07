@@ -94,15 +94,21 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         super(JSONAsTextField, self).__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
+        if self.has_default() and value in (None, {}, [], ''):
+            return self.get_default()
+
         if value is None:
             return value
+
         if isinstance(value, six.string_types):
             return json.loads(value, object_pairs_hook=self.object_pairs_hook)
         else:
             raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
-        if self.null and value is None and not kwargs.get('force'):
+        if self.null and value in (None, {}, [], '') and not kwargs.get('force'):
+            return None
+        if value is None:
             return None
         return json.dumps(value)
 

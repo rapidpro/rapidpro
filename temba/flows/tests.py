@@ -2765,7 +2765,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertIn('4de254db-9d96-4420-8ba6-337d7f280010.png', msgs[0].attachments[0])
 
         # second one has quick replies
-        self.assertEqual('{"quick_replies": ["Male", "Female"]}', msgs[1].metadata)
+        self.assertEqual({"quick_replies": ["Male", "Female"]}, msgs[1].metadata)
 
         # third one has expression attachment
         self.assertEqual('image:http://textit.in/static?gender=Male', msgs[2].attachments[0])
