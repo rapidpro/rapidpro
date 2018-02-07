@@ -226,7 +226,7 @@ class FlowSession(models.Model):
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
             request = request.msg_received(msg_in)
-        if expired_child_run:
+        if expired_child_run:  # pragma: needs cover
             request = request.run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
@@ -3100,7 +3100,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # extract only unique contacts
             contacts = set(contacts)
             for urn in urns:
-                contacts.add(urn.contact)
+                contacts.add(urn.contact)  # pragma: needs cover
 
             FlowSession.bulk_start(contacts, flow, parent_run_summary=parent_run_summary)
 
@@ -3371,7 +3371,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 return
 
             # resume via goflow if this run is using the new engine
-            if run.parent.session and run.parent.session.is_goflow():
+            if run.parent.session and run.parent.session.is_goflow():  # pragma: needs cover
                 session = FlowSession.objects.get(id=run.parent.session.id)
                 return session.resume(expired_child_run=run)
 
