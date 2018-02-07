@@ -4014,74 +4014,7 @@ class ActionTest(TembaTest):
         self.assertEqual(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
 
     @override_settings(SEND_WEBHOOKS=True)
-    @patch('django.utils.timezone.now')
-    def test_webhook_action_legacy(self, mock_timezone_now):
-        tz = pytz.timezone("Africa/Kigali")
-        mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
-
-        action = WebhookAction(str(uuid4()), 'http://localhost:49999/token',
-                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}], legacy_format=True)
-
-        # check to and from JSON
-        action_json = action.as_json()
-        action = WebhookAction.from_json(self.org, action_json)
-        run = FlowRun.create(self.flow, self.contact)
-
-        mock_request = self.mockRequest('POST', '/token', '{"coupon":"NEXUS4"}', content_type='application/json')
-
-        # test with no incoming message
-        self.execute_action(action, run, None)
-
-        self.assertMockedRequest(mock_request, data={
-            'relayer': ['-1'],
-            'flow_base_language': ['base'],
-            'run': [str(run.id)],
-            'urn': ['tel:+250788382382'],
-            'flow': [str(self.flow.id)],
-            'flow_uuid': [str(self.flow.uuid)],
-            'phone': ['+250788382382'],
-            'step': ['None'],
-            'contact': [str(self.contact.uuid)],
-            'values': ['[]'],
-            'time': ['2015-10-27T14:07:30.000006Z'],
-            'steps': ['[]'],
-            'contact_name': ['Eric'],
-            'flow_name': ['Color Flow'],
-            'channel': ['-1']
-        }, authorization='Token 12345', user_agent='RapidPro')
-
-        # check that run @extra was updated
-        self.assertEqual(json.loads(run.fields), {'coupon': "NEXUS4"})
-
-        # test with an incoming message
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite",
-                              attachments=['image/jpeg:http://example.com/test.jpg'])
-
-        mock_request = self.mockRequest('POST', '/token', '{"coupon":"NEXUS4"}', content_type='application_json')
-        self.execute_action(action, run, msg)
-
-        # check webhook was called with correct payload
-        self.assertMockedRequest(mock_request, data={
-            'channel_uuid': [str(msg.channel.uuid)],
-            'flow_base_language': ['base'],
-            'run': [str(run.id)],
-            'attachments': ['http://example.com/test.jpg'],
-            'text': ['Green is my favorite'],
-            'urn': ['tel:+250788382382'],
-            'flow': [str(self.flow.id)],
-            'flow_uuid': [str(self.flow.uuid)],
-            'phone': ['+250788382382'],
-            'step': ['None'],
-            'contact': [str(self.contact.uuid)],
-            'values': ['[]'],
-            'channel': [str(msg.channel.id)],
-            'time': ['2015-10-27T14:07:30.000006Z'],
-            'steps': ['[]'],
-            'contact_name': ['Eric'],
-            'flow_name': ['Color Flow'],
-            'relayer': [str(msg.channel.id)]
-        }, authorization='Token 12345', user_agent='RapidPro')
-
+    def test_webhook_action_simulator(self):
         # check simulator warns of webhook URL errors
         action = WebhookAction(str(uuid4()), 'http://localhost:49999/token?xyz=@contact.xyz')
         test_contact = Contact.get_test_contact(self.user)
@@ -5966,7 +5899,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('Hi there Tupac', msg.text)
 
     def test_webhook_rule_first(self):
-
         flow = self.get_flow('webhook_rule_first')
         tupac = self.create_contact('Tupac', '+12065550101')
         flow.start(groups=[], contacts=[tupac])

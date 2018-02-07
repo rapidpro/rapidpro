@@ -3840,24 +3840,6 @@ class FlowStep(models.Model):
 
         self.save(update_fields=('rule_uuid', 'rule_value'))
 
-    def get_text(self, run=None):
-        """
-        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
-        useful but needed for backwards compatibility in API v1.
-        """
-        msg = self.messages.all().first()
-        if msg:
-            return msg.text
-
-        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
-        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
-        broadcasts = list(self.broadcasts.all())
-        if broadcasts:  # pragma: needs cover
-            run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, org=run.org)
-
-        return None
-
     def get_node(self):
         """
         Returns the node (i.e. a RuleSet or ActionSet) associated with this step
@@ -4103,18 +4085,9 @@ class RuleSet(models.Model):
                 from temba.api.models import WebHookEvent
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
-
-                # resthooks trigger legacy api for now
-                legacy_format = resthook or self.config_json().get('legacy_format', False)
-
-                if legacy_format:
-                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
-                                                                      resthook=resthook,
-                                                                      headers=header)
-                else:
-                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
-                                                               resthook=resthook,
-                                                               headers=header)
+                result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                           resthook=resthook,
+                                                           headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4236,10 +4209,10 @@ class RuleSet(models.Model):
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:  # pragma: no cover
+        else:
             return "RuleSet: %s" % (self.uuid,)
 
 
@@ -5422,35 +5395,23 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    # old webhooks support legacy format
-    LEGACY_FORMAT = 'legacy_format'
-
-    def __init__(self, uuid, webhook, action='POST', webhook_headers=None, legacy_format=None):
+    def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
         super(WebhookAction, self).__init__(uuid)
 
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
-        self.legacy_format = legacy_format
 
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID),
                    json_obj.get('webhook', org.get_webhook_url()),
                    json_obj.get('action', 'POST'),
-                   json_obj.get('webhook_headers', []),
-                   json_obj.get(cls.LEGACY_FORMAT))
+                   json_obj.get('webhook_headers', []))
 
     def as_json(self):
-
-        json_dict = dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
-                         webhook_headers=self.webhook_headers)
-
-        # only include legacy format flag if it is true or false
-        if self.legacy_format is not None:
-            json_dict[self.LEGACY_FORMAT] = self.legacy_format
-
-        return json_dict
+        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -5465,10 +5426,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        if self.legacy_format:
-            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
-        else:
-            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
+        WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 

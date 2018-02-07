@@ -671,7 +671,7 @@ class MsgTest(TembaTest):
 
         # user not in org can't access
         self.login(self.non_org_user)
-        self.assertLoginRedirect(self.client.get(url))
+        self.assertRedirect(self.client.get(url), reverse('orgs.org_choose'))
 
         # org viewer can
         self.login(self.admin)
@@ -917,7 +917,7 @@ class MsgCRUDLTest(TembaTest):
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
         response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
         # can as org viewer user
         self.login(self.user)

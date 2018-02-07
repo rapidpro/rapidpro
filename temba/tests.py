@@ -613,7 +613,7 @@ class FlowFileTest(TembaTest):
 
     def setUp(self):
         super(FlowFileTest, self).setUp()
-        self.contact = self.create_contact('Ben Haggerty', '+12065552020')
+        self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
     def assertInUserGroups(self, contact, group_names, only=False):
 
@@ -638,7 +638,7 @@ class FlowFileTest(TembaTest):
             contact = self.contact
         if contact.is_test:
             Contact.set_simulation(True)
-        incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
         # evaluate the inbound message against our triggers first
         from temba.triggers.models import Trigger
@@ -657,7 +657,7 @@ class FlowFileTest(TembaTest):
             if contact.is_test:
                 Contact.set_simulation(True)
 
-            incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+            incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
             # start the flow
             if initiate_flow:

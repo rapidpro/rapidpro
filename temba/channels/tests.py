@@ -712,7 +712,7 @@ class ChannelTest(TembaTest):
         # non-org users can't view our channels
         self.login(self.non_org_user)
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
         # org users can
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.user)

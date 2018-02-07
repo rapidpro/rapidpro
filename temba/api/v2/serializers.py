@@ -1003,10 +1003,6 @@ class WebHookEventReadSerializer(ReadSerializer):
 
     def get_data(self, obj):
         decoded = json.loads(obj.data)
-
-        # also decode values and steps
-        decoded['values'] = json.loads(decoded['values'])
-        decoded['steps'] = json.loads(decoded['steps'])
         return decoded
 
     class Meta:

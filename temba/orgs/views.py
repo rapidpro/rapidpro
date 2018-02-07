@@ -80,21 +80,6 @@ class OrgPermsMixin(object):
             org = self.get_user().get_org()
         return org
 
-    def pre_process(self, request, *args, **kwargs):
-        user = self.get_user()
-        org = self.derive_org()
-
-        if not org:  # pragma: needs cover
-            if user.is_authenticated():
-                if user.is_superuser or user.is_staff:
-                    return None
-
-                return HttpResponseRedirect(reverse('orgs.org_choose'))
-            else:
-                return HttpResponseRedirect(settings.LOGIN_URL)
-
-        return None
-
     def has_org_perm(self, permission):
         if self.org:
             return self.get_user().has_org_perm(self.org, permission)
@@ -119,6 +104,16 @@ class OrgPermsMixin(object):
             return True
 
         return self.has_org_perm(self.permission)
+
+    def dispatch(self, request, *args, **kwargs):
+
+        # non admin authenticated users without orgs get the org chooser
+        user = self.get_user()
+        if user.is_authenticated() and not (user.is_superuser or user.is_staff):
+            if not self.derive_org():
+                return HttpResponseRedirect(reverse('orgs.org_choose'))
+
+        return super(OrgPermsMixin, self).dispatch(request, *args, **kwargs)
 
 
 class AnonMixin(OrgPermsMixin):

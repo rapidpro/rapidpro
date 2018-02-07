@@ -1,3 +1,21 @@
+v3.0.318
+----------
+ * Add input to webhook payload
+
+v3.0.317
+----------
+ * Remove support for legacy webhook payload format
+ * Fix org-choose redirects for brands
+
+v3.0.316
+----------
+ * Remove stop endpoint for MT
+
+v3.0.315
+----------
+ * Inactive flows should not be listed on the API endpoint
+ * Add Mtarget channel type
+
 v3.0.314
 ----------
  * Add run dict to default webhook payload
