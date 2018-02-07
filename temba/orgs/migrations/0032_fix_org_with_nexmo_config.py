@@ -24,7 +24,7 @@ def update_nexmo_config(Org):
 
         for org in nexmo_orgs:
             try:
-                config = org.config_json()
+                config = org.config
                 nexmo_api_key = config.get(NEXMO_KEY, None)
                 nexmo_secret = config.get(NEXMO_SECRET, None)
                 nexmo_uuid = str(uuid4())

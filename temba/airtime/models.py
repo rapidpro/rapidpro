@@ -88,7 +88,7 @@ class AirtimeTransfer(SmartModel):
         return parsed
 
     def get_transferto_response(self, **kwargs):
-        config = self.org.config_json()
+        config = self.org.config
         login = config.get(TRANSFERTO_ACCOUNT_LOGIN, '')
         token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, '')
 
@@ -120,11 +120,11 @@ class AirtimeTransfer(SmartModel):
                 airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
-            config = org.config_json()
+            config = org.config
             account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
             if not account_currency:
                 org.refresh_transferto_account_currency()
-                config = org.config_json()
+                config = org.config
                 account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
 
             action = 'msisdn_info'
@@ -143,7 +143,7 @@ class AirtimeTransfer(SmartModel):
 
             country_name = content_json.get('country', '')
             country_code = get_country_code_by_name(country_name)
-            country_config = ruleset.config_json().get(country_code, dict())
+            country_config = ruleset.config.get(country_code, dict())
             amount = country_config.get('amount', 0)
 
             airtime.amount = amount

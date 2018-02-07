@@ -209,7 +209,7 @@ class Org(SmartModel):
     country = models.ForeignKey('locations.AdminBoundary', null=True, blank=True, on_delete=models.SET_NULL,
                                 help_text="The country this organization should map results for.")
 
-    config = JSONAsTextField(null=True, verbose_name=_("Configuration"),
+    config = JSONAsTextField(null=True, default=dict, verbose_name=_("Configuration"),
                              help_text=_("More Organization specific configuration"))
 
     slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True,
@@ -313,7 +313,7 @@ class Org(SmartModel):
                         *active_topup_keys)
 
     def set_status(self, status):
-        config = self.config_json()
+        config = self.config
         config[ORG_STATUS] = status
         self.config = config
         self.save(update_fields=['config'])
@@ -328,10 +328,10 @@ class Org(SmartModel):
         self.set_status(RESTORED)
 
     def is_suspended(self):
-        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
+        return self.config.get(ORG_STATUS, None) == SUSPENDED
 
     def is_whitelisted(self):
-        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
+        return self.config.get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
@@ -386,9 +386,6 @@ class Org(SmartModel):
                     flows=exported_flows,
                     campaigns=exported_campaigns,
                     triggers=exported_triggers)
-
-    def config_json(self):
-        return self.config if self.config else {}
 
     def can_add_sender(self):  # pragma: needs cover
         """
@@ -677,7 +674,7 @@ class Org(SmartModel):
                        SMTP_HOST: host, SMTP_USERNAME: username, SMTP_PASSWORD: password,
                        SMTP_PORT: port, SMTP_ENCRYPTION: encryption}
 
-        config = self.config_json()
+        config = self.config
         config.update(smtp_config)
         self.config = config
         self.modified_by = user
@@ -731,14 +728,14 @@ class Org(SmartModel):
         transferto_config = {TRANSFERTO_ACCOUNT_LOGIN: account_login.strip(),
                              TRANSFERTO_AIRTIME_API_TOKEN: airtime_api_token.strip()}
 
-        config = self.config_json()
+        config = self.config
         config.update(transferto_config)
         self.config = config
         self.modified_by = user
         self.save()
 
     def refresh_transferto_account_currency(self):
-        config = self.config_json()
+        config = self.config
         account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
         airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
 
@@ -792,7 +789,7 @@ class Org(SmartModel):
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
 
-        config = self.config_json()
+        config = self.config
         config.update(nexmo_config)
         self.config = config
         self.modified_by = user
@@ -802,13 +799,13 @@ class Org(SmartModel):
         self.clear_channel_caches()
 
     def nexmo_uuid(self):
-        config = self.config_json()
+        config = self.config
         return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token, user):
         twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
 
-        config = self.config_json()
+        config = self.config
         config.update(twilio_config)
         self.config = config
         self.modified_by = user
@@ -871,14 +868,14 @@ class Org(SmartModel):
             CHATBASE_VERSION: version
         }
 
-        config = self.config_json()
+        config = self.config
         config.update(chatbase_config)
         self.config = config
         self.modified_by = user
         self.save()
 
     def remove_chatbase_account(self, user):
-        config = self.config_json()
+        config = self.config
 
         if CHATBASE_AGENT_NAME in config:
             del config[CHATBASE_AGENT_NAME]

@@ -864,7 +864,7 @@ class IVRTests(FlowFileTest):
         # our flow should remain active until we get completion
         self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
         post_data = dict()
         post_data['status'] = 'completed'
         post_data['duration'] = '0'
@@ -1253,7 +1253,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         self.get_flow('call_me_start')
 
@@ -1295,7 +1295,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         # import an ivr flow
         flow = self.get_flow('call_me_maybe')
@@ -1381,7 +1381,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     '', content_type='application/json')
@@ -1406,7 +1406,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         # remove our channel
         self.channel.release()
@@ -1436,7 +1436,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         flow = self.get_flow('missed_call_flow')
 

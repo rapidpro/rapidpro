@@ -736,7 +736,7 @@ class ChannelTest(TembaTest):
 
         # Add twilio credentials to make sure we can add calling for our android channel
         twilio_config = {ACCOUNT_SID: 'SID', ACCOUNT_TOKEN: 'TOKEN', APPLICATION_SID: 'APP SID'}
-        config = self.org.config_json()
+        config = self.org.config
         config.update(twilio_config)
         self.org.config = config
         self.org.save(update_fields=['config'])
@@ -1228,7 +1228,7 @@ class ChannelTest(TembaTest):
 
         org = self.channel.org
 
-        config = org.config_json()
+        config = org.config
         config.update(nexmo_config)
         org.config = config
         org.save()
@@ -1846,14 +1846,14 @@ class ChannelTest(TembaTest):
                        config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel', FCM_NOTIFICATION=True),
                        uuid='00000000-0000-0000-0000-000000001234')
 
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config.update(dict(CHATBASE_API_KEY='123456abcdef', CHATBASE_VERSION='1.0'))
         self.org.config = org_config
         self.org.save()
 
         self.assertTrue(self.org.get_chatbase_credentials())
-        self.assertEqual(self.org.config_json()['CHATBASE_API_KEY'], '123456abcdef')
-        self.assertEqual(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+        self.assertEqual(self.org.config['CHATBASE_API_KEY'], '123456abcdef')
+        self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
         with self.settings(SEND_CHATBASE=True):
             joe = self.create_contact("Joe", urn="fcm:forrest_gump", auth="1234567890")
@@ -3471,7 +3471,7 @@ class NexmoTest(TembaTest):
 
         org = self.channel.org
 
-        config = org.config_json()
+        config = org.config
         config.update(nexmo_config)
         org.config = config
         org.save()
@@ -3535,7 +3535,7 @@ class NexmoTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send(self):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
         org_config[NEXMO_APP_ID] = 'nexmo-app-id'
@@ -3661,7 +3661,7 @@ class NexmoTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
         org_config[NEXMO_APP_ID] = 'nexmo-app-id'
@@ -5441,7 +5441,7 @@ class TwilioTest(TembaTest):
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[ACCOUNT_SID] = 'twilio_sid'
         org_config[ACCOUNT_TOKEN] = 'twilio_token'
         org_config[APPLICATION_SID] = 'twilio_sid'
@@ -5598,7 +5598,7 @@ class TwilioTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_send_media(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-        org_config = self.org.config_json()
+        org_config = self.org.config
         org_config[ACCOUNT_SID] = 'twilio_sid'
         org_config[ACCOUNT_TOKEN] = 'twilio_token'
         org_config[APPLICATION_SID] = 'twilio_sid'

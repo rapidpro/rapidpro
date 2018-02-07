@@ -26,6 +26,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='org',
             name='config',
-            field=temba.utils.models.JSONAsTextField(help_text='More Organization specific configuration', null=True, verbose_name='Configuration'),
+            field=temba.utils.models.JSONAsTextField(help_text='More Organization specific configuration', null=True, verbose_name='Configuration', default=dict),
         ),
     ]

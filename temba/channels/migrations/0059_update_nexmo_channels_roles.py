@@ -26,16 +26,16 @@ class Migration(migrations.Migration):
                     org = Org.objects.get(pk=channel.org_id)
 
                     if org.pk not in updated_orgs:
-                        org_uuid = org.config_json().get(NEXMO_UUID)
-                        nexmo_api_key = org.config_json().get(NEXMO_KEY, None)
-                        nexmo_secret = org.config_json().get(NEXMO_SECRET, None)
+                        org_uuid = org.config.get(NEXMO_UUID)
+                        nexmo_api_key = org.config.get(NEXMO_KEY, None)
+                        nexmo_secret = org.config.get(NEXMO_SECRET, None)
 
                         org.connect_nexmo(nexmo_api_key, nexmo_secret, org.created_by)
                         org.refresh_from_db()
 
                         updated_orgs.append(org.pk)
 
-                        app_id = org.config_json().get(NEXMO_APP_ID, None)
+                        app_id = org.config.get(NEXMO_APP_ID, None)
 
                         nexmo_client = org.get_nexmo_client()
 
