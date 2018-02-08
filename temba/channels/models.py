@@ -87,6 +87,9 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     schemes = None
     show_config_page = True
 
+    available_timezones = None
+    recommended_timezones = None
+
     claim_blurb = None
     claim_view = None
 
@@ -106,13 +109,21 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
-        return True
+        if self.available_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.available_timezones
+        else:
+            return True
 
     def is_recommended_to(self, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
-        return False
+        if self.recommended_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.recommended_timezones
+        else:
+            return False
 
     def get_claim_blurb(self):
         """
