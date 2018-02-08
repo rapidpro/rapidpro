@@ -40,7 +40,7 @@ from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentMessage
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
 from .models import FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 
 logger = logging.getLogger(__name__)
@@ -220,10 +220,11 @@ class FlowCRUDL(SmartCRUDL):
             recent_messages = []
 
             if exit_uuids and to_uuid:
-                recent = FlowPathRecentMessage.get_recent(exit_uuids, to_uuid)
-
-                for msg in recent:
-                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=flow.org.timezone), text=msg.text))
+                for recent_run in FlowPathRecentRun.get_recent(exit_uuids, to_uuid):
+                    recent_messages.append({
+                        'sent': datetime_to_str(recent_run['visited_on'], tz=flow.org.timezone),
+                        'text': recent_run['text']
+                    })
 
             return JsonResponse(recent_messages, safe=False)
 

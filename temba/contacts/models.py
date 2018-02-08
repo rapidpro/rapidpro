@@ -11,7 +11,6 @@ import six
 import time
 import uuid
 
-from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError
@@ -793,7 +792,7 @@ class Contact(TembaModel):
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
 
-    def handle_update(self, attrs=(), urns=(), field=None, group=None):
+    def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
         """
         Handles an update to a contact which can be one of
           1. A change to one or more attributes
@@ -802,9 +801,9 @@ class Contact(TembaModel):
         """
         dynamic_group_change = False
 
-        if Contact.NAME in attrs or field or urns:
+        if field or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field)
+            dynamic_group_change = self.reevaluate_dynamic_groups(field, is_new=is_new)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -850,7 +849,60 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
+    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, is_test=False):
+        """
+        Gets or creates a contact with the given URN
+        """
+
+        # if we don't have an org blow up, this is required
+        if not org:
+            raise ValueError("Attempt to create contact without org")
+
+        if not channel and not user:
+            raise ValueError("Attempt to create contact without channel and without user")
+
+        if not user:
+            user = channel.created_by
+
+        # get country from channel or org
+        if channel:
+            country = channel.country.code
+        else:
+            country = org.get_country_code()
+
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
+        normalized = URN.normalize(urn, country)
+        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
+
+        if existing_urn and existing_urn.contact:
+            contact = existing_urn.contact
+            ContactURN.update_auth(existing_urn, auth)
+            return contact, existing_urn
+        else:
+            kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
+            contact = Contact.objects.create(**kwargs)
+            updated_attrs = kwargs.keys()
+
+            if existing_urn:
+                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
+                urn_obj = existing_urn
+            else:
+                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
+
+            updated_urns = [urn]
+
+            # record contact creation in analytics
+            analytics.gauge('temba.contact_created')
+
+            # handle group and campaign updates
+            contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=True)
+            return contact, urn_obj
+
+    @classmethod
+    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -886,9 +938,6 @@ class Contact(TembaModel):
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
                 ContactURN.update_auth(existing_urn, auth)
-
-                # return our contact, mapping our existing urn appropriately
-                contact.urn_objects = {urns[0]: existing_urn}
                 return contact
 
         # if we were passed in a UUID, look it up by that
@@ -924,8 +973,6 @@ class Contact(TembaModel):
                             contact.modified_by = user
                             contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
 
-                        contact.urn_objects = contact_urns
-
                         # handle group and campaign updates
                         contact.handle_update(attrs=updated_attrs)
                         return contact
@@ -959,6 +1006,7 @@ class Contact(TembaModel):
 
             # URNs correspond to one contact so update and return that
             if contact:
+                contact.is_new = False
                 # update contact name if provided
                 updated_attrs = []
                 if name:
@@ -996,27 +1044,12 @@ class Contact(TembaModel):
             # save which urns were updated
             updated_urns = urn_objects.keys()
 
-            # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
-            # actual URN object for each URN tuple it requested
-            urn_objects.update(existing_owned_urns)
-            contact.urn_objects = urn_objects
-
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
-            params = dict(name=name)
-
-            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-            # assign them property names with added count
-            urns_for_scheme_counts = defaultdict(int)
-            for urn in urn_objects.keys():
-                scheme, path, display = URN.to_parts(urn)
-                urns_for_scheme_counts[scheme] += 1
-                params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
-
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
         return contact
 
     @classmethod
@@ -1049,7 +1082,8 @@ class Contact(TembaModel):
                 test_urn_path += 1
                 existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
+            test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
+                                                          is_test=True)
         return test_contact
 
     @classmethod
@@ -1158,7 +1192,8 @@ class Contact(TembaModel):
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
+        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language,
+                                                force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
@@ -1667,7 +1702,7 @@ class Contact(TembaModel):
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
-            context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
+            context[scheme] = self.get_urn_context(org, scheme=scheme)
 
         # populate twitter address if we have a twitter id
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
@@ -1845,7 +1880,7 @@ class Contact(TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None):
+    def reevaluate_dynamic_groups(self, for_field=None, is_new=False):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
@@ -1858,7 +1893,7 @@ class Contact(TembaModel):
         group_change = False
         for group in affected_dynamic_groups:
             group.org = self.org
-            changed = group.reevaluate_contacts([self])
+            changed = group.reevaluate_contacts([self], is_new=is_new)
             if changed:
                 group_change = True
 
@@ -1887,6 +1922,29 @@ class Contact(TembaModel):
             res = self.get_urn_display(org=org, formatted=formatted)
 
         return truncate(res, 20) if short else res
+
+    def get_urn_context(self, org, scheme=None):
+        """
+        Returns a dictionary suitable for use in an expression context for the URN mapping to the
+        passed in scheme.
+        """
+        urn = self.get_urn(scheme)
+
+        if not urn:
+            return ""
+
+        if org.is_anon:
+            return ContactURN.ANON_MASK
+
+        display = urn.get_display(org=org, formatted=True, international=False)
+
+        return {
+            '__default__': display,
+            'scheme': scheme,
+            'path': urn.path,
+            'display': display,
+            'urn': urn.urn,
+        }
 
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
@@ -2305,7 +2363,7 @@ class ContactGroup(TembaModel):
 
         return self._update_contacts(user, contacts, add)
 
-    def reevaluate_contacts(self, contacts):
+    def reevaluate_contacts(self, contacts, is_new=False):
         """
         Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
         """
@@ -2315,7 +2373,7 @@ class ContactGroup(TembaModel):
         user = get_anonymous_user()
         changed = set()
         for contact in contacts:
-            qualifies = self._check_dynamic_membership(contact)
+            qualifies = self._check_dynamic_membership(contact, is_new=is_new)
             changed = self._update_contacts(user, [contact], qualifies)
             if changed:
                 changed.add(contact)
@@ -2385,13 +2443,14 @@ class ContactGroup(TembaModel):
             for field in extract_fields(self.org, self.query):
                 self.query_fields.add(field)
 
-            members = list(self._get_dynamic_members())
+            dynamic_members, _ = self._get_dynamic_members()
+            members = list(dynamic_members)
             self.contacts.clear()
             self.contacts.add(*members)
         else:
             raise ValueError('Cannot update a dynamic query that is not allowed')
 
-    def _get_dynamic_members(self, base_set=None):
+    def _get_dynamic_members(self, base_set=None, is_new=False):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
@@ -2401,17 +2460,27 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            qs, _ = Contact.search(self.org, self.query, base_set=base_set)
-            return qs
+            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+
+            # if a contact has just been created than apply special contact search rules
+            if is_new:
+                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
+                    return qs, parsed
+                else:
+                    return Contact.objects.none(), None
+            else:
+                return qs, parsed
         except SearchException:  # pragma: no cover
-            return Contact.objects.none()
+            return Contact.objects.none(), None
 
     @time_monitor(threshold=10000)
-    def _check_dynamic_membership(self, contact):
+    def _check_dynamic_membership(self, contact, is_new=False):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members(base_set=[contact]).exists()
+
+        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
+        return qs.exists()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):

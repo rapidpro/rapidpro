@@ -24,7 +24,7 @@ class TwitterActivityTypeTest(TembaTest):
                                               'access_token': 'at1',
                                               'access_token_secret': 'ats1',
                                               'handle_id': 'h123456',
-                                              'webhook_id': 'wh45678'})
+                                              'env_name': 'beta'})
 
     @override_settings(IS_PROD=True)
     @patch('temba.utils.twitter.TembaTwython.subscribe_to_webhook')
@@ -49,7 +49,7 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertContains(response, "Connect Twitter Activity API")
 
         self.assertEqual(list(response.context['form'].fields.keys()),
-                         ['api_key', 'api_secret', 'access_token', 'access_token_secret', 'loc'])
+                         ['api_key', 'api_secret', 'access_token', 'access_token_secret', 'env_name', 'loc'])
 
         # try submitting empty form
         response = self.client.post(url, {})
@@ -78,28 +78,27 @@ class TwitterActivityTypeTest(TembaTest):
         mock_verify_credentials.return_value = {'id': '87654', 'screen_name': "jimmy"}
         mock_register_webhook.return_value = {'id': "1234567"}
 
-        response = self.client.post(url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
+        response = self.client.post(url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats', 'env_name': 'beta'})
         self.assertEqual(response.status_code, 302)
 
         channel = Channel.objects.get(address='jimmy')
         self.assertEqual(
             json.loads(channel.config), {
-                'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at',
-                'access_token_secret': 'ats', 'webhook_id': '1234567', 'callback_domain': channel.callback_domain
+                'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'env_name': 'beta',
+                'access_token_secret': 'ats', 'callback_domain': channel.callback_domain
             }
         )
 
         mock_register_webhook.assert_called_once_with(
-            'https://%s/c/twt/%s/receive' % (channel.callback_domain, channel.uuid)
+            'beta', 'https://%s/c/twt/%s/receive' % (channel.callback_domain, channel.uuid)
         )
-        mock_subscribe_to_webhook.assert_called_once_with("1234567")
+        mock_subscribe_to_webhook.assert_called_once_with('beta')
 
     @override_settings(IS_PROD=True)
     @patch('temba.utils.twitter.TembaTwython.delete_webhook')
     def test_release(self, mock_delete_webhook):
         self.channel.release()
-
-        mock_delete_webhook.assert_called_once_with('wh45678')
+        mock_delete_webhook.assert_called_once_with('beta')
 
     @patch('twython.Twython.lookup_user')
     def test_resolve(self, mock_lookup_user):

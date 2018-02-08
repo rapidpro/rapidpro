@@ -131,8 +131,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         for urn in self.validated_data.get('urns', []):
             # create contacts for URNs if necessary
-            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
-            contact_urn = contact.urn_objects[urn]
+            contact, contact_urn = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
             recipients.append(contact_urn)
 
         text, base_language = self.validated_data['text']
@@ -470,8 +469,8 @@ class ContactWriteSerializer(WriteSerializer):
             if changed:
                 self.instance.save(update_fields=changed)
         else:
-            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name,
-                                                  urns=urns, language=language)
+            self.instance = Contact.get_or_create_by_urns(self.context['org'], self.context['user'], name,
+                                                          urns=urns, language=language)
 
         # update our fields
         if custom_fields is not None:
@@ -770,7 +769,7 @@ class FlowStartWriteSerializer(WriteSerializer):
 
         # convert URNs to contacts
         for urn in urns:
-            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
+            contact, urn_obj = Contact.get_or_create(self.context['org'], urn, user=self.context['user'])
             contacts.append(contact)
 
         # ok, let's go create our flow start, the actual starting will happen in our view
@@ -1004,10 +1003,6 @@ class WebHookEventReadSerializer(ReadSerializer):
 
     def get_data(self, obj):
         decoded = json.loads(obj.data)
-
-        # also decode values and steps
-        decoded['values'] = json.loads(decoded['values'])
-        decoded['steps'] = json.loads(decoded['steps'])
         return decoded
 
     class Meta:

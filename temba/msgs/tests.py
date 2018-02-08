@@ -229,11 +229,9 @@ class MsgTest(TembaTest):
 
     def test_create_outgoing(self):
         tel_urn = "tel:250788382382"
-        tel_contact = Contact.get_or_create(self.org, self.user, urns=[tel_urn])
-        tel_urn_obj = tel_contact.urn_objects[tel_urn]
+        tel_contact, tel_urn_obj = Contact.get_or_create(self.org, tel_urn, user=self.user)
         twitter_urn = "twitter:joe"
-        twitter_contact = Contact.get_or_create(self.org, self.user, urns=[twitter_urn])
-        twitter_urn_obj = twitter_contact.urn_objects[twitter_urn]
+        twitter_contact, twitter_urn_obj = Contact.get_or_create(self.org, twitter_urn, user=self.user)
 
         # check creating by URN string
         msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
@@ -440,7 +438,7 @@ class MsgTest(TembaTest):
     def test_outbox(self):
         self.login(self.admin)
 
-        contact = Contact.get_or_create(self.channel.org, self.admin, name=None, urns=['tel:250788382382'])
+        contact, urn_obj = Contact.get_or_create(self.channel.org, 'tel:250788382382', user=self.admin)
         broadcast1 = Broadcast.create(self.channel.org, self.admin, 'How is it going?', [contact])
 
         # now send the broadcast so we have messages
@@ -673,7 +671,7 @@ class MsgTest(TembaTest):
 
         # user not in org can't access
         self.login(self.non_org_user)
-        self.assertLoginRedirect(self.client.get(url))
+        self.assertRedirect(self.client.get(url), reverse('orgs.org_choose'))
 
         # org viewer can
         self.login(self.admin)
@@ -919,7 +917,7 @@ class MsgCRUDLTest(TembaTest):
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
         response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, reverse('orgs.org_choose'))
 
         # can as org viewer user
         self.login(self.user)
@@ -1180,9 +1178,9 @@ class BroadcastTest(TembaTest):
         self.assertTrue(test_contact in broadcast.contacts.all())
 
     def test_unreachable(self):
-        no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
+        no_urns = Contact.get_or_create_by_urns(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
-        twitter_contact = self.create_contact("Lucy", twitter='lucy')
+        twitter_contact = self.create_contact("Lucy", twitter='lucy', force_urn_update=True)
         recipients = [no_urns, tel_contact, twitter_contact]
 
         # send a broadcast to all (org has a tel and a twitter channel)
@@ -1546,8 +1544,8 @@ class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
         super(BroadcastCRUDLTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Blow", urns=["tel:1234"])
+        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
+        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
 
     def test_send(self):
         url = reverse('msgs.broadcast_send')
@@ -1949,7 +1947,7 @@ class ConsoleTest(TembaTest):
         self.console = MessageConsole(self.org, "tel:+250788123123")
 
         # a few test contacts
-        self.john = self.create_contact("John Doe", "0788123123")
+        self.john = self.create_contact("John Doe", "0788123123", force_urn_update=True)
 
         # create a flow and set "color" as its trigger
         self.flow = self.get_flow('color')
