@@ -31,13 +31,14 @@ class ArabiaCellType(ChannelType):
 
     configuration_blurb = _(
         """
-        <h4>
-        To finish connecting your channel, you need to have ArabiaCell configure the URL below for your number.
-        </h4>
-        <hr/>
-
-        <h4>Receive URL</h4>
-        <code>https://{{channel.callback_domain}}/c/ac/{{channel.uuid}}/receive</code>
-        <hr/>
+        To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode.
         """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{channel.callback_domain}}/c/ac/{{channel.uuid}}/receive",
+            description=_("This URL should be called by ArabiaCell when new messages are received."),
+        ),
     )

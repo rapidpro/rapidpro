@@ -35,17 +35,17 @@ class MtargetType(ChannelType):
 
     configuration_blurb = _(
         """
-        <h4>
         To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID.
-        </h4>
-        <hr/>
-
-        <h4>Receive URL</h4>
-        <code>https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'receive' %}</code>
-        <hr/>
-
-        <h4>Status URL</h4>
-        <code>https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'status' %}</code>
-        <hr/>
         """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'receive' %}",
+        ),
+        dict(
+            label=_("Status URL"),
+            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'status' %}",
+        ),
     )
