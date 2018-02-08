@@ -5,9 +5,9 @@ import six
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class MtargetType(ChannelType):
@@ -18,12 +18,12 @@ class MtargetType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Mtarget"
-    icon = 'icon-channel-external'
+    icon = 'icon-mtarget'
 
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = ClaimView
     claim_blurb = _(
         """
-        If you have an <a href="https://www.mtarget.fr/">Mtarget</a> number,
+        If you have an <a href="https://www.mtarget.fr/">Mtarget</a> account,
         you can quickly connect it using their APIs.
         """
     )
@@ -31,7 +31,7 @@ class MtargetType(ChannelType):
     configuration_blurb = _(
         """
         <h4>
-        To finish connecting your channel, you need to have Mtarget configure the URLs below.
+        To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID.
         </h4>
         <hr/>
 
