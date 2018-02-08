@@ -996,8 +996,7 @@ class WebHookEventReadSerializer(ReadSerializer):
         return obj.resthook.slug
 
     def get_data(self, obj):
-        decoded = obj.data
-        return decoded
+        return obj.data
 
     class Meta:
         model = WebHookEvent

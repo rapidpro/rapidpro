@@ -2093,7 +2093,7 @@ class SystemLabelTest(TembaTest):
         Msg.create_incoming(self.channel, "tel:0783835001", text="Message 2")
         msg3 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 3")
         msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
-        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
+        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -2112,7 +2112,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
+        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
@@ -2197,19 +2197,19 @@ class TagsTest(TembaTest):
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
         in_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
+                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
         in_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
+                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
         out_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
+                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), {})
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
         out_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
+                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 
     def test_render(self):

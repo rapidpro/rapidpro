@@ -342,7 +342,7 @@ class ChannelTest(TembaTest):
 
         # a message, a call, and a broadcast
         msg = self.send_message(['250788382382'], "How is it going?")
-        call = ChannelEvent.create(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
+        call = ChannelEvent.create(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
 
         self.assertEqual(self.org, msg.org)
         self.assertEqual(self.tel_channel, msg.channel)

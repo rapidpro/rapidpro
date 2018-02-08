@@ -4,6 +4,8 @@ import six
 import time
 import json
 
+from collections import OrderedDict
+
 from django.contrib.postgres.fields import HStoreField
 from django.core import checks
 from django.core.exceptions import ValidationError
@@ -94,22 +96,33 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         super(JSONAsTextField, self).__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
-        if self.has_default() and value in (None, {}, [], ''):
+        if self.has_default() and value is None:
             return self.get_default()
 
         if value is None:
             return value
 
         if isinstance(value, six.string_types):
-            return json.loads(value, object_pairs_hook=self.object_pairs_hook)
+            data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
+
+            if type(data) not in (list, dict, OrderedDict):
+                raise ValueError('JSONAsTextField should be a dict or a list, got %s => %s' % (type(data), data))
+            else:
+                return data
         else:
             raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
-        if self.null and value in (None, {}, [], '') and not kwargs.get('force'):
+        # if the value is falsy we will save is as null
+        if self.null and value in (None, {}, []) and not kwargs.get('force'):
             return None
+
         if value is None:
             return None
+
+        if type(value) not in (list, dict, OrderedDict):
+            raise ValueError('JSONAsTextField should be a dict or a list, got %s => %s' % (type(value), value))
+
         return json.dumps(value)
 
     def to_python(self, value):

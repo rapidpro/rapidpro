@@ -7885,7 +7885,7 @@ class MissedCallChannelTest(FlowFileTest):
 
         # trigger a missed call on our channel
         call = ChannelEvent.create(self.channel, 'tel:+250788111222', ChannelEvent.TYPE_CALL_IN_MISSED,
-                                   timezone.now(), 0)
+                                   timezone.now(), {})
 
         # we aren't in the group, so no run should be started
         run = FlowRun.objects.filter(flow=flow).first()
@@ -7897,7 +7897,7 @@ class MissedCallChannelTest(FlowFileTest):
 
         # now create another missed call which should fire our trigger
         call = ChannelEvent.create(self.channel, 'tel:+250788111222', ChannelEvent.TYPE_CALL_IN_MISSED,
-                                   timezone.now(), 0)
+                                   timezone.now(), {})
 
         # should have triggered our flow
         FlowRun.objects.get(flow=flow)

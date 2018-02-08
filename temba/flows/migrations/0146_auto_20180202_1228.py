@@ -57,11 +57,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='ruleset',
             name='config',
-            field=temba.utils.models.JSONAsTextField(help_text='RuleSet type specific configuration', null=True, verbose_name='Ruleset Configuration'),
+            field=temba.utils.models.JSONAsTextField(help_text='RuleSet type specific configuration', null=True, verbose_name='Ruleset Configuration', default=dict),
         ),
         migrations.AlterField(
             model_name='ruleset',
             name='rules',
-            field=temba.utils.models.JSONAsTextField(help_text='The JSON encoded actions for this action set'),
+            field=temba.utils.models.JSONAsTextField(help_text='The JSON encoded actions for this action set', default=list),
         ),
     ]

@@ -600,7 +600,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 1)
         self.assertEqual(flow.runs.all().count(), 0)
 
@@ -621,7 +621,7 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(missed_call_trigger.pk, trigger.pk)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
         self.assertEqual(flow.runs.all().count(), 1)
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)

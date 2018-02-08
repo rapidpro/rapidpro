@@ -3367,7 +3367,7 @@ class RuleSet(models.Model):
     webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
                                       help_text=_('How the webhook should be executed'))
 
-    rules = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"))
+    rules = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=list)
 
     finished_key = models.CharField(max_length=1, null=True, blank=True,
                                     help_text="During IVR, this is the key to indicate we are done waiting")
@@ -3380,7 +3380,7 @@ class RuleSet(models.Model):
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
-    config = JSONAsTextField(null=True, verbose_name=_("Ruleset Configuration"),
+    config = JSONAsTextField(null=True, verbose_name=_("Ruleset Configuration"), default=dict,
                              help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
@@ -5293,7 +5293,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, dict):
+        if ruleset and hasattr(ruleset, 'config') and ruleset.config != {}:
             # initial message, menu obj
             rules = ruleset.rules
             msg = ruleset.config.get(cls.MESSAGE, '')

@@ -1685,6 +1685,14 @@ class MakeTestDBTest(SimpleTestCase):
         call_command('test_db', 'simulate', num_runs=2)
 
 
+class JsonModelTestDefaultNull(models.Model):
+    field = JSONAsTextField(default=dict, null=True)
+
+
+class JsonModelTestDefault(models.Model):
+    field = JSONAsTextField(default=dict, null=False)
+
+
 class TestJSONAsTextField(TestCase):
     def test_invalid_default(self):
 
@@ -1713,11 +1721,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(field.to_python('{}'), {})
 
     def test_default_with_null(self):
-        class JsonModelTestDefaultNull(models.Model):
-            field = JSONAsTextField(default=dict, null=True)
-
-        with connection.cursor() as cur:
-            cur.execute('CREATE TABLE utils_jsonmodeltestdefaultnull (id SERIAL, field text);')
 
         model = JsonModelTestDefaultNull()
         model.save()
@@ -1734,11 +1737,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(data[0][1], None)
 
     def test_default_without_null(self):
-        class JsonModelTestDefault(models.Model):
-            field = JSONAsTextField(default=dict, null=False)
-
-        with connection.cursor() as cur:
-            cur.execute('CREATE TABLE utils_jsonmodeltestdefault (id SERIAL, field text NOT NULL);')
 
         model = JsonModelTestDefault()
         model.save()
@@ -1753,3 +1751,28 @@ class TestJSONAsTextField(TestCase):
             data = cur.fetchall()
         # and in the database the field saved as default value
         self.assertEqual(data[0][1], '{}')
+
+    def test_invalid_field_values(self):
+        model = JsonModelTestDefault()
+        model.field = '53'
+        self.assertRaises(ValueError, model.save)
+
+        model.field = 34
+        self.assertRaises(ValueError, model.save)
+
+        model.field = ''
+        self.assertRaises(ValueError, model.save)
+
+    def test_invalid_field_values_db(self):
+        with connection.cursor() as cur:
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('53', ))
+
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('None',))
+
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('null',))
+
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
