@@ -5,7 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME
 from ...models import ChannelType
-from temba.channels.views import AuthenticatedExternalClaimView
+from .views import ClaimView
 
 
 class ArabiaCellType(ChannelType):
@@ -21,7 +21,7 @@ class ArabiaCellType(ChannelType):
     max_length = 1530
     attachment_support = False
 
-    claim_view = AuthenticatedExternalClaimView
+    claim_view = ClaimView
     claim_blurb = _(
         """
         If you have an <a href="https://www.arabiacell.com/">ArabiaCell</a> number,
