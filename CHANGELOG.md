@@ -1,3 +1,7 @@
+v3.0.318
+----------
+ * Add input to webhook payload
+
 v3.0.317
 ----------
  * Remove support for legacy webhook payload format
