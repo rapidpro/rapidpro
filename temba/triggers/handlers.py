@@ -27,7 +27,7 @@ class CatchAllHandler(MessageHandler):
         contact_field = ContactField.objects.filter(
             org=msg.org, key=UNCAUGHT_FIELD).first()
         if not contact_field:
-            ContactField.get_or_create(org, user, UNCAUGHT_FIELD,
+            ContactField.get_or_create(msg.org, user, UNCAUGHT_FIELD,
                                        UNCAUGHT_LABEL)
         contact.set_field(user, UNCAUGHT_FIELD, msg.text)
 
