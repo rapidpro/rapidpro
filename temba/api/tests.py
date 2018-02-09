@@ -294,16 +294,15 @@ class WebHookTest(TembaTest):
         # run a user through this flow
         flow.start([], [self.joe])
         event = WebHookEvent.objects.get()
-        data = json.loads(event.data)
 
         # make sure our contact still has a URN
         self.assertEqual(
-            data['contact'],
+            event.data['contact'],
             {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))}
         )
 
         # make sure we don't have an input
-        self.assertFalse('input' in data)
+        self.assertFalse('input' in event.data)
 
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
