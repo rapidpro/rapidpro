@@ -18,7 +18,21 @@
 
 -block content
   -if configuration_blurb
-    {{configuration_blurb}}
+    %h4
+      {{configuration_blurb}}
+
+    -for url in configuration_urls
+      %hr
+
+      %h4
+        {{url.label}}
+
+      -if url.description
+        %p
+          {{url.description}}
+
+      %code
+        {{url.url}}
 
   -elif object.channel_type == 'AT'
     %h4
