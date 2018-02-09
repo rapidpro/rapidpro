@@ -2909,13 +2909,13 @@ class ActionPackedTest(FlowFileTest):
     # @rerun_with_flowserver
     def test_update_reserved_keys(self):
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
-        # throw exception for other reserved words except name and first_name
-        for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
+        # throw exception for other reserved words except name and first_name, and URN schemes
+        for key in Contact.RESERVED_FIELD_KEYS:
+            if key not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(ValueError):
                     action = self.get_action_json(self.flow, name_action_uuid)
-                    action['label'] = word
-                    action['field'] = word
+                    action['label'] = key
+                    action['field'] = key
                     action['value'] = ''
                     self.update_action_json(self.flow, action)
 
@@ -3599,11 +3599,11 @@ class ActionTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEqual("Jen Newcomer", contact.name)
 
-        # throw exception for other reserved words except name and first_name
-        for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
+        # throw exception for other reserved words except name, first_name and URN schemes
+        for key in Contact.RESERVED_FIELD_KEYS:
+            if key not in ['name', 'first_name', 'tel_e164'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(Exception):
-                    test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
+                    test = SaveToContactAction.from_json(self.org, dict(type='save', label=key, value='', field=key))
                     test.value = "Jen"
                     self.execute_action(test, run, sms)
 
