@@ -25,8 +25,8 @@ class ArabiaCellTest(TembaTest):
         response = self.client.post(claim_url, post_data, follow=True)
 
         channel = Channel.objects.get(channel_type='AC', address='2020', country='JO', name="2020")
-        self.assertEqual("user1", channel.config_json()['username'])
-        self.assertEqual("pass1", channel.config_json()['password'])
-        self.assertEqual("151515", channel.config_json()['service_id'])
-        self.assertEqual("0", channel.config_json()['charging_level'])
+        self.assertEqual("user1", channel.config['username'])
+        self.assertEqual("pass1", channel.config['password'])
+        self.assertEqual("151515", channel.config['service_id'])
+        self.assertEqual("0", channel.config['charging_level'])
         self.assertContains(response, '/c/ac/' + channel.uuid + '/receive')
