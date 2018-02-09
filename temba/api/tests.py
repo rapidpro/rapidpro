@@ -163,7 +163,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(self.joe.name, data['contact_name'][0])
             self.assertEqual(call.pk, int(data['call'][0]))
             self.assertEqual(call.event_type, data['event'][0])
-            self.assertTrue('occurred_on' in data)
+            self.assertIn('occurred_on', data)
             self.assertEqual(self.channel.pk, int(data['channel'][0]))
 
     def test_alarm_deliveries(self):
@@ -547,7 +547,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(self.channel.pk, int(data['channel'][0]))
             self.assertEqual(WebHookEvent.TYPE_SMS_RECEIVED, data['event'][0])
             self.assertEqual("I'm gonna pop some tags", data['text'][0])
-            self.assertTrue('time' in data)
+            self.assertIn('time', data)
 
             WebHookEvent.objects.all().delete()
             WebHookResult.objects.all().delete()
@@ -649,8 +649,8 @@ class WebHookTest(TembaTest):
                                         dict(url="http://webhook.url/", data="phone=250788383383&values=foo&bogus=2"))
             self.assertEqual(200, response.status_code)
             self.assertContains(response, "I am success")
-            self.assertTrue('values' in mock.call_args[1]['data'])
-            self.assertTrue('phone' in mock.call_args[1]['data'])
+            self.assertIn('values', mock.call_args[1]['data'])
+            self.assertIn('phone', mock.call_args[1]['data'])
             self.assertFalse('bogus' in mock.call_args[1]['data'])
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict())

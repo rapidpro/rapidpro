@@ -2491,7 +2491,7 @@ class FlowTest(TembaTest):
         self.assertFalse('object-btn-restore' in response.content)
         self.assertFalse('object-btn-archive' in response.content)
         self.assertFalse('object-btn-label' in response.content)
-        self.assertTrue('object-btn-export' in response.content)
+        self.assertIn('object-btn-export', response.content)
 
         # can not label
         post_data = dict()
@@ -4225,7 +4225,7 @@ class FlowLabelTest(FlowFileTest):
 
         post_data = dict(name="sub_label ", parent=label_one.pk)
         response = self.client.post(create_url, post_data, follow=True)
-        self.assertTrue('form' in response.context)
+        self.assertIn('form', response.context)
         self.assertTrue(response.context['form'].errors)
         self.assertEqual('Name already used', response.context['form'].errors['name'][0])
 
@@ -7334,7 +7334,7 @@ class FlowMigrationTest(FlowFileTest):
 
         lang_path = new_definition['action_sets'][0]['actions'][0]['msg']
 
-        self.assertTrue('fra' in lang_path)
+        self.assertIn('fra', lang_path)
         self.assertEqual(len(lang_path), 3)
 
         lang_key_value = new_definition['action_sets'][1]['actions'][0]['lang']
@@ -7342,7 +7342,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(lang_key_value, 'fra')
 
         should_not_be_migrated_path = new_definition['action_sets'][2]['actions'][0]['msg']
-        self.assertTrue('fre' in should_not_be_migrated_path)
+        self.assertIn('fre', should_not_be_migrated_path)
 
         # we cannot migrate flows to version 11 without flow object (languages depend on flow.org)
         self.assertRaises(ValueError, migrate_to_version_11_1, definition)
@@ -7569,8 +7569,8 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(1, flow_json['metadata']['revision'])
         self.assertEqual('test flow', flow_json['metadata']['name'])
         self.assertEqual(720, flow_json['metadata']['expires'])
-        self.assertTrue('uuid' in flow_json['metadata'])
-        self.assertTrue('saved_on' in flow_json['metadata'])
+        self.assertIn('uuid', flow_json['metadata'])
+        self.assertIn('saved_on', flow_json['metadata'])
 
         # check that our replacements work
         self.assertEqual('@(CONCAT(parent.divided, parent.sky))', flow_json['action_sets'][0]['actions'][3]['value'])
@@ -7754,7 +7754,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
-        self.assertTrue('base' in poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
+        self.assertIn('base', poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
         self.assertEqual('base', poll.base_language)
 
         # check replacement

@@ -2262,7 +2262,7 @@ class ContactTest(TembaTest):
 
         self.assertContains(response, update_url)
         response = self.client.get(update_url)
-        self.assertTrue('name' in response.context['form'].fields)
+        self.assertIn('name', response.context['form'].fields)
 
         response = self.client.post(update_url, dict(name="New Test"))
         self.assertRedirect(response, filter_url)
