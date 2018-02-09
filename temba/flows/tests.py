@@ -440,7 +440,7 @@ class FlowTest(TembaTest):
         self.assertFalse(contact2_run.responded)
 
         # check the path for contact 1
-        contact1_path = contact1_run.get_path()
+        contact1_path = contact1_run.path
         self.assertEqual(len(contact1_path), 2)
         self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
         self.assertIsNotNone(contact1_path[0]['arrived_on'])
@@ -483,7 +483,7 @@ class FlowTest(TembaTest):
 
         contact1_run.refresh_from_db()
         self.assertEqual(len(contact1_run.get_messages()), 1)
-        self.assertEqual(len(contact1_run.get_path()), 2)
+        self.assertEqual(len(contact1_run.path), 2)
 
         # ok, make our flow active again
         self.flow.is_archived = False
@@ -517,7 +517,7 @@ class FlowTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(Flow.find_and_handle(extra)[0])
 
-        contact1_path = contact1_run.get_path()
+        contact1_path = contact1_run.path
         self.assertEqual(len(contact1_path), 3)
         self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
         self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
@@ -527,7 +527,7 @@ class FlowTest(TembaTest):
         self.assertNotIn('exit_uuid', contact1_path[2])
 
         # we should also have a result for this RuleSet
-        results = contact1_run.get_results()
+        results = contact1_run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")
@@ -552,7 +552,7 @@ class FlowTest(TembaTest):
         self.assertEqual(self.channel.get_address_display(), context['channel']['__default__'])
 
         # change our value instead be decimal
-        results = contact1_run.get_results()
+        results = contact1_run.results
         results['color']['value'] = '10'
         contact1_run.results = results
         contact1_run.save(update_fields=('results',))
@@ -1826,7 +1826,7 @@ class FlowTest(TembaTest):
 
         # get our run and assert our value is saved (as a string)
         run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
-        results = run.get_results()
+        results = run.results
         self.assertEqual(results['color']['value'], "15")
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['category'], "> 10")
@@ -2588,14 +2588,14 @@ class FlowTest(TembaTest):
         run_msgs = run.get_messages().order_by('created_on')
         self.assertEqual(list(run_msgs), [msg_in, msg_out])
 
-        self.assertEqual(len(run.get_path()), 2)
+        self.assertEqual(len(run.path), 2)
 
     def test_quick_replies(self):
         flow = self.get_flow('quick_replies')
         run, = flow.start([], [self.contact4])
 
         run.refresh_from_db()
-        self.assertEqual(len(run.get_path()), 2)
+        self.assertEqual(len(run.path), 2)
 
         # check flow sent a message with quick replies
         msg = Msg.objects.get(direction='O')
@@ -2613,10 +2613,10 @@ class FlowTest(TembaTest):
 
         # only the second run should be active
         self.assertFalse(run1.is_active)
-        self.assertEqual(len(run1.get_path()), 2)
+        self.assertEqual(len(run1.path), 2)
 
         self.assertTrue(run2.is_active)
-        self.assertEqual(len(run2.get_path()), 2)
+        self.assertEqual(len(run2.path), 2)
 
         # send in a message
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange", created_on=timezone.now())
@@ -2626,8 +2626,8 @@ class FlowTest(TembaTest):
         run2.refresh_from_db()
 
         # only the second flow should get it
-        self.assertEqual(len(run1.get_path()), 2)
-        self.assertEqual(len(run2.get_path()), 3)
+        self.assertEqual(len(run1.path), 2)
+        self.assertEqual(len(run2.path), 3)
 
         # start the flow again for our contact
         run3, = self.flow.start([], [self.contact], restart_participants=True)
@@ -2639,8 +2639,8 @@ class FlowTest(TembaTest):
         self.assertFalse(run1.is_active)
         self.assertTrue(run3.is_active)
 
-        self.assertEqual(len(run1.get_path()), 2)
-        self.assertEqual(len(run3.get_path()), 2)
+        self.assertEqual(len(run1.path), 2)
+        self.assertEqual(len(run3.path), 2)
 
         # send in a message, this should be handled by our first flow, which has a more recent run active
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
@@ -2649,8 +2649,8 @@ class FlowTest(TembaTest):
         run1.refresh_from_db()
         run3.refresh_from_db()
 
-        self.assertEqual(len(run1.get_path()), 2)
-        self.assertEqual(len(run3.get_path()), 3)
+        self.assertEqual(len(run1.path), 2)
+        self.assertEqual(len(run3.path), 3)
 
         # if we exclude existing and try starting again, nothing happens
         self.flow.start([], [self.contact], restart_participants=False)
@@ -2659,7 +2659,7 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.runs.count(), 2)
 
         # check our run results
-        results = self.flow.runs.order_by('-id').first().get_results()
+        results = self.flow.runs.order_by('-id').first().results
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['name'], 'color')
@@ -4307,7 +4307,7 @@ class WebhookTest(TembaTest):
         run1.refresh_from_db()
         self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
 
-        results = run1.get_results()
+        results = run1.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Get", "blank": "" }')
@@ -4328,7 +4328,7 @@ class WebhookTest(TembaTest):
         run2, = flow.start([], [contact], restart_participants=True)
         run2.refresh_from_db()
 
-        results = run2.get_results()
+        results = run2.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Post", "blank": "" }')
@@ -4369,7 +4369,7 @@ class WebhookTest(TembaTest):
         run6.refresh_from_db()
         self.assertEqual(run6.fields, {})
 
-        results = run6.get_results()
+        results = run6.results
         self.assertEqual(len(results), 2)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'asdfasdfasdf')
@@ -4382,7 +4382,7 @@ class WebhookTest(TembaTest):
         run7.refresh_from_db()
         self.assertEqual(run7.fields, {})
 
-        results = run7.get_results()
+        results = run7.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], 'Server Error')
@@ -4395,7 +4395,7 @@ class WebhookTest(TembaTest):
         run8.refresh_from_db()
         self.assertEqual(run8.fields, {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
-        results = run8.get_results()
+        results = run8.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['response_1']['name'], 'Response 1')
         self.assertEqual(results['response_1']['value'], '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
@@ -6458,7 +6458,7 @@ class FlowsTest(FlowFileTest):
         parent_run, child_run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('created_on')
 
         # should have made it to the subflow ruleset on the parent flow
-        parent_path = parent_run.get_path()
+        parent_path = parent_run.path
         self.assertEqual(len(parent_path), 3)
         self.assertEqual(parent_path[0]['node_uuid'], parent_prompt.uuid)
         self.assertEqual(parent_path[0]['exit_uuid'], parent_prompt.exit_uuid)
@@ -6477,7 +6477,7 @@ class FlowsTest(FlowFileTest):
         parent_run.refresh_from_db()
         self.assertTrue(parent_run.is_active)
 
-        parent_path = parent_run.get_path()
+        parent_path = parent_run.path
         self.assertEqual(len(parent_path), 5)
         self.assertEqual(parent_path[2]['node_uuid'], subflow_ruleset.uuid)
         self.assertEqual(parent_path[2]['exit_uuid'], subflow_ruleset.get_rules()[0].uuid)
@@ -7003,7 +7003,7 @@ class FlowsTest(FlowFileTest):
             self.send_message(flow, "beige")
 
         run = FlowRun.objects.get()
-        path = run.get_path()
+        path = run.path
 
         self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
             (colorPrompt.uuid, colorPrompt.exit_uuid),
@@ -7020,7 +7020,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, "red")
 
         run.refresh_from_db()
-        path = run.get_path()
+        path = run.path
 
         self.assertEqual([(p['node_uuid'], p.get('exit_uuid')) for p in path], [
             (tryAgainPrompt.uuid, tryAgainPrompt.exit_uuid),
@@ -7799,7 +7799,7 @@ class DuplicateResultTest(FlowFileTest):
         run = FlowRun.objects.get(contact=self.contact, flow=flow)
 
         # we should have one result for this run, "Other"
-        results = run.get_results()
+        results = run.results
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['category'], "Other")
@@ -7809,7 +7809,7 @@ class DuplicateResultTest(FlowFileTest):
 
         # we should now still have only one value, but the category should be Red now
         run.refresh_from_db()
-        results = run.get_results()
+        results = run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['category'], "Red")
 
@@ -8831,7 +8831,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
 
-        results = FlowRun.objects.get().get_results()
+        results = FlowRun.objects.get().results
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])
@@ -8849,7 +8849,7 @@ class TypeTest(TembaTest):
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo")))
 
-        results = FlowRun.objects.get().get_results()
+        results = FlowRun.objects.get().results
 
         self.assertEqual('Text', results['text']['name'])
         self.assertEqual('Some Text', results['text']['value'])

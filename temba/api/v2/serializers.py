@@ -687,7 +687,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(arrived_on)
             }
 
-        return [convert_step(s) for s in obj.get_path()]
+        return [convert_step(s) for s in obj.path]
 
     def get_values(self, obj):
         def convert_result(result):
@@ -699,7 +699,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
+        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)

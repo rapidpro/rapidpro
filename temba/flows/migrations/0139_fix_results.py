@@ -62,7 +62,7 @@ def fix_value_results(FlowRun, RuleSet, Value):
                         no_longer_dates[ruleset_id_to_uuid[v.ruleset_id]] = v.string_value
 
                 if no_longer_dates:
-                    results = run.get_results()
+                    results = run.results
                     for key, result in six.iteritems(results):
                         node_uuid = result['node_uuid']
                         if node_uuid in no_longer_dates:

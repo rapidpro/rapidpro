@@ -42,12 +42,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flowrun',
             name='path',
-            field=temba.utils.models.JSONAsTextField(help_text='The path taken during this flow run in JSON format', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='The path taken during this flow run in JSON format', null=True, default=list),
         ),
         migrations.AlterField(
             model_name='flowrun',
             name='results',
-            field=temba.utils.models.JSONAsTextField(help_text='The results collected during this flow run in JSON format', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='The results collected during this flow run in JSON format', null=True, default=dict),
         ),
         migrations.AlterField(
             model_name='flowstart',
