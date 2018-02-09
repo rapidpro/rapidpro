@@ -4404,7 +4404,7 @@ class ContactFieldTest(TembaTest):
         # now we should be successful
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
         self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
     def test_manage_fields(self):
@@ -4433,7 +4433,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # should still have three contact fields
         self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
@@ -4457,7 +4457,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # first field was blank, so it should be inactive
         self.assertIsNone(ContactField.objects.filter(org=self.org, key="first", is_active=True).first())

@@ -1950,8 +1950,8 @@ class FlowTest(TembaTest):
 
         # keywords aren't an option for survey flows
         response = self.client.get(reverse('flows.flow_update', args=[flow.pk]))
-        self.assertTrue('keyword_triggers' not in response.context['form'].fields)
-        self.assertTrue('ignore_triggers' not in response.context['form'].fields)
+        self.assertNotIn('keyword_triggers', response.context['form'].fields)
+        self.assertNotIn('ignore_triggers', response.context['form'].fields)
 
         # send update with triggers and ignore flag anyways
         post_data = dict()
@@ -7644,7 +7644,7 @@ class FlowMigrationTest(FlowFileTest):
         voice_json = migrate_to_version_5(voice_json)
         voice_json = migrate_to_version_6(voice_json)
         definition = voice_json.get('definition')
-        self.assertTrue('recording' not in definition['action_sets'][0]['actions'][0])
+        self.assertNotIn('recording', definition['action_sets'][0]['actions'][0])
 
     def test_migrate_to_5_language(self):
 

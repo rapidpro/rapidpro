@@ -2382,7 +2382,7 @@ class AfricasTalkingTest(TembaTest):
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # assert we didn't send the short code in our data
-            self.assertTrue('from' not in mock.call_args[1]['data'])
+            self.assertNotIn('from', mock.call_args[1]['data'])
             self.clear_cache()
 
         with patch('requests.post') as mock:
@@ -2456,7 +2456,7 @@ class RedRabbitTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://http1.javna.com/epicenter/GatewaySendG.asp')
-                self.assertTrue('Msgtyp' not in mock.call_args[1]['params'])
+                self.assertNotIn('Msgtyp', mock.call_args[1]['params'])
 
         self.clear_cache()
 
@@ -7303,7 +7303,7 @@ class ChikkaTest(TembaTest):
 
                 # but when that fails, we should try again as a send
                 self.assertEqual(second_call_args['message_type'], 'SEND')
-                self.assertTrue('request_id' not in second_call_args)
+                self.assertNotIn('request_id', second_call_args)
 
                 # our message should be succeeded
                 msg.refresh_from_db()
