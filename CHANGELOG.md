@@ -1,3 +1,9 @@
+v3.0.319
+----------
+ * Add ArabiaCell channel type
+ * Tweaks to Mtarget channel type
+ * Pathfix for highcharts
+
 v3.0.318
 ----------
  * Add input to webhook payload
