@@ -34,7 +34,7 @@ from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_form
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
-from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
 from .templatetags.contacts import contact_field, activity_icon, history_class
@@ -2710,7 +2710,7 @@ class ContactTest(TembaTest):
         with open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb') as open_file:
             csv_file = ContentFile(open_file.read())
 
-            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes']
+            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes', 'email']
             self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
             self.assertNotIn('twitter', Contact.get_org_import_file_headers(csv_file, self.org))
@@ -3025,7 +3025,7 @@ class ContactTest(TembaTest):
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
-                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                 "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                  "external, jiochat, fcm, whatsapp should be provided or a Contact UUID"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
@@ -3097,7 +3097,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                 "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # lock for creates only
@@ -3165,7 +3165,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                 "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # only lock for create
@@ -3304,7 +3304,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
                              '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
@@ -3312,7 +3312,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
                              '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -3337,7 +3337,7 @@ class ContactTest(TembaTest):
 
         # import spreadsheet with extra columns
         response = self.assertContactImport('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT,
-                                            None, task_customize=True, custom_fields_number=21)
+                                            None, task_customize=True, custom_fields_number=24)
 
         # all checkboxes should default to True
         for key in response.context['form'].fields.keys():
@@ -3345,29 +3345,31 @@ class ContactTest(TembaTest):
                 self.assertTrue(response.context['form'].fields[key].initial)
 
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
-        post_data = dict()
-        post_data['column_country_include'] = 'on'
-        post_data['column_professional_status_include'] = 'on'
-        post_data['column_zip_code_include'] = 'on'
-        post_data['column_joined_include'] = 'on'
-        post_data['column_vehicle_include'] = 'on'
-        post_data['column_shoes_include'] = 'on'
-
-        post_data['column_country_label'] = '[_NEW_]Location'
-        post_data['column_district_label'] = 'District'
-        post_data['column_professional_status_label'] = 'Job and Projects'
-        post_data['column_zip_code_label'] = 'Postal Code'
-        post_data['column_joined_label'] = 'Joined'
-        post_data['column_vehicle_label'] = 'Vehicle'
-        post_data['column_shoes_label'] = ' Shoes  '
-
-        post_data['column_country_type'] = 'T'
-        post_data['column_district_type'] = 'T'
-        post_data['column_professional_status_type'] = 'T'
-        post_data['column_zip_code_type'] = 'N'
-        post_data['column_joined_type'] = 'D'
-        post_data['column_vehicle_type'] = 'T'
-        post_data['column_shoes_type'] = 'N'
+        post_data = {
+            'column_country_include': 'on',
+            'column_professional_status_include': 'on',
+            'column_zip_code_include': 'on',
+            'column_joined_include': 'on',
+            'column_vehicle_include': 'on',
+            'column_shoes_include': 'on',
+            'column_email_include': 'on',
+            'column_country_label': '[_NEW_]Location',
+            'column_district_label': 'District',
+            'column_professional_status_label': 'Job and Projects',
+            'column_zip_code_label': 'Postal Code',
+            'column_joined_label': 'Joined',
+            'column_vehicle_label': 'Vehicle',
+            'column_shoes_label': ' Shoes  ',
+            'column_email_label': 'Email',
+            'column_country_type': 'T',
+            'column_district_type': 'T',
+            'column_professional_status_type': 'T',
+            'column_zip_code_type': 'N',
+            'column_joined_type': 'D',
+            'column_vehicle_type': 'T',
+            'column_shoes_type': 'N',
+            'column_email_type': 'T',
+        }
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEqual(
@@ -3386,10 +3388,10 @@ class ContactTest(TembaTest):
 
         self.assertEqual(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
         self.assertEqual(contact1.get_field_raw('wears'), 'Bứnto')  # existing field was looked up by label & stripped
+        self.assertEqual(contact1.get_field_raw('email'), 'eric@example.com')
 
         self.assertEqual(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
         self.assertEqual(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
-        self.assertEqual(contact1.get_urn(schemes=[EMAIL_SCHEME]).path, 'eric@example.com')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)

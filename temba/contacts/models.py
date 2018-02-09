@@ -61,17 +61,17 @@ FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
-                     (TWITTERID_SCHEME, _("Twitter ID"), 'twitterid', TWITTERID_SCHEME),
-                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
-                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
-                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
-                     (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
+                     (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME, FACEBOOK_SCHEME),
+                     (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME, TWITTER_SCHEME),
+                     (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME, TWITTERID_SCHEME),
+                     (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME, VIBER_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME, LINE_SCHEME),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME, TELEGRAM_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME, EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
-                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME),
-                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), 'whatsapp', WHATSAPP_SCHEME))
+                     (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME, JIOCHAT_SCHEME),
+                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME, FCM_SCHEME),
+                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME, WHATSAPP_SCHEME))
 
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
