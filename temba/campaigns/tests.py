@@ -141,7 +141,7 @@ class CampaignTest(TembaTest):
 
         # now we should have ace as our primary
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
         self.assertIn('ace', response.context['form'].fields)
 
         # add second language
@@ -149,7 +149,7 @@ class CampaignTest(TembaTest):
                                       created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
         self.assertIn('ace', response.context['form'].fields)
         self.assertIn('spa', response.context['form'].fields)
 

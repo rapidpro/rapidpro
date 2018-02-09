@@ -615,7 +615,7 @@ class ChannelTest(TembaTest):
         channel.save()
 
         response = self.client.get(update_url)
-        self.assertFalse('address' in response.context['form'].fields)
+        self.assertNotIn('address', response.context['form'].fields)
 
         # bring it back to android
         channel.channel_type = Channel.TYPE_ANDROID
@@ -3346,8 +3346,8 @@ class KannelTest(TembaTest):
             # assert verify was set to true
             self.assertEqual('No capital accented E!', mock.call_args[1]['params']['text'])
             self.assertEqual('788383383', mock.call_args[1]['params']['to'])
-            self.assertFalse('coding' in mock.call_args[1]['params'])
-            self.assertFalse('priority' in mock.call_args[1]['params'])
+            self.assertNotIn('coding', mock.call_args[1]['params'])
+            self.assertNotIn('priority', mock.call_args[1]['params'])
             self.clear_cache()
 
         incoming = Msg.create_incoming(self.channel, "tel:+250788383383", "start")
@@ -3390,8 +3390,8 @@ class KannelTest(TembaTest):
 
             # assert verify was set to true
             self.assertEqual("Normal", mock.call_args[1]['params']['text'])
-            self.assertFalse('coding' in mock.call_args[1]['params'])
-            self.assertFalse('charset' in mock.call_args[1]['params'])
+            self.assertNotIn('coding', mock.call_args[1]['params'])
+            self.assertNotIn('charset', mock.call_args[1]['params'])
             self.assertEqual('https://%s/c/kn/%s/status?id=%d&status=%%d' % (self.org.get_brand_domain(), self.channel.uuid, msg.id), mock.call_args[1]['params']['dlr-url'])
 
             self.clear_cache()

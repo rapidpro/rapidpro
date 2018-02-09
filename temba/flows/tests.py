@@ -1115,7 +1115,7 @@ class FlowTest(TembaTest):
         self.assertTrue(self.flow.get_steps())
         self.assertTrue(Msg.objects.all())
         msg = Msg.objects.all()[0]
-        self.assertFalse("@extra.coupon" in msg.text)
+        self.assertNotIn("@extra.coupon", msg.text)
         self.assertEqual(msg.text, "text to get NEXUS4")
         self.assertEqual(PENDING, msg.status)
 
@@ -2487,10 +2487,10 @@ class FlowTest(TembaTest):
         self.assertFalse(flow_create_url in response.content)
         self.assertFalse(flowlabel_create_url in response.content)
         # verify the action buttons we have
-        self.assertFalse('object-btn-unlabel' in response.content)
-        self.assertFalse('object-btn-restore' in response.content)
-        self.assertFalse('object-btn-archive' in response.content)
-        self.assertFalse('object-btn-label' in response.content)
+        self.assertNotIn('object-btn-unlabel', response.content)
+        self.assertNotIn('object-btn-restore', response.content)
+        self.assertNotIn('object-btn-archive', response.content)
+        self.assertNotIn('object-btn-label', response.content)
         self.assertIn('object-btn-export', response.content)
 
         # can not label
@@ -7438,8 +7438,8 @@ class FlowMigrationTest(FlowFileTest):
 
         # make sure our rulesets no longer have 'webhook' or 'webhook_action'
         for ruleset in flow_def['rule_sets']:
-            self.assertFalse('webhook' in ruleset)
-            self.assertFalse('webhook_action' in ruleset)
+            self.assertNotIn('webhook', ruleset)
+            self.assertNotIn('webhook_action', ruleset)
 
         self.mockRequest('POST', '/code', '{"code": "ABABUUDDLRS"}', content_type='application/json')
 
@@ -8869,7 +8869,7 @@ class TypeTest(TembaTest):
         self.assertEqual('Rwanda > Eastern Province', results['state']['value'])
         self.assertEqual('I\'m in Eastern Province', results['state']['input'])
         self.assertEqual('state', results['state']['category'])
-        self.assertFalse('category_localized' in results['state'])
+        self.assertNotIn('category_localized', results['state'])
 
         self.assertEqual('District', results['district']['name'])
         self.assertEqual('Rwanda > Eastern Province > Gatsibo', results['district']['value'])

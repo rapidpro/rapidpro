@@ -240,7 +240,7 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
         filter_url = reverse('contacts.contact_filter', args=[group.uuid])
         response = self.client.get(filter_url)
-        self.assertFalse('unlabel' in response.context['actions'])
+        self.assertNotIn('unlabel', response.context['actions'])
 
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
@@ -2480,7 +2480,7 @@ class ContactTest(TembaTest):
         # should no longer be in our update form either
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertEqual(response.context['form'].fields['urn__tel__0'].initial, "+250781111111")
-        self.assertFalse('urn__tel__1' in response.context['form'].fields)
+        self.assertNotIn('urn__tel__1', response.context['form'].fields)
 
         # check that groups field isn't displayed when contact is blocked
         self.joe.block(self.user)
@@ -4014,13 +4014,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotIn("Simulator Contact", response.content)
 
         response = self.client.get(reverse('contacts.contact_filter', args=[group.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotIn("Simulator Contact", response.content)
 
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task

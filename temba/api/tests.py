@@ -303,7 +303,7 @@ class WebHookTest(TembaTest):
         )
 
         # make sure we don't have an input
-        self.assertFalse('input' in data)
+        self.assertNotIn('input', data)
 
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
@@ -651,7 +651,7 @@ class WebHookTest(TembaTest):
             self.assertContains(response, "I am success")
             self.assertIn('values', mock.call_args[1]['data'])
             self.assertIn('phone', mock.call_args[1]['data'])
-            self.assertFalse('bogus' in mock.call_args[1]['data'])
+            self.assertNotIn('bogus', mock.call_args[1]['data'])
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
             self.assertEqual(400, response.status_code)

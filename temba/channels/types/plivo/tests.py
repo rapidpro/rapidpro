@@ -40,7 +40,7 @@ class PlivoTypeTest(TembaTest):
 
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
-            self.assertFalse('account_trial' in response.context)
+            self.assertNotIn('account_trial', response.context)
             self.assertContains(response, connect_plivo_url)
 
         # let's add a number already connected to the account
