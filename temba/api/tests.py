@@ -280,6 +280,31 @@ class WebHookTest(TembaTest):
         self.assertEqual(data['results']['color']['value'], 'Mauve')
         self.assertEqual(data['results']['color']['input'], 'Mauve')
 
+    @patch('requests.Session.send')
+    def test_webhook_first(self, mock_send):
+        mock_send.return_value = MockResponse(200, "{}")
+
+        self.setupChannel()
+        org = self.channel.org
+        org.save()
+
+        # set our very first action to be a webhook
+        flow = self.get_flow('webhook_rule_first')
+
+        # run a user through this flow
+        flow.start([], [self.joe])
+        event = WebHookEvent.objects.get()
+        data = json.loads(event.data)
+
+        # make sure our contact still has a URN
+        self.assertEqual(
+            data['contact'],
+            {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))}
+        )
+
+        # make sure we don't have an input
+        self.assertFalse('input' in data)
+
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
         mock_time.side_effect = [1, 1, 1, 6, 6]

@@ -219,7 +219,7 @@ class WebHookEvent(SmartModel):
         contact = run.contact
         org = flow.org
         channel = msg.channel if msg else None
-        contact_urn = msg.contact_urn if msg else contact.get_urn()
+        contact_urn = msg.contact_urn if (msg and msg.contact_urn) else contact.get_urn()
 
         contact_dict = dict(uuid=contact.uuid, name=contact.name)
         if contact_urn:
