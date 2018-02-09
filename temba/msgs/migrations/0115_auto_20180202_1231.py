@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='broadcast',
             name='metadata',
-            field=temba.utils.models.JSONAsTextField(help_text='The metadata for messages of this broadcast', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='The metadata for messages of this broadcast', null=True, default=dict),
         ),
         migrations.AlterField(
             model_name='msg',
             name='metadata',
-            field=temba.utils.models.JSONAsTextField(help_text='The metadata for this msg', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='The metadata for this msg', null=True, default=dict),
         ),
     ]

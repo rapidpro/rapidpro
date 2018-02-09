@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='org',
             name='webhook',
-            field=temba.utils.models.JSONAsTextField(help_text='Webhook endpoint and configuration', null=True, verbose_name='Webhook'),
+            field=temba.utils.models.JSONAsTextField(help_text='Webhook endpoint and configuration', null=True, verbose_name='Webhook', default=dict),
         ),
         migrations.RenameField(
             model_name='org',

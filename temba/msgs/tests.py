@@ -410,15 +410,15 @@ class MsgTest(TembaTest):
                                      quick_replies=[dict(eng='Yes', fra='Oui'), dict(eng='No')])
 
         # check metadata was set on the broadcast
-        self.assertEqual(broadcast.get_metadata(), {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
+        self.assertEqual(broadcast.metadata, {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
 
         broadcast.send()
         msg1, msg2, msg3 = broadcast.msgs.order_by('contact', 'id')
 
         # message quick_replies are translated according to contact language
-        self.assertEqual(msg1.get_metadata(), {'quick_replies': ['Oui', 'No']})
-        self.assertEqual(msg2.get_metadata(), {'quick_replies': ['Yes', 'No']})
-        self.assertEqual(msg3.get_metadata(), {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg1.metadata, {'quick_replies': ['Oui', 'No']})
+        self.assertEqual(msg2.metadata, {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg3.metadata, {'quick_replies': ['Yes', 'No']})
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -741,7 +741,7 @@ class MsgTest(TembaTest):
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
         self.assertEqual(resent_msg.status, PENDING)
-        self.assertEqual(resent_msg.get_metadata(), {'quick_replies': ["Yes", "No"]})
+        self.assertEqual(resent_msg.metadata, {'quick_replies': ["Yes", "No"]})
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):

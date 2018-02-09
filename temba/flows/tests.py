@@ -2599,7 +2599,7 @@ class FlowTest(TembaTest):
 
         # check flow sent a message with quick replies
         msg = Msg.objects.get(direction='O')
-        self.assertEqual(msg.get_metadata(), {'quick_replies': ['Sim', 'No']})
+        self.assertEqual(msg.metadata, {'quick_replies': ['Sim', 'No']})
 
     def test_multiple(self):
         run1, = self.flow.start([], [self.contact])

@@ -200,7 +200,7 @@ class Org(SmartModel):
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
-    webhook_config = JSONAsTextField(null=True, verbose_name=_("Webhook"),
+    webhook_config = JSONAsTextField(null=True, verbose_name=_("Webhook"), default=dict,
                                      help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
