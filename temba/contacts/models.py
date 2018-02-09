@@ -359,7 +359,7 @@ class ContactField(SmartModel):
     def is_valid_key(cls, key):
         if not regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0):
             return False
-        if key in Contact.RESERVED_FIELDS or key in URN.VALID_SCHEMES or len(key) > cls.MAX_KEY_LEN:
+        if key in Contact.RESERVED_FIELD_KEYS or len(key) > cls.MAX_KEY_LEN:
             return False
         return True
 
@@ -504,11 +504,16 @@ class Contact(TembaModel):
     GROUPS = 'groups'
     ID = 'id'
 
-    # reserved contact fields
-    RESERVED_FIELDS = {
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID,
+    RESERVED_ATTRIBUTES = {
+        ID, NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID,
         'created_by', 'modified_by', 'org', 'is', 'has', 'tel_e164',
     }
+
+    # can't create custom contact fields with these keys
+    RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
+
+    # the import headers which map to contact attributes or URNs rather than custom fields
+    ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
 
     @property
     def anon_identifier(self):
@@ -1208,7 +1213,7 @@ class Contact(TembaModel):
         contact_field_keys_updated = set()
         for key in field_dict.keys():
             # ignore any reserved fields or URN schemes
-            if key in Contact.RESERVED_FIELDS or key in URN.IMPORT_HEADERS:
+            if key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 continue
 
             value = field_dict[key]
@@ -1242,7 +1247,7 @@ class Contact(TembaModel):
         for field in import_params['extra_fields']:
             key = field['key']
             label = field['label']
-            if key not in Contact.RESERVED_FIELDS and key not in URN.IMPORT_HEADERS:
+            if key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
                 value = field_dict[field['header']]
                 del field_dict[field['header']]
@@ -1258,7 +1263,7 @@ class Contact(TembaModel):
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if (key not in Contact.RESERVED_FIELDS and key not in URN.IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme:
+            if (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -1295,7 +1300,7 @@ class Contact(TembaModel):
         possible_fields = []
         for header in headers:
             header = header.strip().lower()
-            if header and header not in Contact.RESERVED_FIELDS and header not in URN.IMPORT_HEADERS:
+            if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 possible_fields.append(header)
 
         return possible_fields

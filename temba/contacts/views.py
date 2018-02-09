@@ -442,7 +442,7 @@ class ContactCRUDL(SmartCRUDL):
                             raise forms.ValidationError(_("%s should be used once") % field_label)
 
                         existing_key = existing_contact_fields_map.get(field_label, None)
-                        if existing_key and (existing_key in Contact.RESERVED_FIELDS or existing_key in URN.VALID_SCHEMES):
+                        if existing_key and existing_key in Contact.RESERVED_FIELD_KEYS:
                             raise forms.ValidationError(_("'%s' contact field has '%s' key which is reserved name. "
                                                           "Column cannot be imported") % (value, existing_key))
 

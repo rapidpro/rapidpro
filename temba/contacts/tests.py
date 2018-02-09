@@ -4151,12 +4151,9 @@ class ContactFieldTest(TembaTest):
         another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME)
         self.assertTrue(another.show_in_table)
 
-        for elt in Contact.RESERVED_FIELDS:
+        for key in Contact.RESERVED_FIELD_KEYS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
-        for elt in URN.VALID_SCHEMES:
-            with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
+                ContactField.get_or_create(self.org, self.admin, key, key, value_type=Value.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, 'groups_field', 'Groups Field')
         self.assertEqual(groups_field.key, 'groups_field')
