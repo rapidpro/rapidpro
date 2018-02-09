@@ -17,12 +17,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='actionset',
             name='actions',
-            field=temba.utils.models.JSONAsTextField(help_text='The JSON encoded actions for this action set'),
+            field=temba.utils.models.JSONAsTextField(help_text='The JSON encoded actions for this action set', default=dict),
         ),
         migrations.AlterField(
             model_name='exportflowresultstask',
             name='config',
-            field=temba.utils.models.JSONAsTextField(help_text='Any configuration options for this flow export', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='Any configuration options for this flow export', null=True, default=dict),
         ),
         migrations.AlterField(
             model_name='flow',
@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flowrevision',
             name='definition',
-            field=temba.utils.models.JSONAsTextField(help_text='The JSON flow definition'),
+            field=temba.utils.models.JSONAsTextField(help_text='The JSON flow definition', default=dict),
         ),
         migrations.AlterField(
             model_name='flowrun',
@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flowstart',
             name='extra',
-            field=temba.utils.models.JSONAsTextField(help_text='Any extra parameters to pass to the flow start (json)', null=True),
+            field=temba.utils.models.JSONAsTextField(help_text='Any extra parameters to pass to the flow start (json)', null=True, default=dict),
         ),
         migrations.AlterField(
             model_name='ruleset',

@@ -2689,7 +2689,7 @@ class APITest(TembaTest):
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
         self.assertTrue(start1.restart_participants)
-        self.assertIsNone(start1.extra)
+        self.assertEqual(start1.extra, {})
 
         # check our first msg
         msg = Msg.objects.get(direction='O', contact=self.joe)

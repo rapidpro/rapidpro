@@ -3646,7 +3646,7 @@ class ActionSet(models.Model):
 
     exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
-    actions = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"))
+    actions = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=dict)
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -3709,15 +3709,12 @@ class ActionSet(models.Model):
 
         return msgs
 
-    def get_actions_dict(self):
-        return self.actions
-
     def get_actions(self):
         return Action.from_json_array(self.flow.org, self.actions)
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
-                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
+                    actions=self.actions, exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)
@@ -3729,7 +3726,7 @@ class FlowRevision(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='revisions')
 
-    definition = JSONAsTextField(help_text=_("The JSON flow definition"))
+    definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
 
     spec_version = models.CharField(default=get_current_export_version, max_length=8,
                                     help_text=_("The flow version this definition is in"))
@@ -4121,7 +4118,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    config = JSONAsTextField(null=True,
+    config = JSONAsTextField(null=True, default=dict,
                              help_text=_("Any configuration options for this flow export"))
 
     @classmethod
@@ -4520,7 +4517,7 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
-    extra = JSONAsTextField(null=True,
+    extra = JSONAsTextField(null=True, default=dict,
                             help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod
