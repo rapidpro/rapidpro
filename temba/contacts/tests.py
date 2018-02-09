@@ -2709,10 +2709,11 @@ class ContactTest(TembaTest):
     def test_get_import_file_headers(self):
         with open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb') as open_file:
             csv_file = ContentFile(open_file.read())
+
             headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes']
             self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
-            self.assertFalse('email' in Contact.get_org_import_file_headers(csv_file, self.org))
+            self.assertNotIn('twitter', Contact.get_org_import_file_headers(csv_file, self.org))
 
         with open('%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls' % settings.MEDIA_ROOT,
                   'rb') as open_file:
@@ -4151,6 +4152,9 @@ class ContactFieldTest(TembaTest):
         for elt in Contact.RESERVED_FIELDS:
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
+        for elt in URN.VALID_SCHEMES:
+            with self.assertRaises(ValueError):
+                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, 'groups_field', 'Groups Field')
         self.assertEqual(groups_field.key, 'groups_field')
@@ -4216,12 +4220,15 @@ class ContactFieldTest(TembaTest):
     def test_is_valid_key(self):
         self.assertTrue(ContactField.is_valid_key("age"))
         self.assertTrue(ContactField.is_valid_key("age_now_2"))
-        self.assertFalse(ContactField.is_valid_key("Age"))   # must be lowercase
-        self.assertFalse(ContactField.is_valid_key("age!"))  # can't have punctuation
-        self.assertFalse(ContactField.is_valid_key("âge"))   # a-z only
-        self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
-        self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
+        self.assertTrue(ContactField.is_valid_key("email"))
+        self.assertFalse(ContactField.is_valid_key("Age"))     # must be lowercase
+        self.assertFalse(ContactField.is_valid_key("age!"))    # can't have punctuation
+        self.assertFalse(ContactField.is_valid_key("âge"))     # a-z only
+        self.assertFalse(ContactField.is_valid_key("2up"))     # can't start with a number
+        self.assertFalse(ContactField.is_valid_key("name"))    # can't be a contact attribute
         self.assertFalse(ContactField.is_valid_key("uuid"))
+        self.assertFalse(ContactField.is_valid_key("tel"))     # can't be URN scheme
+        self.assertFalse(ContactField.is_valid_key("mailto"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_label(self):

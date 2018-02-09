@@ -88,6 +88,7 @@ class URN(object):
         * No hex escaping in URN path
     """
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
+    IMPORT_HEADERS = {s[2] for s in URN_SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -356,7 +357,11 @@ class ContactField(SmartModel):
 
     @classmethod
     def is_valid_key(cls, key):
-        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS and len(key) <= cls.MAX_KEY_LEN
+        if not regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0):
+            return False
+        if key in Contact.RESERVED_FIELDS or key in URN.VALID_SCHEMES or len(key) > cls.MAX_KEY_LEN:
+            return False
+        return True
 
     @classmethod
     def is_valid_label(cls, label):
@@ -500,9 +505,10 @@ class Contact(TembaModel):
     ID = 'id'
 
     # reserved contact fields
-    RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
-    ] + [c[0] for c in IMPORT_HEADERS]
+    RESERVED_FIELDS = {
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID,
+        'created_by', 'modified_by', 'org', 'is', 'has', 'tel_e164',
+    }
 
     @property
     def anon_identifier(self):
@@ -1201,8 +1207,8 @@ class Contact(TembaModel):
 
         contact_field_keys_updated = set()
         for key in field_dict.keys():
-            # ignore any reserved fields
-            if key in Contact.RESERVED_FIELDS:
+            # ignore any reserved fields or URN schemes
+            if key in Contact.RESERVED_FIELDS or key in URN.IMPORT_HEADERS:
                 continue
 
             value = field_dict[key]
@@ -1236,7 +1242,7 @@ class Contact(TembaModel):
         for field in import_params['extra_fields']:
             key = field['key']
             label = field['label']
-            if key not in Contact.RESERVED_FIELDS:
+            if key not in Contact.RESERVED_FIELDS and key not in URN.IMPORT_HEADERS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
                 value = field_dict[field['header']]
                 del field_dict[field['header']]
@@ -1252,7 +1258,7 @@ class Contact(TembaModel):
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if key not in Contact.RESERVED_FIELDS and key not in extra_fields and key not in active_scheme:
+            if (key not in Contact.RESERVED_FIELDS and key not in URN.IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -1286,7 +1292,13 @@ class Contact(TembaModel):
         Contact.validate_org_import_header(headers, org)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
+        possible_fields = []
+        for header in headers:
+            header = header.strip().lower()
+            if header and header not in Contact.RESERVED_FIELDS and header not in URN.IMPORT_HEADERS:
+                possible_fields.append(header)
+
+        return possible_fields
 
     @classmethod
     def validate_org_import_header(cls, headers, org):
