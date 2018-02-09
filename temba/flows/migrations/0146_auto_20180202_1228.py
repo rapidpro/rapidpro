@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flow',
             name='metadata',
-            field=temba.utils.models.JSONAsTextField(blank=True, help_text='Any extra metadata attached to this flow, strictly used by the user interface.', null=True),
+            field=temba.utils.models.JSONAsTextField(blank=True, help_text='Any extra metadata attached to this flow, strictly used by the user interface.', null=True, default=dict),
         ),
         migrations.AlterField(
             model_name='flowrevision',
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flowrun',
             name='fields',
-            field=temba.utils.models.JSONAsTextField(blank=True, help_text='A JSON representation of any custom flow values the user has saved away', null=True, object_pairs_hook=collections.OrderedDict),
+            field=temba.utils.models.JSONAsTextField(blank=True, help_text='A JSON representation of any custom flow values the user has saved away', null=True, object_pairs_hook=collections.OrderedDict, default=dict),
         ),
         migrations.AlterField(
             model_name='flowrun',

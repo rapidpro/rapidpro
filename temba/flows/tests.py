@@ -1618,7 +1618,7 @@ class FlowTest(TembaTest):
         test = RegexTest(dict(base="(?P<first_name>\w+) (\w+)"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertEqual("Isaac Newton", extra['0'])
         self.assertEqual("Isaac", extra['1'])
         self.assertEqual("Newton", extra['2'])
@@ -1626,7 +1626,7 @@ class FlowTest(TembaTest):
         # find that arabic unicode is handled right
         sms.text = "مرحبا العالم"
         run = self.assertTest(True, "مرحبا العالم", test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertEqual("مرحبا العالم", extra['0'])
         self.assertEqual("مرحبا", extra['1'])
         self.assertEqual("العالم", extra['2'])
@@ -1635,20 +1635,20 @@ class FlowTest(TembaTest):
         test = RegexTest(dict(base="\w+ \w+"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertEqual("Isaac Newton", extra['0'])
 
         # no match, shouldn't return anything at all
         sms.text = "#$%^$#? !@#$"
         run = self.assertTest(False, None, test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertFalse(extra)
 
         # no case sensitivity
         test = RegexTest(dict(base="kazoo"))
         sms.text = "This is my Kazoo"
         run = self.assertTest(True, "Kazoo", test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertEqual("Kazoo", extra['0'])
 
         # change to have anchors
@@ -1661,7 +1661,7 @@ class FlowTest(TembaTest):
         # this one will match
         sms.text = "Kazoo"
         run = self.assertTest(True, "Kazoo", test)
-        extra = run.field_dict()
+        extra = run.fields
         self.assertEqual("Kazoo", extra['0'])
 
         # not empty
@@ -2220,7 +2220,7 @@ class FlowTest(TembaTest):
         post_data['contact_creation'] = Flow.CONTACT_PER_LOGIN
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         flow3.refresh_from_db()
-        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
+        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.metadata.get('contact_creation'))
 
         # can see results for a flow
         response = self.client.get(reverse('flows.flow_results', args=[self.flow.uuid]))
@@ -4101,18 +4101,18 @@ class FlowRunTest(TembaTest):
         new_values = dict(Field1="value1", field_2="value2")
         run.update_fields(new_values)
 
-        self.assertEqual(run.field_dict(), new_values)
+        self.assertEqual(run.fields, new_values)
 
         run.update_fields(dict(field2="new value2", field3="value3"))
         new_values['field2'] = "new value2"
         new_values['field3'] = "value3"
 
-        self.assertEqual(run.field_dict(), new_values)
+        self.assertEqual(run.fields, new_values)
 
         run.update_fields(dict(field1=""))
         new_values['field1'] = ""
 
-        self.assertEqual(run.field_dict(), new_values)
+        self.assertEqual(run.fields, new_values)
 
         # clear our fields
         run.fields = None
@@ -4120,7 +4120,7 @@ class FlowRunTest(TembaTest):
 
         # set to a list instead
         run.update_fields(["zero", "one", "two"])
-        self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
+        self.assertEqual(run.fields, {"0": "zero", "1": "one", "2": "two"})
 
     def test_is_completed(self):
         self.flow.start([], [self.contact])
@@ -4305,7 +4305,7 @@ class WebhookTest(TembaTest):
 
         run1, = flow.start([], [contact])
         run1.refresh_from_db()
-        self.assertEqual(run1.field_dict(), {'text': "Get", 'blank': ""})
+        self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
 
         results = run1.get_results()
         self.assertEqual(len(results), 2)
@@ -4342,7 +4342,7 @@ class WebhookTest(TembaTest):
 
         run3, = flow.start([], [contact], restart_participants=True)
         run3.refresh_from_db()
-        self.assertEqual(run3.field_dict(), {'0': 'zero', '1': 'one', '2': 'two'})
+        self.assertEqual(run3.fields, {'0': 'zero', '1': 'one', '2': 'two'})
 
         # which is also how it will appear in the expressions context
         message_context = flow.build_expressions_context(contact, None)
@@ -4353,21 +4353,21 @@ class WebhookTest(TembaTest):
 
         run4, = flow.start([], [contact], restart_participants=True)
         run4.refresh_from_db()
-        self.assertEqual(run4.field_dict(), {str(n): 'x' for n in range(256)})
+        self.assertEqual(run4.fields, {str(n): 'x' for n in range(256)})
 
         # check we handle a non-dict or list response
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
 
         run5, = flow.start([], [contact], restart_participants=True)
         run5.refresh_from_db()
-        self.assertEqual(run5.field_dict(), {})
+        self.assertEqual(run5.fields, {})
 
         # check we handle a non-JSON response
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
 
         run6, = flow.start([], [contact], restart_participants=True)
         run6.refresh_from_db()
-        self.assertEqual(run6.field_dict(), {})
+        self.assertEqual(run6.fields, {})
 
         results = run6.get_results()
         self.assertEqual(len(results), 2)
@@ -4380,7 +4380,7 @@ class WebhookTest(TembaTest):
 
         run7, = flow.start([], [contact], restart_participants=True)
         run7.refresh_from_db()
-        self.assertEqual(run7.field_dict(), {})
+        self.assertEqual(run7.fields, {})
 
         results = run7.get_results()
         self.assertEqual(len(results), 1)
@@ -4393,7 +4393,7 @@ class WebhookTest(TembaTest):
 
         run8, = flow.start([], [contact], restart_participants=True)
         run8.refresh_from_db()
-        self.assertEqual(run8.field_dict(), {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
+        self.assertEqual(run8.fields, {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
         results = run8.get_results()
         self.assertEqual(len(results), 1)

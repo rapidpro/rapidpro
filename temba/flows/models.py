@@ -201,7 +201,7 @@ class Flow(TembaModel):
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW,
                                  help_text=_("The type of this flow"))
 
-    metadata = JSONAsTextField(null=True, blank=True,
+    metadata = JSONAsTextField(null=True, blank=True, default=dict,
                                help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
 
     expires_after_minutes = models.IntegerField(default=FLOW_DEFAULT_EXPIRES_AFTER,
@@ -1177,9 +1177,6 @@ class Flow(TembaModel):
         self.update(flow_json)
         return self
 
-    def get_metadata_json(self):
-        return self.metadata if self.metadata else {}
-
     def archive(self):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
@@ -1279,7 +1276,7 @@ class Flow(TembaModel):
             run.org = self.org
             run.contact = contact
 
-            run_context = run.field_dict()
+            run_context = run.fields
             flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
@@ -1615,7 +1612,7 @@ class Flow(TembaModel):
         simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
         # these fields are the initial state for our flow run
-        run_fields = None
+        run_fields = {}  # this should be the default value of the FlowRun.fields
         if extra:
             # we keep more values in @extra for new flow runs because we might be passing the state
             (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.FLOWRUN_FIELDS_SIZE * 4)
@@ -2537,7 +2534,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
 
-    fields = JSONAsTextField(blank=True, null=True, object_pairs_hook=OrderedDict,
+    fields = JSONAsTextField(blank=True, null=True, object_pairs_hook=OrderedDict, default=dict,
                              help_text=_("A JSON representation of any custom flow values the user has saved away"))
 
     created_on = models.DateTimeField(default=timezone.now,
@@ -3024,9 +3021,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.fields = existing_map
 
         self.save(update_fields=['fields'])
-
-    def field_dict(self):
-        return self.fields if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -3717,7 +3711,7 @@ class ActionSet(models.Model):
             # if there are more actions, rebuild the parts of the context that may have changed
             if a < len(actions) - 1:
                 context['contact'] = run.contact.build_expressions_context()
-                context['extra'] = run.field_dict()
+                context['extra'] = run.fields
 
         return msgs
 

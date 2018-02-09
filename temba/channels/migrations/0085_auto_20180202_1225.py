@@ -21,6 +21,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='channelevent',
             name='extra',
-            field=temba.utils.models.JSONAsTextField(help_text='Any extra properties on this event as JSON', null=True, verbose_name='Extra'),
+            field=temba.utils.models.JSONAsTextField(help_text='Any extra properties on this event as JSON', null=True, verbose_name='Extra', default=dict),
         ),
     ]

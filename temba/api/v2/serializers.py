@@ -162,7 +162,7 @@ class ChannelEventReadSerializer(ReadSerializer):
 
     def get_extra(self, obj):
         if obj.extra:
-            return obj.extra_json()
+            return obj.extra
         else:
             return None
 

@@ -195,7 +195,7 @@ class WebHookEvent(SmartModel):
                                 help_text="The channel that this event is relating to")
     event = models.CharField(max_length=16, choices=TYPE_CHOICES,
                              help_text="The event type for this event")
-    data = JSONAsTextField(help_text="The JSON encoded data that will be POSTED to the web hook")
+    data = JSONAsTextField(default=dict, help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0,
                                     help_text="The number of times this event has been tried")
     next_attempt = models.DateTimeField(null=True, blank=True,
@@ -399,7 +399,7 @@ class WebHookEvent(SmartModel):
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    extra=call.extra_json(),
+                    extra=call.extra,
                     occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)

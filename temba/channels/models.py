@@ -1477,7 +1477,7 @@ class ChannelEvent(models.Model):
                                 help_text=_("The contact associated with this event"))
     contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
                                     help_text=_("The contact URN associated with this event"))
-    extra = JSONAsTextField(verbose_name=_("Extra"), null=True,
+    extra = JSONAsTextField(verbose_name=_("Extra"), null=True, default=dict,
                             help_text=_("Any extra properties on this event as JSON"))
     occurred_on = models.DateTimeField(verbose_name=_("Occurred On"),
                                        help_text=_("When this event took place"))
@@ -1523,7 +1523,7 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_REFERRAL:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
-                                             referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
+                                             referrer_id=self.extra.get('referrer_id'), extra=self.extra)
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
@@ -1539,9 +1539,6 @@ class ChannelEvent(models.Model):
 
     def release(self):
         self.delete()
-
-    def extra_json(self):
-        return self.extra if self.extra else {}
 
 
 class SendException(Exception):
