@@ -751,8 +751,10 @@ class ClaimViewMixin(OrgPermsMixin):
 
     def __init__(self, channel_type):
         self.channel_type = channel_type
-        self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimViewMixin, self).__init__()
+
+    def get_template_names(self):
+        return [self.template_name] if self.template_name else ['channels/types/%s/claim.html' % self.channel_type.slug, 'channels/channel_claim_form.html']
 
     def derive_title(self):
         return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
@@ -1630,6 +1632,7 @@ class ChannelCRUDL(SmartCRUDL):
             # populate with our channel type
             channel_type = Channel.get_type_from_code(self.object.channel_type)
             context['configuration_blurb'] = channel_type.get_configuration_blurb(self.object)
+            context['configuration_urls'] = channel_type.get_configuration_urls(self.object)
 
             return context
 

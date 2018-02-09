@@ -20,7 +20,7 @@ class WhatsAppType(ChannelType):
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "WhatsApp"
-    icon = 'icon-channel-external'
+    icon = 'icon-whatsapp'
 
     claim_blurb = _("""If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts""")
     claim_view = ClaimView

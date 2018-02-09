@@ -87,10 +87,14 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     schemes = None
     show_config_page = True
 
+    available_timezones = None
+    recommended_timezones = None
+
     claim_blurb = None
     claim_view = None
 
     configuration_blurb = None
+    configuration_urls = None
 
     update_form = None
 
@@ -106,13 +110,21 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
-        return True
+        if self.available_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.available_timezones
+        else:
+            return True
 
     def is_recommended_to(self, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
-        return False
+        if self.recommended_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.recommended_timezones
+        else:
+            return False
 
     def get_claim_blurb(self):
         """
@@ -182,6 +194,28 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         if self.__class__.configuration_blurb is not None:
             return Engine.get_default().from_string(self.configuration_blurb).render(context=Context(dict(channel=channel)))
+        else:
+            return ""
+
+    def get_configuration_urls(self, channel):
+        """
+        Allows ChannelTypes to specify a list of URLs to show with a label and description on the
+        configuration page.
+        """
+        if self.__class__.configuration_urls is not None:
+            context = Context(dict(channel=channel))
+            engine = Engine.get_default()
+
+            urls = []
+            for url_config in self.__class__.configuration_urls:
+                urls.append(dict(
+                    label=engine.from_string(url_config.get('label', "")).render(context=context),
+                    url=engine.from_string(url_config.get('url', "")).render(context=context),
+                    description=engine.from_string(url_config.get('description', "")).render(context=context),
+                ))
+
+            return urls
+
         else:
             return ""
 
