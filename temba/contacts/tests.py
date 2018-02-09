@@ -240,7 +240,7 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
         filter_url = reverse('contacts.contact_filter', args=[group.uuid])
         response = self.client.get(filter_url)
-        self.assertFalse('unlabel' in response.context['actions'])
+        self.assertNotIn('unlabel', response.context['actions'])
 
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
@@ -2262,7 +2262,7 @@ class ContactTest(TembaTest):
 
         self.assertContains(response, update_url)
         response = self.client.get(update_url)
-        self.assertTrue('name' in response.context['form'].fields)
+        self.assertIn('name', response.context['form'].fields)
 
         response = self.client.post(update_url, dict(name="New Test"))
         self.assertRedirect(response, filter_url)
@@ -2480,7 +2480,7 @@ class ContactTest(TembaTest):
         # should no longer be in our update form either
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertEqual(response.context['form'].fields['urn__tel__0'].initial, "+250781111111")
-        self.assertFalse('urn__tel__1' in response.context['form'].fields)
+        self.assertNotIn('urn__tel__1', response.context['form'].fields)
 
         # check that groups field isn't displayed when contact is blocked
         self.joe.block(self.user)
@@ -4014,13 +4014,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotIn("Simulator Contact", response.content)
 
         response = self.client.get(reverse('contacts.contact_filter', args=[group.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotIn("Simulator Contact", response.content)
 
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
@@ -4404,7 +4404,7 @@ class ContactFieldTest(TembaTest):
         # now we should be successful
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
         self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
     def test_manage_fields(self):
@@ -4433,7 +4433,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # should still have three contact fields
         self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
@@ -4457,7 +4457,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # first field was blank, so it should be inactive
         self.assertIsNone(ContactField.objects.filter(org=self.org, key="first", is_active=True).first())

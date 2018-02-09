@@ -1115,7 +1115,7 @@ class FlowTest(TembaTest):
         self.assertTrue(self.flow.get_steps())
         self.assertTrue(Msg.objects.all())
         msg = Msg.objects.all()[0]
-        self.assertFalse("@extra.coupon" in msg.text)
+        self.assertNotIn("@extra.coupon", msg.text)
         self.assertEqual(msg.text, "text to get NEXUS4")
         self.assertEqual(PENDING, msg.status)
 
@@ -1950,8 +1950,8 @@ class FlowTest(TembaTest):
 
         # keywords aren't an option for survey flows
         response = self.client.get(reverse('flows.flow_update', args=[flow.pk]))
-        self.assertTrue('keyword_triggers' not in response.context['form'].fields)
-        self.assertTrue('ignore_triggers' not in response.context['form'].fields)
+        self.assertNotIn('keyword_triggers', response.context['form'].fields)
+        self.assertNotIn('ignore_triggers', response.context['form'].fields)
 
         # send update with triggers and ignore flag anyways
         post_data = dict()
@@ -2487,11 +2487,11 @@ class FlowTest(TembaTest):
         self.assertFalse(flow_create_url in response.content)
         self.assertFalse(flowlabel_create_url in response.content)
         # verify the action buttons we have
-        self.assertFalse('object-btn-unlabel' in response.content)
-        self.assertFalse('object-btn-restore' in response.content)
-        self.assertFalse('object-btn-archive' in response.content)
-        self.assertFalse('object-btn-label' in response.content)
-        self.assertTrue('object-btn-export' in response.content)
+        self.assertNotIn('object-btn-unlabel', response.content)
+        self.assertNotIn('object-btn-restore', response.content)
+        self.assertNotIn('object-btn-archive', response.content)
+        self.assertNotIn('object-btn-label', response.content)
+        self.assertIn('object-btn-export', response.content)
 
         # can not label
         post_data = dict()
@@ -4225,7 +4225,7 @@ class FlowLabelTest(FlowFileTest):
 
         post_data = dict(name="sub_label ", parent=label_one.pk)
         response = self.client.post(create_url, post_data, follow=True)
-        self.assertTrue('form' in response.context)
+        self.assertIn('form', response.context)
         self.assertTrue(response.context['form'].errors)
         self.assertEqual('Name already used', response.context['form'].errors['name'][0])
 
@@ -7334,7 +7334,7 @@ class FlowMigrationTest(FlowFileTest):
 
         lang_path = new_definition['action_sets'][0]['actions'][0]['msg']
 
-        self.assertTrue('fra' in lang_path)
+        self.assertIn('fra', lang_path)
         self.assertEqual(len(lang_path), 3)
 
         lang_key_value = new_definition['action_sets'][1]['actions'][0]['lang']
@@ -7342,7 +7342,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(lang_key_value, 'fra')
 
         should_not_be_migrated_path = new_definition['action_sets'][2]['actions'][0]['msg']
-        self.assertTrue('fre' in should_not_be_migrated_path)
+        self.assertIn('fre', should_not_be_migrated_path)
 
         # we cannot migrate flows to version 11 without flow object (languages depend on flow.org)
         self.assertRaises(ValueError, migrate_to_version_11_1, definition)
@@ -7438,8 +7438,8 @@ class FlowMigrationTest(FlowFileTest):
 
         # make sure our rulesets no longer have 'webhook' or 'webhook_action'
         for ruleset in flow_def['rule_sets']:
-            self.assertFalse('webhook' in ruleset)
-            self.assertFalse('webhook_action' in ruleset)
+            self.assertNotIn('webhook', ruleset)
+            self.assertNotIn('webhook_action', ruleset)
 
         self.mockRequest('POST', '/code', '{"code": "ABABUUDDLRS"}', content_type='application/json')
 
@@ -7569,8 +7569,8 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(1, flow_json['metadata']['revision'])
         self.assertEqual('test flow', flow_json['metadata']['name'])
         self.assertEqual(720, flow_json['metadata']['expires'])
-        self.assertTrue('uuid' in flow_json['metadata'])
-        self.assertTrue('saved_on' in flow_json['metadata'])
+        self.assertIn('uuid', flow_json['metadata'])
+        self.assertIn('saved_on', flow_json['metadata'])
 
         # check that our replacements work
         self.assertEqual('@(CONCAT(parent.divided, parent.sky))', flow_json['action_sets'][0]['actions'][3]['value'])
@@ -7644,7 +7644,7 @@ class FlowMigrationTest(FlowFileTest):
         voice_json = migrate_to_version_5(voice_json)
         voice_json = migrate_to_version_6(voice_json)
         definition = voice_json.get('definition')
-        self.assertTrue('recording' not in definition['action_sets'][0]['actions'][0])
+        self.assertNotIn('recording', definition['action_sets'][0]['actions'][0])
 
     def test_migrate_to_5_language(self):
 
@@ -7754,7 +7754,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
-        self.assertTrue('base' in poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
+        self.assertIn('base', poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
         self.assertEqual('base', poll.base_language)
 
         # check replacement
@@ -8869,7 +8869,7 @@ class TypeTest(TembaTest):
         self.assertEqual('Rwanda > Eastern Province', results['state']['value'])
         self.assertEqual('I\'m in Eastern Province', results['state']['input'])
         self.assertEqual('state', results['state']['category'])
-        self.assertFalse('category_localized' in results['state'])
+        self.assertNotIn('category_localized', results['state'])
 
         self.assertEqual('District', results['district']['name'])
         self.assertEqual('Rwanda > Eastern Province > Gatsibo', results['district']['value'])

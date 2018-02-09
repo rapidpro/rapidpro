@@ -142,7 +142,7 @@ class OrgTest(TembaTest):
         # update the name and slug of the organization
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=DAYFIRST, slug="nice temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
-        self.assertTrue('slug' in response.context['form'].errors)
+        self.assertIn('slug', response.context['form'].errors)
 
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=MONTHFIRST, slug="nice-temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
@@ -717,10 +717,10 @@ class OrgTest(TembaTest):
 
         # we have a form with 4 fields and one hidden 'loc'
         self.assertEqual(5, len(response.context['form'].fields))
-        self.assertTrue('first_name' in response.context['form'].fields)
-        self.assertTrue('last_name' in response.context['form'].fields)
-        self.assertTrue('email' in response.context['form'].fields)
-        self.assertTrue('password' in response.context['form'].fields)
+        self.assertIn('first_name', response.context['form'].fields)
+        self.assertIn('last_name', response.context['form'].fields)
+        self.assertIn('email', response.context['form'].fields)
+        self.assertIn('password', response.context['form'].fields)
 
         post_data = dict()
         post_data['first_name'] = "Norbert"
@@ -792,9 +792,9 @@ class OrgTest(TembaTest):
                          password='beastmode24', email='beastmode@seahawks.com',
                          surveyor_password='nyaruka')
         response = self.client.post(url, post_data)
-        self.assertTrue('token' in response.url)
-        self.assertTrue('beastmode' in response.url)
-        self.assertTrue('Temba' in response.url)
+        self.assertIn('token', response.url)
+        self.assertIn('beastmode', response.url)
+        self.assertIn('Temba', response.url)
 
         # try with a login that already exists
         post_data = dict(first_name='Resused', last_name='Email',
@@ -838,7 +838,7 @@ class OrgTest(TembaTest):
         response = self.client.get(choose_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertTrue('organization' in response.context['form'].fields)
+        self.assertIn('organization', response.context['form'].fields)
 
         post_data = dict()
         post_data['organization'] = self.org2.pk
@@ -2204,7 +2204,7 @@ class OrgCRUDLTest(TembaTest):
 
         post_data['name'] = "Relieves World Rwanda"
         response = self.client.post(signup_url, post_data)
-        self.assertTrue('email' in response.context['form'].errors)
+        self.assertIn('email', response.context['form'].errors)
 
         # if we hit /login we'll be taken back to the channel page
         response = self.client.get(reverse('users.user_check_login'))
@@ -2242,13 +2242,13 @@ class OrgCRUDLTest(TembaTest):
         post_data = dict(email='myal@wr.org', current_password='HelloWorld')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('current_password' in response.context['form'].errors)
+        self.assertIn('current_password', response.context['form'].errors)
 
         # bad new password
         post_data = dict(email='myal@wr.org', current_password='HelloWorld1', new_password='passwor')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('new_password' in response.context['form'].errors)
+        self.assertIn('new_password', response.context['form'].errors)
 
         User.objects.create(username='bill@msn.com', email='bill@msn.com')
 
@@ -2256,7 +2256,7 @@ class OrgCRUDLTest(TembaTest):
         post_data = dict(email='bill@msn.com', current_password='HelloWorld1')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('email' in response.context['form'].errors)
+        self.assertIn('email', response.context['form'].errors)
 
         post_data = dict(email='myal@wr.org', first_name="Myal", last_name="Greene", language="en-us", current_password='HelloWorld1')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
@@ -2350,7 +2350,7 @@ class OrgCRUDLTest(TembaTest):
 
         # passwords stay case sensitive
         response = self.client.post(login_url, dict(username="withcaps", password="thepassword"), follow=True)
-        self.assertTrue('form' in response.context)
+        self.assertIn('form', response.context)
         self.assertTrue(response.context['form'].errors)
 
     def test_org_service(self):
@@ -2616,7 +2616,7 @@ class BulkExportTest(TembaTest):
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
-        self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
+        self.assertIn('@contact.name', actionset.get_actions()[0].groups)
 
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
@@ -2908,8 +2908,8 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                self.assertTrue('is out of credit.' in sent_email.body)
+                self.assertIn('RapidPro account for Temba', sent_email.body)
+                self.assertIn('is out of credit.', sent_email.body)
 
                 # no new alert if one is sent and no new email
                 CreditAlert.check_org_credits()
@@ -2944,8 +2944,8 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                    self.assertTrue('is running low on credits' in sent_email.body)
+                    self.assertIn('RapidPro account for Temba', sent_email.body)
+                    self.assertIn('is running low on credits', sent_email.body)
 
                     # no new alert if one is sent and no new email
                     CreditAlert.check_org_credits()
@@ -2987,8 +2987,8 @@ class CreditAlertTest(TembaTest):
                         # email sent
                         sent_email = mail.outbox[4]
                         self.assertEqual(len(sent_email.to), 1)
-                        self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                        self.assertTrue('expiring credits in less than one month.' in sent_email.body)
+                        self.assertIn('RapidPro account for Temba', sent_email.body)
+                        self.assertIn('expiring credits in less than one month.', sent_email.body)
 
                         # no new alert if one is sent and no new email
                         CreditAlert.check_org_credits()
@@ -3033,7 +3033,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertEqual(sent_email.to[0], 'nouser@nouser.com')
 
             # we have the domain of rapipro.io brand
-            self.assertTrue('app.rapidpro.io' in sent_email.body)
+            self.assertIn('app.rapidpro.io', sent_email.body)
 
 
 class StripeCreditsTest(TembaTest):
@@ -3065,9 +3065,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('Rudolph' in email.body)
-        self.assertTrue('Visa' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('Rudolph', email.body)
+        self.assertIn('Visa', email.body)
+        self.assertIn('$20', email.body)
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -3096,9 +3096,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('bitcoin' in email.body)
-        self.assertTrue('abcde' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('bitcoin', email.body)
+        self.assertIn('abcde', email.body)
+        self.assertIn('$20', email.body)
 
     @patch('stripe.Customer.create')
     def test_add_credits_fail(self, customer_create):
@@ -3190,9 +3190,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('Rudolph' in email.body)
-        self.assertTrue('Visa' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('Rudolph', email.body)
+        self.assertIn('Visa', email.body)
+        self.assertIn('$20', email.body)
 
         # try with an invalid card
         customer_retrieve.return_value.cards.throw = True

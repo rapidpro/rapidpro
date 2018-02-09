@@ -1170,7 +1170,7 @@ class TriggerTest(TembaTest):
         post_data = dict(channel=channel.pk, keyword='*keyword#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertEqual(1, len(response.context['form'].errors))
-        self.assertTrue("keyword" in response.context['form'].errors)
+        self.assertIn("keyword", response.context['form'].errors)
         self.assertEqual(response.context['form'].errors['keyword'], [u'USSD code must contain only *,# and numbers'])
 
         # try a proper ussd code
