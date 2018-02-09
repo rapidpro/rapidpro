@@ -191,7 +191,7 @@ class VerboiceClient:  # pragma: needs cover
     def __init__(self, channel):
         self.endpoint = 'https://verboice.instedd.org/api/call'
 
-        config = channel.config_json()
+        config = channel.config
         self.auth = (config.get('username', None), config.get('password', None))
 
         # this is the verboice channel, not our channel

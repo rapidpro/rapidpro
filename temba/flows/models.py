@@ -1867,7 +1867,7 @@ class Flow(TembaModel):
 
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow_uuid = ruleset.config['flow']['uuid']
                 flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
                     dependencies.add(flow)
@@ -3407,9 +3407,6 @@ class RuleSet(models.Model):
         # match @step.value or @(step.value)
         return text and text[0] == '@' and 'step' in text
 
-    def config_json(self):
-        return self.config if self.config else {}
-
     def get_value_type(self):
         """
         Determines the value type that this ruleset will generate.
@@ -3491,11 +3488,11 @@ class RuleSet(models.Model):
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
-                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
-                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
+                urls = [self.config[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
-                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config:
+                    headers = self.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
                     for item in headers:
                         header[item.get('name')] = item.get('value')
 
@@ -3503,7 +3500,7 @@ class RuleSet(models.Model):
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook_slug = self.config[RuleSet.CONFIG_RESTHOOK]
                 resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
                 urls = resthook.get_subscriber_urls()
 
@@ -3557,9 +3554,9 @@ class RuleSet(models.Model):
         else:
             # if it's a form field, construct an expression accordingly
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-                delim = self.config_json().get('field_delimiter', ' ')
+                delim = self.config.get('field_delimiter', ' ')
                 self.operand = '@(FIELD(%s, %d, "%s"))' % (
-                    self.operand[1:], self.config_json().get('field_index', 0) + 1, delim
+                    self.operand[1:], self.config.get('field_index', 0) + 1, delim
                 )
 
             # if we have a custom operand, figure that out
@@ -3642,7 +3639,7 @@ class RuleSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+                    operand=self.operand, config=self.config)
 
     def __str__(self):  # pragma: no cover
         if self.label:

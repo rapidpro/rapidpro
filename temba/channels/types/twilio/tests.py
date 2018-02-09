@@ -112,7 +112,7 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(channel.role,
                                  Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
-                channel_config = channel.config_json()
+                channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], 'account-sid')
                 self.assertEqual(channel_config[Channel.CONFIG_AUTH_TOKEN], 'account-token')
                 self.assertTrue(channel_config[Channel.CONFIG_APPLICATION_SID])

@@ -79,7 +79,7 @@ class PlivoTypeTest(TembaTest):
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-                self.assertEqual(channel.config_json(), {
+                self.assertEqual(channel.config, {
                     Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                     Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
                     Channel.CONFIG_PLIVO_APP_ID: 'app-id',
@@ -126,7 +126,7 @@ class PlivoTypeTest(TembaTest):
 
                         # make sure it is actually connected
                         channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEqual(channel.config_json(), {
+                        self.assertEqual(channel.config, {
                             Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                             Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
                             Channel.CONFIG_PLIVO_APP_ID: 'app-id',

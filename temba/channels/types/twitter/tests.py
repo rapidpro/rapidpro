@@ -83,7 +83,7 @@ class TwitterTypeTest(TembaTest):
         channel = response.context['object']
         self.assertEqual(channel.address, 'jimmy')
         self.assertEqual(channel.name, '@jimmy')
-        config = channel.config_json()
+        config = channel.config
         self.assertEqual(config['handle_id'], 123)
         self.assertEqual(config['oauth_token'], 'bcdef')
         self.assertEqual(config['oauth_token_secret'], '23456')

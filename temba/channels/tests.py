@@ -1109,7 +1109,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
         self.assertEqual(nexmo.tps, 1)
-        channel_config = nexmo.config_json()
+        channel_config = nexmo.config
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], '123')
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], '456')
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'app-id')
@@ -1728,7 +1728,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.refresh_from_db()
         self.assertIsNone(self.tel_channel.gcm_id)
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
-        self.assertEqual(self.tel_channel.config_json()[Channel.CONFIG_FCM_ID], '12345')
+        self.assertEqual(self.tel_channel.config[Channel.CONFIG_FCM_ID], '12345')
 
     def test_signing(self):
         # good signature
@@ -5681,7 +5681,7 @@ class TwilioMessagingServiceTest(TembaTest):
                                    APPLICATION_SID: application_sid}
         self.channel.org.save()
 
-        messaging_service_sid = self.channel.config_json()['messaging_service_sid']
+        messaging_service_sid = self.channel.config['messaging_service_sid']
 
         post_data = dict(message_service_sid=messaging_service_sid, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
@@ -7652,7 +7652,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                 data['message_id'],))
 
     def test_status_with_auth(self):
-        config = self.channel.config_json()
+        config = self.channel.config
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])
@@ -7681,7 +7681,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_status_incorrect_auth(self):
-        config = self.channel.config_json()
+        config = self.channel.config
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])
@@ -7723,7 +7723,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_auth(self):
-        config = self.channel.config_json()
+        config = self.channel.config
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])
@@ -7747,7 +7747,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEqual("événement", msg.text)
 
     def test_receive_with_incorrect_auth(self):
-        config = self.channel.config_json()
+        config = self.channel.config
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])
@@ -7865,7 +7865,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     @override_settings(SEND_MESSAGES=True)
     def test_send_adds_auth(self):
-        config = self.channel.config_json()
+        config = self.channel.config
         config[Channel.CONFIG_SECRET] = "UjOq8ATo2PDS6L08t6vlqSoK"
         self.channel.config = config
         self.channel.save(update_fields=['config'])
@@ -8862,7 +8862,7 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        value = "".join(sorted([self.channel.config_json()[Channel.CONFIG_SECRET], timestamp, nonce]))
+        value = "".join(sorted([self.channel.config[Channel.CONFIG_SECRET], timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()

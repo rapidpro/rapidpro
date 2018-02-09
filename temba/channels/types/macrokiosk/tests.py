@@ -39,10 +39,10 @@ class MacrokioskTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual(channel.country, 'MY')
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
+        self.assertEqual(channel.config['username'], post_data['username'])
+        self.assertEqual(channel.config['password'], post_data['password'])
+        self.assertEqual(channel.config[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
+        self.assertEqual(channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
         self.assertEqual(channel.address, '250788123123')
         self.assertEqual(channel.channel_type, 'MK')
 

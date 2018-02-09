@@ -39,8 +39,8 @@ class ChikkaTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual('chikka', channel.config_json()[Channel.CONFIG_USERNAME])
-        self.assertEqual('password', channel.config_json()[Channel.CONFIG_PASSWORD])
+        self.assertEqual('chikka', channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual('password', channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual('5259', channel.address)
         self.assertEqual('PH', channel.country)
         self.assertEqual('CK', channel.channel_type)

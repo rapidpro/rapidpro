@@ -43,7 +43,7 @@ class TwilioType(ChannelType):
         return channel.country in ('US', 'CA')
 
     def deactivate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         client = channel.org.get_twilio_client()
         number_update_args = dict()
 
@@ -54,7 +54,7 @@ class TwilioType(ChannelType):
             number_update_args['voice_application_sid'] = ""
 
         try:
-            number_sid = channel.bod or channel.config_json()['number_sid']
+            number_sid = channel.bod or channel.config['number_sid']
             client.phone_numbers.update(number_sid, **number_update_args)
         except Exception:
             if client:

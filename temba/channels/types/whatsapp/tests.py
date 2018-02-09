@@ -52,9 +52,9 @@ class WhatsAppTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual('temba', channel.config_json()['username'])
-        self.assertEqual('tembapasswd', channel.config_json()['password'])
-        self.assertEqual('https://whatsapp.foo.bar', channel.config_json()['base_url'])
+        self.assertEqual('temba', channel.config['username'])
+        self.assertEqual('tembapasswd', channel.config['password'])
+        self.assertEqual('https://whatsapp.foo.bar', channel.config['base_url'])
 
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('RW', channel.country)
