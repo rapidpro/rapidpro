@@ -1693,6 +1693,10 @@ class JsonModelTestDefault(models.Model):
     field = JSONAsTextField(default=dict, null=False)
 
 
+class JsonModelTestNull(models.Model):
+    field = JSONAsTextField(null=True)
+
+
 class TestJSONAsTextField(TestCase):
     def test_invalid_default(self):
 
@@ -1763,16 +1767,30 @@ class TestJSONAsTextField(TestCase):
         model.field = ''
         self.assertRaises(ValueError, model.save)
 
+    def test_write_None_value(self):
+        model = JsonModelTestDefault()
+        # assign None (null) value to the field
+        model.field = None
+
+        self.assertRaises(Exception, model.save)
+
+    def test_read_None_value(self):
+        with connection.cursor() as null_cur:
+            null_cur.execute('DELETE FROM utils_jsonmodeltestnull')
+            null_cur.execute('INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)', (None,))
+
+            self.assertEqual(JsonModelTestNull.objects.first().field, None)
+
     def test_invalid_field_values_db(self):
         with connection.cursor() as cur:
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
             cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('53', ))
-
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
 
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
             cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('None',))
-
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
 
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
             cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('null',))
-
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
