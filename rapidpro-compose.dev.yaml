@@ -1,16 +1,16 @@
 version: '2'
 services:
   rapidpro:
-    image: rapidpro/rapidpro:master
+    image: rapidpro/rapidpro:v3.0.318
     depends_on:
       - redis
       - postgresql
     ports:
       - '8000:8000'
     environment:
-      - DOMAIN_NAME=localhost
-      - ALLOWED_HOSTS=localhost
-      - TEMBA_HOST=localhost
+      - DOMAIN_NAME=0.0.0.0
+      - ALLOWED_HOSTS=*
+      - TEMBA_HOST=0.0.0.0
       - DJANGO_DEBUG=off
       - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
       - REDIS_URL=redis://redis:6379/0
@@ -25,7 +25,7 @@ services:
       - ./templates:/rapidpro/templates
       - ./temba/settings_common.py:/rapidpro/temba/settings_common.py
   celery:
-    image: rapidpro/rapidpro:master
+    image: rapidpro/rapidpro:v3.0.318
     depends_on:
       - rapidpro
     links:
