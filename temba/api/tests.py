@@ -102,7 +102,7 @@ class WebHookTest(TembaTest):
 
     def setupChannel(self):
         org = self.channel.org
-        org.webhook_config = {"url": "http://fake.com/webhook.php"}
+        org.webhook = {"url": "http://fake.com/webhook.php"}
         org.webhook_events = ALL_EVENTS
         org.save()
 
@@ -599,7 +599,7 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         # add a webhook header to the org
-        self.channel.org.webhook_config = {"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}
+        self.channel.org.webhook = {"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}
         self.channel.org.save()
 
         # check that our webhook settings have saved

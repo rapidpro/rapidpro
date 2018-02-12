@@ -200,8 +200,8 @@ class Org(SmartModel):
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
-    webhook_config = JSONAsTextField(null=True, verbose_name=_("Webhook"), default=dict,
-                                     help_text=_("Webhook endpoint and configuration"))
+    webhook = JSONAsTextField(null=True, verbose_name=_("Webhook"), default=dict,
+                              help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -602,7 +602,7 @@ class Org(SmartModel):
         """
         Returns a string with webhook url.
         """
-        return self.webhook_config.get('url') if self.webhook_config else None
+        return self.webhook.get('url') if self.webhook else None
 
     def get_webhook_headers(self):
         """
@@ -610,7 +610,7 @@ class Org(SmartModel):
         {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
          'X-My-Special-Header': 'woo'}
         """
-        return self.webhook_config.get('headers', dict()) if self.webhook_config else dict()
+        return self.webhook.get('headers', dict()) if self.webhook else dict()
 
     def get_channel_countries(self):
         channel_countries = []

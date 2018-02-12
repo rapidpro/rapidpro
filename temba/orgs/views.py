@@ -1910,7 +1910,7 @@ class OrgCRUDL(SmartCRUDL):
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class WebhookForm(forms.ModelForm):
-            webhook = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
+            webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
             headers = forms.CharField(required=False)
             mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
             mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
@@ -1920,7 +1920,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
+                fields = ('webhook_url', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
 
             def clean_headers(self):
                 idx = 1
@@ -1964,14 +1964,14 @@ class OrgCRUDL(SmartCRUDL):
             obj.webhook_events = webhook_events
 
             webhook_data = dict()
-            if data['webhook']:
-                webhook_data.update({'url': data['webhook']})
+            if data['webhook_url']:
+                webhook_data.update({'url': data['webhook_url']})
                 webhook_data.update({'method': 'POST'})
 
             if data['headers']:
                 webhook_data.update({'headers': data['headers']})
 
-            obj.webhook_config = webhook_data
+            obj.webhook = webhook_data
 
             return obj
 

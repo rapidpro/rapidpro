@@ -6330,9 +6330,7 @@ class FlowsTest(FlowFileTest):
     def test_parsing(self):
         # test a preprocess url
         flow = self.get_flow('preprocess')
-        self.assertEqual(
-            'http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].config[RuleSet.CONFIG_WEBHOOK]
-        )
+        self.assertEqual('http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].config[RuleSet.CONFIG_WEBHOOK])
 
     def test_flow_loops(self):
         self.get_flow('flow_loop')

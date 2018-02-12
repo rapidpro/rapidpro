@@ -18,11 +18,6 @@ class Migration(migrations.Migration):
             name='webhook',
             field=temba.utils.models.JSONAsTextField(help_text='Webhook endpoint and configuration', null=True, verbose_name='Webhook', default=dict),
         ),
-        migrations.RenameField(
-            model_name='org',
-            old_name='webhook',
-            new_name='webhook_config',
-        ),
         migrations.AlterField(
             model_name='org',
             name='config',

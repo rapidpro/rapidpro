@@ -321,7 +321,7 @@ class OrgTest(TembaTest):
 
         # set a webhook with headers
         post_data = response.context['form'].initial
-        post_data['webhook'] = 'http://webhooks.uniceflabs.org'
+        post_data['webhook_url'] = 'http://webhooks.uniceflabs.org'
         post_data['header_1_key'] = 'Authorization'
         post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
 
@@ -2227,7 +2227,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook_url='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
