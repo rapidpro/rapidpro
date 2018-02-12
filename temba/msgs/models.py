@@ -227,7 +227,7 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media = TranslatableField(verbose_name=_("Media"), max_length=255,
+    media = TranslatableField(verbose_name=_("Media"), max_length=2048,
                               help_text=_("The localized versions of the media"), null=True)
 
     send_all = models.BooleanField(default=False,
@@ -744,7 +744,7 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    attachments = ArrayField(models.URLField(max_length=255), null=True,
+    attachments = ArrayField(models.URLField(max_length=2048), null=True,
                              help_text=_("The media attachments on this message if any"))
 
     connection = models.ForeignKey('channels.ChannelSession', null=True,
@@ -1304,8 +1304,7 @@ class Msg(models.Model):
 
         contact_urn = None
         if not contact:
-            contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
-            contact_urn = contact.urn_objects[urn]
+            contact, contact_urn = Contact.get_or_create(org, urn, channel, user=user)
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
@@ -1580,8 +1579,7 @@ class Msg(models.Model):
         elif isinstance(recipient, six.string_types):
             scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
-                contact = Contact.get_or_create(org, user, urns=[recipient])
-                contact_urn = contact.urn_objects[recipient]
+                contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
         else:  # pragma: no cover
             raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")
 

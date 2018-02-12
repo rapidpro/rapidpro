@@ -1809,7 +1809,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
-        queryset = queryset.exclude(flow_type=Flow.MESSAGE)
+        queryset = queryset.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE)
 
         # filter by UUID (optional)
         uuid = params.get('uuid')
@@ -2647,47 +2647,51 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "resthook": "new-report",
                 "data": {
-                    "channel": 105,
-                    "flow": 50505,
-                    "flow_base_language": "eng",
-                    "run": 50040405,
-                    "text": "Incoming text",
-                    "step: "d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
-                    "contact": "d33e9ad5-5c35-414c-abd4-e7451casdf",
-                    "urn": "tel:+12067781234",
-                    "values": [
+                    "flow": {
+                        "name": "Water Survey",
+                        "uuid": "13fed2d2-160e-48e5-b52e-6eea3f74f27d"
+                    },
+                    "contact": {
+                        "uuid": "dc2b3709-3261-465f-b39a-fc7312b2ab95",
+                        "name": "Ben Haggerty",
+                        "urn": "tel:+12065551212"
+                    },
+                    "channel": {
+                        "name": "Twilio +12065552020",
+                        "uuid": "f49d3dd6-beef-40ba-b86b-f526c649175c"
+                    },
+                    "run": {
+                        "uuid": "7facea33-9fbc-4bdd-ba63-b2600cd4f69b",
+                        "created_on":"2014-06-03T08:20:03.242525+00:00"
+                    },
+                    "input": {
+                        "urn": "tel:+12065551212",
+                        "text": "stream",
+                        "attachments": []
+                    }
+                    "path": [
                         {
-                            "category": {
-                                "eng": "All Responses"
-                            },
-                            "node": "c33724d7-1064-4dd6-9aa3-efd29252cb88",
-                            "text": "Ryan Lewis",
-                            "rule_value": "Ryan Lewis",
-                            "value": "Ryan Lewis",
-                            "label": "Name",
-                            "time": "2016-08-10T21:18:51.186826Z"
-                        }
-                    ],
-                    "steps": [
-                        {
-                            "node": "2d4f8c9a-cf12-4f6c-ad55-a6cc633954f6",
-                            "left_on": "2016-08-10T21:18:45.391114Z",
-                            "text": "What is your name?",
-                            "value": null,
-                            "arrived_on": "2016-08-10T21:18:45.378598Z",
-                            "type": "A"
+                            "node_uuid": "40019102-e621-4b88-acd2-1288961dc214",
+                            "arrived_on": "2014-06-03T08:21:09.865526+00:00",
+                            "exit_uuid": "207d919d-ac4d-451a-9892-3ceca16430ff"
                         },
                         {
-                            "node": "c33724d7-1064-4dd6-9aa3-efd29252cb88",
-                            "left_on": "2016-08-10T21:18:51.186826Z",
-                            "text": "Eric Newcomer",
-                            "value": "Eric Newcomer",
-                            "arrived_on": "2016-08-10T21:18:45.391114Z",
-                            "type": "R"
+                            "node_uuid": "207d919d-ac4d-451a-9892-3ceca16430ff",
+                            "arrived_on": "2014-06-03T08:21:09.865526+00:00"
                         }
                     ],
+                    "results": {
+                        "water_source": {
+                            "node_uuid": "40019102-e621-4b88-acd2-1288961dc214",
+                            "name": "Water Source",
+                            "category": "Stream",
+                            "value": "stream",
+                            "input": "stream",
+                            "created_on": "2017-12-05T16:47:57.875680+00:00"
+                        }
+                    }
                 },
-                "created_on": "2015-11-11T13:05:57.457742Z",
+                "created_on": "2017-11-11T13:05:57.457742Z",
             },
             ...
         }

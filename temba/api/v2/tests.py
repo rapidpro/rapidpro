@@ -1293,6 +1293,67 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assert404(response)
 
+    def test_contact_action_update_datetime_field(self):
+        url = reverse('api.v2.contacts')
+
+        self.assertEndpointAccess(url)
+
+        self.create_field('tag_activated_at', 'Tag activation', Value.TYPE_DATETIME)
+
+        # update contact with valid date format for the org - DD-MM-YYYY
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '31-12-2017'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNotNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with valid ISO8601 timestamp value with timezone
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11T11:12:13Z'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertEqual(resp_json['fields']['tag_activated_at'], '2017-11-11T13:12:13+02:00')
+
+        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11 11:12:13Z'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertEqual(resp_json['fields']['tag_activated_at'], '2011-11-11T11:12:00+02:00')
+
+        # update contact with invalid ISO8601 timestamp value without timezone
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '2017-11-11T11:12:13'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with invalid date format for the org - MM-DD-YYYY
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': '12-31-2017'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
+        # update contact with invalid timestamp value
+        response = self.postJSON(url, 'uuid=%s' % self.joe.uuid, {
+            'fields': {'tag_activated_at': 'el123a41'}
+        })
+        self.assertEqual(response.status_code, 200)
+        resp_json = response.json()
+
+        self.assertIsNone(resp_json['fields']['tag_activated_at'])
+
     def test_contact_actions_if_org_is_anonymous(self):
         url = reverse('api.v2.contacts')
         self.assertEndpointAccess(url)
@@ -1722,6 +1783,27 @@ class APITest(TembaTest):
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(color.modified_on))
         self.assertResultsByUUID(response, [color])
+
+        # Inactive flows hidden
+        registration.is_active = False
+        registration.save()
+
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json['next'], None)
+        self.assertEqual(resp_json['results'], [
+            {
+                'uuid': color.uuid,
+                'name': "Color Flow",
+                'archived': False,
+                'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
+                'expires': 720,
+                'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(color.created_on),
+                'modified_on': format_datetime(color.modified_on)
+            }
+        ])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
@@ -2555,13 +2637,13 @@ class APITest(TembaTest):
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
                                              data=json.dumps(dict(event='new mother',
-                                                                  values=json.dumps(dict(name="Greg")),
-                                                                  steps=json.dumps(dict(uuid='abcde')))),
+                                                                  values=dict(name="Greg"),
+                                                                  steps=dict(uuid='abcde'))),
                                              created_by=self.admin, modified_by=self.admin)
         event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
                                              data=json.dumps(dict(event='new father',
-                                                                  values=json.dumps(dict(name="Yo")),
-                                                                  steps=json.dumps(dict(uuid='12345')))),
+                                                                  values=dict(name="Yo"),
+                                                                  steps=dict(uuid='12345'))),
                                              created_by=self.admin, modified_by=self.admin)
 
         # no filtering
