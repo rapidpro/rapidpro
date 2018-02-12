@@ -32,6 +32,8 @@ class ClaimView(AuthenticatedExternalClaimView):
         org = self.request.user.get_org()
         data = form.cleaned_data
         config = {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
+        if data['secret']:
+            config[Channel.CONFIG_SECRET] = data['secret']
 
         self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                  self.get_submitted_country(data),
@@ -40,8 +42,5 @@ class ClaimView(AuthenticatedExternalClaimView):
                                                                  data.get('url'),
                                                                  role=Channel.DEFAULT_ROLE,
                                                                  extra_config=config)
-        if data['secret']:
-            self.object.secret = data['secret']
-            self.object.save()
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)

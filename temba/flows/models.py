@@ -12,7 +12,7 @@ import traceback
 import urllib2
 
 from array import array
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
 from decimal import Decimal
 from django.conf import settings
@@ -102,41 +102,6 @@ class FlowPropsCache(Enum):
     """
     terminal_nodes = 1
     category_nodes = 2
-
-
-def edit_distance(s1, s2):  # pragma: no cover
-    """
-    Compute the Damerau-Levenshtein distance between two given
-    strings (s1 and s2)
-    """
-    # if first letters are different, infinite distance
-    if s1 and s2 and s1[0] != s2[0]:
-        return 100
-
-    d = {}
-    lenstr1 = len(s1)
-    lenstr2 = len(s2)
-
-    for i in range(-1, lenstr1 + 1):
-        d[(i, -1)] = i + 1
-    for j in range(-1, lenstr2 + 1):
-        d[(-1, j)] = j + 1
-
-    for i in range(0, lenstr1):
-        for j in range(0, lenstr2):
-            if s1[i] == s2[j]:
-                cost = 0
-            else:
-                cost = 1
-            d[(i, j)] = min(
-                d[(i - 1, j)] + 1,  # deletion
-                d[(i, j - 1)] + 1,  # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
-            )
-            if i > 1 and j > 1 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
-
-    return d[lenstr1 - 1, lenstr2 - 1]
 
 
 @six.python_2_unicode_compatible
@@ -837,11 +802,6 @@ class Flow(TembaModel):
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
 
-                        # it's possible that one of our children interrupted us with a start flow action
-                        run.refresh_from_db(fields=('is_active',))
-                        if not run.is_active:
-                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
-
                         if child_runs:
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
@@ -849,7 +809,9 @@ class Flow(TembaModel):
                         else:  # pragma: no cover
                             continue_parent = False
 
-                        if continue_parent:
+                        # it's possible that one of our children interrupted us with a start flow action
+                        run.refresh_from_db(fields=('is_active',))
+                        if continue_parent and run.is_active:
                             started_flows.remove(flow.id)
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
@@ -891,8 +853,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=rule.uuid,
-                                 category=rule.get_category_name(flow.base_language), previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=rule.uuid, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
@@ -1084,10 +1045,14 @@ class Flow(TembaModel):
         if not simulation:
             return FlowNodeCount.get_totals(self)
 
-        # count steps in active runs where contact hasn't left that node
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=True)
-        totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
-        return {t[0]: t[1] for t in totals if t[1]}
+        # count unique values of current_node_uuid for active runs for test contacts
+        totals = (
+            self.runs.filter(contact__is_test=True, is_active=True)
+            .values('current_node_uuid')
+            .annotate(total=Count('current_node_uuid'))
+        )
+
+        return {six.text_type(t['current_node_uuid']): t['total'] for t in totals if t['total']}
 
     def get_segment_counts(self, simulation):
         """
@@ -1097,13 +1062,18 @@ class Flow(TembaModel):
         if not simulation:
             return FlowPathCount.get_totals(self)
 
-        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True).exclude(next_uuid=None)
-        steps = steps.values('rule_uuid', 'next_uuid').annotate(count=Count('run_id'))
+        simulator_runs = self.runs.filter(contact__is_test=True)
+        path_counts = defaultdict(int)
 
-        path_counts = {}
-        for step in steps:
-            if step['count']:
-                path_counts['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
+        for run in simulator_runs:
+            prev_step = None
+            for step in run.get_path():
+                if prev_step:
+                    exit_uuid = prev_step['exit_uuid']
+                    node_uuid = step['node_uuid']
+                    path_counts['%s:%s' % (exit_uuid, node_uuid)] += 1
+
+                prev_step = step
 
         return path_counts
 
@@ -1811,7 +1781,7 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=None, exit_uuid=None, category=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=None, exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1823,9 +1793,6 @@ class Flow(TembaModel):
             previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
             previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
-
-            if not previous_step.contact.is_test:
-                FlowPathRecentMessage.record(exit_uuid, node.uuid, run, previous_step.messages.all())
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2706,7 +2673,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if isinstance(fields, six.string_types):
             return fields[:Value.MAX_VALUE_LEN], count + 1
 
-        elif isinstance(fields, numbers.Number):
+        elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
             return fields, count + 1
 
         elif isinstance(fields, dict):
@@ -2731,8 +2698,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             return list_dict, count
 
-        else:
-            return six.text_type(fields), count + 1
+        elif fields is None:
+            return "", count + 1
+        else:  # pragma: no cover
+            raise ValueError("Unsupported type %s in extra" % six.text_type(type(fields)))
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
@@ -2804,11 +2773,17 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update:
             self.save(update_fields=('responded', 'message_ids'))
 
+    def get_message_ids(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return self.message_ids or []
+
     def get_messages(self):
         """
         Gets all the messages associated with this run
         """
-        return Msg.objects.filter(steps__run=self)
+        return Msg.objects.filter(id__in=self.message_ids) if self.message_ids else Msg.objects.none()
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -2921,8 +2896,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 # get the last outgoing msg for this contact
                 msg = self.get_last_msg(OUTGOING)
 
+                # if the last outgoing message wasn't assigned a credit, then clear our timeout
+                if msg and msg.topup_id is None:
+                    self.timeout_on = None
+                    self.save(update_fields=['timeout_on', 'modified_on'])
+
                 # check that our last outgoing msg was sent and our timeout is in the past, otherwise reschedule
-                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
+                elif msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
                     self.update_timeout(msg.sent_on if msg.sent_on else timezone.now(), timeout)
 
                 # look good, lets resume this run
@@ -2943,9 +2923,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # so we can decrement the activity properly
         for step in self.steps.all():
             step.release()
-
-        # clear any recent messages
-        self.recent_messages.all().delete()
 
         # lastly delete ourselves
         self.delete()
@@ -3150,7 +3127,7 @@ class FlowStep(models.Model):
 
     step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
 
-    step_uuid = models.CharField(max_length=36, db_index=True,
+    step_uuid = models.CharField(max_length=36,
                                  help_text=_("The UUID of the ActionSet or RuleSet for this step"))
 
     rule_uuid = models.CharField(max_length=36, null=True,
@@ -3311,24 +3288,6 @@ class FlowStep(models.Model):
             self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         self.save(update_fields=('rule_uuid', 'rule_value'))
-
-    def get_text(self, run=None):
-        """
-        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
-        useful but needed for backwards compatibility in API v1.
-        """
-        msg = self.messages.all().first()
-        if msg:
-            return msg.text
-
-        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
-        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
-        broadcasts = list(self.broadcasts.all())
-        if broadcasts:  # pragma: needs cover
-            run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, org=run.org)
-
-        return None
 
     def get_node(self):
         """
@@ -3575,18 +3534,9 @@ class RuleSet(models.Model):
                 from temba.api.models import WebHookEvent
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
-
-                # resthooks trigger legacy api for now
-                legacy_format = resthook or self.config_json().get('legacy_format', False)
-
-                if legacy_format:
-                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
-                                                                      resthook=resthook,
-                                                                      headers=header)
-                else:
-                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
-                                                               resthook=resthook,
-                                                               headers=header)
+                result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                           resthook=resthook,
+                                                           headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -3708,10 +3658,10 @@ class RuleSet(models.Model):
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:  # pragma: no cover
+        else:
             return "RuleSet: %s" % (self.uuid,)
 
 
@@ -4013,44 +3963,60 @@ class FlowPathCount(SquashableModel):
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
-class FlowPathRecentMessage(models.Model):
+class FlowPathRecentRun(models.Model):
     """
-    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
-    might be purged.
+    Maintains recent runs for a flow path segment
     """
     PRUNE_TO = 5
-    LAST_PRUNED_KEY = 'last_recentmessage_pruned'
+    LAST_PRUNED_KEY = 'last_recentrun_pruned'
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.TextField(help_text=_("The message text"))
-    created_on = models.DateTimeField(help_text=_("When the message arrived"))
-
-    @classmethod
-    def record(cls, exit_uuid, to_uuid, run, msgs):
-        objs = []
-        for msg in msgs:
-            objs.append(cls(from_uuid=exit_uuid, to_uuid=to_uuid, run=run, text=msg.text, created_on=msg.created_on))
-        cls.objects.bulk_create(objs)
+    run = models.ForeignKey(FlowRun, related_name='recent_runs')
+    visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
 
     @classmethod
     def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
         """
-        Gets the recent messages for the given flow segments
+        Gets the recent runs for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).order_by('-created_on')
+        recent = (
+            cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid)
+            .select_related('run')
+            .order_by('-visited_on')
+        )
         if limit:
             recent = recent[:limit]
 
-        return recent
+        # batch fetch all the messages for these runs
+        message_ids = set()
+        for r in recent:
+            message_ids.update(r.run.get_message_ids())
+        msgs = {m.id: m for m in Msg.objects.filter(id__in=message_ids).only('id', 'text', 'created_on')}
+
+        results = []
+        for r in recent:
+            # find the most recent message in the run when this visit happened
+            msg = None
+            for msg_id in reversed(r.run.get_message_ids()):
+                msg = msgs.get(msg_id)
+                if msg and msg.created_on < r.visited_on:
+                    break
+
+            results.append({
+                'run': r.run,
+                'text': msg.text if msg else "",
+                'visited_on': r.visited_on
+            })
+
+        return results
 
     @classmethod
     def prune(cls):
         """
-        Removes old steps leaving only PRUNE_TO most recent for each segment
+        Removes old recent run records leaving only PRUNE_TO most recent for each segment
         """
         last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
 
@@ -4062,7 +4028,7 @@ class FlowPathRecentMessage(models.Model):
               SELECT id FROM (
                   SELECT
                     r.id,
-                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY created_on DESC) AS pos
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY visited_on DESC) AS pos
                   FROM %(table)s r
                   WHERE (from_uuid, to_uuid) IN (
                     -- get the unique segments added to since last prune
@@ -4080,7 +4046,7 @@ class FlowPathRecentMessage(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['from_uuid', 'to_uuid', '-created_on'])
+            models.Index(fields=['from_uuid', 'to_uuid', '-visited_on'])
         ]
 
 
@@ -4283,6 +4249,32 @@ class ExportFlowResultsTask(BaseExportTask):
         group_names.sort()
         return ", ".join(group_names)
 
+    def _get_messages_for_runs(self, runs):
+        """
+        Batch fetches messages for the given runs and returns a dict of runs to messages
+        """
+        message_ids = set()
+        for r in runs:
+            message_ids.update(r.get_message_ids())
+
+        messages = (
+            Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
+            .select_related('contact_urn')
+            .prefetch_related('channel')
+            .order_by('created_on')
+        )
+
+        msgs_by_id = {m.id: m for m in messages}
+
+        msgs_by_run = defaultdict(list)
+        for run in runs:
+            for msg_id in run.get_message_ids():
+                msg = msgs_by_id.get(msg_id)
+                if msg:
+                    msgs_by_run[run].append(msg)
+
+        return msgs_by_run
+
     def write_export(self):
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -4296,7 +4288,7 @@ class ExportFlowResultsTask(BaseExportTask):
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
         result_nodes = []
-        flows = list(self.flows.filter(is_active=True, is_archived=False).prefetch_related(
+        flows = list(self.flows.filter(is_active=True).prefetch_related(
             Prefetch('rule_sets', RuleSet.objects.exclude(label=None).order_by('y', 'id'))
         ))
         for flow in flows:
@@ -4344,14 +4336,11 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .prefetch_related(
-                    'contact',
-                    Prefetch('steps', FlowStep.objects.only('id', 'run')),
-                    'steps__messages__contact_urn',
-                    'steps__messages__channel'
-                )
+                .select_related('contact')
                 .order_by('contact', 'id')
             )
+
+            msgs_by_run = self._get_messages_for_runs(run_batch)
 
             for run in run_batch:
                 # is this a new contact?
@@ -4421,7 +4410,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run, msgs_by_run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -4439,16 +4428,11 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, 'xlsx'
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _write_run_messages(self, book, msgs_sheet, run, msgs_by_run):
         """
         Writes out any messages associated with the given run
         """
-        run_msgs = set()
-        for step in run.steps.all():
-            run_msgs.update(step.messages.all())
-        run_msgs = sorted(run_msgs, key=lambda m: m.created_on)
-
-        for msg in run_msgs:
+        for msg in msgs_by_run.get(run, []):
             if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
@@ -4857,35 +4841,23 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    # old webhooks support legacy format
-    LEGACY_FORMAT = 'legacy_format'
-
-    def __init__(self, uuid, webhook, action='POST', webhook_headers=None, legacy_format=None):
+    def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
         super(WebhookAction, self).__init__(uuid)
 
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
-        self.legacy_format = legacy_format
 
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID),
                    json_obj.get('webhook', org.get_webhook_url()),
                    json_obj.get('action', 'POST'),
-                   json_obj.get('webhook_headers', []),
-                   json_obj.get(cls.LEGACY_FORMAT))
+                   json_obj.get('webhook_headers', []))
 
     def as_json(self):
-
-        json_dict = dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
-                         webhook_headers=self.webhook_headers)
-
-        # only include legacy format flag if it is true or false
-        if self.legacy_format is not None:
-            json_dict[self.LEGACY_FORMAT] = self.legacy_format
-
-        return json_dict
+        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4900,10 +4872,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        if self.legacy_format:
-            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
-        else:
-            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
+        WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 
@@ -5401,6 +5370,9 @@ class VariableContactAction(Action):
     GROUPS = 'groups'
     VARIABLES = 'variables'
     PHONE = 'phone'
+    PATH = 'path'
+    SCHEME = 'scheme'
+    URNS = 'urns'
     NAME = 'name'
     ID = 'id'
 
@@ -5436,9 +5408,21 @@ class VariableContactAction(Action):
             phone = contact.get(VariableContactAction.PHONE, None)
             contact_uuid = contact.get(VariableContactAction.UUID, None)
 
+            urns = []
+            for urn in contact.get(VariableContactAction.URNS, []):
+                scheme = urn.get(VariableContactAction.SCHEME)
+                path = urn.get(VariableContactAction.PATH)
+
+                if scheme and path:
+                    urns.append(URN.from_parts(scheme, path))
+
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
-            if not contact and phone:  # pragma: needs cover
-                contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
+
+            if not contact and (phone or urn):
+                if phone:  # pragma: needs cover
+                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=[URN.from_tel(phone)])
+                elif urns:
+                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
 
                 # if they dont have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
@@ -5472,7 +5456,7 @@ class VariableContactAction(Action):
 
                 # otherwise, really create the contact
                 else:
-                    contacts.append(Contact.get_or_create(run.org, get_flow_user(run.org), name=None, urns=()))
+                    contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -5491,7 +5475,7 @@ class VariableContactAction(Action):
                     country = run.flow.org.get_country_code()
                     (number, valid) = URN.normalize_number(variable, country)
                     if number and valid:
-                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contact, contact_urn = Contact.get_or_create(run.org, URN.from_tel(number), user=get_flow_user(run.org))
                         contacts.append(contact)
 
         return groups, contacts
@@ -6366,12 +6350,6 @@ class ContainsTest(Test):
             if word == test:
                 matches.append(index)
                 continue
-
-            # words are over 4 characters and start with the same letter
-            if len(word) > 4 and len(test) > 4 and word[0] == test[0]:
-                # edit distance of 1 or less is a match
-                if edit_distance(word, test) <= 1:
-                    matches.append(index)
 
         return matches
 

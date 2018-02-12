@@ -138,6 +138,7 @@ class TembaTestRunner(DiscoverRunner):
         settings.TESTING = True
 
         super(TembaTestRunner, self).__init__(*args, **kwargs)
+        mock_server.start()
 
     def build_suite(self, *args, **kwargs):
         suite = super(TembaTestRunner, self).build_suite(*args, **kwargs)
@@ -152,7 +153,6 @@ class TembaTestRunner(DiscoverRunner):
         return suite
 
     def run_suite(self, suite, **kwargs):
-        mock_server.start()
 
         return super(TembaTestRunner, self).run_suite(suite, **kwargs)
 
@@ -312,6 +312,35 @@ class TembaTest(SmartminTest):
 
         return data
 
+    def update_action_field(self, flow, action_uuid, key, value):
+        action_json = self.get_action_json(flow, action_uuid)
+        action_json[key] = value
+        self.update_action_json(flow, action_json)
+
+    def update_action_json(self, flow, action_json):
+        """
+        Given an action json_dict, replaces the existing action by uuid
+        """
+        flowdef = flow.as_json()
+        for i, actionset in enumerate(flowdef['action_sets']):
+            for j, prev_action in enumerate(actionset['actions']):
+                if action_json['uuid'] == prev_action['uuid']:
+                    flowdef['action_sets'][i]['actions'][j] = action_json
+                    flow.update(flowdef, self.admin)
+                    return
+        self.fail("Couldn't find action with uuid %s" % action_json['uuid'])
+
+    def get_action_json(self, flow, uuid):
+        """
+        Gets the action json dict from the given flow
+        """
+        flowdef = flow.as_json()
+        for actionset in flowdef['action_sets']:
+            for action in actionset['actions']:
+                if action['uuid'] == uuid:
+                    return action
+        self.fail("Couldn't find action with uuid %s" % uuid)
+
     def get_flow(self, filename, substitutions=None):
         last_flow = Flow.objects.all().order_by('-pk').first()
         self.import_file(filename, substitutions=substitutions)
@@ -364,7 +393,7 @@ class TembaTest(SmartminTest):
         if 'user' not in kwargs:
             kwargs['user'] = self.user
 
-        return Contact.get_or_create(**kwargs)
+        return Contact.get_or_create_by_urns(**kwargs)
 
     def create_group(self, name, contacts=(), query=None):
         if contacts and query:
@@ -559,7 +588,19 @@ class FlowFileTest(TembaTest):
 
     def setUp(self):
         super(FlowFileTest, self).setUp()
-        self.contact = self.create_contact('Ben Haggerty', '+12065552020')
+        self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
+
+    def assertInUserGroups(self, contact, group_names, only=False):
+
+        truth = [g.name for g in contact.user_groups.all()]
+        for name in group_names:
+            self.assertIn(name, truth)
+
+        if only:
+            self.assertEqual(len(group_names), len(truth), 'Contact not found in expected group. expected: %s, was: %s' % (group_names, truth))
+            other_groups = contact.user_groups.exclude(name__in=group_names)
+            if other_groups:
+                self.fail("Contact found in unexpected group: %s" % other_groups)
 
     def assertLastResponse(self, message):
         response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
@@ -572,7 +613,7 @@ class FlowFileTest(TembaTest):
             contact = self.contact
         if contact.is_test:
             Contact.set_simulation(True)
-        incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
         # evaluate the inbound message against our triggers first
         from temba.triggers.models import Trigger
@@ -591,7 +632,7 @@ class FlowFileTest(TembaTest):
             if contact.is_test:
                 Contact.set_simulation(True)
 
-            incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+            incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
             # start the flow
             if initiate_flow:
