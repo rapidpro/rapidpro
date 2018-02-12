@@ -615,7 +615,7 @@ class ChannelTest(TembaTest):
         channel.save()
 
         response = self.client.get(update_url)
-        self.assertFalse('address' in response.context['form'].fields)
+        self.assertNotIn('address', response.context['form'].fields)
 
         # bring it back to android
         channel.channel_type = Channel.TYPE_ANDROID
@@ -983,7 +983,7 @@ class ChannelTest(TembaTest):
                                     dict(claim_code=android1.claim_code, phone_number="0788123123"))
 
         # redirect to welcome page
-        self.assertTrue('success' in response.get('Location', None))
+        self.assertIn('success', response.get('Location', None))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
         # channel is updated with org details and claim code is now blank
@@ -1236,8 +1236,8 @@ class ChannelTest(TembaTest):
         search_nexmo_url = reverse('channels.channel_search_nexmo')
 
         response = self.client.get(search_nexmo_url)
-        self.assertTrue('area_code' in response.context['form'].fields)
-        self.assertTrue('country' in response.context['form'].fields)
+        self.assertIn('area_code', response.context['form'].fields)
+        self.assertIn('country', response.context['form'].fields)
 
         with patch('requests.get') as nexmo_get:
             nexmo_get.side_effect = [MockResponse(200,
@@ -1501,8 +1501,8 @@ class ChannelTest(TembaTest):
         # assert that our first command is the two message broadcast
         cmd = cmds[0]
         self.assertEqual("How is it going?", cmd['msg'])
-        self.assertTrue('+250788382382' in [m['phone'] for m in cmd['to']])
-        self.assertTrue('+250788383383' in [m['phone'] for m in cmd['to']])
+        self.assertIn('+250788382382', [m['phone'] for m in cmd['to']])
+        self.assertIn('+250788383383', [m['phone'] for m in cmd['to']])
 
         self.assertTrue(msg1.pk in [m['id'] for m in cmd['to']])
         self.assertTrue(msg2.pk in [m['id'] for m in cmd['to']])
@@ -2382,7 +2382,7 @@ class AfricasTalkingTest(TembaTest):
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # assert we didn't send the short code in our data
-            self.assertTrue('from' not in mock.call_args[1]['data'])
+            self.assertNotIn('from', mock.call_args[1]['data'])
             self.clear_cache()
 
         with patch('requests.post') as mock:
@@ -2456,7 +2456,7 @@ class RedRabbitTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://http1.javna.com/epicenter/GatewaySendG.asp')
-                self.assertTrue('Msgtyp' not in mock.call_args[1]['params'])
+                self.assertNotIn('Msgtyp', mock.call_args[1]['params'])
 
         self.clear_cache()
 
@@ -2701,7 +2701,7 @@ class ExternalTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertTrue("text=Test+message" in mock.call_args[1]['data'])
+            self.assertIn("text=Test+message", mock.call_args[1]['data'])
 
             self.clear_cache()
 
@@ -2859,7 +2859,7 @@ class YoTest(TembaTest):
             self.assertEqual(SENT, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertTrue("sms_content=Test+message" in mock.call_args[0][0])
+            self.assertIn("sms_content=Test+message", mock.call_args[0][0])
 
             self.clear_cache()
 
@@ -3017,7 +3017,7 @@ class ShaqodoonTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertTrue("msg=Test+message" in mock.call_args[0][0])
+            self.assertIn("msg=Test+message", mock.call_args[0][0])
 
             self.clear_cache()
 
@@ -3345,8 +3345,8 @@ class KannelTest(TembaTest):
             # assert verify was set to true
             self.assertEqual('No capital accented E!', mock.call_args[1]['params']['text'])
             self.assertEqual('788383383', mock.call_args[1]['params']['to'])
-            self.assertFalse('coding' in mock.call_args[1]['params'])
-            self.assertFalse('priority' in mock.call_args[1]['params'])
+            self.assertNotIn('coding', mock.call_args[1]['params'])
+            self.assertNotIn('priority', mock.call_args[1]['params'])
             self.clear_cache()
 
         incoming = Msg.create_incoming(self.channel, "tel:+250788383383", "start")
@@ -3389,8 +3389,8 @@ class KannelTest(TembaTest):
 
             # assert verify was set to true
             self.assertEqual("Normal", mock.call_args[1]['params']['text'])
-            self.assertFalse('coding' in mock.call_args[1]['params'])
-            self.assertFalse('charset' in mock.call_args[1]['params'])
+            self.assertNotIn('coding', mock.call_args[1]['params'])
+            self.assertNotIn('charset', mock.call_args[1]['params'])
             self.assertEqual('https://%s/c/kn/%s/status?id=%d&status=%%d' % (self.org.get_brand_domain(), self.channel.uuid, msg.id), mock.call_args[1]['params']['dlr-url'])
 
             self.clear_cache()
@@ -4861,7 +4861,7 @@ class Hub9Test(TembaTest):
             self.assertTrue(msg.sent_on)
 
             self.assertTrue(mock.call_args[0][0].startswith(HUB9_ENDPOINT))
-            self.assertTrue("message=Test+message" in mock.call_args[0][0])
+            self.assertIn("message=Test+message", mock.call_args[0][0])
 
             self.clear_cache()
 
@@ -5026,7 +5026,7 @@ class DartMediaTest(TembaTest):
             self.assertEqual(SENT, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertTrue("message=Test+message" in mock.call_args[0][0])
+            self.assertIn("message=Test+message", mock.call_args[0][0])
 
             self.clear_cache()
 
@@ -5153,7 +5153,7 @@ class HighConnectionTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertTrue("text=Test+message" in mock.call_args[0][0])
+            self.assertIn("text=Test+message", mock.call_args[0][0])
 
             self.clear_cache()
 
@@ -7301,7 +7301,7 @@ class ChikkaTest(TembaTest):
 
                 # but when that fails, we should try again as a send
                 self.assertEqual(second_call_args['message_type'], 'SEND')
-                self.assertTrue('request_id' not in second_call_args)
+                self.assertNotIn('request_id', second_call_args)
 
                 # our message should be succeeded
                 msg.refresh_from_db()
@@ -7594,7 +7594,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         response = self.client.post(delivery_url, data=json.dumps({}),
                                     content_type='application/json')
         self.assertEqual(400, response.status_code)
-        self.assertTrue('Missing one of' in response.content)
+        self.assertIn('Missing one of', response.content)
 
     def test_status(self):
         # ok, what happens with an invalid uuid?
@@ -7702,7 +7702,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         response = self.client.post(callback_url, json.dumps({}),
                                     content_type='application/json')
         self.assertEqual(400, response.status_code)
-        self.assertTrue('Missing one of' in response.content)
+        self.assertIn('Missing one of', response.content)
 
     def test_receive(self):
         data = self.mk_msg(content="événement")

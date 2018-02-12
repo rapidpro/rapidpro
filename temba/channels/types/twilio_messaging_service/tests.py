@@ -43,7 +43,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertContains(response, claim_twilio_ms)
 
         response = self.client.get(claim_twilio_ms)
-        self.assertTrue('account_trial' in response.context)
+        self.assertIn('account_trial', response.context)
         self.assertFalse(response.context['account_trial'])
 
         with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
@@ -61,7 +61,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
             response = self.client.get(claim_twilio_ms)
-            self.assertTrue('account_trial' in response.context)
+            self.assertIn('account_trial', response.context)
             self.assertTrue(response.context['account_trial'])
 
         response = self.client.get(claim_twilio_ms)

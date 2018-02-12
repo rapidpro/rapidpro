@@ -135,7 +135,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '360-788-4540')
 
                 # claim it
@@ -175,7 +175,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '579-788-4540')
 
                 # claim it

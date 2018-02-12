@@ -549,7 +549,7 @@ class MsgTest(TembaTest):
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
         self.assertEqual(200, response.status_code)
-        self.assertTrue('folder' in response.context['form'].fields)
+        self.assertIn('folder', response.context['form'].fields)
 
         post_data = dict(name="Foo")
         response = self.client.post(reverse('msgs.label_update', args=[label1.pk]), post_data)
