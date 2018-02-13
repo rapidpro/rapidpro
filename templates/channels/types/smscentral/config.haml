@@ -1,0 +1,18 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
+
+%hr
+
+%h4
+  -trans "Inbound URL"
+
+%p
+  -blocktrans
+    This endpoint should be called by SMSCentral when new messages are received to your number.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.sc' channel.uuid 'receive' %}
+
