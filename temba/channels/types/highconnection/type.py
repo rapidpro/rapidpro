@@ -44,7 +44,7 @@ class HighConnectionType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.hx' channel.uuid 'receive' %}",
-        )
+        ),
     )
 
     def is_available_to(self, user):

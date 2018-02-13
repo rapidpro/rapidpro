@@ -52,7 +52,6 @@ class TwimlAPIType(ChannelType):
         )
     )
 
-
     def send(self, channel, msg, text):
         # use regular Twilio channel sending
         return Channel.get_type_from_code('T').send(channel, msg, text)

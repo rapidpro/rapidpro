@@ -28,7 +28,6 @@ class TwilioMessagingServiceType(ChannelType):
         """
     )
 
-
     configuration_blurb = _(
         """
         To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your Messaging Service Inbound Settings.

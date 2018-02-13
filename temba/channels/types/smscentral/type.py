@@ -34,7 +34,7 @@ class SMSCentralType(ChannelType):
 
     attachment_support = False
 
-    configuration_blurb =_(
+    configuration_blurb = _(
         """
         To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
         """
@@ -47,7 +47,6 @@ class SMSCentralType(ChannelType):
             description=_("This endpoint should be called by SMSCentral when new messages are received to your number.")
         ),
     )
-
 
     def is_available_to(self, user):
         org = user.get_org()

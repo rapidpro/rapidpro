@@ -96,6 +96,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     configuration_blurb = None
     configuration_urls = None
+    show_public_addresses = False
 
     update_form = None
 

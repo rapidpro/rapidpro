@@ -53,7 +53,6 @@ class ViberPublicType(ChannelType):
         ),
     )
 
-
     def activate(self, channel):
         auth_token = channel.config_json()['auth_token']
         handler_url = "https://" + channel.callback_domain + reverse('courier.vp', args=[channel.uuid])

@@ -44,6 +44,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         number = data['number']
         role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
 
+        import pdb; pdb.set_trace()
         config = {Channel.CONFIG_SEND_URL: url,
                   Channel.CONFIG_VERIFY_SSL: data.get('verify_ssl', False),
                   Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),

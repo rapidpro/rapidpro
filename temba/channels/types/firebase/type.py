@@ -39,7 +39,6 @@ class FirebaseCloudMessagingType(ChannelType):
         """
     )
 
-
     configuration_urls = (
         dict(
             label=_("Contact Register"),
@@ -52,7 +51,6 @@ class FirebaseCloudMessagingType(ChannelType):
             description=_("To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."),
         ),
     )
-
 
     def send(self, channel, msg, text):
         start = time.time()

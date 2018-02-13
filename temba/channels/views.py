@@ -1636,6 +1636,7 @@ class ChannelCRUDL(SmartCRUDL):
             context['configuration_template'] = channel_type.get_configuration_template(self.object)
             context['configuration_blurb'] = channel_type.get_configuration_blurb(self.object)
             context['configuration_urls'] = channel_type.get_configuration_urls(self.object)
+            context['show_public_addresses'] = channel_type.show_public_addresses
 
             return context
 
