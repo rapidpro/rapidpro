@@ -136,9 +136,9 @@ IS_PROD = env('IS_PROD', 'off') == 'on'
 
 BRANDING = {
     'pulse': {
-        'slug': env('BRANDING_SLUG', 'rapidpro'),
-        'name': env('BRANDING_NAME', 'RapidPro'),
-        'org': env('BRANDING_ORG', 'RapidPro'),
+        'slug': env('BRANDING_SLUG', 'pulse'),
+        'name': env('BRANDING_NAME', 'Pulse'),
+        'org': env('BRANDING_ORG', 'Pulse'),
         'colors': dict([rule.split('=') for rule in env('BRANDING_COLORS', 'primary=#0c6596').split(';')]),
         'styles': ['brands/pulse/font/style.css'],
         'welcome_topup': 1000,
@@ -151,7 +151,7 @@ BRANDING = {
         'favico': env('BRANDING_FAVICO', '/brands/pulse/pulse.ico'),
         'splash': env('BRANDING_SPLASH', '/brands/pulse/splash.jpg'),
         'logo': env('BRANDING_LOGO', '/brands/pulse/logo.png'),
-        'allow_signups': env('BRANDING_ALLOW_SIGNUPS', True),
+        'allow_signups': env('BRANDING_ALLOW_SIGNUPS', False),
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
         'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
