@@ -647,20 +647,6 @@
     -for ip_address in ip_addresses
       %code= ip_address
 
-  -elif object.channel_type == 'GL'
-    %h4
-      -blocktrans
-        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your
-        application configuration page.
-
-    %hr
-
-    %h4
-      -trans "Notify URI"
-
-    %code
-      https://{{ domain }}{% url 'courier.gl' object.uuid 'receive' %}
-
   -elif object.channel_type == 'HX'
     %h4
       -blocktrans
