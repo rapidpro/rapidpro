@@ -231,35 +231,6 @@
     %code
       https://{{ domain }}{% url 'courier.mk' object.uuid 'status' %}
 
-  -elif object.channel_type == 'BM'
-    %h4
-      -blocktrans
-        To finish configuring your Blackmyna connection you'll need to notify Blackmyna of the following URLs.
-
-    %hr
-
-    %h4
-      -trans "Inbound URL"
-
-    %p
-      -blocktrans
-        This endpoint should be called by Blackmyna when new messages are received to your number.
-
-    %code
-      https://{{ domain }}{% url 'courier.bm' object.uuid 'receive' %}
-
-    %hr
-
-    %h4
-      -trans "DLR URL"
-
-    %p
-      -blocktrans
-        This endpoint should be called by Blackmyna when the message status changes. (delivery reports)
-
-    %code
-      https://{{ domain }}{% url 'courier.bm' object.uuid 'status' %}
-
   -elif object.channel_type == 'TMS'
     %h4
       -blocktrans
