@@ -1,0 +1,43 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish configuring your Infobip connection you'll need to set the following callback URLs on the
+    Infobip website under your account.
+
+.clearfix
+  .config-value
+    .name
+      -trans "Username:"
+    .value {{ channel.config_json.username }}
+  .config-value
+    .name
+      -trans "Password:"
+    .value
+      xxxxxxxx
+
+.clearfix
+%hr
+
+%h4
+  -trans "Received URL"
+
+%p
+  -blocktrans
+    This endpoint should be called with a POST by Infobip when new messages are received to your number. You can set the receive URL on your Infobip account by contacting your sales agent.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'receive' %}
+
+%hr
+
+%h4
+  -trans "Delivered URL"
+
+%p
+  -blocktrans
+    This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports)
+    You can set the delivery callback URL on your Infobip account by contacting your sales agent.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'delivered' %}
