@@ -37,47 +37,6 @@
       %code
         {{url.url}}
 
-  -elif object.channel_type == 'ZV'
-    %h4
-      -trans "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
-
-    .clearfix
-      .config-value
-        .name
-          -trans "Account:"
-        .value {{ object.config_json.account }}
-      .config-value
-        .name
-          -trans "Code:"
-        .value {{ object.config_json.code }}
-
-    .clearfix
-    %hr
-
-    %h4
-      -trans "Status URL"
-
-    %p
-      -blocktrans
-        To receive delivery and acknowledgement of sent messages, you need to set the status URL
-        for your Zenvia account.
-
-    %code
-      https://{{ domain }}{% url 'courier.zv' object.uuid 'status' %}
-
-    %hr
-
-    %h4
-      -trans "Receive URL"
-
-    %p
-      -trans "To receive incoming messages, you need to set the receive URL for your Zenvia account."
-
-    %code
-      https://{{ domain }}{% url 'courier.zv' object.uuid 'receive' %}
-
-    %hr
-
   -elif object.channel_type == 'VB'
     %h4
       -blocktrans
