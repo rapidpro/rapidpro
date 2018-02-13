@@ -647,20 +647,6 @@
     -for ip_address in ip_addresses
       %code= ip_address
 
-  -elif object.channel_type == 'HX'
-    %h4
-      -blocktrans
-        To finish configuring your connection you'll need to notify HighConnection of the following URL for
-        incoming (MO) messages
-
-    %hr
-
-    %h4
-      -trans "Receive URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.hx' object.uuid 'receive' %}
-
   -elif object.channel_type == 'YO'
     %h4
       -blocktrans
