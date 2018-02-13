@@ -1,0 +1,30 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs.
+
+%hr
+
+%h4
+  -trans "Inbound URL"
+
+%p
+  -blocktrans
+    This endpoint should be called by MACROKIOSK when new messages are received to your number.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'receive' %}
+
+%hr
+
+%h4
+  -trans "DLR URL"
+
+%p
+  -blocktrans
+    This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'status' %}
+
