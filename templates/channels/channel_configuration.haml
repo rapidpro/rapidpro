@@ -358,42 +358,6 @@
     %code
       https://{{ domain }}{% url 'courier.vm' object.uuid 'event' %}
 
-  -elif object.channel_type == 'KN'
-    %h4
-      -blocktrans
-        As a last step you'll need to configure Kannel to send and receive messages. Here is a stanza you
-        can add to your Kannel configuration to enable sending and receiving.
-
-    %b
-      -trans "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
-
-    %pre
-      :escaped
-        ######################################################################
-        # {{channel.address}} - {{user_org.name}}
-        ######################################################################
-
-        group = sendsms-user
-        username = "{{channel.config_json.username}}"
-        password = "{{channel.config_json.password}}"
-        concatenation = true
-        max-messages = 10
-        user-allow-ip = "*.*.*.*"
-        faked-sender = {{channel.address}}
-        forced-smsc = YOUR-SMSC
-        default-smsc = YOUR-SMSC
-
-        group = sms-service
-        keyword = default
-        allowed-receiver-prefix = {{channel.address}}
-        max-messages = 0
-        post-url = "https://{{domain}}{% url 'courier.kn' object.uuid 'receive' %}?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
-        concatenation = true
-        assume-plain-text = true
-        accept-x-kannel-headers = true
-        omit-empty = true
-        accepted-smsc = YOUR-SMSC
-
   -elif object.channel_type == 'MB'
     %h4
       -blocktrans
