@@ -851,27 +851,6 @@
     %code
       https://{{ domain }}{% url 'courier.dk' object.uuid 'receive' %}
 
-  -elif object.channel_type == 'CK'
-    %h4
-      -blocktrans
-        To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings.
-
-    %hr
-
-    %h4
-      -trans "Notification Receiver URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.ck' object.uuid %}
-
-    %hr
-
-    %h4
-      -trans "Message Receiver URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.ck' object.uuid %}
-
   -elif object.channel_type == 'EX'
     %h4
       -blocktrans
