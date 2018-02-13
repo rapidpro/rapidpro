@@ -24,7 +24,7 @@ class HighConnectionType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "High Connection"
-    slug = "high_connection"
+    slug = "highconnection"
 
     claim_blurb = _("""If you are based in France, you can purchase a number from High Connexion
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.""")
