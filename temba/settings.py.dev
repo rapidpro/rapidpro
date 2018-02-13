@@ -91,3 +91,4 @@ STATIC_URL = '/sitestatic/'
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = 'http://localhost:8080'
 FLOW_SERVER_DEBUG = False
+FLOW_SERVER_AUTH_TOKEN = 'changeme'

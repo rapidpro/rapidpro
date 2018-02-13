@@ -438,6 +438,7 @@ PERMISSIONS = {
                    'api',
                    'assets',
                    'archived',
+                   'assets',
                    'broadcast',
                    'campaign',
                    'category_counts',
@@ -1224,6 +1225,14 @@ FLOW_SERVER_FORCE = False
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
 COURIER_CHANNELS = set(['CT', 'DK', 'MT', 'WA', 'ZV'])
+
+# -----------------------------------------------------------------------------------
+# GoFlow
+# -----------------------------------------------------------------------------------
+FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
+FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
