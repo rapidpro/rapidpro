@@ -1,0 +1,55 @@
+-load i18n
+    
+%h4
+  -blocktrans
+    To finish configuring your Hub9 connection you'll need to provide them with the following details.
+
+.clearfix
+  .config-value
+    .name
+      -trans "Username:"
+    .value {{ channel.config_json.username }}
+  .config-value
+    .name
+      -trans "Password:"
+    .value
+      xxxxxxxx
+    
+.clearfix
+%hr
+
+%h4
+  -trans "Received URL"
+
+%p
+  -blocktrans
+    This endpoint should be called by Hub9 when new messages are received to your number. You can set the receive URL on your Hub9 account by contacting your sales agent.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.h9' channel.uuid 'receive' %}
+
+%hr
+
+%h4
+  -trans "Delivered URL"
+
+%p
+  -blocktrans
+    This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports)
+    You can set the delivery callback URL on your Hub9 account by contacting your sales agent.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.h9' channel.uuid 'delivered' %}
+
+%hr
+
+%h4
+  -trans "IP Addresses"
+
+%p
+  Contact your sales agent to make sure the following IPs are whitelisted
+
+-for ip_address in ip_addresses
+  %code= ip_address
+
+
