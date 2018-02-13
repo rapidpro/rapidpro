@@ -18,12 +18,10 @@ services:
       - MANAGEPY_COLLECTSTATIC=on
       - MANAGEPY_COMPRESS=on
       - MANAGEPY_INIT_DB=on
-      - MANAGEPY_MIGRATE=on
+      - MANAGEPY_MIGRATE=off
     volumes:
-      - ./temba/flow:/rapidpro/temba/flow
-      - ./static:/rapidpro/static
-      - ./templates:/rapidpro/templates
-      - ./temba/settings_common.py:/rapidpro/temba/settings_common.py
+      - ./static/brands/pulse:/rapidpro/static/brands/pulse
+      - ./temba/settings.py:/rapidpro/temba/settings.py
   celery:
     image: rapidpro/rapidpro:v3.0.318
     depends_on:
@@ -37,10 +35,8 @@ services:
       - SECRET_KEY=super-secret-key
     command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,msgs,flows,handler"]
     volumes:
-      - ./temba/flow:/rapidpro/temba/flow
-      - ./static:/rapidpro/static
-      - ./templates:/rapidpro/templates
-      - ./temba/settings_common.py:/rapidpro/temba/settings_common.py
+      - ./static/brands/pulse:/rapidpro/static/brands/pulse
+      - ./temba/settings.py:/rapidpro/temba/settings.py
   redis:
     image: redis:alpine
   postgresql:
