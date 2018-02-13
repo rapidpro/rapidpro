@@ -1,0 +1,18 @@
+-load i18n
+
+%h4
+  -blocktrans
+    As a last step you'll need to set the following callback URL on your Mblox account:
+
+%hr
+
+%h4
+  -trans "Callback URL"
+
+%p
+  -blocktrans
+    This endpoint will be called by Mblox when new messages are received to your number and for delivery reports.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.mb' channel.uuid 'receive' %}
+
