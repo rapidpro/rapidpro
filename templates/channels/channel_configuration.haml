@@ -399,33 +399,6 @@
       %code= ip_address
 
 
-  -elif object.channel_type == 'FCM'
-    %h4
-      -trans "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the parameters below."
-
-    .clearfix
-    %hr
-
-    %h4
-      -trans "Contact Register"
-
-    %p
-      -trans "To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."
-
-    %code
-      https://{{ domain }}{% url 'handlers.fcm_handler' 'register' object.uuid %}
-
-    %h4
-      -trans "Receive URL"
-
-    %p
-      -trans "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
-
-    %code
-      https://{{ domain }}{% url 'handlers.fcm_handler' 'receive' object.uuid %}
-
-    %hr
-
   -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
       -blocktrans
