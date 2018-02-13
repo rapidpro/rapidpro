@@ -172,18 +172,6 @@
     %code
       https://{{ domain }}{% url 'courier.vi' object.uuid 'receive'  %}
 
-  -elif object.channel_type == 'VP'
-    %h4
-      -blocktrans
-        Your Viber channel is connected. If needed the webhook endpoints are listed below.
-
-    %hr
-
-    %h4
-      -trans "Webhook URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.vp' object.uuid %}
 
   -elif object.channel_type == 'YO'
     %h4
