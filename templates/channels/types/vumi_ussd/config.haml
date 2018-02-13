@@ -1,0 +1,57 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:
+
+.clearfix
+  .config-value
+    .name
+      -trans "Conversation Key:"
+    .value
+      {{ channel.config_json.conversation_key }}
+
+  .config-value
+    .name
+      -trans "Account Key:"
+    .value
+      {{ channel.config_json.account_key }}
+
+.clearfix
+
+%hr
+
+%h4
+  -trans "API Token"
+
+%p
+  -blocktrans
+    This token is used to authenticate with your Vumi account, set it by editing the "Content" page on your conversation.
+
+%code
+  {{ channel.config_json.access_token }}
+
+%hr
+
+%h4
+  -trans "Push Message URL"
+
+%p
+  -blocktrans
+    This endpoint will be called by Vumi when new messages are received to your number.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.vm' channel.uuid 'receive' %}
+
+%hr
+
+%h4
+  -trans "Push Event URL"
+
+%p
+  -blocktrans
+    This endpoint will be called by Vumi when sent messages are sent or delivered.
+
+%code
+  https://{{ channel.callback_domain }}{% url 'courier.vm' channel.uuid 'event' %}
+
