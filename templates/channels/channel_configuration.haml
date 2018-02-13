@@ -117,20 +117,6 @@
       https://{{ domain }}{% url 'courier.vi' object.uuid 'receive'  %}
 
 
-  -elif object.channel_type == 'YO'
-    %h4
-      -blocktrans
-        To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL.
-
-    %h4
-      -trans "Inbound SMS URL"
-
-    %p
-      -blocktrans
-        This URL should be called with a GET by Yo! when new incoming messages are received on your shortcode.
-
-    %code
-      https://{{ domain }}{% url 'courier.yo' object.uuid 'receive' %}
 
   -elif object.channel_type == 'EX'
     %h4
