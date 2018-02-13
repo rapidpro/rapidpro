@@ -52,6 +52,8 @@ temba=# create extension postgis_topology;
 CREATE EXTENSION
 temba=# create extension hstore;
 CREATE EXTENSION
+temba=# create extension "uuid-ossp";
+CREATE EXTENSION
 {% endhighlight %}
 
 ## Clone RapidPro
