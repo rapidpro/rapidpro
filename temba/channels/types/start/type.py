@@ -32,6 +32,21 @@ class StartType(ChannelType):
 
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your Start connection you'll need to notify Start of the following receiving URL.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Inbound URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.st' channel.uuid 'receive' %}",
+            description=_("This endpoint should be called by Start when new messages are received to your number."),
+        ),
+    )
+
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Europe/Kiev"]

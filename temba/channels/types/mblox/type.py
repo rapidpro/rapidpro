@@ -32,6 +32,20 @@ class MbloxType(ChannelType):
     max_length = 459
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        As a last step you'll need to set the following callback URL on your Mblox account:
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Callback URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.mb' channel.uuid 'receive' %}",
+            description=_("This endpoint will be called by Mblox when new messages are received to your number and for delivery reports."),
+        ),
+    )
+
     def send(self, channel, msg, text):
         # build our payload
         payload = dict()

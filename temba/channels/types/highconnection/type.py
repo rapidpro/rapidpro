@@ -24,7 +24,7 @@ class HighConnectionType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "High Connection"
-    slug = "highconnection"
+    slug = "high_connection"
 
     claim_blurb = _("""If you are based in France, you can purchase a number from High Connexion
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.""")
@@ -33,6 +33,19 @@ class HighConnectionType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1500
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming (MO) messages
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.hx' channel.uuid 'receive' %}",
+        )
+    )
 
     def is_available_to(self, user):
         org = user.get_org()
