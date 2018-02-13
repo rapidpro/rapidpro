@@ -126,23 +126,6 @@
 
     %hr
 
-  -elif object.channel_type == 'ST'
-    %h4
-      -blocktrans
-        To finish configuring your Start connection you'll need to notify Start of the following receiving URL.
-
-    %hr
-
-    %h4
-      -trans "Inbound URL"
-
-    %p
-      -blocktrans
-        This endpoint should be called by Start when new messages are received to your number.
-
-    %code
-      https://{{ domain }}{% url 'courier.st' object.uuid 'receive' %}
-
   -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
       -blocktrans
