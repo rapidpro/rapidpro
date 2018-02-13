@@ -17,7 +17,10 @@
           (v{{channel.os}})
 
 -block content
-  -if configuration_blurb
+  -if configuration_template
+    {{ configuration_template }}
+
+  -elif configuration_blurb
     %h4
       {{configuration_blurb}}
 
@@ -33,50 +36,6 @@
 
       %code
         {{url.url}}
-
-  -elif object.channel_type == 'AT'
-    %h4
-      -blocktrans
-        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the
-        Africa's Talking website under your account.
-
-    .clearfix
-      .config-value
-        .name
-          -trans "Username:"
-        .value {{ object.config_json.username }}
-      .config-value
-        .name
-          -trans "API Key:"
-        .value {{ object.config_json.api_key }}
-
-    .clearfix
-    %hr
-
-    %h4
-      -trans "Callback URL"
-
-    %p
-      -blocktrans
-        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
-        <a href="http://www.africastalking.com/account/sms/smscallback" target="africastalking">Callback URL</a>.
-
-    %code
-      https://{{ domain }}{% url 'courier.at' object.uuid 'receive' %}
-
-    %hr
-
-    %h4
-      -trans "Delivery URL"
-
-    %p
-      -trans "You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on"
-      <a href="http://www.africastalking.com/account/sms/dlrcallback" target="africastalking">Delivery Reports</a>.
-
-    %code
-      https://{{ domain }}{% url 'courier.at' object.uuid 'status' %}
-
-    %hr
 
   -elif object.channel_type == 'CT'
     %h4

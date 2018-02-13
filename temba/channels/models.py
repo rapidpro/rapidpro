@@ -25,6 +25,7 @@ from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.template import TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -187,6 +188,15 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         Allows a ChannelType to register periodic tasks it wants celery to run.
         ex: sender.add_periodic_task(300, remap_twitter_ids)
         """
+
+    def get_configuration_context_dict(self, channel):
+        return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+
+    def get_configuration_template(self, channel):
+        try:
+            return Engine.get_default().get_template('channels/types/%s/config.html' % self.slug).render(context=Context(self.get_configuration_context_dict(channel)))
+        except TemplateDoesNotExist:
+            return ""
 
     def get_configuration_blurb(self, channel):
         """
