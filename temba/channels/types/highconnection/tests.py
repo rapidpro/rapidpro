@@ -10,7 +10,7 @@ class HighConnectionTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_high_connection')
+        url = reverse('channels.claim_highconnection')
 
         self.login(self.admin)
 
