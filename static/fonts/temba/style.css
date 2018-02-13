@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?662fue');
-  src:  url('fonts/temba.eot?662fue#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?662fue') format('truetype'),
-    url('fonts/temba.woff?662fue') format('woff'),
-    url('fonts/temba.svg?662fue#temba') format('svg');
+  src:  url('fonts/temba.eot?xwcj82');
+  src:  url('fonts/temba.eot?xwcj82#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?xwcj82') format('truetype'),
+    url('fonts/temba.woff?xwcj82') format('woff'),
+    url('fonts/temba.svg?xwcj82#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -756,7 +756,7 @@
 .icon-icon-chatbase:before {
   content: "\e903";
 }
-.icon-quick-response:before {
+.icon-button-quick-reply:before {
   content: "\e904";
 }
 .icon-facebook-official:before {
