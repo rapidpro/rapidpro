@@ -77,22 +77,6 @@
                   you already have. You just need an Android phone
                   to get started.
 
-    -if False
-      .claim-row.verboice-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_verboice' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Verboice"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
-
     -for ch_type in channel_types.PHONE
       .claim-row
         .row

@@ -227,7 +227,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_DUMMY = 'DM'
-    TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
 
     # keys for various config options stored in the channel config dict
@@ -680,7 +679,7 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         elif self.channel_type == 'TW':
             return self.get_twiml_client()
-        elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
+        elif self.channel_type == 'VB':  # pragma: no cover
             return self.org.get_verboice_client()
         elif self.channel_type == 'NX':
             return self.org.get_nexmo_client()
