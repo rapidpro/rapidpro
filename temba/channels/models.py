@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import logging
 import phonenumbers
-import requests
 import six
 import time
 import urlparse
@@ -38,7 +37,7 @@ from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent, http_headers
+from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
@@ -228,7 +227,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_DUMMY = 'DM'
     TYPE_VERBOICE = 'VB'
-    TYPE_VIBER = 'VI'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -322,26 +320,19 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
-        TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_VERBOICE, "Verboice"),
-                    (TYPE_VIBER, "Viber"))
+                    (TYPE_VERBOICE, "Verboice"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
-        TYPE_VIBER: "icon-viber"
     }
-
-    FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
     TWIML_CHANNELS = [TYPE_VERBOICE]
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
-
-    VIBER_NO_SERVICE_ID = 'no_service_id'
 
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
@@ -460,10 +451,6 @@ class Channel(TembaModel):
 
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
-
-    @classmethod
-    def add_viber_channel(cls, org, user, name):
-        return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
@@ -1125,44 +1112,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_viber_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        url = 'https://services.viber.com/vibersrvc/1/send_message'
-        payload = {'service_id': int(channel.address),
-                   'dest': msg.urn_path.lstrip('+'),
-                   'seq': msg.id,
-                   'type': 206,
-                   'message': {
-                       '#txt': text,
-                       '#tracking_data': 'tracking_id:%d' % msg.id}}
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-        start = time.time()
-        headers = http_headers(extra={'Accept': 'application/json'})
-
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # success is 0, everything else is a failure
-        if response_json['status'] != 0:
-            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
-                                event=event, fatal=True, start=start)
-
-        external_id = response.json().get('message_token', None)
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1373,8 +1322,9 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_VIBER: Channel.send_viber_message}
+SEND_FUNCTIONS = {
+    Channel.TYPE_DUMMY: Channel.send_dummy_message, 
+}
 
 
 @six.python_2_unicode_compatible
