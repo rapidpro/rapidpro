@@ -1552,35 +1552,15 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Configuration, self).get_context_data(**kwargs)
-
-            # if this is an external channel, build an example URL
-            if self.object.channel_type == 'EX':
-                config = self.object.config_json()
-                send_url = config[Channel.CONFIG_SEND_URL]
-                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
-
-                example_payload = {
-                    'to': '+250788123123',
-                    'to_no_plus': '250788123123',
-                    'text': "Love is patient. Love is kind.",
-                    'from': self.object.address,
-                    'from_no_plus': self.object.address.lstrip('+'),
-                    'id': '1241244',
-                    'channel': str(self.object.id)
-                }
-
-                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-                context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
-                context['example_url'] = Channel.replace_variables(send_url, example_payload)
-                context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
-
             context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
 
             # populate with our channel type
             channel_type = Channel.get_type_from_code(self.object.channel_type)
+            context['configuration_template'] = channel_type.get_configuration_template(self.object)
             context['configuration_blurb'] = channel_type.get_configuration_blurb(self.object)
             context['configuration_urls'] = channel_type.get_configuration_urls(self.object)
+            context['show_public_addresses'] = channel_type.show_public_addresses
 
             return context
 
