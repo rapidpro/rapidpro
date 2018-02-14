@@ -34,6 +34,24 @@ class ChikkaType(ChannelType):
     max_length = 160
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Notification Receiver URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.ck' channel.uuid %}",
+        ),
+        dict(
+            label=_("Message Receiver URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.ck' channel.uuid %}",
+        )
+
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ['Asia/Manila']

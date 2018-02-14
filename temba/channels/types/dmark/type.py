@@ -28,6 +28,19 @@ class DMarkType(ChannelType):
     max_length = 459
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.dk' channel.uuid 'receive' %}",
+        ),
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Kampala", "Africa/Kinshasa"]
