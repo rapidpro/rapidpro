@@ -35,36 +35,6 @@ class LineType(ChannelType):
 
     show_public_addresses = True
 
-    configuration_blurb = _(
-        """
-        To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page,
-        following the steps below:
-        """
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Step 1"),
-            url="",
-            description=_(
-                """
-                Configure "Callback URL" in the channel page (the same page which get the information Channel Secret and Channel Access Token)
-                by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
-                """
-            ),
-        ),
-        dict(
-            label=_("Step 2"),
-            url="",
-            description=_('Fill the IP addresses in the "Server IP Whitelist" with the list of addresses displayed below.'),
-        ),
-        dict(
-            label=_("Callback URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.ln' channel.uuid %}",
-        ),
-
-    )
-
     def send(self, channel, msg, text):
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
