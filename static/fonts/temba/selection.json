@@ -6609,7 +6609,7 @@
         "isMulticolor": false,
         "isMulticolor2": false,
         "tags": [
-          "quick-response"
+          "quick-reply"
         ],
         "defaultCode": 59651,
         "grid": 0
@@ -6621,7 +6621,7 @@
         "ligatures": "",
         "prevSize": 32,
         "code": 59652,
-        "name": "quick-response"
+        "name": "quick-reply"
       },
       "setIdx": 0,
       "setId": 12,

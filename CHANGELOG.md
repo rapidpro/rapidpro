@@ -1,3 +1,7 @@
+v3.0.321
+----------
+ * Fix quick-reply button in flow editor
+
 v3.0.320
 ----------
  * Fix webhook rule as first step in run interpreting msg wrong
