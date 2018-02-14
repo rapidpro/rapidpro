@@ -335,8 +335,6 @@ class Channel(TembaModel):
 
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
-    TWIML_CHANNELS = [TYPE_VERBOICE]
-
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
     VIBER_NO_SERVICE_ID = 'no_service_id'

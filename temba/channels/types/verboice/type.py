@@ -19,6 +19,8 @@ class VerboiceType(ChannelType):
     max_length = 1600
     schemes = [TEL_SCHEME]
 
+    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
+
     configuration_blurb = _(
         """
         To finish configuring your connection you'll need to set the following status callback URL for your Verboice project
