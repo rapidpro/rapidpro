@@ -1334,7 +1334,7 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {
-    Channel.TYPE_DUMMY: Channel.send_dummy_message, 
+    Channel.TYPE_DUMMY: Channel.send_dummy_message,
 }
 
 
