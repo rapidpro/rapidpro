@@ -1331,6 +1331,9 @@ class NexmoHandler(BaseChannelHandler):
 
 
 class VerboiceHandler(BaseChannelHandler):
+    courier_url = r'^vb/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.vb'
+
     handler_url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.verboice_handler'
 

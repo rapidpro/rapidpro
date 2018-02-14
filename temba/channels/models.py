@@ -321,13 +321,11 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"))
 
     TYPE_ICONS = {
