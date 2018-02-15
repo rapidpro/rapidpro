@@ -4241,7 +4241,7 @@ class ExportFlowResultsTask(BaseExportTask):
         return msgs_by_run
 
     def write_export(self):
-        config = self.config if self.config else {}
+        config = self.config
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)

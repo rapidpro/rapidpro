@@ -161,10 +161,7 @@ class ChannelEventReadSerializer(ReadSerializer):
         return self.TYPES.get(obj.event_type)
 
     def get_extra(self, obj):
-        if obj.extra:
-            return obj.extra
-        else:
-            return None
+        return obj.extra
 
     class Meta:
         model = ChannelEvent

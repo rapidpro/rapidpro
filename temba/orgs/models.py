@@ -610,7 +610,7 @@ class Org(SmartModel):
         {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
          'X-My-Special-Header': 'woo'}
         """
-        return self.webhook.get('headers', dict()) if self.webhook else dict()
+        return self.webhook.get('headers', {})
 
     def get_channel_countries(self):
         channel_countries = []
