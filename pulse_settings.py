@@ -158,10 +158,12 @@ BRANDING = {
         'description': _("Pulse lets you visually build interactive SMS applications and launch them anywhere in the world."),
         'credits': _("Copyright &copy; 2012-{} IST Research Corp. All Rights Reserved.".format(
             datetime.now().strftime('%Y')
-        ))
+        )),
+        'redirect': "/msg/inbox/"
     }
 }
 DEFAULT_BRAND = 'pulse'
+LOGOUT_REDIRECT_URL = "/users/login/"
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
