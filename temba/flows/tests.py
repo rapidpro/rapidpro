@@ -4617,16 +4617,14 @@ class FlowsTest(FlowFileTest):
                                    attachments=['image/jpeg:http://example.com/test.jpg'])
 
         run.refresh_from_db()
-        results = json.loads(run.results)
-
         self.assertIsNone(run.exit_type)
         self.assertIsNone(run.exited_on)
         self.assertTrue(run.responded)
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results['color']['category'], "Red")
-        self.assertEqual(results['color']['input'], "I like red")
-        self.assertEqual(results['color']['value'], "red")
-        self.assertEqual(results['color']['name'], "Color")
+        self.assertEqual(len(run.results), 1)
+        self.assertEqual(run.results['color']['category'], "Red")
+        self.assertEqual(run.results['color']['input'], "I like red")
+        self.assertEqual(run.results['color']['value'], "red")
+        self.assertEqual(run.results['color']['name'], "Color")
 
         cat_counts = list(FlowCategoryCount.objects.order_by('id'))
         self.assertEqual(len(cat_counts), 1)
@@ -4641,17 +4639,15 @@ class FlowsTest(FlowFileTest):
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
 
         run.refresh_from_db()
-        results = json.loads(run.results)
-
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results['color']['category'], "Red")
-        self.assertEqual(results['color']['input'], "I like red")
-        self.assertEqual(results['color']['value'], "red")
-        self.assertEqual(results['color']['name'], "Color")
-        self.assertEqual(results['beer']['category'], "Primus")
-        self.assertEqual(results['beer']['input'], "primus")
-        self.assertEqual(results['beer']['value'], "primus")
-        self.assertEqual(results['beer']['name'], "Beer")
+        self.assertEqual(len(run.results), 2)
+        self.assertEqual(run.results['color']['category'], "Red")
+        self.assertEqual(run.results['color']['input'], "I like red")
+        self.assertEqual(run.results['color']['value'], "red")
+        self.assertEqual(run.results['color']['name'], "Color")
+        self.assertEqual(run.results['beer']['category'], "Primus")
+        self.assertEqual(run.results['beer']['input'], "primus")
+        self.assertEqual(run.results['beer']['value'], "primus")
+        self.assertEqual(run.results['beer']['name'], "Beer")
 
         msg5 = Msg.objects.get(id__gt=msg4.id)
         self.assertEqual(msg5.direction, 'O')
@@ -8339,7 +8335,7 @@ class TimeoutTest(FlowFileTest):
         run.timeout_on = timeout_on
         run.save(update_fields=('timeout_on',))
 
-        if run.session and run.session.is_goflow():
+        if run.session and run.session.output:
             output = json.loads(run.session.output)
             output['wait']['timeout_on'] = datetime_to_str(timeout_on)
             run.session.output = json.dumps(output)
@@ -9001,7 +8997,7 @@ class FlowServerTest(TembaTest):
         # regular start
         run1, = flow.start([], [self.contact])
 
-        self.assertTrue(run1.session.is_goflow())
+        self.assertTrue(run1.session.output)
         self.assertEqual(run1.session.status, 'W')
         self.assertEqual(run1.flow, flow)
         self.assertEqual(run1.contact, self.contact)
@@ -9009,14 +9005,14 @@ class FlowServerTest(TembaTest):
         # regular re-start
         run2, = flow.start([], [self.contact], restart_participants=True)
 
-        self.assertTrue(run2.session.is_goflow())
+        self.assertTrue(run2.session.output)
         self.assertNotEqual(run1, run2)
 
         # with flow start object
         start = FlowStart.create(flow, self.admin, [], [self.contact], restart_participants=True)
         run3, = start.start()
 
-        self.assertTrue(run3.session.is_goflow())
+        self.assertTrue(run3.session.output)
         self.assertNotEqual(run1, run3)
 
         start.refresh_from_db()

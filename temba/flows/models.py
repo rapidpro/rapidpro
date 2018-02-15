@@ -109,6 +109,9 @@ class FlowPropsCache(Enum):
 
 @six.python_2_unicode_compatible
 class FlowSession(models.Model):
+    """
+    A contact's session with the flow engine
+    """
     STATUS_WAITING = 'W'
     STATUS_COMPLETED = 'C'
     STATUS_INTERRUPTED = 'I'
@@ -134,7 +137,7 @@ class FlowSession(models.Model):
 
     responded = models.BooleanField(default=False, help_text='Whether the contact has responded in this session')
 
-    output = models.TextField(null=True)
+    output = JSONAsTextField(null=True, default=dict)
 
     @classmethod
     def create(cls, contact, connection):
@@ -192,7 +195,7 @@ class FlowSession(models.Model):
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact, status=status,
-                                         output=json.dumps(output.session),
+                                         output=output.session,
                                          responded=bool(msg_in and msg_in.created_on))
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -234,16 +237,16 @@ class FlowSession(models.Model):
         request = request.set_environment(self.org)
 
         try:
-            output = request.resume(self.as_json())
+            new_output = request.resume(self.output)
 
             # update our output
-            self.output = json.dumps(output.session)
+            self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
-            self.status = self.GOFLOW_STATUSES[output.session['status']]
+            self.status = self.GOFLOW_STATUSES[new_output.session['status']]
             self.save(update_fields=('output', 'responded', 'status'))
 
             # update our session
-            self.sync_runs(output, msg_in, waiting_run)
+            self.sync_runs(new_output, msg_in, waiting_run)
 
         except goflow.FlowServerException:
             # something has gone wrong so this session is over
@@ -296,9 +299,6 @@ class FlowSession(models.Model):
             self.org.trigger_send(msgs_to_send)
 
         return runs
-
-    def as_json(self):
-        return json.loads(self.output) if self.output else None
 
     def is_goflow(self):
         return self.output is not None
@@ -3362,7 +3362,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 return
 
             # resume via goflow if this run is using the new engine
-            if run.parent.session and run.parent.session.is_goflow():  # pragma: needs cover
+            if run.parent.session and run.parent.session.output:  # pragma: needs cover
                 session = FlowSession.objects.get(id=run.parent.session.id)
                 return session.resume(expired_child_run=run)
 

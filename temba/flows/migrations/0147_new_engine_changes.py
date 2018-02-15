@@ -3,19 +3,20 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+import temba.utils.models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0145_update_path_trigger'),
+        ('flows', '0146_auto_20180202_1228'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='flowsession',
             name='output',
-            field=models.TextField(null=True),
+            field=temba.utils.models.JSONAsTextField(null=True, default=dict),
         ),
         migrations.AddField(
             model_name='flowsession',
