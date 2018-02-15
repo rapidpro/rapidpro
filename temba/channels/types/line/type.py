@@ -33,6 +33,8 @@ class LineType(ChannelType):
     attachment_support = False
     free_sending = True
 
+    show_public_addresses = True
+
     def send(self, channel, msg, text):
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
