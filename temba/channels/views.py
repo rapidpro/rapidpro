@@ -669,9 +669,9 @@ def sync(request, channel_id):
                         # update our fcm and uuid
 
                         channel.gcm_id = None
-                        config = channel.config_json()
+                        config = channel.config
                         config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
-                        channel.config = json.dumps(config)
+                        channel.config = config
                         channel.uuid = cmd.get('uuid', None)
                         channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
@@ -1292,7 +1292,7 @@ class ChannelCRUDL(SmartCRUDL):
             #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
             #  "domain_action_type": "add"
             # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
-            access_token = self.object.config_json()[Channel.CONFIG_AUTH_TOKEN]
+            access_token = self.object.config[Channel.CONFIG_AUTH_TOKEN]
             response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
                                      json=dict(setting_type='domain_whitelisting',
                                                whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
@@ -1371,10 +1371,8 @@ class ChannelCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             if obj.config:
-                config = json.loads(obj.config)
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    config[field] = bool(self.form.cleaned_data[field])
-                obj.config = json.dumps(config)
+                    obj.config[field] = bool(self.form.cleaned_data[field])
             return obj
 
         def post_save(self, obj):

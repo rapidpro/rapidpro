@@ -83,7 +83,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         client = org.get_nexmo_client()
-        org_config = org.config_json()
+        org_config = org.config
         app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)

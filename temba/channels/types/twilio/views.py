@@ -48,7 +48,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             self.client = org.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
-            self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
+            self.account = self.client.accounts.get(org.config[ACCOUNT_SID])
         except TwilioRestException:
             return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
@@ -150,7 +150,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
             number_sid = twilio_phone.sid
 
-        org_config = org.config_json()
+        org_config = org.config
         config = {Channel.CONFIG_APPLICATION_SID: new_app.sid,
                   Channel.CONFIG_NUMBER_SID: number_sid,
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],

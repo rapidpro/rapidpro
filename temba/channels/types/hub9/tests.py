@@ -44,8 +44,8 @@ class Hub9TypeTest(TembaTest):
         self.assertEqual('ID', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data['number'], channel.address)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('H9', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
