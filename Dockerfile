@@ -11,10 +11,6 @@ ENV UWSGI_HARAKIRI=20
 ENV LANG C.UTF-8
 ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-#################     Work directory     #################
-RUN mkdir rapidpro
-WORKDIR /rapidpro
-ADD . /rapidpro
 
 #################    Old dependencies    #################
 # For broken dependency to old Pillow version from django-quickblocks
@@ -51,7 +47,7 @@ RUN apt-get update && \
   libpq-dev \
   file \
   lib32ncurses5-dev \
-  libgeos-dev && \ 
+  libgeos-dev && \
   rm -rf /var/lib/apt/lists/* && \
   npm install -g less && \
   npm install -g coffee-script && \
@@ -63,11 +59,18 @@ RUN apt-get update && \
 
 RUN sed -i 's/sitestatic\///' /rapidpro/static/brands/rapidpro/less/style.less
 
-#################   Install requirements  #################
-RUN cp temba/settings.py.dev temba/settings.py && \
-  pip install --upgrade pip && \
+
+#################     Work directory     #################
+RUN mkdir rapidpro
+WORKDIR /rapidpro
+COPY temba/requirements.txt /rapidpro
+RUN pip install --upgrade pip && \
   pip install --upgrade setuptools && \
   pip install -r pip-freeze.txt
+
+#################   Install requirements  #################
+ADD . /rapidpro
+RUN cp temba/settings.py.dev temba/settings.py
 
 EXPOSE 8000
 EXPOSE 5555
