@@ -468,11 +468,7 @@ ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()),
 
 
 def get_channel_read_url(channel):
-    # viber channels without service id's need to go to their claim page instead of read
-    if channel.channel_type == Channel.TYPE_VIBER and channel.address == Channel.VIBER_NO_SERVICE_ID:
-        return reverse('channels.channel_claim_viber', args=[channel.id])
-    else:
-        return reverse('channels.channel_read', args=[channel.uuid])
+    return reverse('channels.channel_read', args=[channel.uuid])
 
 
 def channel_status_processor(request):
@@ -1052,11 +1048,9 @@ TYPE_UPDATE_FORM_CLASSES = {
 
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
-    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers',
-               'claim_android', 'configuration',
-               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'create_caller', 'claim_verboice', 'search_plivo',
-               'claim_viber', 'create_viber', 'facebook_whitelist')
+    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_android', 'configuration',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller', 'claim_verboice',
+               'search_plivo', 'facebook_whitelist')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1514,54 +1508,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             return reverse('orgs.org_home')
-
-    class CreateViber(OrgPermsMixin, SmartFormView):
-        class ViberCreateForm(forms.Form):
-            name = forms.CharField(max_length=32, min_length=1,
-                                   help_text=_("The name of your Viber bot"))
-
-        title = _("Connect Viber Bot")
-        fields = ('name',)
-        form_class = ViberCreateForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_claim_viber"
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-            self.object = Channel.add_viber_channel(org,
-                                                    self.request.user,
-                                                    data['name'])
-
-            return super(ChannelCRUDL.CreateViber, self).form_valid(form)
-
-    class ClaimViber(OrgPermsMixin, SmartUpdateView):
-        class ViberClaimForm(forms.ModelForm):
-            service_id = forms.IntegerField(help_text=_("The service id provided by Viber"))
-
-            class Meta:
-                model = Channel
-                fields = ('service_id',)
-
-        title = _("Connect Viber Bot")
-        fields = ('service_id',)
-        form_class = ViberClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.ClaimViber, self).get_context_data(**kwargs)
-            context['ip_addresses'] = settings.IP_ADDRESSES
-            return context
-
-        def form_valid(self, form):
-            data = form.cleaned_data
-
-            # save our service id as our address
-            self.object.address = data['service_id']
-            self.object.save()
-
-            return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
     class ClaimVerboice(OrgPermsMixin, SmartFormView):
         class VerboiceClaimForm(forms.Form):
