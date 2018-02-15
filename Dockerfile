@@ -57,7 +57,8 @@ RUN apt-get update && \
 #################     Work directory     #################
 RUN mkdir rapidpro
 WORKDIR /rapidpro
-COPY temba/requirements.txt /rapidpro
+COPY pip-freeze.txt /rapidpro
+COPY pip-requires.txt /rapidpro
 #################    Old dependencies    #################
 # For broken dependency to old Pillow version from django-quickblocks
 RUN sed -i '/Pillow/c\Pillow==3.4.2' /rapidpro/pip-freeze.txt
