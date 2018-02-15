@@ -12,11 +12,7 @@ ENV LANG C.UTF-8
 ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-#################    Old dependencies    #################
-# For broken dependency to old Pillow version from django-quickblocks
-RUN sed -i '/Pillow/c\Pillow==3.4.2' /rapidpro/pip-freeze.txt
-# dj-database-url does not work with sqlite://:memory: url which is needed for build mode.
-RUN sed -i '/dj-database-url/c\dj-database-url==0.4.1' /rapidpro/pip-freeze.txt
+
 
 #################     Install packages    #################
 RUN apt-get update && \
@@ -55,23 +51,29 @@ RUN apt-get update && \
 
 #RUN apt-get install -y --no-install-recommends postgresql-client
 
-#################    Set configuration    #################
 
-RUN sed -i 's/sitestatic\///' /rapidpro/static/brands/rapidpro/less/style.less
 
 
 #################     Work directory     #################
 RUN mkdir rapidpro
 WORKDIR /rapidpro
 COPY temba/requirements.txt /rapidpro
+#################    Old dependencies    #################
+# For broken dependency to old Pillow version from django-quickblocks
+RUN sed -i '/Pillow/c\Pillow==3.4.2' /rapidpro/pip-freeze.txt
+# dj-database-url does not work with sqlite://:memory: url which is needed for build mode.
+RUN sed -i '/dj-database-url/c\dj-database-url==0.4.1' /rapidpro/pip-freeze.txt
+
+#################   Install requirements  #################
 RUN pip install --upgrade pip && \
   pip install --upgrade setuptools && \
   pip install -r pip-freeze.txt
 
-#################   Install requirements  #################
 ADD . /rapidpro
 RUN cp temba/settings.py.dev temba/settings.py
+#################    Set configuration    #################
 
+RUN sed -i 's/sitestatic\///' /rapidpro/static/brands/rapidpro/less/style.less
 EXPOSE 8000
 EXPOSE 5555
 
