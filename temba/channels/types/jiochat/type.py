@@ -43,7 +43,7 @@ class JioChatType(ChannelType):
         ),
         dict(
             label=_("Token"),
-            url="{{ channel.config_json.secret }}",
+            url="{{ channel.config.secret }}",
         )
     )
 
