@@ -9,7 +9,7 @@ import regex
 import six
 import time
 import traceback
-import urllib2
+import six.moves.urllib_request as urllib2
 
 from array import array
 from collections import OrderedDict, defaultdict

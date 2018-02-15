@@ -26,7 +26,7 @@ from temba.orgs.models import Org
 from temba.utils import prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
-from urllib import urlencode
+from six.moves.urllib.parse import urlencode
 
 
 class APIPermission(BasePermission):

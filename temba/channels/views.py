@@ -38,7 +38,7 @@ from twilio import TwilioRestException
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
 
-COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.iteritems()}
+COUNTRIES_NAMES = {key: value for key, value in six.iteritems(COUNTRIES)}
 COUNTRIES_NAMES['GB'] = _("United Kingdom")
 COUNTRIES_NAMES['US'] = _("United States")
 

@@ -6,7 +6,7 @@ import phonenumbers
 import requests
 import six
 import time
-import urlparse
+from six.moves.urllib.parse import urlparse
 
 from abc import ABCMeta
 
@@ -1685,7 +1685,7 @@ class ChannelLog(models.Model):
                                   request_time=request_time_ms)
 
     def get_url_host(self):
-        parsed = urlparse.urlparse(self.url)
+        parsed = urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
