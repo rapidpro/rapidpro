@@ -6465,6 +6465,8 @@ class ContainsPhraseTest(ContainsTest):
 
         # tokenize our test
         tests = tokenize(test.lower())
+        if not tests:
+            return True, ""
 
         # tokenize our sms
         words = tokenize(text.lower())

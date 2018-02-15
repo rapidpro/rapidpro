@@ -1380,6 +1380,13 @@ class FlowTest(TembaTest):
         sms.text = "this is an email email@foo.bar TODAY!!"
         self.assertTest(True, "email@foo.bar", test)
 
+        test = ContainsOnlyPhraseTest(test=dict(base=""))
+        sms.text = "  RESIST now "
+        self.assertTest(False, None, test)
+
+        sms.text = "  "
+        self.assertTest(True, "", test)
+
         test = ContainsPhraseTest(test=dict(base="resist now"))
         test = ContainsPhraseTest.from_json(self.org, test.as_json())
         sms.text = "we must resist! NOW "
@@ -1390,6 +1397,10 @@ class FlowTest(TembaTest):
 
         sms.text = "  RESIST now "
         self.assertTest(True, "RESIST now", test)
+
+        test = ContainsPhraseTest(test=dict(base=""))
+        sms.text = "  RESIST now "
+        self.assertTest(True, "", test)
 
         test = ContainsTest(test=dict(base="Green green %%$"))
         sms.text = "GReen is my favorite!, %%$"
