@@ -32,6 +32,31 @@ class M3TechType(ChannelType):
     max_length = 160
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your connection you'll need to notify M3Tech of the following callback URLs:
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Received URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'receive' %}",
+        ),
+        dict(
+            label=_("Sent URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'sent' %}",
+        ),
+        dict(
+            label=_("Delivered URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'delivered' %}",
+        ),
+        dict(
+            label=_("Failed URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'failed' %}",
+        ),
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Asia/Karachi"]

@@ -24,7 +24,7 @@ class JiochatClient:
 
     @classmethod
     def from_channel(cls, channel):
-        config = channel.config_json()
+        config = channel.config
         app_id = config.get('jiochat_app_id', None)
         app_secret = config.get('jiochat_app_secret', None)
         return cls(channel.uuid, app_id, app_secret)

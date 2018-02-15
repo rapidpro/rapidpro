@@ -1687,7 +1687,7 @@ class ContactTest(TembaTest):
 
             # create a missed call
             ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
-                                timezone.now(), 5)
+                                timezone.now(), {})
 
             # try adding some failed calls
             IVRCall.objects.create(contact=self.joe, status=IVRCall.NO_ANSWER, created_by=self.admin,
@@ -2595,7 +2595,7 @@ class ContactTest(TembaTest):
 
         # try delete action
         event = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)),
-                                    ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
+                                    ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
 

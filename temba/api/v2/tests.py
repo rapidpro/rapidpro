@@ -73,7 +73,6 @@ class APITest(TembaTest):
             url += '.json'
             if query:
                 url += ('?' + query)
-
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
         # this will fail if our response isn't valid json
@@ -2341,7 +2340,7 @@ class APITest(TembaTest):
                     'value': "blue",
                     'category': "Blue",
                     'node': color_ruleset.uuid,
-                    'time': format_datetime(iso8601.parse_date(joe_run1.get_results()['color']['created_on']))
+                    'time': format_datetime(iso8601.parse_date(joe_run1.results['color']['created_on']))
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
@@ -2636,14 +2635,14 @@ class APITest(TembaTest):
 
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
-                                             data=json.dumps(dict(event='new mother',
-                                                                  values=dict(name="Greg"),
-                                                                  steps=dict(uuid='abcde'))),
+                                             data=dict(event='new mother',
+                                                       values=dict(name="Greg"),
+                                                       steps=dict(uuid='abcde')),
                                              created_by=self.admin, modified_by=self.admin)
         event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
-                                             data=json.dumps(dict(event='new father',
-                                                                  values=dict(name="Yo"),
-                                                                  steps=dict(uuid='12345'))),
+                                             data=dict(event='new father',
+                                                       values=dict(name="Yo"),
+                                                       steps=dict(uuid='12345')),
                                              created_by=self.admin, modified_by=self.admin)
 
         # no filtering
@@ -2672,9 +2671,9 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
-                                                       dict(base="Hi @extra.first_name @extra.last_name, "
-                                                                 "what's your favorite color?")).as_json()])
+        first_action.actions = [ReplyAction(str(uuid4()),
+                                            dict(base="Hi @extra.first_name @extra.last_name, "
+                                                      "what's your favorite color?")).as_json()]
         first_action.save()
 
         # try to create an empty flow start
@@ -2690,7 +2689,7 @@ class APITest(TembaTest):
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
         self.assertTrue(start1.restart_participants)
-        self.assertIsNone(start1.extra)
+        self.assertEqual(start1.extra, {})
 
         # check our first msg
         msg = Msg.objects.get(direction='O', contact=self.joe)

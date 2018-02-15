@@ -1,0 +1,103 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish configuring your connection you'll need to set the following callback URLs on your service or aggregator.
+
+%hr
+
+%h4
+  -trans "Send URL"
+  %code
+    {{ channel.config.send_url }}
+
+%p
+  -blocktrans
+    When we need to send an outgoing message it will make a
+
+  {{ channel.config.method|default:"POST" }}
+
+  -blocktrans
+    to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
+
+%h4
+  -trans "Example"
+
+-if channel.config.method == "GET"
+
+  %pre.prettyprint.example<
+    :plain
+      {{ channel.config.method }} {{ example_url }}
+
+-else
+  %pre.prettyprint.example<
+    :plain
+      {{ channel.config.method }} {{ example_url }}
+      {{ example_content_type }}
+
+      {{ example_body }}
+%hr
+
+-if object.role != 'S'
+
+  %h4
+    -trans "Received URL"
+    %code
+      https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
+
+  %p
+    -blocktrans
+      When a new message is received by your service, it should notify us with a POST to the following URL, passing
+      the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
+      (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
+  %pre.prettyprint.example<
+    :plain
+      POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
+      from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z
+  %hr
+
+%h4
+  -trans "Sent URL"
+  %code
+    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+
+%p
+  -blocktrans
+    When your service successfully sends a message, it should notify us with a POST to the following URL, passing
+    the id of the message as the parameter 'id' (reporting sent messages is optional)
+%pre.prettyprint.example<
+  :plain
+    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+    id=2599235
+%hr
+
+%h4
+  -trans "Delivered URL"
+  %code
+    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+
+%p
+  -blocktrans
+    When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
+    the id of the message as the parameter 'id' (reporting deliveries is optional)
+%pre.prettyprint.example<
+  :plain
+    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+    id=2599235
+%hr
+
+%h4
+  -trans "Failed URL"
+  %code
+    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+
+%p
+  -blocktrans
+    If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
+    the id of the message as the parameter 'id' (reporting failed sends is optional)
+%pre.prettyprint.example<
+  :plain
+    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+    id=2599235
+%hr
+
