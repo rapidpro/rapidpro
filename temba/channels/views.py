@@ -1049,7 +1049,7 @@ TYPE_UPDATE_FORM_CLASSES = {
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_android', 'configuration',
-               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller', 
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller',
                'search_plivo', 'facebook_whitelist')
     permissions = True
 
