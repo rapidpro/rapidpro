@@ -6371,6 +6371,7 @@ class HasEmailTest(Test):
         # split on whitespace
         words = text.split()
         for word in words:
+            word = word.strip(',.;:|()[]"\'<>?&*/\\')
             if is_valid_address(word):
                 return 1, word
 

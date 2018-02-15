@@ -1380,6 +1380,12 @@ class FlowTest(TembaTest):
         sms.text = "this is an email email@foo.bar TODAY!!"
         self.assertTest(True, "email@foo.bar", test)
 
+        sms.text = "this is an email followed by a period email@foo.bar."
+        self.assertTest(True, "email@foo.bar", test)
+
+        sms.text = "this is an email surrounded by punctuation <email@foo.bar>,"
+        self.assertTest(True, "email@foo.bar", test)
+
         test = ContainsOnlyPhraseTest(test=dict(base=""))
         sms.text = "  RESIST now "
         self.assertTest(False, None, test)
