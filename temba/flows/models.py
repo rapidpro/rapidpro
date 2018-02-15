@@ -207,11 +207,9 @@ class FlowSession(models.Model):
         """
         Resumes an existing flow session
         """
-        current_output = self.as_json()
-
         # find the run that was waiting for input
         waiting_run = None
-        for run in current_output['runs']:
+        for run in self.output['runs']:
             if run['status'] == 'waiting':
                 waiting_run = run
                 break
@@ -2841,9 +2839,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         if existing:
-            existing.path = json.dumps(path)
+            existing.path = path
             existing.current_node_uuid = current_node_uuid
-            existing.results = json.dumps(results)
+            existing.results = results
             existing.expires_on = expires_on
             existing.timeout_on = timeout_on
             existing.modified_on = timezone.now()
@@ -2869,9 +2867,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             run = cls.objects.create(org=contact.org, uuid=uuid,
                                      flow=flow, contact=contact,
                                      parent=parent,
-                                     path=json.dumps(path),
+                                     path=path,
                                      current_node_uuid=current_node_uuid,
-                                     results=json.dumps(results),
+                                     results=results,
                                      session=session,
                                      responded=bool(msg_in),
                                      is_active=is_active,
