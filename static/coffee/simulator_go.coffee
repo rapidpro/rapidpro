@@ -51,7 +51,6 @@ window.simStart = ->
     window.updateResults(results)
 
 window.sendUpdate = (postData) ->
-  console.log(postData)
 
   request = getRequest()
   request['session'] = window.session
@@ -74,8 +73,6 @@ window.showModal = (title, body) ->
   modal.show();
 
 window.updateResults = (data) ->
-
-  console.log(data)
 
   for log in data.log
     event = log.event

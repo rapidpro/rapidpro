@@ -4,18 +4,18 @@ window.getSimulateURL = ->
     return window.simulateURL + '?lang=' + scope.language.iso_code
   return window.simulateURL
 
-window.simStart = ->
+window.simStartLegacy = ->
   $.post(getSimulateURL(), JSON.stringify({ has_refresh:true })).done (results) ->
-    window.updateResults(results)
+    window.updateResultsLegacy(results)
     if window.ivr and window.simulation
       setTimeout(window.refreshSimulator, 2000)
 
-window.sendUpdate = (postData) ->
+window.sendUpdateLegacy = (postData) ->
     $.post(getSimulateURL(), JSON.stringify(postData)).done (results) ->
       window.resetForm()
-      window.updateResults(results)
+      window.updateResultsLegacy(results)
 
-window.updateResults = (data) ->
+window.updateResultsLegacy = (data) ->
   ussd = if window.ussd then "ussd" else ""
 
   $(".simulator-body").html ""
@@ -47,7 +47,6 @@ window.updateResults = (data) ->
 
   while i < data.messages.length
     msg = data.messages[i]
-    console.log(msg)
 
     model = (if (msg.model is "msg") then "imsg" else "ilog")
     level = (if msg.level? then level_classes[msg.level] else "")
@@ -105,6 +104,7 @@ window.updateResults = (data) ->
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
+  $(".simulator-content textarea").focus()
 
   $(".btn.quick-reply").on "click", (event) ->
     payload = event.target.innerText

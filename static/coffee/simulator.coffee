@@ -1,6 +1,7 @@
 window.simulation = false
 window.moving_sim = false
 window.level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
+window.legacy = true
 
 $ ->
   $(window).scroll (evt) ->
@@ -41,6 +42,8 @@ window.resetForm = ->
     # reset our form input
     $('.simulator-footer .media-button').hide()
     $('.simulator-footer .imessage').show()
+    $("#simulator textarea").val("")
+
 
     # hide loading first
     $(".simulator-loading").css "display", "none"
@@ -57,11 +60,30 @@ processForm = (postData) ->
       , 500
       return
 
-    window.sendUpdate(postData)
+    if window.legacy
+      window.sendUpdateLegacy(postData)
+    else
+      window.sendUpdate(postData)
 
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
+
+    # handle commands
+    if newMessage == "/v1" or newMessage == "/v2"
+      window.legacy = newMessage == "/v1"
+
+      # style our content slightly differently to let us know we are on the new engine
+      if window.legacy
+        $('.simulator-content .simulator-body').removeClass('v2')
+      else
+        $('.simulator-content .simulator-body').addClass('v2')
+
+      resetForm()
+      setTimeout(resetSimulator, 500)
+      return false
+
     processForm({new_message: newMessage})
+    return true
 
 sendPhoto = ->
   processForm({new_photo: true})
@@ -154,11 +176,16 @@ window.refreshSimulator = ->
   if scope and scope.saving
     setTimeout(refreshSimulator, 500)
     return
-  window.simStart()
 
-window.resetSimulator = ->
-  $(".simulator-body").html ""
-  $(".simulator-body").append "<div class='ilog from'>One moment..</div>"
+  if window.legacy
+    window.simStartLegacy()
+  else
+    window.simStart()
+
+resetSimulator = ->
+  $(".simulator-body").html("")
+  $(".simulator-body").append("<div class='ilog from'>One moment..</div>")
+  $(".simulator-loading").css("display", "none")
 
   # reset our form input
   $('.simulator-footer .media-button').hide()
@@ -170,7 +197,10 @@ window.resetSimulator = ->
     setTimeout(resetSimulator, 500)
     return
 
-  window.simStart()
+  if window.legacy
+    window.simStartLegacy()
+  else
+    window.simStart()
 
 window.hangup = ->
   $(".simulator-body").html ""
@@ -225,27 +255,25 @@ $('#simulator .audio-button').on 'click', ->
 $("#simulator .send-message").on "click", ->
   newMessage = $("#simulator textarea").val()
   $(this).addClass("to-ignore")
-  sendMessage(newMessage)
-
-  # add the progress gif
-  if window.ussd and newMessage.length <= 182
-    appendMessage newMessage, true
-  else if newMessage.length <= 160 and newMessage.length > 0
-    appendMessage newMessage
+  if sendMessage(newMessage)
+    # add the progress gif
+    if window.ussd and newMessage.length <= 182
+      appendMessage newMessage, true
+    else if newMessage.length <= 160 and newMessage.length > 0
+      appendMessage newMessage
 
 # send new message on key press (enter)
 $("#simulator textarea").keypress (event) ->
   if event.which is 13
     event.preventDefault()
     newMessage = $("#simulator textarea").val()
-    sendMessage(newMessage)
-
-    # add the progress gif
-    if newMessage
-      if window.ussd and newMessage.length <= 182
-        appendMessage newMessage, true
-      else if newMessage.length <= 160
-        appendMessage newMessage
+    if sendMessage(newMessage)
+      # add the progress gif
+      if newMessage
+        if window.ussd and newMessage.length <= 182
+          appendMessage newMessage, true
+        else if newMessage.length <= 160
+          appendMessage newMessage
 
 $("#show-simulator").hover ->
   if not moving_sim
@@ -291,5 +319,5 @@ $(".simulator-close").on "click", ->
 
 # refresh the simulator
 $(".simulator-refresh").on "click", ->
-  window.resetSimulator()
+  resetSimulator()
 
