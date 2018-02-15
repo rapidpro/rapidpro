@@ -1509,7 +1509,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse('orgs.org_home')
 
-     class Configuration(OrgPermsMixin, SmartReadView):
+    class Configuration(OrgPermsMixin, SmartReadView):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Configuration, self).get_context_data(**kwargs)
