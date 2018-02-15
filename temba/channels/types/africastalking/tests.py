@@ -36,8 +36,8 @@ class AfricastalkingTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual('temba', channel.config_json()['username'])
-        self.assertEqual('asdf-asdf-asdf-asdf-asdf', channel.config_json()['api_key'])
+        self.assertEqual('temba', channel.config['username'])
+        self.assertEqual('asdf-asdf-asdf-asdf-asdf', channel.config['api_key'])
         self.assertEqual('5259', channel.address)
         self.assertEqual('KE', channel.country)
         self.assertEqual('AT', channel.channel_type)

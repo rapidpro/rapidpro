@@ -161,10 +161,7 @@ class ChannelEventReadSerializer(ReadSerializer):
         return self.TYPES.get(obj.event_type)
 
     def get_extra(self, obj):
-        if obj.extra:
-            return obj.extra_json()
-        else:
-            return None
+        return obj.extra
 
     class Meta:
         model = ChannelEvent
@@ -687,7 +684,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(arrived_on)
             }
 
-        return [convert_step(s) for s in obj.get_path()]
+        return [convert_step(s) for s in obj.path]
 
     def get_values(self, obj):
         def convert_result(result):
@@ -699,7 +696,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
+        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
@@ -722,16 +719,10 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
-    extra = serializers.SerializerMethodField()
+    extra = serializers.JSONField(required=False)
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
-
-    def get_extra(self, obj):
-        if not obj.extra:
-            return None
-        else:
-            return json.loads(obj.extra)
 
     class Meta:
         model = FlowStart
@@ -1002,8 +993,7 @@ class WebHookEventReadSerializer(ReadSerializer):
         return obj.resthook.slug
 
     def get_data(self, obj):
-        decoded = json.loads(obj.data)
-        return decoded
+        return obj.data
 
     class Meta:
         model = WebHookEvent

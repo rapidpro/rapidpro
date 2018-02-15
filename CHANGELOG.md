@@ -1,3 +1,18 @@
+v3.0.321
+----------
+ * Fix quick-reply button in flow editor
+
+v3.0.320
+----------
+ * Fix webhook rule as first step in run interpreting msg wrong
+ * Change mailto URN importing to use header 'mailto' and make 'email' always a field. Rename 'mailto' fields to 'email'.
+
+v3.0.319
+----------
+ * Add ArabiaCell channel type
+ * Tweaks to Mtarget channel type
+ * Pathfix for highcharts
+
 v3.0.318
 ----------
  * Add input to webhook payload

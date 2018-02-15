@@ -39,14 +39,14 @@ class KannelTypeTest(TembaTest):
         self.assertEqual('RW', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data['number'], channel.address)
-        self.assertEqual(post_data['url'], channel.config_json()['send_url'])
-        self.assertEqual(False, channel.config_json()['verify_ssl'])
-        self.assertEqual(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
+        self.assertEqual(post_data['url'], channel.config['send_url'])
+        self.assertEqual(False, channel.config['verify_ssl'])
+        self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
 
         # make sure we generated a username and password
-        self.assertTrue(channel.config_json()['username'])
-        self.assertTrue(channel.config_json()['password'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], "custom-brand.io")
+        self.assertTrue(channel.config['username'])
+        self.assertTrue(channel.config['password'])
+        self.assertEqual(channel.config[Channel.CONFIG_CALLBACK_DOMAIN], "custom-brand.io")
         self.assertEqual('KN', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])

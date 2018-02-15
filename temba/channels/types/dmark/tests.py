@@ -49,9 +49,9 @@ class DMarkTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual('temba', channel.config_json()['username'])
-        self.assertEqual('tembapasswd', channel.config_json()['password'])
-        self.assertEqual('Authy', channel.config_json()['auth_token'])
+        self.assertEqual('temba', channel.config['username'])
+        self.assertEqual('tembapasswd', channel.config['password'])
+        self.assertEqual('Authy', channel.config['auth_token'])
 
         self.assertEqual('2020', channel.address)
         self.assertEqual('CD', channel.country)

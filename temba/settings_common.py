@@ -1128,6 +1128,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.arabiacell.ArabiaCellType',
     'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',

@@ -410,15 +410,15 @@ class MsgTest(TembaTest):
                                      quick_replies=[dict(eng='Yes', fra='Oui'), dict(eng='No')])
 
         # check metadata was set on the broadcast
-        self.assertEqual(broadcast.get_metadata(), {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
+        self.assertEqual(broadcast.metadata, {'quick_replies': [{'eng': "Yes", 'fra': "Oui"}, {'eng': "No"}]})
 
         broadcast.send()
         msg1, msg2, msg3 = broadcast.msgs.order_by('contact', 'id')
 
         # message quick_replies are translated according to contact language
-        self.assertEqual(msg1.get_metadata(), {'quick_replies': ['Oui', 'No']})
-        self.assertEqual(msg2.get_metadata(), {'quick_replies': ['Yes', 'No']})
-        self.assertEqual(msg3.get_metadata(), {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg1.metadata, {'quick_replies': ['Oui', 'No']})
+        self.assertEqual(msg2.metadata, {'quick_replies': ['Yes', 'No']})
+        self.assertEqual(msg3.metadata, {'quick_replies': ['Yes', 'No']})
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -549,7 +549,7 @@ class MsgTest(TembaTest):
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
         self.assertEqual(200, response.status_code)
-        self.assertTrue('folder' in response.context['form'].fields)
+        self.assertIn('folder', response.context['form'].fields)
 
         post_data = dict(name="Foo")
         response = self.client.post(reverse('msgs.label_update', args=[label1.pk]), post_data)
@@ -741,7 +741,7 @@ class MsgTest(TembaTest):
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
         self.assertEqual(resent_msg.status, PENDING)
-        self.assertEqual(resent_msg.get_metadata(), {'quick_replies': ["Yes", "No"]})
+        self.assertEqual(resent_msg.metadata, {'quick_replies': ["Yes", "No"]})
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):
@@ -2093,7 +2093,7 @@ class SystemLabelTest(TembaTest):
         Msg.create_incoming(self.channel, "tel:0783835001", text="Message 2")
         msg3 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 3")
         msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
-        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
+        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -2112,7 +2112,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
+        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
@@ -2197,19 +2197,19 @@ class TagsTest(TembaTest):
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
         in_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
+                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
         in_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
+                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
         out_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
+                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), {})
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
         out_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
-                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
+                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 
     def test_render(self):

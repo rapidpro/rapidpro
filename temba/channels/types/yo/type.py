@@ -30,13 +30,31 @@ class YoType(ChannelType):
     name = "YO!"
     slug = 'yo'
 
-    claim_blurb = _("""If you are based in Uganda, you can integrate with <a href="http://www.yo.co.ug/">Yo!</a> to send
-                    and receive messages on your shortcode.""")
-    claim_view = ClaimView
-
     schemes = [TEL_SCHEME]
     max_length = 1600
     attachment_support = False
+
+    claim_view = ClaimView
+    claim_blurb = _(
+        """
+        If you are based in Uganda, you can integrate with <a href="http://www.yo.co.ug/">Yo!</a> to send
+        and receive messages on your shortcode.
+        """
+    )
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Inbound SMS URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.yo' channel.uuid 'receive' %}",
+            description=_("This URL should be called with a GET by Yo! when new incoming messages are received on your shortcode."),
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

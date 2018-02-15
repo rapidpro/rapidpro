@@ -400,7 +400,7 @@ class FlowCRUDL(SmartCRUDL):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
-                metadata = self.instance.get_metadata_json()
+                metadata = self.instance.metadata
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
                     trigger_type=Trigger.TYPE_KEYWORD
@@ -465,11 +465,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super(FlowCRUDL.Update, self).pre_save(obj)
-            metadata = obj.get_metadata_json()
+            metadata = obj.metadata
 
             if Flow.CONTACT_CREATION in self.form.cleaned_data:
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
-            obj.set_metadata_json(metadata)
+            obj.metadata = metadata
             return obj
 
         def post_save(self, obj):
@@ -1061,7 +1061,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # populate ruleset values
             for run in runs:
-                results = run.get_results()
+                results = run.results
                 run.value_list = []
                 for ruleset in context['rulesets']:
                     key = Flow.label_to_slug(ruleset.label)

@@ -48,7 +48,7 @@ from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
 from temba.values.models import Value
@@ -387,8 +387,8 @@ class Flow(TembaModel):
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW,
                                  help_text=_("The type of this flow"))
 
-    metadata = models.TextField(null=True, blank=True,
-                                help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
+    metadata = JSONAsTextField(null=True, blank=True, default=dict,
+                               help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
 
     expires_after_minutes = models.IntegerField(default=FLOW_DEFAULT_EXPIRES_AFTER,
                                                 help_text=_("Minutes of inactivity that will cause expiration from flow"))
@@ -990,7 +990,7 @@ class Flow(TembaModel):
         else:
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
                 if not resume_parent_run:
-                    flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                    flow_uuid = ruleset.config.get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
                     flow.org = run.org
                     message_context = run.flow.build_expressions_context(run.contact, msg, run=run)
@@ -1273,7 +1273,7 @@ class Flow(TembaModel):
 
         for run in simulator_runs:
             prev_step = None
-            for step in run.get_path():
+            for step in run.path:
                 if prev_step:
                     exit_uuid = prev_step['exit_uuid']
                     node_uuid = step['node_uuid']
@@ -1383,15 +1383,6 @@ class Flow(TembaModel):
         self.update(flow_json)
         return self
 
-    def set_metadata_json(self, metadata):
-        self.metadata = json.dumps(metadata)
-
-    def get_metadata_json(self):
-        metadata = {}
-        if self.metadata:
-            metadata = json.loads(self.metadata)
-        return metadata
-
     def archive(self):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
@@ -1491,7 +1482,7 @@ class Flow(TembaModel):
             run.org = self.org
             run.contact = contact
 
-            run_context = run.field_dict()
+            run_context = run.fields
             flow_context = run.build_expressions_context(contact_context)
         else:
             run_context = {}
@@ -1837,11 +1828,11 @@ class Flow(TembaModel):
         simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
         # these fields are the initial state for our flow run
-        run_fields = None
+        run_fields = {}  # this should be the default value of the FlowRun.fields
         if extra:
             # we keep more values in @extra for new flow runs because we might be passing the state
             (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.FLOWRUN_FIELDS_SIZE * 4)
-            run_fields = json.dumps(normalized_fields)
+            run_fields = normalized_fields
 
         # create all our flow runs for this set of contacts at once
         batch = []
@@ -2026,7 +2017,7 @@ class Flow(TembaModel):
         # for each message, associate it with this step and set the label on it
         run.add_messages(msgs, step=step)
 
-        path = run.get_path()
+        path = run.path
 
         # complete previous step
         if path and exit_uuid:
@@ -2039,7 +2030,7 @@ class Flow(TembaModel):
         if len(path) > FlowRun.PATH_MAX_STEPS:
             path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
 
-        run.path = json.dumps(path)
+        run.path = path
         run.current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=('path', 'current_node_uuid'))
 
@@ -2089,7 +2080,7 @@ class Flow(TembaModel):
 
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow_uuid = ruleset.config['flow']['uuid']
                 flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
                     dependencies.add(flow)
@@ -2214,7 +2205,7 @@ class Flow(TembaModel):
 
         metadata = dict()
         if self.metadata:
-            metadata = json.loads(self.metadata)
+            metadata = self.metadata
 
         revision = self.revisions.all().order_by('-revision').first()
 
@@ -2443,12 +2434,12 @@ class Flow(TembaModel):
 
                 if existing:
                     existing.label = ruleset.get(Flow.LABEL, None)
-                    existing.set_rules_dict(rules)
+                    existing.rules = rules
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
                     existing.ruleset_type = ruleset_type
-                    existing.set_config(config)
+                    existing.config = config
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2456,11 +2447,11 @@ class Flow(TembaModel):
                     existing = RuleSet.objects.create(flow=self,
                                                       uuid=uuid,
                                                       label=label,
-                                                      rules=json.dumps(rules),
+                                                      rules=rules,
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
-                                                      config=json.dumps(config),
+                                                      config=config,
                                                       x=x, y=y)
 
                 existing_rulesets[uuid] = existing
@@ -2505,7 +2496,7 @@ class Flow(TembaModel):
                         existing.destination = destination_uuid
                         existing.destination_type = destination_type
                         existing.exit_uuid = exit_uuid
-                        existing.set_actions_dict(actions)
+                        existing.actions = actions
                         (existing.x, existing.y) = (x, y)
                         existing.save()
                     else:
@@ -2514,7 +2505,7 @@ class Flow(TembaModel):
                                                             destination=destination_uuid,
                                                             destination_type=destination_type,
                                                             exit_uuid=exit_uuid,
-                                                            actions=json.dumps(actions),
+                                                            actions=actions,
                                                             x=x, y=y)
 
                         existing_actionsets[uuid] = existing
@@ -2563,7 +2554,7 @@ class Flow(TembaModel):
             # set our metadata
             self.metadata = None
             if Flow.METADATA in json_dict:
-                self.metadata = json.dumps(json_dict[Flow.METADATA])
+                self.metadata = json_dict[Flow.METADATA]
 
             if user:
                 self.saved_by = user
@@ -2589,7 +2580,7 @@ class Flow(TembaModel):
                 revision_num = last_revision.revision + 1
 
             # create a new version
-            revision = self.revisions.create(definition=json.dumps(json_dict),
+            revision = self.revisions.create(definition=json_dict,
                                              created_by=user,
                                              modified_by=user,
                                              spec_version=get_current_export_version(),
@@ -2664,12 +2655,12 @@ class Flow(TembaModel):
         # find references in our rulesets
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                flow_uuid = ruleset.config.get('flow').get('uuid')
                 flow = Flow.objects.filter(org=self.org, uuid=flow_uuid).first()
                 if flow:
                     flows.add(flow)
             elif ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
-                webhook_url = json.loads(ruleset.config).get('webhook')
+                webhook_url = ruleset.config.get('webhook')
                 fields.update(collector.get_contact_fields(webhook_url))
             else:
                 # check our operand for expressions
@@ -2759,8 +2750,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
 
-    fields = models.TextField(blank=True, null=True,
-                              help_text=_("A JSON representation of any custom flow values the user has saved away"))
+    fields = JSONAsTextField(blank=True, null=True, object_pairs_hook=OrderedDict, default=dict,
+                             help_text=_("A JSON representation of any custom flow values the user has saved away"))
 
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
@@ -2790,11 +2781,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
-    results = models.TextField(null=True,
-                               help_text=_("The results collected during this flow run in JSON format"))
+    results = JSONAsTextField(null=True, default=dict,
+                              help_text=_("The results collected during this flow run in JSON format"))
 
-    path = models.TextField(null=True,
-                            help_text=_("The path taken during this flow run in JSON format"))
+    path = JSONAsTextField(null=True, default=list,
+                           help_text=_("The path taken during this flow run in JSON format"))
 
     message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
                              help_text=_("The IDs of messages associated with this run"))
@@ -3186,7 +3177,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         context = {}
         default_lines = []
 
-        for key, result in six.iteritems(self.get_results()):
+        for key, result in six.iteritems(self.results):
             context[key] = result_wrapper(result)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
@@ -3574,18 +3565,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     def update_fields(self, field_map):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map)
-
         if not self.fields:
-            self.fields = json.dumps(field_map)
+            self.fields = field_map
         else:
-            existing_map = json.loads(self.fields, object_pairs_hook=OrderedDict)
+            existing_map = self.fields
             existing_map.update(field_map)
-            self.fields = json.dumps(existing_map)
+            self.fields = existing_map
 
         self.save(update_fields=['fields'])
-
-    def field_dict(self):
-        return json.loads(self.fields, object_pairs_hook=OrderedDict) if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -3615,12 +3602,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return msg
 
-    def get_results(self):
-        return json.loads(self.results) if self.results else dict()
-
-    def get_path(self):
-        return json.loads(self.path) if self.path else []
-
     @classmethod
     def serialize_value(cls, value):
         """
@@ -3641,7 +3622,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         key = Flow.label_to_slug(name)
 
         # create our result dict
-        results = self.get_results()
+        results = self.results
         results[key] = {
             FlowRun.RESULT_NAME: name,
             FlowRun.RESULT_NODE_UUID: node_uuid,
@@ -3655,12 +3636,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if category != category_localized:
             results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
 
-        self.results = json.dumps(results)
+        self.results = results
         self.modified_on = timezone.now()
         self.save(update_fields=['results', 'modified_on'])
 
     def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.get_results(), indent=2))
+        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
 @six.python_2_unicode_compatible
@@ -3925,7 +3906,7 @@ class RuleSet(models.Model):
     webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
                                       help_text=_('How the webhook should be executed'))
 
-    rules = models.TextField(help_text=_("The JSON encoded actions for this action set"))
+    rules = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=list)
 
     finished_key = models.CharField(max_length=1, null=True, blank=True,
                                     help_text="During IVR, this is the key to indicate we are done waiting")
@@ -3938,8 +3919,8 @@ class RuleSet(models.Model):
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
-    config = models.TextField(null=True, verbose_name=_("Ruleset Configuration"),
-                              help_text=_("RuleSet type specific configuration"))
+    config = JSONAsTextField(null=True, verbose_name=_("Ruleset Configuration"), default=dict,
+                             help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -3964,15 +3945,6 @@ class RuleSet(models.Model):
 
         # match @step.value or @(step.value)
         return text and text[0] == '@' and 'step' in text
-
-    def config_json(self):
-        if not self.config:  # pragma: needs cover
-            return dict()
-        else:
-            return json.loads(self.config)
-
-    def set_config(self, config):
-        self.config = json.dumps(config)
 
     def get_value_type(self):
         """
@@ -4055,11 +4027,11 @@ class RuleSet(models.Model):
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
-                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
-                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
+                urls = [self.config[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
-                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config:
+                    headers = self.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
                     for item in headers:
                         header[item.get('name')] = item.get('value')
 
@@ -4067,7 +4039,7 @@ class RuleSet(models.Model):
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook_slug = self.config[RuleSet.CONFIG_RESTHOOK]
                 resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
                 urls = resthook.get_subscriber_urls()
 
@@ -4121,9 +4093,10 @@ class RuleSet(models.Model):
         else:
             # if it's a form field, construct an expression accordingly
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-                config = self.config_json()
-                delim = config.get('field_delimiter', ' ')
-                self.operand = '@(FIELD(%s, %d, "%s"))' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
+                delim = self.config.get('field_delimiter', ' ')
+                self.operand = '@(FIELD(%s, %d, "%s"))' % (
+                    self.operand[1:], self.config.get('field_index', 0) + 1, delim
+                )
 
             # if we have a custom operand, figure that out
             text = None
@@ -4187,27 +4160,25 @@ class RuleSet(models.Model):
         return FlowStep.TYPE_RULE_SET
 
     def get_rules_dict(self):
-        return json.loads(self.rules)
+        return self.rules
 
     def get_rules(self):
-        return Rule.from_json_array(self.flow.org, json.loads(self.rules))
+        return Rule.from_json_array(self.flow.org, self.rules)
 
     def get_rule_uuids(self):  # pragma: needs cover
-        return [rule['uuid'] for rule in json.loads(self.rules)]
-
-    def set_rules_dict(self, json_dict):
-        self.rules = json.dumps(json_dict)
+        return [rule['uuid'] for rule in self.rules]
 
     def set_rules(self, rules):
         rules_dict = []
         for rule in rules:
             rules_dict.append(rule.as_json())
-        self.set_rules_dict(rules_dict)
+
+        self.rules = rules_dict
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+                    operand=self.operand, config=self.config)
 
     def __str__(self):  # pragma: no cover
         if self.label:
@@ -4226,7 +4197,7 @@ class ActionSet(models.Model):
 
     exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
-    actions = models.TextField(help_text=_("The JSON encoded actions for this action set"))
+    actions = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=dict)
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -4285,22 +4256,16 @@ class ActionSet(models.Model):
             # if there are more actions, rebuild the parts of the context that may have changed
             if a < len(actions) - 1:
                 context['contact'] = run.contact.build_expressions_context()
-                context['extra'] = run.field_dict()
+                context['extra'] = run.fields
 
         return msgs
 
-    def get_actions_dict(self):
-        return json.loads(self.actions)
-
     def get_actions(self):
-        return Action.from_json_array(self.flow.org, json.loads(self.actions))
-
-    def set_actions_dict(self, json_dict):
-        self.actions = json.dumps(json_dict)
+        return Action.from_json_array(self.flow.org, self.actions)
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination,
-                    actions=self.get_actions_dict(), exit_uuid=self.exit_uuid)
+                    actions=self.actions, exit_uuid=self.exit_uuid)
 
     def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid,)
@@ -4312,7 +4277,7 @@ class FlowRevision(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='revisions')
 
-    definition = models.TextField(help_text=_("The JSON flow definition"))
+    definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
 
     spec_version = models.CharField(default=get_current_export_version, max_length=8,
                                     help_text=_("The flow version this definition is in"))
@@ -4414,12 +4379,12 @@ class FlowRevision(SmartModel):
 
     def get_definition_json(self):
 
-        definition = json.loads(self.definition)
+        definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
         # mirror our exports for those versions
         if Flow.is_before_version(self.spec_version, "6"):
-            definition = dict(definition=definition, flow_type=self.flow.flow_type,
+            definition = dict(definition=self.definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
 
@@ -4704,8 +4669,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    config = models.TextField(null=True,
-                              help_text=_("Any configuration options for this flow export"))
+    config = JSONAsTextField(null=True, default=dict,
+                             help_text=_("Any configuration options for this flow export"))
 
     @classmethod
     def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs, extra_urns):
@@ -4715,7 +4680,7 @@ class ExportFlowResultsTask(BaseExportTask):
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
                   ExportFlowResultsTask.EXTRA_URNS: extra_urns}
 
-        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=json.dumps(config))
+        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)
         for flow in flows:
             export.flows.add(flow)
 
@@ -4827,7 +4792,7 @@ class ExportFlowResultsTask(BaseExportTask):
         return msgs_by_run
 
     def write_export(self):
-        config = json.loads(self.config) if self.config else dict()
+        config = self.config
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
@@ -4928,7 +4893,7 @@ class ExportFlowResultsTask(BaseExportTask):
                         current_contact_values.append(self.prepare_value(field_value))
 
                 # get this run's results by node UUID
-                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.get_results().values()}
+                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.results.values()}
 
                 result_values = []
                 for n, node in enumerate(result_nodes):
@@ -5106,8 +5071,8 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
-    extra = models.TextField(null=True,
-                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+    extra = JSONAsTextField(null=True, default=dict,
+                            help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod
     def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None, include_active=True):
@@ -5120,7 +5085,7 @@ class FlowStart(SmartModel):
         start = FlowStart.objects.create(flow=flow,
                                          restart_participants=restart_participants,
                                          include_active=include_active,
-                                         extra=json.dumps(extra) if extra else None,
+                                         extra=extra,
                                          created_by=user, modified_by=user)
 
         for contact in contacts:
@@ -5144,7 +5109,7 @@ class FlowStart(SmartModel):
             contacts = [c for c in self.contacts.all().only('is_test')]
 
             # load up our extra if any
-            extra = json.loads(self.extra) if self.extra else None
+            extra = self.extra if self.extra else None
 
             return self.flow.start(groups, contacts, flow_start=self, extra=extra,
                                    restart_participants=self.restart_participants, include_active=self.include_active)
@@ -5864,15 +5829,14 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
+        if ruleset and hasattr(ruleset, 'config') and ruleset.config != {}:
             # initial message, menu obj
-            obj = json.loads(ruleset.config)
-            rules = json.loads(ruleset.rules)
-            msg = obj.get(cls.MESSAGE, '')
+            rules = ruleset.rules
+            msg = ruleset.config.get(cls.MESSAGE, '')
             org = run.flow.org
 
             # TODO: this will be arbitrary unless UI is changed to maintain consistent uuids
-            uuid = obj.get(cls.UUID, six.text_type(uuid4()))
+            uuid = ruleset.config.get(cls.UUID, six.text_type(uuid4()))
 
             # define languages
             base_language = run.flow.base_language

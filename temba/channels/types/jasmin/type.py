@@ -35,6 +35,20 @@ class JasminType(ChannelType):
     max_length = 1600
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Push Message URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.js' channel.uuid 'receive' %}",
+            description=_("    This endpoint will be called by Jasmin when new messages are received to your number, it must be configured to be called as a POST"),
+        ),
+    )
+
     def send(self, channel, msg, text):
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
         dlr_url = 'https://%s%s' % (channel.callback_domain, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
