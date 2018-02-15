@@ -37,7 +37,7 @@ class VumiUSSDType(ChannelType):
     configuration_urls = (
         dict(
             label=_("API Token"),
-            url="{{ channel.config_json.access_token }}",
+            url="{{ channel.config.access_token }}",
             description=_('This token is used to authenticate with your Vumi account, set it by editing the "Content" page on your conversation.'),
         ),
         dict(

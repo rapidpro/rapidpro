@@ -58,33 +58,6 @@
       {{ channel.config_json.secret }}
 
 
-  -elif object.channel_type == 'VI'
-    %h4
-      -blocktrans
-        Your Viber channel is connected, the IP addresses, status and receive endpoints are listed below.
-
-    %hr
-
-    %h4
-      -trans "IP Addresses"
-
-    -for ip_address in ip_addresses
-      %code= ip_address
-
-    %h4
-      -trans "Status URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.vi' object.uuid 'status' %}
-
-    %h4
-      -trans "Receive URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.vi' object.uuid 'receive'  %}
-
-
-
   -if show_public_addresses
     %h4
       -trans "IP Addresses"

@@ -36,7 +36,7 @@ class GlobeTypeTest(TembaTest):
         channel = Channel.objects.get(channel_type='GL')
         self.assertEqual('21586380', channel.address)
         self.assertEqual('PH', channel.country)
-        config = channel.config_json()
+        config = channel.config
         self.assertEqual(config['app_secret'], 'AppSecret')
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')

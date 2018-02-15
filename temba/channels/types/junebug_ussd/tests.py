@@ -35,4 +35,4 @@ class JunebugTypeTest(TembaTest):
         channel = Channel.objects.get()
         self.assertEqual(channel.channel_type, 'JNU')
         self.assertEqual(channel.role, Channel.ROLE_USSD)
-        self.assertEqual(channel.config_json()[Channel.CONFIG_SECRET], "secret-word")
+        self.assertEqual(channel.config[Channel.CONFIG_SECRET], "secret-word")

@@ -9,13 +9,13 @@
 %h4
   -trans "Send URL"
   %code
-    {{ channel.config_json.send_url }}
+    {{ channel.config.send_url }}
 
 %p
   -blocktrans
     When we need to send an outgoing message it will make a
 
-  {{ channel.config_json.method|default:"POST" }}
+  {{ channel.config.method|default:"POST" }}
 
   -blocktrans
     to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
@@ -23,16 +23,16 @@
 %h4
   -trans "Example"
 
--if channel.config_json.method == "GET"
+-if channel.config.method == "GET"
 
   %pre.prettyprint.example<
     :plain
-      {{ channel.config_json.method }} {{ example_url }}
+      {{ channel.config.method }} {{ example_url }}
 
 -else
   %pre.prettyprint.example<
     :plain
-      {{ channel.config_json.method }} {{ example_url }}
+      {{ channel.config.method }} {{ example_url }}
       {{ example_content_type }}
 
       {{ example_body }}

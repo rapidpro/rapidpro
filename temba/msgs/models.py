@@ -34,7 +34,7 @@ from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.http import http_headers
-from temba.utils.models import SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
 from .handler import MessageHandler
@@ -233,7 +233,7 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for messages of this broadcast"))
+    metadata = JSONAsTextField(null=True, help_text=_("The metadata for messages of this broadcast"), default=dict)
 
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
@@ -252,7 +252,7 @@ class Broadcast(models.Model):
                 if base_language not in quick_reply:
                     raise ValueError("Base language '%s' doesn't exist for one or more of the provided quick replies" % base_language)
 
-        metadata = json.dumps(dict(quick_replies=quick_replies)) if quick_replies else None
+        metadata = dict(quick_replies=quick_replies) if quick_replies else {}
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
@@ -375,9 +375,6 @@ class Broadcast(models.Model):
 
         return preferred_languages
 
-    def get_metadata(self):
-        return json.loads(self.metadata) if self.metadata else {}
-
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact
@@ -397,7 +394,7 @@ class Broadcast(models.Model):
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         language_metadata = []
-        metadata = self.get_metadata()
+        metadata = self.metadata
 
         for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
             text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
@@ -750,7 +747,7 @@ class Msg(models.Model):
     connection = models.ForeignKey('channels.ChannelSession', null=True,
                                    help_text=_("The session this message was a part of if any"))
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for this msg"))
+    metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -1036,9 +1033,6 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
-    def get_metadata(self):
-        return json.loads(self.metadata) if self.metadata else {}
-
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1046,7 +1040,7 @@ class Msg(models.Model):
                     attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg",
-                    metadata=self.get_metadata())
+                    metadata=self.metadata)
 
     def simulator_json(self):
         msg_json = self.as_json()
@@ -1265,7 +1259,7 @@ class Msg(models.Model):
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on,
                     high_priority=self.high_priority,
-                    metadata=self.get_metadata(),
+                    metadata=self.metadata,
                     connection_id=self.connection_id)
 
         if self.contact_urn.auth:
@@ -1524,13 +1518,13 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
-        metadata = None
+        metadata = {}  # init metadata to the same as the default value of the Msg.metadata field
         if quick_replies:
             for counter, reply in enumerate(quick_replies):
                 (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
                 if value:
                     quick_replies[counter] = value
-            metadata = json.dumps(dict(quick_replies=quick_replies))
+            metadata = dict(quick_replies=quick_replies)
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,

@@ -14,9 +14,11 @@ from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
+from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.test import override_settings, SimpleTestCase
+from django.db import models, connection
+from django.test import override_settings, SimpleTestCase, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
@@ -47,6 +49,7 @@ from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRI
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
+from .models import JSONAsTextField
 
 
 class InitTest(TembaTest):
@@ -1680,3 +1683,114 @@ class MakeTestDBTest(SimpleTestCase):
 
         # but simulate can
         call_command('test_db', 'simulate', num_runs=2)
+
+
+class JsonModelTestDefaultNull(models.Model):
+    field = JSONAsTextField(default=dict, null=True)
+
+
+class JsonModelTestDefault(models.Model):
+    field = JSONAsTextField(default=dict, null=False)
+
+
+class JsonModelTestNull(models.Model):
+    field = JSONAsTextField(null=True)
+
+
+class TestJSONAsTextField(TestCase):
+    def test_invalid_default(self):
+
+        class InvalidJsonModel(models.Model):
+            field = JSONAsTextField(default={})
+
+        model = InvalidJsonModel()
+        self.assertEqual(model.check(), [
+            checks.Warning(
+                msg=(
+                    'JSONAsTextField default should be a callable instead of an instance so that it\'s not shared '
+                    'between all field instances.'
+                ),
+                hint='Use a callable instead, e.g., use `dict` instead of `{}`.',
+                obj=InvalidJsonModel._meta.get_field('field'),
+                id='postgres.E003',
+            )
+        ])
+
+    def test_to_python(self):
+
+        field = JSONAsTextField(default=dict)
+
+        self.assertEqual(field.to_python({}), {})
+
+        self.assertEqual(field.to_python('{}'), {})
+
+    def test_default_with_null(self):
+
+        model = JsonModelTestDefaultNull()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database is null, and we have set the default value so we get the default value
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefaultnull')
+
+            data = cur.fetchall()
+        # but in the database the field is saved as null
+        self.assertEqual(data[0][1], None)
+
+    def test_default_without_null(self):
+
+        model = JsonModelTestDefault()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database saves the default value, and we get the default value back
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefault')
+
+            data = cur.fetchall()
+        # and in the database the field saved as default value
+        self.assertEqual(data[0][1], '{}')
+
+    def test_invalid_field_values(self):
+        model = JsonModelTestDefault()
+        model.field = '53'
+        self.assertRaises(ValueError, model.save)
+
+        model.field = 34
+        self.assertRaises(ValueError, model.save)
+
+        model.field = ''
+        self.assertRaises(ValueError, model.save)
+
+    def test_write_None_value(self):
+        model = JsonModelTestDefault()
+        # assign None (null) value to the field
+        model.field = None
+
+        self.assertRaises(Exception, model.save)
+
+    def test_read_None_value(self):
+        with connection.cursor() as null_cur:
+            null_cur.execute('DELETE FROM utils_jsonmodeltestnull')
+            null_cur.execute('INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)', (None,))
+
+            self.assertEqual(JsonModelTestNull.objects.first().field, None)
+
+    def test_invalid_field_values_db(self):
+        with connection.cursor() as cur:
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('53', ))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('None',))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('null',))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)

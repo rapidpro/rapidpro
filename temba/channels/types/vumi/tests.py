@@ -40,12 +40,12 @@ class VumiTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertTrue(uuid.UUID(channel.config['access_token'], version=4))
         self.assertEqual(channel.country, post_data['country'])
         self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], "http://custom.api.url")
+        self.assertEqual(channel.config['account_key'], post_data['account_key'])
+        self.assertEqual(channel.config['conversation_key'], post_data['conversation_key'])
+        self.assertEqual(channel.config['api_url'], "http://custom.api.url")
         self.assertEqual(channel.channel_type, 'VM')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
@@ -71,11 +71,11 @@ class VumiTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertTrue(uuid.UUID(channel.config['access_token'], version=4))
         self.assertEqual(channel.country, post_data['country'])
         self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['account_key'], post_data['account_key'])
-        self.assertEqual(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEqual(channel.config_json()['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
+        self.assertEqual(channel.config['account_key'], post_data['account_key'])
+        self.assertEqual(channel.config['conversation_key'], post_data['conversation_key'])
+        self.assertEqual(channel.config['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
         self.assertEqual(channel.channel_type, 'VM')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)

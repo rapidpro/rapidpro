@@ -33,7 +33,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_twilio_connect'))
 
         # attach a Twilio accont to the org
-        self.org.config = json.dumps({ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'})
+        self.org.config = {ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'}
         self.org.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -112,7 +112,7 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(channel.role,
                                  Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
-                channel_config = channel.config_json()
+                channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], 'account-sid')
                 self.assertEqual(channel_config[Channel.CONFIG_AUTH_TOKEN], 'account-token')
                 self.assertTrue(channel_config[Channel.CONFIG_APPLICATION_SID])

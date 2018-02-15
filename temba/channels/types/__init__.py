@@ -42,7 +42,7 @@ def reload_channel_types():
             max_length=type_settings.get('max_length'),
             max_tps=type_settings.get('max_tps'),
             attachment_support=False,
-            free_sending=code in Channel.FREE_SENDING_CHANNEL_TYPES,
+            free_sending=False,
             update_form=TYPE_UPDATE_FORM_CLASSES.get(code),
             send=SEND_FUNCTIONS.get(code),
             ivr_protocol=None

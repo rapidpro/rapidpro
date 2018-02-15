@@ -42,7 +42,7 @@ class TwimlAPIType(ChannelType):
     configuration_urls = (
         dict(
             label=_("TwiML REST API Host"),
-            url="{{ channel.config_json.send_url }}",
+            url="{{ channel.config.send_url }}",
             description=_("The endpoint which will receive Twilio API requests for this channel"),
         ),
         dict(

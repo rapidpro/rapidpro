@@ -32,7 +32,7 @@ class ExternalType(ChannelType):
     def get_configuration_context_dict(self, channel):
         context = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
 
-        config = channel.config_json()
+        config = channel.config
         send_url = config[Channel.CONFIG_SEND_URL]
         send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
 
