@@ -1896,7 +1896,8 @@ class MageHandler(BaseChannelHandler):
 
         action = kwargs['action'].lower()
         new_contact = request.POST.get('new_contact', '').lower() in ('true', '1')
-
+        print ("En Mage handler, se recibio un post")
+        print ("accion %s", action)
         if action == 'handle_message':
             try:
                 msg_id = int(request.POST.get('message_id', ''))
