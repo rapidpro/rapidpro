@@ -5,7 +5,7 @@
 #    pip-compile --output-file pip-freeze.txt pip-requires.txt
 #
 amqp==2.1.4               # via kombu
-analytics-python==0.4.4
+analytics-python==1.2.9
 antlr4-python2-runtime==4.7
 asn1crypto==0.22.0        # via cryptography
 beautifulsoup4==4.6.0     # via google
