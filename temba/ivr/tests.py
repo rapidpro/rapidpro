@@ -208,7 +208,7 @@ class IVRTests(FlowFileTest):
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
         flow.start([], [contact])
-        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
@@ -290,6 +290,35 @@ class IVRTests(FlowFileTest):
         # each message should have exactly one step
         for msg in messages:
             self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+
+        # run same flow in simulator
+        Contact.set_simulation(True)
+        test_contact = Contact.get_test_contact(self.admin)
+        flow.start([], [test_contact])
+        test_call = IVRCall.objects.get(direction=IVRCall.OUTGOING, contact=test_contact)
+
+        self.client.post(reverse('ivr.ivrcall_handle', args=[test_call.id]), {
+            'CallSid': 'CallSid',
+            'CallStatus': 'in-progress',
+            'CallDuration': 20
+        })
+
+        with patch('requests.get') as response:
+            response.side_effect = (
+                MockResponse(404, 'No such file'),
+                MockResponse(200, 'Fake Recording Bits', {'Content-Type': 'audio/x-wav'})
+            )
+            self.client.post(reverse('ivr.ivrcall_handle', args=[test_call.id]), {
+                'CallStatus': 'completed',
+                'Digits': 'hangup',
+                'RecordingUrl': 'http://api.twilio.com/ASID/Recordings/SID',
+                'RecordingSid': 'FAKESID'
+            })
+
+        out_msg = Msg.objects.get(contact=test_contact, direction='O', msg_type='V', text__contains='Played contact recording')
+        recording_url = out_msg.attachments[0].split(':', 1)[1]
+
+        self.assertTrue(ActionLog.objects.filter(text="Played recording at &quot;%s&quot;" % recording_url).exists())
 
     @patch('jwt.encode')
     @patch('nexmo.Client.create_application')
