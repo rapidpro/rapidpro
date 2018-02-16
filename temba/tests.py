@@ -11,7 +11,7 @@ import shutil
 import string
 import six
 import time
-import urlparse
+from six.moves.urllib.parse import urlparse
 
 from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ from django.db import connection
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from HTMLParser import HTMLParser
+from future.moves.html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
