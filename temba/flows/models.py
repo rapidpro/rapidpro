@@ -145,11 +145,11 @@ class FlowSession(models.Model):
 
     @classmethod
     def get_waiting(cls, contact):
-        return cls.objects.filter(contact=contact, status=cls.STATUS_WAITING).first()
+        return cls.objects.filter(contact=contact, status=FlowSession.STATUS_WAITING).first()
 
     @classmethod
     def interrupt_waiting(cls, contacts):
-        cls.objects.filter(contact__in=contacts, status=cls.STATUS_WAITING).update(status=cls.STATUS_INTERRUPTED)
+        cls.objects.filter(contact__in=contacts, status=FlowSession.STATUS_WAITING).update(status=FlowSession.STATUS_INTERRUPTED)
 
     @classmethod
     def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, extra=None):
@@ -193,7 +193,7 @@ class FlowSession(models.Model):
             except goflow.FlowServerException:
                 continue
 
-            status = cls.GOFLOW_STATUSES[output.session['status']]
+            status = FlowSession.GOFLOW_STATUSES[output.session['status']]
 
             # create our session
             session = cls.objects.create(
@@ -249,7 +249,7 @@ class FlowSession(models.Model):
             # update our output
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
-            self.status = self.GOFLOW_STATUSES[new_output.session['status']]
+            self.status = FlowSession.GOFLOW_STATUSES[new_output.session['status']]
             self.save(update_fields=('output', 'responded', 'status'))
 
             # update our session
@@ -257,7 +257,7 @@ class FlowSession(models.Model):
 
         except goflow.FlowServerException:
             # something has gone wrong so this session is over
-            self.status = self.STATUS_FAILED
+            self.status = FlowSession.STATUS_FAILED
             self.save(update_fields=('status',))
 
             self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
@@ -297,7 +297,7 @@ class FlowSession(models.Model):
                 first_run = run
 
         # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
-        if self.contact.is_test and not self.status == self.STATUS_WAITING:  # pragma: no cover
+        if self.contact.is_test and not self.status == FlowSession.STATUS_WAITING:  # pragma: no cover
             ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
         # trigger message sending
