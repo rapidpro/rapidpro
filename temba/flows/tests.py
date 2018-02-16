@@ -9023,12 +9023,12 @@ class FlowServerTest(TembaTest):
         # with some extra
         run4, = flow.start([], [self.contact], restart_participants=True, extra={'foo': "bar"})
 
-        self.assertTrue(run4.session.as_json()['runs'][0]['extra'], {'foo': "bar"})
+        self.assertTrue(run4.session.output['runs'][0]['extra'], {'foo': "bar"})
 
         # with an initial message
         msg = self.create_msg(direction='I', text="Hello", contact=self.contact)
         run5, = flow.start([], [self.contact], restart_participants=True, start_msg=msg)
-        run5_output = run5.session.as_json()['runs'][0]
+        run5_output = run5.session.output['runs'][0]
 
         self.assertTrue(run5_output['path'][0]['events'][2]['type'], "msg_received")
         self.assertTrue(run5_output['path'][0]['events'][2]['text'], "Hello")
@@ -9050,7 +9050,7 @@ class FlowServerTest(TembaTest):
         run1.session.resume(msg_in=msg1)
 
         run1.refresh_from_db()
-        self.assertIn('color', run1.get_results())
+        self.assertIn('color', run1.results)
 
         # when flowserver returns an error
         with patch('temba.utils.goflow.FlowServerClient.resume') as mock_resume:
