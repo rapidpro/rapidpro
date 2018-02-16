@@ -298,9 +298,6 @@ class FlowSession(models.Model):
 
         return runs
 
-    def is_goflow(self):
-        return self.output is not None
-
     def __str__(self):  # pragma: no cover
         return six.text_type(self.contact)
 
