@@ -19,7 +19,7 @@ from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep, FlowRevision
 from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 from .clients import IVRException
 from .models import IVRCall
 
