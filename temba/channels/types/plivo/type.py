@@ -35,7 +35,7 @@ class PlivoType(ChannelType):
     max_length = 1600
 
     def deactivate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         client = plivo.RestAPI(config[Channel.CONFIG_PLIVO_AUTH_ID],
                                config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
         client.delete_application(params=dict(app_id=config[Channel.CONFIG_PLIVO_APP_ID]))

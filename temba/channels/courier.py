@@ -53,7 +53,7 @@ def msg_as_task(msg):
                     urn=msg.contact_urn.urn,
                     error_count=msg.error_count,
                     attachments=msg.attachments,
-                    metadata=msg.get_metadata(),
+                    metadata=msg.metadata,
                     response_to_id=msg.response_to_id,
                     external_id=msg.external_id,
 

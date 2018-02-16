@@ -39,8 +39,8 @@ class ZenviaTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('BR', channel.country)
-        self.assertEqual('zvUsername', channel.config_json()[Channel.CONFIG_USERNAME])
-        self.assertEqual('zvPassword', channel.config_json()[Channel.CONFIG_PASSWORD])
+        self.assertEqual('zvUsername', channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual('zvPassword', channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual(post_data['shortcode'], channel.address)
         self.assertEqual('ZV', channel.channel_type)
 

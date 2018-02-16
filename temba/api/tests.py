@@ -102,7 +102,7 @@ class WebHookTest(TembaTest):
 
     def setupChannel(self):
         org = self.channel.org
-        org.webhook = u'{"url": "http://fake.com/webhook.php"}'
+        org.webhook = {"url": "http://fake.com/webhook.php"}
         org.webhook_events = ALL_EVENTS
         org.save()
 
@@ -234,7 +234,7 @@ class WebHookTest(TembaTest):
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([WebhookAction(str(uuid4()), org.get_webhook_url()).as_json()])
+        actionset.actions = [WebhookAction(str(uuid4()), org.get_webhook_url()).as_json()]
         actionset.save()
 
         # run a user through this flow
@@ -294,16 +294,15 @@ class WebHookTest(TembaTest):
         # run a user through this flow
         flow.start([], [self.joe])
         event = WebHookEvent.objects.get()
-        data = json.loads(event.data)
 
         # make sure our contact still has a URN
         self.assertEqual(
-            data['contact'],
+            event.data['contact'],
             {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))}
         )
 
         # make sure we don't have an input
-        self.assertNotIn('input', data)
+        self.assertNotIn('input', event.data)
 
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
@@ -600,7 +599,7 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         # add a webhook header to the org
-        self.channel.org.webhook = u'{"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}'
+        self.channel.org.webhook = {"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}
         self.channel.org.save()
 
         # check that our webhook settings have saved

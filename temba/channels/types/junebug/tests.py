@@ -33,9 +33,9 @@ class JunebugTypeTest(TembaTest):
 
         self.assertEqual(channel.country, post_data['country'])
         self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
+        self.assertEqual(channel.config['send_url'], post_data['url'])
+        self.assertEqual(channel.config['username'], post_data['username'])
+        self.assertEqual(channel.config['password'], post_data['password'])
         self.assertEqual(channel.channel_type, 'JN')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
@@ -68,10 +68,10 @@ class JunebugTypeTest(TembaTest):
 
         self.assertEqual(channel.country, post_data['country'])
         self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['secret'], post_data['secret'])
-        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
+        self.assertEqual(channel.config['secret'], post_data['secret'])
+        self.assertEqual(channel.config['send_url'], post_data['url'])
+        self.assertEqual(channel.config['username'], post_data['username'])
+        self.assertEqual(channel.config['password'], post_data['password'])
         self.assertEqual(channel.channel_type, 'JN')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 

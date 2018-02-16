@@ -51,10 +51,10 @@ class WhatsAppType(ChannelType):
             }
         }
 
-        resp = requests.post(channel.config_json()[Channel.CONFIG_BASE_URL] + '/api/control.php',
+        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
                              json=body,
-                             auth=(channel.config_json()[Channel.CONFIG_USERNAME],
-                                   channel.config_json()[Channel.CONFIG_PASSWORD]))
+                             auth=(channel.config[Channel.CONFIG_USERNAME],
+                                   channel.config[Channel.CONFIG_PASSWORD]))
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %s", resp.content))
@@ -67,10 +67,10 @@ class WhatsAppType(ChannelType):
             }
         }
 
-        resp = requests.post(channel.config_json()[Channel.CONFIG_BASE_URL] + '/api/control.php',
+        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
                              json=body,
-                             auth=(channel.config_json()[Channel.CONFIG_USERNAME],
-                                   channel.config_json()[Channel.CONFIG_PASSWORD]))
+                             auth=(channel.config[Channel.CONFIG_USERNAME],
+                                   channel.config[Channel.CONFIG_PASSWORD]))
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to configure channel: %s", resp.content))
