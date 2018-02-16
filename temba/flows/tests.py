@@ -3328,7 +3328,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertEqual(action.msg.keys(), [u'rus', u'hun', u'eng'])
+        self.assertEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])

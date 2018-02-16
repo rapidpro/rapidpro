@@ -1117,7 +1117,7 @@ class OrgCRUDL(SmartCRUDL):
                         field_mapping.append((field_name, check_field))
                         fields.append(field_name)
 
-                    self.fields = OrderedDict(self.fields.items() + field_mapping)
+                    self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                     fields_by_user[user] = fields
                 return fields_by_user
 
@@ -1126,7 +1126,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 for invite in invites:
                     field_name = "%s_%d" % ('remove_invite', invite.pk)
-                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    self.fields = OrderedDict(list(self.fields.items()) + [(field_name, forms.BooleanField(required=False))])
                     fields_by_invite[invite] = field_name
 
                 return fields_by_invite
@@ -1864,7 +1864,7 @@ class OrgCRUDL(SmartCRUDL):
                     field_mapping.append((field_name, check_field))
                     resthooks.append(dict(resthook=resthook, field=field_name))
 
-                self.fields = OrderedDict(self.fields.items() + field_mapping)
+                self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                 return resthooks
 
             def clean_resthook(self):
