@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(
                 choices=[('W', 'Waiting'), ('C', 'Completed'), ('I', 'Interrupted'), ('X', 'Expired'),
-                         ('E', 'Errored')], help_text='The status of this session', max_length=1, null=True),
+                         ('F', 'Failed')], help_text='The status of this session', max_length=1, null=True),
         ),
         migrations.AlterField(
             model_name='actionlog',

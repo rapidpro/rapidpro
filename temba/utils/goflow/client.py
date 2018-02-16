@@ -168,6 +168,9 @@ class RequestBuilder(object):
         return self
 
     def set_environment(self, org):
+        """
+        Include a set_environment event to start a session with the given environment
+        """
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
         self.request['events'].append({
@@ -181,6 +184,9 @@ class RequestBuilder(object):
         return self
 
     def set_contact(self, contact):
+        """
+        Include a set_contact event to start a session with the given contact
+        """
         from temba.contacts.models import Contact
         from temba.msgs.models import Msg
         from temba.values.models import Value
@@ -221,6 +227,9 @@ class RequestBuilder(object):
         return self
 
     def set_extra(self, extra):
+        """
+        Include a set_extra event to start a session with the given extra data
+        """
         self.request['events'].append({
             'type': "set_extra",
             'created_on': timezone.now().isoformat(),
@@ -229,6 +238,9 @@ class RequestBuilder(object):
         return self
 
     def msg_received(self, msg):
+        """
+        Include a msg_received event in response to receiving a message from the session contact
+        """
         event = {
             'type': "msg_received",
             'created_on': msg.created_on.isoformat(),
@@ -248,6 +260,9 @@ class RequestBuilder(object):
         return self
 
     def run_expired(self, run):
+        """
+        Include a run_expired event in response to the active run in this session expiring
+        """
         self.request['events'].append({
             'type': "run_expired",
             'created_on': run.exited_on.isoformat(),
@@ -296,6 +311,9 @@ class RequestBuilder(object):
         return self.client.start(self.request)
 
     def resume(self, session):
+        """
+        Resume the given existing session
+        """
         self.request['session'] = session
 
         return self.client.resume(self.request)

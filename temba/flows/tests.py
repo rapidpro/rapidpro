@@ -9060,7 +9060,7 @@ class FlowServerTest(TembaTest):
             run1.session.resume(msg_in=msg2)
 
         run1.refresh_from_db()
-        self.assertEqual(run1.session.status, 'E')
+        self.assertEqual(run1.session.status, 'F')
         self.assertEqual(run1.exit_type, 'C')
         self.assertIsNotNone(run1.exited_on)
 

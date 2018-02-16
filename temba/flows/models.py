@@ -116,15 +116,15 @@ class FlowSession(models.Model):
     STATUS_COMPLETED = 'C'
     STATUS_INTERRUPTED = 'I'
     STATUS_EXPIRED = 'X'
-    STATUS_ERRORED = 'E'
+    STATUS_FAILED = 'F'
 
     STATUS_CHOICES = ((STATUS_WAITING, "Waiting"),
                       (STATUS_COMPLETED, "Completed"),
                       (STATUS_INTERRUPTED, "Interrupted"),
                       (STATUS_EXPIRED, "Expired"),
-                      (STATUS_ERRORED, "Errored"))
+                      (STATUS_FAILED, "Failed"))
 
-    GOFLOW_STATUSES = {'waiting': STATUS_WAITING, 'completed': STATUS_COMPLETED, 'errored': STATUS_ERRORED}
+    GOFLOW_STATUSES = {'waiting': STATUS_WAITING, 'completed': STATUS_COMPLETED, 'errored': STATUS_FAILED}
 
     org = models.ForeignKey(Org, help_text="The organization this session belongs to")
 
@@ -167,20 +167,22 @@ class FlowSession(models.Model):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder(asset_timestamp) \
-                .asset_server(flow.org)\
-                .set_environment(flow.org)\
+            request = (
+                client.request_builder(asset_timestamp)
+                .asset_server(flow.org)
+                .set_environment(flow.org)
                 .set_contact(contact)
+            )
 
             if settings.TESTING:
                 # TODO find a way to run an assets server during testing?
-                request = request.include_all(flow.org)
+                request.include_all(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
-                request = request.msg_received(msg_in)
+                request.msg_received(msg_in)
             if extra:
-                request = request.set_extra(extra)
+                request.set_extra(extra)
 
             try:
                 if parent_run_summary:
@@ -194,9 +196,13 @@ class FlowSession(models.Model):
             status = cls.GOFLOW_STATUSES[output.session['status']]
 
             # create our session
-            session = cls.objects.create(org=contact.org, contact=contact, status=status,
-                                         output=output.session,
-                                         responded=bool(msg_in and msg_in.created_on))
+            session = cls.objects.create(
+                org=contact.org,
+                contact=contact,
+                status=status,
+                output=output.session,
+                responded=bool(msg_in and msg_in.created_on)
+            )
 
             contact_runs = session.sync_runs(output, msg_in)
             runs.append(contact_runs[0])
@@ -214,6 +220,9 @@ class FlowSession(models.Model):
                 waiting_run = run
                 break
 
+        if not waiting_run:  # pragma: no cover
+            raise ValueError("Can't resume a session with no waiting run")
+
         client = goflow.get_client()
 
         # build request to flow server
@@ -222,13 +231,13 @@ class FlowSession(models.Model):
 
         if settings.TESTING:
             # TODO find a way to run an assets server during testing?
-            request = request.include_all(self.org)
+            request.include_all(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
-            request = request.msg_received(msg_in)
+            request.msg_received(msg_in)
         if expired_child_run:  # pragma: needs cover
-            request = request.run_expired(expired_child_run)
+            request.run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
         request = request.set_contact(self.contact)
@@ -248,7 +257,7 @@ class FlowSession(models.Model):
 
         except goflow.FlowServerException:
             # something has gone wrong so this session is over
-            self.status = self.STATUS_ERRORED
+            self.status = self.STATUS_FAILED
             self.save(update_fields=('status',))
 
             self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
@@ -277,7 +286,7 @@ class FlowSession(models.Model):
 
             wait = output.session['wait'] if run['status'] == "waiting" else None
 
-            # currently outgoing messages are only have response_to set if sent from same run
+            # currently outgoing messages can only have response_to set if sent from same run
             run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
 
             run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, wait, run_input)
