@@ -34,7 +34,7 @@ class JiochatClient:
 
         with r.lock(lock_name, timeout=5):
             key = JIOCHAT_ACCESS_TOKEN_KEY % self.channel_uuid
-            access_token = r.get(key, None)
+            access_token = r.get(key)
             return access_token
 
     def refresh_access_token(self, channel_id):
@@ -64,7 +64,7 @@ class JiochatClient:
                 ChannelLog.log_channel_request(channel_id, "Successfully fetched access token from Jiochat", event, start)
 
                 access_token = response_json['access_token']
-                r.set(key, access_token, timeout=7200)
+                r.set(key, access_token, ex=7200)
                 return access_token
 
     def verify_request(self, request, channel_secret):
