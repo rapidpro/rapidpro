@@ -38,26 +38,6 @@
         %code
           {{url.url}}
 
-  -elif object.channel_type == 'JC'
-    %h4
-      -blocktrans
-        To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on JioChat Developer Center configuration
-
-    %hr
-
-    %h4
-      -trans "Webhook URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.jc' object.uuid %}
-
-    %h4
-      -trans "Token"
-
-    %code
-      {{ channel.config_json.secret }}
-
-
   -if show_public_addresses
     %h4
       -trans "IP Addresses"
