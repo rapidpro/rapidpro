@@ -9,7 +9,7 @@ import regex
 import six
 import time
 import traceback
-import urllib2
+import six.moves.urllib_request as urllib2
 
 from array import array
 from collections import OrderedDict, defaultdict
@@ -5132,12 +5132,12 @@ class PlayAction(Action):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
-        (media, errors) = Msg.evaluate_template(self.url, context)
-        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.connection)
+        (recording_url, errors) = Msg.evaluate_template(self.url, context)
+        msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url, run.connection)
 
         if msg:
-            if run.contact.is_test:  # pragma: needs cover
-                log_txt = _('Played recording at "%s"') % msg.media
+            if run.contact.is_test:
+                log_txt = _('Played recording at "%s"') % recording_url
                 ActionLog.create(run, log_txt)
             return [msg]
         else:  # pragma: needs cover
@@ -6371,6 +6371,7 @@ class HasEmailTest(Test):
         # split on whitespace
         words = text.split()
         for word in words:
+            word = word.strip(',.;:|()[]"\'<>?&*/\\')
             if is_valid_address(word):
                 return 1, word
 
@@ -6465,6 +6466,8 @@ class ContainsPhraseTest(ContainsTest):
 
         # tokenize our test
         tests = tokenize(test.lower())
+        if not tests:
+            return True, ""
 
         # tokenize our sms
         words = tokenize(text.lower())

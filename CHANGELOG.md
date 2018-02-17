@@ -1,3 +1,11 @@
+v3.0.322
+----------
+ * Unfreeze phonenumbers library so we always use latest
+ * Remove old Viber VI channel type
+ * Add config template for LN channel type
+ * Move configuration blurbs to channel types
+ * Move to use new custom model JSONAsTextField where appropriate
+
 v3.0.321
 ----------
  * Fix quick-reply button in flow editor
