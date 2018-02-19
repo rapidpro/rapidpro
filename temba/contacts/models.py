@@ -2722,10 +2722,11 @@ class ExportContactsTask(BaseExportTask):
                 # output some status information every 10,000 contacts
                 if current_contact % 10000 == 0:  # pragma: no cover
                     elapsed = time.time() - start
+                    # TODO: this could be simplified as `elapsed // (current_contact / len(contact_ids))`
                     predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
                     print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                          (self.org.name, current_contact * 100 / len(contact_ids),
+                          (self.org.name, current_contact * 100 // len(contact_ids),
                            "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                            time.time() - start, predicted))
 

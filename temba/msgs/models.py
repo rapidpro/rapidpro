@@ -568,11 +568,11 @@ class Broadcast(models.Model):
             total += status['count']
 
         # if errored msgs are greater than the half of all msgs
-        if status_map.get(ERRORED, 0) > total / 2:
+        if status_map.get(ERRORED, 0) > total // 2:
             self.status = ERRORED
 
         # if there are more than half failed, show failed
-        elif status_map.get(FAILED, 0) > total / 2:
+        elif status_map.get(FAILED, 0) > total // 2:
             self.status = FAILED
 
         # if there are any in Q, we are Q
@@ -1135,7 +1135,7 @@ class Msg(models.Model):
         Updates our message according to the provided client command
         """
         from temba.api.models import WebHookEvent
-        date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
+        date = datetime.fromtimestamp(int(cmd['ts']) // 1000).replace(tzinfo=pytz.utc)
 
         keyword = cmd['cmd']
         handled = False
@@ -2174,7 +2174,7 @@ class ExportMessagesTask(BaseExportTask):
 
             if processed % 10000 == 0:  # pragma: needs cover
                 print("Export of %d msgs for %s - %d%% complete in %0.2fs" %
-                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start))
+                      (len(all_message_ids), self.org.name, processed * 100 // len(all_message_ids), time.time() - start))
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)

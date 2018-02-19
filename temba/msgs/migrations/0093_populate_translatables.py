@@ -66,7 +66,7 @@ def populate_translatables(Org, Broadcast):
         time_remaining = total_time - time_taken
 
         print("> Updated %d of %d broadcasts (est. time remaining: %d minutes)"
-              % (num_updated, len(broadcast_ids), int(time_remaining / 60)))
+              % (num_updated, len(broadcast_ids), int(time_remaining // 60)))
 
 
 def apply_manual():

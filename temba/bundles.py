@@ -7,8 +7,8 @@ from decimal import Decimal
 def get_brand_bundles(branding):
     bundles = branding.get('bundles')
     for b in bundles:
-        b['description'] = "$%d - %d Credits" % (int(b['cents']) / 100, b['credits'])
-        b['dollars'] = int(b['cents']) / 100
+        b['description'] = "$%d - %d Credits" % (int(b['cents']) // 100, b['credits'])
+        b['dollars'] = int(b['cents']) // 100
         b['per_credit'] = (Decimal(b['cents']) / Decimal(b['credits'])).quantize(Decimal(".1"))
     return bundles
 

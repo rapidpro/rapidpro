@@ -139,7 +139,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
-        num_remaining = ((max_run_id - highpoint) / 4) if partition is not None else (max_run_id - highpoint)
+        num_remaining = ((max_run_id - highpoint) // 4) if partition is not None else (max_run_id - highpoint)
         time_remaining = num_remaining / updated_per_sec
         finishes = timezone.now() + timedelta(seconds=time_remaining)
         status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes)
@@ -149,7 +149,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
 
         print(status)
 
-    print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) / 60), num_trimmed))
+    print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) // 60), num_trimmed))
 
 
 def apply_manual():

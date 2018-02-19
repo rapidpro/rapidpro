@@ -79,15 +79,15 @@ class Command(BaseCommand):  # pragma: no cover
         for key, status_counts in six.iteritems(item_statuses):
             times = item_times[key]
             total_requests = len(times)
-            avg_time = sum(times) / total_requests
+            avg_time = sum(times) // total_requests
 
-            num_non200s = sum([count for code, count in six.iteritems(status_counts) if code != -1 and int(code / 100) != 2])
+            num_non200s = sum([count for code, count in six.iteritems(status_counts) if code != -1 and int(code // 100) != 2])
             num_timeouts = status_counts.get(-1, 0)
 
             sorted_statuses = []
             for code, count in six.iteritems(status_counts):
                 if code > 0:
-                    sorted_statuses.append({'code': code, 'count': count, '%': (100 * count / total_requests)})
+                    sorted_statuses.append({'code': code, 'count': count, '%': (100 * count // total_requests)})
 
             sorted_statuses = sorted(sorted_statuses, key=lambda s: s['code'])
 
@@ -96,8 +96,8 @@ class Command(BaseCommand):  # pragma: no cover
                 'times': {'avg': avg_time, 'min': min(times), 'max': max(times)},
                 'statuses': sorted_statuses,
                 'failures': {
-                    'non200': {'count': num_non200s, '%': 100 * num_non200s / total_requests},
-                    'timeouts': {'count': num_timeouts, '%': 100 * num_timeouts / total_requests}
+                    'non200': {'count': num_non200s, '%': 100 * num_non200s // total_requests},
+                    'timeouts': {'count': num_timeouts, '%': 100 * num_timeouts // total_requests}
                 }
             })
 

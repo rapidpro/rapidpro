@@ -84,7 +84,7 @@ def fix_value_results(FlowRun, RuleSet, Value):
         status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_fixed, len(run_ids), fixed_per_sec, finishes)
         print(status)
 
-    print("Run results fix migration completed in %d mins" % (int(time.time() - start) / 60))
+    print("Run results fix migration completed in %d mins" % (int(time.time() - start) // 60))
 
 
 def apply_manual():

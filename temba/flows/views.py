@@ -1102,7 +1102,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
             context['categories'] = flow.get_category_counts()['counts']
-            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
+            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):

@@ -614,7 +614,7 @@ def sync(request, channel_id):
 
                     # creating a new message
                     elif keyword == 'mo_sms':
-                        date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
+                        date = datetime.fromtimestamp(int(cmd['ts']) // 1000).replace(tzinfo=pytz.utc)
 
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
@@ -632,7 +632,7 @@ def sync(request, channel_id):
 
                     # phone event
                     elif keyword == 'call':
-                        date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
+                        date = datetime.fromtimestamp(int(cmd['ts']) // 1000).replace(tzinfo=pytz.utc)
 
                         duration = 0
                         if cmd['type'] != 'miss':

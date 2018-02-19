@@ -1875,7 +1875,7 @@ class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
         now = timezone.now()
-        now = now.replace(microsecond=now.microsecond / 1000 * 1000)
+        now = now.replace(microsecond=now.microsecond // 1000 * 1000)
 
         epoch = datetime_to_ms(now)
         self.assertEqual(ms_to_datetime(epoch), now)
