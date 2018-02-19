@@ -105,7 +105,7 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-        .icon-button-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+        .icon-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
 
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header
@@ -269,42 +269,8 @@
           %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
             -trans "Add header"
 
-      .div{ng-show:'formData.supportsLegacy && action.action == "POST"'}
-
-        .success{ng-show:'formData.newFormat'}
-          %p
-            This webhook is set to use the
-            %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
-              new version
-            of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
-            box below. Keep in mind that the deprecated format will be removed February 5, 2018.
-
-          .div{style:'margin-top:10px'}
-            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-              %label{for:'new_format'}
-                Use the new webhook format
-
-        .warning{ng-hide:'formData.newFormat'}
-          %p
-            This webhook is using a
-            %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
-              deprecated version
-            of the POST Webhook API which will be removed on February 5, 2018.
-            Prior to that date, you will need to update any services depending on the deprecated API format.
-
-          %p
-            Review the
-            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-              new version
-            and check the box below when this webhook is ready to start receiving the new format.
-
-          .div{style:'margin-top:10px'}
-            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-              %label{for:'new_format'}
-                Use the new webhook format
-
-      .div{ng-hide:'formData.supportsLegacy && action.action == "POST"'}
-        .help-text
+      .div
+        .help-text{ng-show:'action.action == "POST"'}
           -blocktrans
             We'll include the message text along with data specified in the
             %a{href:"/webhooks/webhook/#flow", target:"_new"}<

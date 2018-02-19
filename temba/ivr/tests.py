@@ -19,7 +19,7 @@ from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep, FlowRevision
 from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 from .clients import IVRException
 from .models import IVRCall
 
@@ -208,7 +208,7 @@ class IVRTests(FlowFileTest):
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
         flow.start([], [contact])
-        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
@@ -290,6 +290,35 @@ class IVRTests(FlowFileTest):
         # each message should have exactly one step
         for msg in messages:
             self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+
+        # run same flow in simulator
+        Contact.set_simulation(True)
+        test_contact = Contact.get_test_contact(self.admin)
+        flow.start([], [test_contact])
+        test_call = IVRCall.objects.get(direction=IVRCall.OUTGOING, contact=test_contact)
+
+        self.client.post(reverse('ivr.ivrcall_handle', args=[test_call.id]), {
+            'CallSid': 'CallSid',
+            'CallStatus': 'in-progress',
+            'CallDuration': 20
+        })
+
+        with patch('requests.get') as response:
+            response.side_effect = (
+                MockResponse(404, 'No such file'),
+                MockResponse(200, 'Fake Recording Bits', {'Content-Type': 'audio/x-wav'})
+            )
+            self.client.post(reverse('ivr.ivrcall_handle', args=[test_call.id]), {
+                'CallStatus': 'completed',
+                'Digits': 'hangup',
+                'RecordingUrl': 'http://api.twilio.com/ASID/Recordings/SID',
+                'RecordingSid': 'FAKESID'
+            })
+
+        out_msg = Msg.objects.get(contact=test_contact, direction='O', msg_type='V', text__contains='Played contact recording')
+        recording_url = out_msg.attachments[0].split(':', 1)[1]
+
+        self.assertTrue(ActionLog.objects.filter(text="Played recording at &quot;%s&quot;" % recording_url).exists())
 
     @patch('jwt.encode')
     @patch('nexmo.Client.create_application')
@@ -864,7 +893,7 @@ class IVRTests(FlowFileTest):
         # our flow should remain active until we get completion
         self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
         post_data = dict()
         post_data['status'] = 'completed'
         post_data['duration'] = '0'
@@ -1180,7 +1209,7 @@ class IVRTests(FlowFileTest):
 
         # go back to our original version
         flow_json = self.get_flow_json('call_me_maybe')['definition']
-        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+        FlowRevision.objects.create(flow=flow, definition=flow_json,
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
@@ -1253,7 +1282,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         self.get_flow('call_me_start')
 
@@ -1295,7 +1324,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         # import an ivr flow
         flow = self.get_flow('call_me_maybe')
@@ -1306,7 +1335,7 @@ class IVRTests(FlowFileTest):
         flow_json = self.get_flow_json('call_me_maybe')['definition']
 
         from temba.flows.models import FlowRevision
-        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+        FlowRevision.objects.create(flow=flow, definition=flow_json,
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # event for non-existing external_id call
@@ -1381,7 +1410,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     '', content_type='application/json')
@@ -1406,7 +1435,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         # remove our channel
         self.channel.release()
@@ -1436,7 +1465,7 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = 'NX'
         self.channel.save()
 
-        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        nexmo_uuid = self.org.config['NEXMO_UUID']
 
         flow = self.get_flow('missed_call_flow')
 

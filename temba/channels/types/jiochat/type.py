@@ -30,6 +30,23 @@ class JioChatType(ChannelType):
     attachment_support = False
     free_sending = True
 
+    configuration_blurb = _(
+        """
+        To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on JioChat Developer Center configuration
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Webhook URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.jc' channel.uuid %}",
+        ),
+        dict(
+            label=_("Token"),
+            url="{{ channel.config.secret }}",
+        )
+    )
+
     def send(self, channel, msg, text):
         data = {'msgtype': 'text', 'touser': msg.urn_path, 'text': {'content': text}}
 

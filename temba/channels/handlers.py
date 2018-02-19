@@ -133,6 +133,12 @@ class ZenviaHandler(CourierHandler):
     courier_name = 'courier.zv'
 
 
+class MtargetHandler(CourierHandler):
+    channel_name = "Mtarget"
+    courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.mt'
+
+
 class TwimlAPIHandler(BaseChannelHandler):
 
     courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
@@ -595,7 +601,7 @@ class TelegramHandler(BaseChannelHandler):
         """
         Fetches a file from Telegram's server based on their file id
         """
-        auth_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
+        auth_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
         url = 'https://api.telegram.org/bot%s/getFile' % auth_token
         response = requests.post(url, {'file_id': file_id})
 
@@ -1229,7 +1235,7 @@ class NexmoCallHandler(BaseChannelHandler):
             # make sure we got one, and that it matches the key for our org
             org_uuid = None
             if channel:
-                org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
+                org_uuid = channel.org.config.get(NEXMO_UUID, None)
 
             if not channel or org_uuid != request_uuid:
                 return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
@@ -1983,7 +1989,7 @@ class JunebugHandler(BaseChannelHandler):
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
         auth = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-        secret = channel.config_json().get(Channel.CONFIG_SECRET)
+        secret = channel.config.get(Channel.CONFIG_SECRET)
         if secret is not None and (len(auth) != 2 or auth[0] != 'Token' or auth[1] != secret):
             return JsonResponse(dict(error="Incorrect authentication token"), status=401)
 
@@ -2188,7 +2194,7 @@ class JioChatHandler(BaseChannelHandler):
 
         client = JiochatClient.from_channel(channel)
         if client:
-            verified, echostr = client.verify_request(request, channel.config_json()[Channel.CONFIG_SECRET])
+            verified, echostr = client.verify_request(request, channel.config[Channel.CONFIG_SECRET])
 
             if verified:
                 refresh_jiochat_access_tokens.delay(channel.id)
@@ -2275,7 +2281,7 @@ class FacebookHandler(BaseChannelHandler):
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
-            if channel.config_json()[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
+            if channel.config[Channel.CONFIG_SECRET] == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
                 on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
@@ -2426,7 +2432,7 @@ class FacebookHandler(BaseChannelHandler):
                                     try:
                                         response = requests.get('https://graph.facebook.com/v2.5/' + six.text_type(sender_id),
                                                                 params=dict(fields='first_name,last_name',
-                                                                            access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
+                                                                            access_token=channel.config[Channel.CONFIG_AUTH_TOKEN]))
 
                                         if response.status_code == 200:
                                             user_stats = response.json()
@@ -2561,76 +2567,6 @@ class GlobeHandler(BaseChannelHandler):
             return HttpResponse("Not handled", status=400)
 
 
-class ViberHandler(BaseChannelHandler):
-    courier_url = r'^vi/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
-    courier_name = 'courier.vi'
-
-    handler_url = r'^viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    handler_name = 'handlers.viber_handler'
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("Must be called as a POST", status=405)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        # parse our response
-        try:
-            body = json.loads(request.body)
-        except Exception as e:
-            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
-
-        # Viber is updating the delivery status for a message
-        if action == 'status':
-            # {
-            #    "message_token": 4727481224105516513,
-            #    "message_status": 0
-            # }
-            external_id = body['message_token']
-
-            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).select_related('channel').first()
-            if not msg:
-                # viber is hammers us incessantly if we give 400s for non-existant message_ids
-                return HttpResponse("Message with external id of '%s' not found" % external_id)
-
-            msg.status_delivered()
-
-            # tell Viber we handled this
-            return HttpResponse('Msg %d updated' % msg.id)
-
-        # this is a new incoming message
-        elif action == 'receive':
-            # { "message_token": 44444444444444,
-            #   "phone_number": "972512222222",
-            #   "time": 2121212121,
-            #   "message": {
-            #      "text": "a message to the service",
-            #      "tracking_data": "tracking_id:100035"}
-            #  }
-            if not all(k in body for k in ['message_token', 'phone_number', 'time', 'message']):
-                return HttpResponse("Missing one of 'message_token', 'phone_number', 'time', or 'message' in request parameters.",
-                                    status=400)
-
-            msg_date = datetime.utcfromtimestamp(body['time']).replace(tzinfo=pytz.utc)
-            msg = Msg.create_incoming(channel,
-                                      URN.from_tel(body['phone_number']),
-                                      body['message']['text'],
-                                      date=msg_date)
-            Msg.objects.filter(pk=msg.id).update(external_id=body['message_token'])
-            return HttpResponse('Msg Accepted: %d' % msg.id)
-
-        else:  # pragma: no cover
-            return HttpResponse("Not handled, unknown action", status=400)
-
-
 class LineHandler(BaseChannelHandler):
     courier_url = r'^ln/(?P<uuid>[a-z0-9\-]+)/receive$'
     courier_name = 'courier.ln'
@@ -2707,7 +2643,7 @@ class ViberPublicHandler(BaseChannelHandler):
 
         # calculate our signature
         signature = ViberPublicHandler.calculate_sig(request.body,
-                                                     channel.config_json()[Channel.CONFIG_AUTH_TOKEN])
+                                                     channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         # check it against the Viber header
         if signature != request.META.get('HTTP_X_VIBER_CONTENT_SIGNATURE'):
@@ -2955,7 +2891,7 @@ class TwitterHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
-        consumer_secret = channel.config_json()['api_secret']
+        consumer_secret = channel.config['api_secret']
         resp_token = generate_twitter_signature(crc_token, consumer_secret)
 
         return JsonResponse({'response_token': resp_token}, status=200)
@@ -2965,7 +2901,7 @@ class TwitterHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
-        channel_config = channel.config_json()
+        channel_config = channel.config
 
         # validate that request has come from Twitter
         expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']

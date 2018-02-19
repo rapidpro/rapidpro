@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import json
 import six
 import pytz
 
@@ -71,7 +70,7 @@ class CampaignTest(TembaTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -127,7 +126,7 @@ class CampaignTest(TembaTest):
         # go create an event that based on a message
         url = '%s?campaign=%d' % (reverse('campaigns.campaignevent_create'), campaign.id)
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
 
         # should be no language list
         self.assertNotContains(response, 'show_language')
@@ -141,17 +140,17 @@ class CampaignTest(TembaTest):
 
         # now we should have ace as our primary
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
 
         # add second language
         spa = Language.objects.create(org=self.org, name='Spanish', iso_code='spa',
                                       created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
-        self.assertTrue('spa' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
+        self.assertIn('spa', response.context['form'].fields)
 
         # and our language list should be there
         self.assertContains(response, 'show_language')
@@ -160,9 +159,9 @@ class CampaignTest(TembaTest):
         self.org.save()
 
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
-        self.assertTrue('spa' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
+        self.assertIn('spa', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
 
         post_data = dict(relative_to=self.planting_date.pk, event_type='M', base="This is my message", spa="hola",
                          direction='B', offset=1, unit='W', flow_to_start='', delivery_hour=13)
@@ -203,7 +202,7 @@ class CampaignTest(TembaTest):
 
         # the base language needs to stay present since it's the true backdown
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
         self.assertEqual('This is my message', response.context['form'].fields['base'].initial)
         self.assertEqual('hola', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
@@ -224,7 +223,7 @@ class CampaignTest(TembaTest):
 
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
         self.assertEqual('This is my spanish @contact.planting_date', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
 
@@ -329,7 +328,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('A message is required' in six.text_type(response.context['form'].errors['__all__']))
+        self.assertIn('A message is required', six.text_type(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='allo!' * 500, direction='A',
                          offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
@@ -343,7 +342,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('Please select a flow' in response.context['form'].errors['flow_to_start'])
+        self.assertIn('Please select a flow', response.context['form'].errors['flow_to_start'])
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)

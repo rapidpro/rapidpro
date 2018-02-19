@@ -1,7 +1,5 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
-
 from django.urls import reverse
 from mock import patch
 
@@ -32,7 +30,7 @@ class NexmoTypeTest(TembaTest):
 
         nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
                             NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
-        self.org.config = json.dumps(nexmo_config)
+        self.org.config = nexmo_config
         self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
@@ -137,7 +135,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '360-788-4540')
 
                 # claim it
@@ -151,7 +149,7 @@ class NexmoTypeTest(TembaTest):
                 self.assertTrue(Channel.ROLE_ANSWER in channel.role)
                 self.assertTrue(Channel.ROLE_CALL in channel.role)
 
-                channel_config = channel.config_json()
+                channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], 'nexmo-key')
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], 'nexmo-secret')
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'nexmo-app-id')
@@ -177,7 +175,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '579-788-4540')
 
                 # claim it

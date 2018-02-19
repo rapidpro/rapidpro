@@ -38,7 +38,7 @@ from twilio import TwilioRestException
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
 
-COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.iteritems()}
+COUNTRIES_NAMES = {key: value for key, value in six.iteritems(COUNTRIES)}
 COUNTRIES_NAMES['GB'] = _("United Kingdom")
 COUNTRIES_NAMES['US'] = _("United States")
 
@@ -468,11 +468,7 @@ ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()),
 
 
 def get_channel_read_url(channel):
-    # viber channels without service id's need to go to their claim page instead of read
-    if channel.channel_type == Channel.TYPE_VIBER and channel.address == Channel.VIBER_NO_SERVICE_ID:
-        return reverse('channels.channel_claim_viber', args=[channel.id])
-    else:
-        return reverse('channels.channel_read', args=[channel.uuid])
+    return reverse('channels.channel_read', args=[channel.uuid])
 
 
 def channel_status_processor(request):
@@ -669,9 +665,9 @@ def sync(request, channel_id):
                         # update our fcm and uuid
 
                         channel.gcm_id = None
-                        config = channel.config_json()
+                        config = channel.config
                         config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
-                        channel.config = json.dumps(config)
+                        channel.config = config
                         channel.uuid = cmd.get('uuid', None)
                         channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
@@ -751,8 +747,10 @@ class ClaimViewMixin(OrgPermsMixin):
 
     def __init__(self, channel_type):
         self.channel_type = channel_type
-        self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimViewMixin, self).__init__()
+
+    def get_template_names(self):
+        return [self.template_name] if self.template_name else ['channels/types/%s/claim.html' % self.channel_type.slug, 'channels/channel_claim_form.html']
 
     def derive_title(self):
         return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
@@ -1050,11 +1048,9 @@ TYPE_UPDATE_FORM_CLASSES = {
 
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
-    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers',
-               'claim_android', 'configuration',
-               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'create_caller', 'claim_verboice', 'search_plivo',
-               'claim_viber', 'create_viber', 'facebook_whitelist')
+    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_android', 'configuration',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller', 'claim_verboice',
+               'search_plivo', 'facebook_whitelist')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1290,7 +1286,7 @@ class ChannelCRUDL(SmartCRUDL):
             #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
             #  "domain_action_type": "add"
             # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
-            access_token = self.object.config_json()[Channel.CONFIG_AUTH_TOKEN]
+            access_token = self.object.config[Channel.CONFIG_AUTH_TOKEN]
             response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
                                      json=dict(setting_type='domain_whitelisting',
                                                whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
@@ -1369,10 +1365,8 @@ class ChannelCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             if obj.config:
-                config = json.loads(obj.config)
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    config[field] = bool(self.form.cleaned_data[field])
-                obj.config = json.dumps(config)
+                    obj.config[field] = bool(self.form.cleaned_data[field])
             return obj
 
         def post_save(self, obj):
@@ -1515,54 +1509,6 @@ class ChannelCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse('orgs.org_home')
 
-    class CreateViber(OrgPermsMixin, SmartFormView):
-        class ViberCreateForm(forms.Form):
-            name = forms.CharField(max_length=32, min_length=1,
-                                   help_text=_("The name of your Viber bot"))
-
-        title = _("Connect Viber Bot")
-        fields = ('name',)
-        form_class = ViberCreateForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_claim_viber"
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-            self.object = Channel.add_viber_channel(org,
-                                                    self.request.user,
-                                                    data['name'])
-
-            return super(ChannelCRUDL.CreateViber, self).form_valid(form)
-
-    class ClaimViber(OrgPermsMixin, SmartUpdateView):
-        class ViberClaimForm(forms.ModelForm):
-            service_id = forms.IntegerField(help_text=_("The service id provided by Viber"))
-
-            class Meta:
-                model = Channel
-                fields = ('service_id',)
-
-        title = _("Connect Viber Bot")
-        fields = ('service_id',)
-        form_class = ViberClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.ClaimViber, self).get_context_data(**kwargs)
-            context['ip_addresses'] = settings.IP_ADDRESSES
-            return context
-
-        def form_valid(self, form):
-            data = form.cleaned_data
-
-            # save our service id as our address
-            self.object.address = data['service_id']
-            self.object.save()
-
-            return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
-
     class ClaimVerboice(OrgPermsMixin, SmartFormView):
         class VerboiceClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1604,30 +1550,15 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Configuration, self).get_context_data(**kwargs)
-
-            # if this is an external channel, build an example URL
-            if self.object.channel_type == 'EX':
-                config = self.object.config_json()
-                send_url = config[Channel.CONFIG_SEND_URL]
-                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
-
-                example_payload = {
-                    'to': '+250788123123',
-                    'to_no_plus': '250788123123',
-                    'text': "Love is patient. Love is kind.",
-                    'from': self.object.address,
-                    'from_no_plus': self.object.address.lstrip('+'),
-                    'id': '1241244',
-                    'channel': str(self.object.id)
-                }
-
-                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-                context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
-                context['example_url'] = Channel.replace_variables(send_url, example_payload)
-                context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
-
             context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
+
+            # populate with our channel type
+            channel_type = Channel.get_type_from_code(self.object.channel_type)
+            context['configuration_template'] = channel_type.get_configuration_template(self.object)
+            context['configuration_blurb'] = channel_type.get_configuration_blurb(self.object)
+            context['configuration_urls'] = channel_type.get_configuration_urls(self.object)
+            context['show_public_addresses'] = channel_type.show_public_addresses
 
             return context
 

@@ -1,3 +1,48 @@
+v3.0.322
+----------
+ * Unfreeze phonenumbers library so we always use latest
+ * Remove old Viber VI channel type
+ * Add config template for LN channel type
+ * Move configuration blurbs to channel types
+ * Move to use new custom model JSONAsTextField where appropriate
+
+v3.0.321
+----------
+ * Fix quick-reply button in flow editor
+
+v3.0.320
+----------
+ * Fix webhook rule as first step in run interpreting msg wrong
+ * Change mailto URN importing to use header 'mailto' and make 'email' always a field. Rename 'mailto' fields to 'email'.
+
+v3.0.319
+----------
+ * Add ArabiaCell channel type
+ * Tweaks to Mtarget channel type
+ * Pathfix for highcharts
+
+v3.0.318
+----------
+ * Add input to webhook payload
+
+v3.0.317
+----------
+ * Remove support for legacy webhook payload format
+ * Fix org-choose redirects for brands
+
+v3.0.316
+----------
+ * Remove stop endpoint for MT
+
+v3.0.315
+----------
+ * Inactive flows should not be listed on the API endpoint
+ * Add Mtarget channel type
+
+v3.0.314
+----------
+ * Add run dict to default webhook payload
+
 v3.0.313
 ----------
  * have URNs resolve to dicts instead of just the display

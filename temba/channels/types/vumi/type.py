@@ -31,6 +31,30 @@ class VumiType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
 
+    configuration_blurb = _(
+        """
+        To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("API Token"),
+            url="{{ channel.config.access_token }}",
+            description=_('This token is used to authenticate with your Vumi account, set it by editing the "Content" page on your conversation.'),
+        ),
+        dict(
+            label=_("Push Message URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.vm' channel.uuid 'receive' %}",
+            description=_("This endpoint will be called by Vumi when new messages are received to your number."),
+        ),
+        dict(
+            label=_("Push Event URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.vm' channel.uuid 'event' %}",
+            description=_("This endpoint will be called by Vumi when sent messages are sent or delivered."),
+        ),
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Lagos"]

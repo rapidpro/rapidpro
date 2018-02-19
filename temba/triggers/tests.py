@@ -600,7 +600,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 1)
         self.assertEqual(flow.runs.all().count(), 0)
 
@@ -621,7 +621,7 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(missed_call_trigger.pk, trigger.pk)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
         self.assertEqual(flow.runs.all().count(), 1)
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
@@ -816,7 +816,7 @@ class TriggerTest(TembaTest):
         action_set = ActionSet.objects.get(uuid=flow.entry_uuid)
         actions = action_set.as_json()['actions']
         actions[0]['msg']['base'] = 'Echo: @step.value'
-        action_set.set_actions_dict(actions)
+        action_set.actions = actions
         action_set.save()
 
         self.assertFalse(catch_all_trigger)
@@ -1170,7 +1170,7 @@ class TriggerTest(TembaTest):
         post_data = dict(channel=channel.pk, keyword='*keyword#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertEqual(1, len(response.context['form'].errors))
-        self.assertTrue("keyword" in response.context['form'].errors)
+        self.assertIn("keyword", response.context['form'].errors)
         self.assertEqual(response.context['form'].errors['keyword'], [u'USSD code must contain only *,# and numbers'])
 
         # try a proper ussd code

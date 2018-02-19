@@ -1,7 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import hmac
-import iso8601
 import json
 import requests
 import six
@@ -19,6 +18,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
+from six.moves.urllib.parse import urlencode
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
@@ -26,9 +26,8 @@ from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.dates import datetime_to_str
 from temba.utils.http import http_headers
-from urllib import urlencode
+from temba.utils.models import JSONAsTextField
 
 
 class APIPermission(BasePermission):
@@ -196,7 +195,7 @@ class WebHookEvent(SmartModel):
                                 help_text="The channel that this event is relating to")
     event = models.CharField(max_length=16, choices=TYPE_CHOICES,
                              help_text="The event type for this event")
-    data = models.TextField(help_text="The JSON encoded data that will be POSTED to the web hook")
+    data = JSONAsTextField(default=dict, help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0,
                                     help_text="The number of times this event has been tried")
     next_attempt = models.DateTimeField(null=True, blank=True,
@@ -220,27 +219,31 @@ class WebHookEvent(SmartModel):
         contact = run.contact
         org = flow.org
         channel = msg.channel if msg else None
-        contact_urn = msg.contact_urn if msg else contact.get_urn()
-
-        post_data = {}
-        post_data['flow'] = dict(name=flow.name, uuid=flow.uuid)
-        post_data['path'] = run.get_path()
-        post_data['results'] = run.get_results()
+        contact_urn = msg.contact_urn if (msg and msg.contact_urn) else contact.get_urn()
 
         contact_dict = dict(uuid=contact.uuid, name=contact.name)
         if contact_urn:
             contact_dict['urn'] = contact_urn.urn
 
+        post_data = {
+            'contact': contact_dict,
+            'flow': dict(name=flow.name, uuid=flow.uuid),
+            'path': run.path,
+            'results': run.results,
+            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
+        }
+
+        if msg and msg.id > 0:
+            post_data['input'] = dict(urn=msg.contact_urn.urn if msg.contact_urn else None, text=msg.text, attachments=(msg.attachments or []))
+
         if channel:
             post_data['channel'] = dict(name=channel.name, uuid=channel.uuid)
-
-        post_data['contact'] = contact_dict
 
         api_user = get_api_user()
         if not action:  # pragma: needs cover
             action = 'POST'
 
-        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(post_data),
+        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=post_data,
                                            run=run, try_count=1, action=action, resthook=resthook,
                                            created_by=api_user, modified_by=api_user)
 
@@ -322,165 +325,7 @@ class WebHookEvent(SmartModel):
                                                   status_code=status_code,
                                                   body=body,
                                                   message=message,
-                                                  data=json.dumps(post_data),
-                                                  request_time=request_time,
-                                                  created_by=api_user,
-                                                  modified_by=api_user)
-
-            # if this is a test contact, add an entry to our action log
-            if run.contact.is_test:
-                log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (reverse('api.log_read', args=[webhook_event.pk]), status_code)
-                ActionLog.create(run, log_txt, safe=True)
-
-        return result
-
-    @classmethod
-    def trigger_flow_webhook_legacy(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, headers=None):  # pragma: no cover
-        flow = run.flow
-        org = flow.org
-        contact = run.contact
-        api_user = get_api_user()
-        json_time = datetime_to_str(timezone.now())
-
-        values = []
-        for key, result in six.iteritems(run.get_results()):
-            category = result[FlowRun.RESULT_CATEGORY]
-            values.append({
-                'node': result[FlowRun.RESULT_NODE_UUID],
-                'label': result[FlowRun.RESULT_NAME],
-                'category': category,
-                'category_localized': result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, category),
-                'text': result[FlowRun.RESULT_INPUT],
-                'value': result[FlowRun.RESULT_VALUE],
-                'rule_value': result[FlowRun.RESULT_VALUE],
-                'time': datetime_to_str(iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])),
-            })
-
-        if msg:
-            text = msg.text
-            attachments = msg.get_attachments()
-            channel = msg.channel
-            contact_urn = msg.contact_urn
-        else:
-            # if the action is on the first node we might not have an sms (or channel) yet
-            channel = None
-            text = None
-            attachments = []
-            contact_urn = contact.get_urn()
-
-        steps = []
-        for step in run.steps.prefetch_related('messages', 'broadcasts').order_by('arrived_on'):
-            steps.append(dict(type=step.step_type,
-                              node=step.step_uuid,
-                              arrived_on=datetime_to_str(step.arrived_on),
-                              left_on=datetime_to_str(step.left_on),
-                              text=step.get_text(),
-                              value=step.rule_value))
-
-        data = dict(channel=channel.id if channel else -1,
-                    channel_uuid=channel.uuid if channel else None,
-                    relayer=channel.id if channel else -1,
-                    flow=flow.id,
-                    flow_uuid=flow.uuid,
-                    flow_name=flow.name,
-                    flow_base_language=flow.base_language,
-                    run=run.id,
-                    text=text,
-                    attachments=[a.url for a in attachments],
-                    step=six.text_type(node_uuid),
-                    phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
-                    contact=contact.uuid,
-                    contact_name=contact.name,
-                    urn=six.text_type(contact_urn),
-                    values=json.dumps(values),
-                    steps=json.dumps(steps),
-                    time=json_time)
-
-        if not action:  # pragma: needs cover
-            action = 'POST'
-
-        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(data),
-                                           run=run, try_count=1, action=action, resthook=resthook,
-                                           created_by=api_user, modified_by=api_user)
-
-        status_code = -1
-        message = "None"
-        body = None
-
-        start = time.time()
-
-        # webhook events fire immediately since we need the results back
-        try:
-            # no url, bail!
-            if not webhook_url:
-                raise Exception("No webhook_url specified, skipping send")
-
-            # only send webhooks when we are configured to, otherwise fail
-            if settings.SEND_WEBHOOKS:
-                requests_headers = http_headers(extra=headers)
-
-                # some hosts deny generic user agents, use Temba as our user agent
-                if action == 'GET':
-                    response = requests.get(webhook_url, headers=requests_headers, timeout=10)
-                else:
-                    response = requests.post(webhook_url, data=data, headers=requests_headers, timeout=10)
-
-                body = response.text
-                if body:
-                    body = body.strip()
-                status_code = response.status_code
-            else:
-                print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-                body = 'Skipped actual send'
-                status_code = 200
-
-            # process the webhook response
-            try:
-                response_json = json.loads(body, object_pairs_hook=OrderedDict)
-
-                # only update if we got a valid JSON dictionary or list
-                if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
-
-                run.update_fields(response_json)
-                message = "Webhook called successfully."
-            except ValueError:
-                message = "Response must be a JSON dictionary, ignoring response."
-
-            if 200 <= status_code < 300:
-                webhook_event.status = cls.STATUS_COMPLETE
-            else:
-                webhook_event.status = cls.STATUS_FAILED
-                message = "Got non 200 response (%d) from webhook." % response.status_code
-                raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-
-            webhook_event.status = cls.STATUS_FAILED
-            message = "Error calling webhook: %s" % six.text_type(e)
-
-        finally:
-            webhook_event.save()
-
-            # make sure our message isn't too long
-            if message:
-                message = message[:255]
-
-            request_time = (time.time() - start) * 1000
-
-            contact = None
-            if webhook_event.run:
-                contact = webhook_event.run.contact
-
-            result = WebHookResult.objects.create(event=webhook_event,
-                                                  contact=contact,
-                                                  url=webhook_url,
-                                                  status_code=status_code,
-                                                  body=body,
-                                                  message=message,
-                                                  data=urlencode(data, doseq=True),
+                                                  data=post_data,
                                                   request_time=request_time,
                                                   created_by=api_user,
                                                   modified_by=api_user)
@@ -521,7 +366,7 @@ class WebHookEvent(SmartModel):
                     status=msg.status,
                     direction=msg.direction)
 
-        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -554,9 +399,9 @@ class WebHookEvent(SmartModel):
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    extra=call.extra_json(),
+                    extra=call.extra,
                     occurred_on=json_time)
-        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -586,7 +431,7 @@ class WebHookEvent(SmartModel):
                     retry_message_count=sync_event.retry_message_count,
                     last_seen=json_time)
 
-        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=json.dumps(data),
+        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
@@ -596,7 +441,7 @@ class WebHookEvent(SmartModel):
         start = time.time()
 
         # create our post parameters
-        post_data = json.loads(self.data)
+        post_data = self.data
         post_data['event'] = self.event
         post_data['relayer'] = self.channel.pk if self.channel else ''
         post_data['channel'] = self.channel.pk if self.channel else ''

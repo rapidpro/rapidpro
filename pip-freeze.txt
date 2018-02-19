@@ -5,7 +5,7 @@
 #    pip-compile --output-file pip-freeze.txt pip-requires.txt
 #
 amqp==2.1.4               # via kombu
-analytics-python==0.4.4
+analytics-python==1.2.9
 antlr4-python2-runtime==4.7
 asn1crypto==0.22.0        # via cryptography
 beautifulsoup4==4.6.0     # via google
@@ -72,7 +72,7 @@ nexmo==1.4.0
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.4.8
 pbr==3.1.0                # via mock
-phonenumbers==8.5.1
+phonenumbers
 pisa==3.0.33
 plivo==0.11.3
 polib==1.0.8              # via django-rosetta
