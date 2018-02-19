@@ -48,7 +48,7 @@ class JioChatType(ChannelType):
         )
     )
 
-    def setup_periodic_tasks(sender, **kwargs):
+    def setup_periodic_tasks(self, sender):
         # automatically refresh the access token
         sender.add_periodic_task(3600, refresh_jiochat_access_tokens)
 
