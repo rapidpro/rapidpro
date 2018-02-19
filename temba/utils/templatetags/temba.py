@@ -66,7 +66,7 @@ def format_seconds(seconds):
 
     if seconds < 60:
         return '%s sec' % seconds
-    minutes = seconds / 60
+    minutes = seconds // 60
     seconds %= 60
     if seconds >= 30:
         minutes += 1

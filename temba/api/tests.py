@@ -19,7 +19,7 @@ from temba.flows.models import ActionSet, WebhookAction, Flow
 from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
-from urlparse import parse_qs
+from six.moves.urllib.parse import parse_qs
 from uuid import uuid4
 
 

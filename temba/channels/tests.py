@@ -12,7 +12,7 @@ import iso8601
 import pytz
 import six
 import time
-from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import quote, urlencode
 import uuid
 
 from datetime import timedelta, date, datetime
@@ -51,7 +51,6 @@ from temba.utils.queues import push_task
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
-from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 

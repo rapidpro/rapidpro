@@ -6,7 +6,8 @@ import hashlib
 import hmac
 import json
 import requests
-import urllib
+
+from six.moves.urllib.parse import quote_plus
 
 from django.conf import settings
 from django.db.models import Model
@@ -156,7 +157,7 @@ class TembaTwython(Twython):  # pragma: no cover
         Registers a new webhook URL for the given application context.
         Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
         """
-        set_webhook_url = 'https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json?url=%s' % (env_name, urllib.quote_plus(url))
+        set_webhook_url = 'https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json?url=%s' % (env_name, quote_plus(url))
         return self.post(set_webhook_url)
 
     def subscribe_to_webhook(self, env_name):

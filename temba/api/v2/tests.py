@@ -28,7 +28,7 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from uuid import uuid4
-from urllib import quote_plus
+from six.moves.urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
 from .serializers import format_datetime
