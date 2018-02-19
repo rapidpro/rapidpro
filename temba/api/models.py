@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
+from six.moves.urllib.parse import urlencode
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
@@ -27,7 +28,6 @@ from temba.utils import prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
 from temba.utils.models import JSONAsTextField
-from urllib import urlencode
 
 
 class APIPermission(BasePermission):

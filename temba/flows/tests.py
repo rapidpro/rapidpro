@@ -1380,6 +1380,19 @@ class FlowTest(TembaTest):
         sms.text = "this is an email email@foo.bar TODAY!!"
         self.assertTest(True, "email@foo.bar", test)
 
+        sms.text = "this is an email followed by a period email@foo.bar."
+        self.assertTest(True, "email@foo.bar", test)
+
+        sms.text = "this is an email surrounded by punctuation <email@foo.bar>,"
+        self.assertTest(True, "email@foo.bar", test)
+
+        test = ContainsOnlyPhraseTest(test=dict(base=""))
+        sms.text = "  RESIST now "
+        self.assertTest(False, None, test)
+
+        sms.text = "  "
+        self.assertTest(True, "", test)
+
         test = ContainsPhraseTest(test=dict(base="resist now"))
         test = ContainsPhraseTest.from_json(self.org, test.as_json())
         sms.text = "we must resist! NOW "
@@ -1390,6 +1403,10 @@ class FlowTest(TembaTest):
 
         sms.text = "  RESIST now "
         self.assertTest(True, "RESIST now", test)
+
+        test = ContainsPhraseTest(test=dict(base=""))
+        sms.text = "  RESIST now "
+        self.assertTest(True, "", test)
 
         test = ContainsTest(test=dict(base="Green green %%$"))
         sms.text = "GReen is my favorite!, %%$"
@@ -3311,7 +3328,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertEqual(action.msg.keys(), [u'rus', u'hun', u'eng'])
+        self.assertEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])

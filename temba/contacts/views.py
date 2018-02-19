@@ -290,7 +290,7 @@ class ContactForm(forms.ModelForm):
 
                 last_urn = urn
 
-        self.fields = OrderedDict(self.fields.items() + extra_fields)
+        self.fields = OrderedDict(list(self.fields.items()) + extra_fields)
 
     def clean(self):
         country = self.org.get_country_code()
@@ -509,7 +509,7 @@ class ContactCRUDL(SmartCRUDL):
                     (type_field_name, type_field)
                 ]
 
-                self.form.fields = OrderedDict(self.form.fields.items() + fields)
+                self.form.fields = OrderedDict(list(self.form.fields.items()) + fields)
 
                 column_controls.append(dict(header=header,
                                             include_field=include_field_name,
@@ -1399,7 +1399,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 
-            form.fields = OrderedDict(form.fields.items() + added_fields)
+            form.fields = OrderedDict(list(form.fields.items()) + added_fields)
 
             return form
 
