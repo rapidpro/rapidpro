@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django import template
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
