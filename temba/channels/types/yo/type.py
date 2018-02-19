@@ -1,7 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-import urlparse
+from six.moves.urllib.parse import parse_qs
 import requests
 import six
 
@@ -92,7 +92,7 @@ class YoType(ChannelType):
                 event.status_code = response.status_code
                 event.response_body = response.text
 
-                response_qs = urlparse.parse_qs(response.text)
+                response_qs = parse_qs(response.text)
             except Exception:
                 failed = True
 

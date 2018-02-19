@@ -895,7 +895,7 @@ class Contact(TembaModel):
         else:
             kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
             contact = Contact.objects.create(**kwargs)
-            updated_attrs = kwargs.keys()
+            updated_attrs = list(kwargs.keys())
 
             if existing_urn:
                 ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
@@ -1036,7 +1036,7 @@ class Contact(TembaModel):
                 kwargs = dict(org=org, name=name, language=language, is_test=is_test,
                               created_by=user, modified_by=user)
                 contact = Contact.objects.create(**kwargs)
-                updated_attrs = kwargs.keys()
+                updated_attrs = list(kwargs.keys())
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -1053,7 +1053,7 @@ class Contact(TembaModel):
                 urn_objects[raw] = urn
 
             # save which urns were updated
-            updated_urns = urn_objects.keys()
+            updated_urns = list(urn_objects.keys())
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
@@ -2625,7 +2625,7 @@ class ExportContactsTask(BaseExportTask):
 
             scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
-            schemes = scheme_counts.keys()
+            schemes = list(scheme_counts.keys())
             schemes.sort()
 
             for scheme in schemes:

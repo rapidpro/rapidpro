@@ -1589,7 +1589,7 @@ class BroadcastCRUDLTest(TembaTest):
         url = reverse('msgs.broadcast_update', args=[broadcast.pk])
 
         response = self.client.get(url)
-        self.assertEqual(response.context['form'].fields.keys(), ['message', 'omnibox', 'loc'])
+        self.assertEqual(list(response.context['form'].fields.keys()), ['message', 'omnibox', 'loc'])
 
         response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
         self.assertEqual(response.status_code, 302)
