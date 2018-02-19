@@ -81,7 +81,7 @@ class ClientTest(TembaTest):
 
         with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
 
-            self.assertEqual(self.client.request_builder(1234).run_expired(run).request['events'], [{
+            self.assertEqual(self.client.request_builder(1234).add_run_expired(run).request['events'], [{
                 'type': "run_expired",
                 'created_on': run.exited_on.isoformat(),
                 'run_uuid': str(run.uuid)
