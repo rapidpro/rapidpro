@@ -11,10 +11,9 @@ python:
 addons:
   apt:
     packages:
-      - postgresql-9.4-postgis-2.3
       - python3
       - python3-pip
-  postgresql: "9.4"
+  postgresql: "9.6"
 
 services:
   - redis-server
