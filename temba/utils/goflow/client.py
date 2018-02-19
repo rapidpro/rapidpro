@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import, print_function
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import requests
@@ -237,7 +238,7 @@ class RequestBuilder(object):
         })
         return self
 
-    def msg_received(self, msg):
+    def add_msg_received(self, msg):
         """
         Include a msg_received event in response to receiving a message from the session contact
         """
@@ -259,7 +260,7 @@ class RequestBuilder(object):
         self.request['events'].append(event)
         return self
 
-    def run_expired(self, run):
+    def add_run_expired(self, run):
         """
         Include a run_expired event in response to the active run in this session expiring
         """

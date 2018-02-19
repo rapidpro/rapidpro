@@ -180,7 +180,7 @@ class FlowSession(models.Model):
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
-                request.msg_received(msg_in)
+                request.add_msg_received(msg_in)
             if extra:
                 request.set_extra(extra)
 
@@ -235,9 +235,9 @@ class FlowSession(models.Model):
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
-            request.msg_received(msg_in)
+            request.add_msg_received(msg_in)
         if expired_child_run:  # pragma: needs cover
-            request.run_expired(expired_child_run)
+            request.add_run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
         request = request.set_contact(self.contact)
