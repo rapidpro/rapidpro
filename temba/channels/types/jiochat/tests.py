@@ -1,9 +1,12 @@
 from __future__ import unicode_literals, absolute_import
 
 from django.urls import reverse
+from mock import patch
 from temba.contacts.models import URN
-from temba.tests import TembaTest
-from ...models import Channel
+from temba.tests import TembaTest, MockResponse
+from temba.utils.jiochat import JiochatClient
+from ...models import Channel, ChannelLog
+from .tasks import refresh_jiochat_access_tokens
 
 
 class JioChatTypeTest(TembaTest):
@@ -51,3 +54,45 @@ class JioChatTypeTest(TembaTest):
         send_channel = response.context['send_channel']
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, 'JC')
+
+    @patch('requests.post')
+    def test_refresh_jiochat_tokens(self, mock_post):
+        channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
+                                 config={'jiochat_app_id': 'app-id',
+                                         'jiochat_app_secret': 'app-secret',
+                                         'secret': Channel.generate_secret(32)},
+                                 uuid='00000000-0000-0000-0000-000000001234')
+
+        mock_post.return_value = MockResponse(400, '{ "error":"Failed" }')
+
+        self.assertFalse(ChannelLog.objects.all())
+        refresh_jiochat_access_tokens()
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+
+        self.assertEqual(mock_post.call_count, 1)
+
+        channel_client = JiochatClient.from_channel(channel)
+
+        self.assertIsNone(channel_client.get_access_token())
+
+        mock_post.reset_mock()
+
+        mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
+
+        refresh_jiochat_access_tokens()
+
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+        self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
+        self.assertEqual(mock_post.call_count, 1)
+
+        self.assertEqual(channel_client.get_access_token(), 'ABC1234')
+        self.assertEqual(mock_post.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
+                                                                  'grant_type': 'client_credentials',
+                                                                  'client_id': u'app-id'})
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % channel.id,
+                                   follow=True)
+        self.assertEqual(len(response.context['object_list']), 2)
