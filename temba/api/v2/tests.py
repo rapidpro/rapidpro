@@ -386,7 +386,7 @@ class APITest(TembaTest):
         # fetch as HTML
         response = self.fetchHTML(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form'].fields.keys(), ['username', 'password', 'role', 'loc'])
+        self.assertEqual(list(response.context['form'].fields.keys()), ['username', 'password', 'role', 'loc'])
 
         admins = Group.objects.get(name='Administrators')
         surveyors = Group.objects.get(name='Surveyors')

@@ -12,7 +12,7 @@ import iso8601
 import pytz
 import six
 import time
-import urllib2
+from six.moves.urllib.parse import quote
 import uuid
 
 from datetime import timedelta, date, datetime
@@ -575,7 +575,7 @@ class ChannelTest(TembaTest):
             signature = hmac.new(key=key, msg=bytes(post_data), digestmod=hashlib.sha256).digest()
 
             # base64 and url sanitize
-            signature = urllib2.quote(base64.urlsafe_b64encode(signature))
+            signature = quote(base64.urlsafe_b64encode(signature))
 
         return self.client.post("%s?signature=%s&ts=%d" % (reverse('sync', args=[channel.pk]), signature, ts),
                                 content_type='application/json', data=post_data)
