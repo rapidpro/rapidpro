@@ -176,12 +176,13 @@ class AddFlowServerTestsMeta(type):
     engine, and a new one called test_foo_flowserver with is run using the flowserver.
     """
     def __new__(mcs, name, bases, dct):
-        new_tests = {}
-        for key, val in six.iteritems(dct):
-            if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                new_tests[key + '_flowserver'] = new_func
-        dct.update(new_tests)
+        if settings.FLOW_SERVER_URL:
+            new_tests = {}
+            for key, val in six.iteritems(dct):
+                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
+                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
+                    new_tests[key + '_flowserver'] = new_func
+            dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
 
