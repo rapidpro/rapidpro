@@ -1,3 +1,7 @@
+v3.0.324
+----------
+ * Add ability to run select flows against a flowserver instance
+
 v3.0.323
 ----------
  * Move JioChat access creation to channel task
