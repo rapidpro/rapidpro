@@ -78,7 +78,6 @@ class JioChatTypeTest(TembaTest):
         self.assertIsNone(channel_client.get_access_token())
 
         mock_post.reset_mock()
-
         mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
         refresh_jiochat_access_tokens()
