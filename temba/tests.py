@@ -11,7 +11,7 @@ import shutil
 import string
 import six
 import time
-import urlparse
+from six.moves.urllib.parse import urlparse
 
 from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ from django.db import connection
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from HTMLParser import HTMLParser
+from future.moves.html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -176,12 +176,13 @@ class AddFlowServerTestsMeta(type):
     engine, and a new one called test_foo_flowserver with is run using the flowserver.
     """
     def __new__(mcs, name, bases, dct):
-        new_tests = {}
-        for key, val in six.iteritems(dct):
-            if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                new_tests[key + '_flowserver'] = new_func
-        dct.update(new_tests)
+        if settings.FLOW_SERVER_URL:
+            new_tests = {}
+            for key, val in six.iteritems(dct):
+                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
+                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
+                    new_tests[key + '_flowserver'] = new_func
+            dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
 

@@ -160,7 +160,7 @@ def fb_channel_subscribe(channel_id):
     channel = Channel.objects.filter(id=channel_id, is_active=True).first()
 
     if channel:
-        page_access_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
+        page_access_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
 
         # subscribe to messaging events for this channel
         response = requests.post('https://graph.facebook.com/v2.6/me/subscribed_apps',

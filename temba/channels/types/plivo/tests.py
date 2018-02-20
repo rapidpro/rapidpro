@@ -40,7 +40,7 @@ class PlivoTypeTest(TembaTest):
 
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
-            self.assertFalse('account_trial' in response.context)
+            self.assertNotIn('account_trial', response.context)
             self.assertContains(response, connect_plivo_url)
 
         # let's add a number already connected to the account
@@ -79,7 +79,7 @@ class PlivoTypeTest(TembaTest):
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-                self.assertEqual(channel.config_json(), {
+                self.assertEqual(channel.config, {
                     Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                     Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
                     Channel.CONFIG_PLIVO_APP_ID: 'app-id',
@@ -126,7 +126,7 @@ class PlivoTypeTest(TembaTest):
 
                         # make sure it is actually connected
                         channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEqual(channel.config_json(), {
+                        self.assertEqual(channel.config, {
                             Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
                             Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
                             Channel.CONFIG_PLIVO_APP_ID: 'app-id',

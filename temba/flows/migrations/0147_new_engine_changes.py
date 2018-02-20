@@ -3,19 +3,20 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+import temba.utils.models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0145_update_path_trigger'),
+        ('flows', '0146_auto_20180202_1228'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='flowsession',
             name='output',
-            field=models.TextField(null=True),
+            field=temba.utils.models.JSONAsTextField(null=True, default=dict),
         ),
         migrations.AddField(
             model_name='flowsession',
@@ -27,7 +28,7 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(
                 choices=[('W', 'Waiting'), ('C', 'Completed'), ('I', 'Interrupted'), ('X', 'Expired'),
-                         ('E', 'Errored')], help_text='The status of this session', max_length=1, null=True),
+                         ('F', 'Failed')], help_text='The status of this session', max_length=1, null=True),
         ),
         migrations.AlterField(
             model_name='actionlog',

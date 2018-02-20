@@ -37,13 +37,13 @@ class HighConnectionTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual(channel.config_json()[Channel.CONFIG_CALLBACK_DOMAIN], self.org.get_brand_domain())
+        self.assertEqual(channel.config[Channel.CONFIG_CALLBACK_DOMAIN], self.org.get_brand_domain())
 
         self.assertEqual('FR', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data['number'], channel.address)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('HX', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])

@@ -35,7 +35,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
-            channel.config_json(), dict(
+            channel.config, dict(
                 ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234',
                 callback_domain=channel.callback_domain
             )
@@ -46,7 +46,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
-            channel.config_json(), dict(
+            channel.config, dict(
                 ACCOUNT_TOKEN='abcd4321', send_url='https://twilio.com', ACCOUNT_SID='abcd4321',
                 callback_domain=channel.callback_domain
             )
@@ -59,7 +59,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
-            channel.config_json(), dict(
+            channel.config, dict(
                 ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234',
                 callback_domain=channel.callback_domain
             )

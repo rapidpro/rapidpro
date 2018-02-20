@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             # does a bot already exist on this account with that auth token
             for channel in Channel.objects.filter(org=org, is_active=True, channel_type=self.channel_type.code):
-                if channel.config_json()['auth_token'] == value:
+                if channel.config['auth_token'] == value:
                     raise ValidationError(_("A telegram channel for this bot already exists on your account."))
 
             try:

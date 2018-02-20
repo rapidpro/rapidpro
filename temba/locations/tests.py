@@ -43,7 +43,7 @@ class LocationTest(TembaTest):
         response_json = response.json()
 
         # should have features in it
-        self.assertTrue('features' in response_json)
+        self.assertIn('features', response_json)
 
         # should have our two top level states
         self.assertEqual(2, len(response_json['features']))
@@ -54,7 +54,7 @@ class LocationTest(TembaTest):
         response_json = response.json()
 
         # should have features in it
-        self.assertTrue('features' in response_json)
+        self.assertIn('features', response_json)
 
         # should have our single district in it
         self.assertEqual(1, len(response_json['features']))
@@ -136,7 +136,7 @@ class LocationTest(TembaTest):
         response_json = response.json()
         self.assertEqual(response_json[0].get('name'), self.state2.name)
         self.assertEqual(response_json[0].get('aliases'), 'Eastern P')
-        self.assertTrue('Kageyo Gat' in response_json[0].get('match'))
+        self.assertIn('Kageyo Gat', response_json[0].get('match'))
 
         # trigger wrong request data using bad json
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),

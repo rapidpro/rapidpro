@@ -3,10 +3,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import logging
 import phonenumbers
-import requests
 import six
 import time
-import urlparse
+from six.moves.urllib.parse import urlparse
 
 from abc import ABCMeta
 
@@ -25,6 +24,7 @@ from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.template import TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -38,9 +38,9 @@ from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent, http_headers
+from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
-from temba.utils.models import SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
 from temba.utils.text import random_string
 from twilio import twiml, TwilioRestException
 from xml.sax.saxutils import escape
@@ -87,10 +87,15 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     schemes = None
     show_config_page = True
 
+    available_timezones = None
+    recommended_timezones = None
+
     claim_blurb = None
     claim_view = None
 
     configuration_blurb = None
+    configuration_urls = None
+    show_public_addresses = False
 
     update_form = None
 
@@ -106,13 +111,21 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
-        return True
+        if self.available_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.available_timezones
+        else:
+            return True
 
     def is_recommended_to(self, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
-        return False
+        if self.recommended_timezones is not None:
+            timezone = user.get_org().timezone
+            return timezone and six.text_type(timezone) in self.recommended_timezones
+        else:
+            return False
 
     def get_claim_blurb(self):
         """
@@ -176,12 +189,43 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         ex: sender.add_periodic_task(300, remap_twitter_ids)
         """
 
+    def get_configuration_context_dict(self, channel):
+        return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+
+    def get_configuration_template(self, channel):
+        try:
+            return Engine.get_default().get_template('channels/types/%s/config.html' % self.slug).render(context=Context(self.get_configuration_context_dict(channel)))
+        except TemplateDoesNotExist:
+            return ""
+
     def get_configuration_blurb(self, channel):
         """
         Allows ChannelTypes to define the blurb to show on the channel configuration page.
         """
         if self.__class__.configuration_blurb is not None:
             return Engine.get_default().from_string(self.configuration_blurb).render(context=Context(dict(channel=channel)))
+        else:
+            return ""
+
+    def get_configuration_urls(self, channel):
+        """
+        Allows ChannelTypes to specify a list of URLs to show with a label and description on the
+        configuration page.
+        """
+        if self.__class__.configuration_urls is not None:
+            context = Context(dict(channel=channel))
+            engine = Engine.get_default()
+
+            urls = []
+            for url_config in self.__class__.configuration_urls:
+                urls.append(dict(
+                    label=engine.from_string(url_config.get('label', "")).render(context=context),
+                    url=engine.from_string(url_config.get('url', "")).render(context=context),
+                    description=engine.from_string(url_config.get('description', "")).render(context=context),
+                ))
+
+            return urls
+
         else:
             return ""
 
@@ -194,7 +238,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_DUMMY = 'DM'
     TYPE_VERBOICE = 'VB'
-    TYPE_VIBER = 'VI'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -288,26 +331,19 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
-        TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_VERBOICE, "Verboice"),
-                    (TYPE_VIBER, "Viber"))
+                    (TYPE_VERBOICE, "Verboice"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
-        TYPE_VIBER: "icon-viber"
     }
-
-    FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
     TWIML_CHANNELS = [TYPE_VERBOICE]
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
-
-    VIBER_NO_SERVICE_ID = 'no_service_id'
 
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
@@ -346,8 +382,8 @@ class Channel(TembaModel):
     alert_email = models.EmailField(verbose_name=_("Alert Email"), null=True, blank=True,
                                     help_text=_("We will send email alerts to this address if experiencing issues sending"))
 
-    config = models.TextField(verbose_name=_("Config"), null=True,
-                              help_text=_("Any channel specific configuration, used for the various aggregators"))
+    config = JSONAsTextField(verbose_name=_("Config"), null=True, default=dict,
+                             help_text=_("Any channel specific configuration, used for the various aggregators"))
 
     schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
                          verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
@@ -388,7 +424,7 @@ class Channel(TembaModel):
                            country=country,
                            channel_type=channel_type.code,
                            name=name, address=address,
-                           config=json.dumps(config),
+                           config=config,
                            role=role, schemes=schemes)
         create_args.update(kwargs)
 
@@ -428,10 +464,6 @@ class Channel(TembaModel):
         return self.get_type_from_code(self.channel_type)
 
     @classmethod
-    def add_viber_channel(cls, org, user, name):
-        return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
-
-    @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
                                            url, role=DEFAULT_ROLE, extra_config=None):
 
@@ -462,7 +494,7 @@ class Channel(TembaModel):
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
         org = user.get_org()
-        org_config = org.config_json()
+        org_config = org.config
 
         config = {Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
                   Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
@@ -514,10 +546,9 @@ class Channel(TembaModel):
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            config = existing.config_json()
+            config = existing.config
             config.update({Channel.CONFIG_FCM_ID: fcm_id})
-
-            existing.config = json.dumps(config)
+            existing.config = config
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -618,7 +649,7 @@ class Channel(TembaModel):
         """
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
-        callback_domain = self.config_json().get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
         if callback_domain is None:
             callback_domain = self.org.get_brand_domain()
 
@@ -658,12 +689,10 @@ class Channel(TembaModel):
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
 
-        config = self.config_json()
-
-        if config:
-            account_sid = config.get(Channel.CONFIG_ACCOUNT_SID, None)
-            auth_token = config.get(Channel.CONFIG_AUTH_TOKEN, None)
-            base = config.get(Channel.CONFIG_SEND_URL, None)
+        if self.config:
+            account_sid = self.config.get(Channel.CONFIG_ACCOUNT_SID, None)
+            auth_token = self.config.get(Channel.CONFIG_AUTH_TOKEN, None)
+            base = self.config.get(Channel.CONFIG_SEND_URL, None)
 
             if account_sid and auth_token:
                 return TwilioClient(account_sid, auth_token, org=self, base=base)
@@ -714,7 +743,7 @@ class Channel(TembaModel):
             return '@%s' % self.address
 
         elif FACEBOOK_SCHEME in self.schemes:
-            return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
+            return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
 
@@ -733,12 +762,6 @@ class Channel(TembaModel):
             tel_e164 = ''
 
         return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
-
-    def config_json(self):
-        if self.config:
-            return json.loads(self.config)
-        else:  # pragma: no cover
-            return dict()
 
     @classmethod
     def get_cached_channel(cls, channel_id):
@@ -769,11 +792,11 @@ class Channel(TembaModel):
 
     def as_cached_json(self):
         # also save our org config, as it has twilio and nexmo keys
-        org_config = self.org.config_json()
+        org_config = self.org.config
 
         return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
-                    callback_domain=self.callback_domain, config=self.config_json(), org_config=org_config)
+                    callback_domain=self.callback_domain, config=self.config, org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -905,7 +928,6 @@ class Channel(TembaModel):
         Releases this channel, removing it from the org and making it inactive
         """
         channel_type = self.get_type()
-        config = self.config_json()
 
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
@@ -930,7 +952,7 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        fcm_id = config.get(Channel.CONFIG_FCM_ID)
+        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
@@ -961,8 +983,7 @@ class Channel(TembaModel):
         """
         # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            config = self.config_json()
-            fcm_id = config.get(Channel.CONFIG_FCM_ID)
+            fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
             if fcm_id is not None:
                 if getattr(settings, 'FCM_API_KEY', None):
@@ -993,9 +1014,9 @@ class Channel(TembaModel):
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                config = channel.config_json()
+                config = channel.config
                 config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.config = json.dumps(config)
+                channel.config = config
                 channel.save()
 
     @classmethod
@@ -1089,44 +1110,6 @@ class Channel(TembaModel):
 
         # record the message as sent
         Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
-    def send_viber_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        url = 'https://services.viber.com/vibersrvc/1/send_message'
-        payload = {'service_id': int(channel.address),
-                   'dest': msg.urn_path.lstrip('+'),
-                   'seq': msg.id,
-                   'type': 206,
-                   'message': {
-                       '#txt': text,
-                       '#tracking_data': 'tracking_id:%d' % msg.id}}
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-        start = time.time()
-        headers = http_headers(extra={'Accept': 'application/json'})
-
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # success is 0, everything else is a failure
-        if response_json['status'] != 0:
-            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
-                                event=event, fatal=True, start=start)
-
-        external_id = response.json().get('message_token', None)
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
     def get_pending_messages(cls, org):
@@ -1339,8 +1322,9 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_VIBER: Channel.send_viber_message}
+SEND_FUNCTIONS = {
+    Channel.TYPE_DUMMY: Channel.send_dummy_message,
+}
 
 
 @six.python_2_unicode_compatible
@@ -1454,8 +1438,8 @@ class ChannelEvent(models.Model):
                                 help_text=_("The contact associated with this event"))
     contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
                                     help_text=_("The contact URN associated with this event"))
-    extra = models.TextField(verbose_name=_("Extra"), null=True,
-                             help_text=_("Any extra properties on this event as JSON"))
+    extra = JSONAsTextField(verbose_name=_("Extra"), null=True, default=dict,
+                            help_text=_("Any extra properties on this event as JSON"))
     occurred_on = models.DateTimeField(verbose_name=_("Occurred On"),
                                        help_text=_("When this event took place"))
     created_on = models.DateTimeField(verbose_name=_("Created On"), default=timezone.now,
@@ -1470,9 +1454,8 @@ class ChannelEvent(models.Model):
         org = channel.org
         contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
 
-        extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
-                                   occurred_on=occurred_on, event_type=event_type, extra=extra_json)
+                                   occurred_on=occurred_on, event_type=event_type, extra=extra)
 
         if event_type in cls.CALL_TYPES:
             analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))
@@ -1501,7 +1484,7 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_REFERRAL:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
-                                             referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
+                                             referrer_id=self.extra.get('referrer_id'), extra=self.extra)
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
             handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
@@ -1517,12 +1500,6 @@ class ChannelEvent(models.Model):
 
     def release(self):
         self.delete()
-
-    def extra_json(self):
-        if self.extra:
-            return json.loads(self.extra)
-        else:
-            return dict()
 
 
 class SendException(Exception):
@@ -1640,7 +1617,7 @@ class ChannelLog(models.Model):
                                   request_time=request_time_ms)
 
     def get_url_host(self):
-        parsed = urlparse.urlparse(self.url)
+        parsed = urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):

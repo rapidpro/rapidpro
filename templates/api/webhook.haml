@@ -246,43 +246,6 @@
                 }
             }
         }
-  %a{ name:"flow_legacy" }
-  :markdown
-    ### Legacy Flow Events
-
-    This format has been deprecated and will be removed on February 5, 2018. Please use the <a href="#flow">current format</a>.
-
-        POST http://www.yourapp.com/app.php?password=akabanga
-        event=flow&relayer=254&relayer_phone=%2B250788111111&phone=%2B250788123123&flow=1524&step=12341234-1234-1234-1234-1234-12341234&values=[]
-
-    <table class="table table-params">
-        <tr><td>event</td><td><code>flow</code></td></tr>
-        <tr><td>relayer</td><td>The id of the channel that is executing this flow</td></tr>
-        <tr><td>relayer_phone</td><td>The phone number of the channel that is executing this flow</td></tr>
-        <tr><td>phone</td><td>The phone number of the contact that has reached this point in the flow</td></tr>
-        <tr><td>flow</td><td>The id of the flow that received an event (use the URL on your flow page for reference)</td></tr>
-        <tr><td>flow_name</td><td>The name of the flow that received an event</td></tr>
-        <tr><td>flow_base_language</td><td>The base language of the flow that received an event</td></tr>
-        <tr><td>step</td><td>The step that triggered this API call, use the flow step for reference</td></tr>
-        <tr><td>values</td><td>The values collected from the user so far through this flow, in order of collection time</td></tr>
-    </table>
-
-    The values parameter will be JSON encoded in the following format:
-
-        "values": [
-          { "label": "Water Source", "category": "Stream", "text": "from stream", "value": "Stream", "time": "2013-01-01T05:35:32.012" },
-          { "label": "Boil", "category": "Yes", "text": "yego", "value": "Yes", "time": "2013-01-01T05:36:54.012" },
-          { "label": "Household Members", "category": "All", "value": "15", "text": "15", "time": "2013-01-01T05:58:32.012" }
-        ]
-
-     <table class="table table-params">
-        <tr><td>label</td><td>The label for the rule set</td></tr>
-        <tr><td>category</td><td>How the user's response was categorized</td></tr>
-        <tr><td>value</td><td>The value that was parsed from the user's response, for example just the number in a numeric response"</td></tr>
-        <tr><td>text</td><td>The full text of the user's response</td></tr>
-        <tr><td>time</td><td>The time that the user responded, in JSON format: 2013-01-01T05:34:34.034</td></tr>
-    </table>
-
 
 -block extra-script
   {{ block.super }}

@@ -61,17 +61,17 @@ FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
-                     (TWITTERID_SCHEME, _("Twitter ID"), 'twitterid', TWITTERID_SCHEME),
-                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
-                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
-                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
-                     (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
+                     (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME, FACEBOOK_SCHEME),
+                     (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME, TWITTER_SCHEME),
+                     (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME, TWITTERID_SCHEME),
+                     (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME, VIBER_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME, LINE_SCHEME),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME, TELEGRAM_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME, EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
-                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME),
-                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), 'whatsapp', WHATSAPP_SCHEME))
+                     (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME, JIOCHAT_SCHEME),
+                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME, FCM_SCHEME),
+                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME, WHATSAPP_SCHEME))
 
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
@@ -88,6 +88,7 @@ class URN(object):
         * No hex escaping in URN path
     """
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
+    IMPORT_HEADERS = {s[2] for s in URN_SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -356,7 +357,11 @@ class ContactField(SmartModel):
 
     @classmethod
     def is_valid_key(cls, key):
-        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS and len(key) <= cls.MAX_KEY_LEN
+        if not regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0):
+            return False
+        if key in Contact.RESERVED_FIELD_KEYS or len(key) > cls.MAX_KEY_LEN:
+            return False
+        return True
 
     @classmethod
     def is_valid_label(cls, label):
@@ -499,10 +504,16 @@ class Contact(TembaModel):
     GROUPS = 'groups'
     ID = 'id'
 
-    # reserved contact fields
-    RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, ID, 'created_by', 'modified_by', 'org', 'is', 'has', 'tel', 'tel_e164',
-    ] + [c[0] for c in IMPORT_HEADERS]
+    RESERVED_ATTRIBUTES = {
+        ID, NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID,
+        'created_by', 'modified_by', 'org', 'is', 'has', 'tel_e164',
+    }
+
+    # can't create custom contact fields with these keys
+    RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
+
+    # the import headers which map to contact attributes or URNs rather than custom fields
+    ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
 
     @property
     def anon_identifier(self):
@@ -884,7 +895,7 @@ class Contact(TembaModel):
         else:
             kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
             contact = Contact.objects.create(**kwargs)
-            updated_attrs = kwargs.keys()
+            updated_attrs = list(kwargs.keys())
 
             if existing_urn:
                 ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
@@ -1025,7 +1036,7 @@ class Contact(TembaModel):
                 kwargs = dict(org=org, name=name, language=language, is_test=is_test,
                               created_by=user, modified_by=user)
                 contact = Contact.objects.create(**kwargs)
-                updated_attrs = kwargs.keys()
+                updated_attrs = list(kwargs.keys())
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -1042,7 +1053,7 @@ class Contact(TembaModel):
                 urn_objects[raw] = urn
 
             # save which urns were updated
-            updated_urns = urn_objects.keys()
+            updated_urns = list(urn_objects.keys())
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
@@ -1201,8 +1212,8 @@ class Contact(TembaModel):
 
         contact_field_keys_updated = set()
         for key in field_dict.keys():
-            # ignore any reserved fields
-            if key in Contact.RESERVED_FIELDS:
+            # ignore any reserved fields or URN schemes
+            if key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 continue
 
             value = field_dict[key]
@@ -1236,7 +1247,7 @@ class Contact(TembaModel):
         for field in import_params['extra_fields']:
             key = field['key']
             label = field['label']
-            if key not in Contact.RESERVED_FIELDS:
+            if key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
                 value = field_dict[field['header']]
                 del field_dict[field['header']]
@@ -1252,7 +1263,7 @@ class Contact(TembaModel):
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if key not in Contact.RESERVED_FIELDS and key not in extra_fields and key not in active_scheme:
+            if (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -1286,7 +1297,13 @@ class Contact(TembaModel):
         Contact.validate_org_import_header(headers, org)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
+        possible_fields = []
+        for header in headers:
+            header = header.strip().lower()
+            if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
+                possible_fields.append(header)
+
+        return possible_fields
 
     @classmethod
     def validate_org_import_header(cls, headers, org):
@@ -2608,7 +2625,7 @@ class ExportContactsTask(BaseExportTask):
 
             scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
-            schemes = scheme_counts.keys()
+            schemes = list(scheme_counts.keys())
             schemes.sort()
 
             for scheme in schemes:

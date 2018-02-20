@@ -34,6 +34,19 @@ class HighConnectionType(ChannelType):
     max_length = 1500
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming (MO) messages
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.hx' channel.uuid 'receive' %}",
+        ),
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Europe/Paris"]

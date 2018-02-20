@@ -463,7 +463,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': flow.entry_uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -632,7 +632,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -697,7 +697,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00', 'exit_uuid': color_prompt.exit_uuid},
             {'node_uuid': color_ruleset.uuid, 'arrived_on': '2015-08-25T11:11:30.088000+00:00', 'exit_uuid': orange_rule.uuid},
             {'node_uuid': color_reply.uuid, 'arrived_on': '2015-08-25T11:13:30.088000+00:00', 'exit_uuid': color_reply.exit_uuid},
@@ -708,7 +708,7 @@ class APITest(TembaTest):
         self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
 
         # check results
-        results = run.get_results()
+        results = run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")
@@ -1062,9 +1062,9 @@ class APITest(TembaTest):
         artists.contacts.add(contact)
 
         # try updating with a reserved word field
-        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"mailto": "andy@example.com"}))
         self.assertEqual(400, response.status_code)
-        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'mailto' is a reserved word")
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))

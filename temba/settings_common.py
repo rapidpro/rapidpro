@@ -972,11 +972,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
-    "refresh-jiochat-access-tokens": {
-        'task': 'refresh_jiochat_access_tokens',
-        'schedule': timedelta(seconds=3600),
-    },
-
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1129,6 +1124,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.arabiacell.ArabiaCellType',
     'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
