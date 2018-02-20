@@ -56,7 +56,7 @@ class JioChatTypeTest(TembaTest):
         self.assertEqual(send_channel.channel_type, 'JC')
 
     @patch('requests.post')
-    def test_refresh_jiochat_tokens(self, mock_post):
+    def test_refresh(self, mock_post):
         channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
                                  config={'jiochat_app_id': 'app-id',
                                          'jiochat_app_secret': 'app-secret',
