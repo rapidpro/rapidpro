@@ -4064,7 +4064,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
@@ -4077,7 +4077,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(21):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
         self.assertItemsEqual(

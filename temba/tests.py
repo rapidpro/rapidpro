@@ -20,7 +20,7 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from future.moves.html.parser import HTMLParser
@@ -161,7 +161,32 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-class TembaTest(SmartminTest):
+def also_in_flowserver(test_func):
+    """
+    Decorator to mark a test function as one that should also be run with the flow server
+    """
+    test_func._also_in_flowserver = True
+    return test_func
+
+
+class AddFlowServerTestsMeta(type):
+    """
+    Metaclass with adds new flowserver-based tests based on existing tests decorated with @also_in_flowserver. For
+    example a test method called test_foo will become two test methods - the original test_foo which runs in the old
+    engine, and a new one called test_foo_flowserver with is run using the flowserver.
+    """
+    def __new__(mcs, name, bases, dct):
+        new_tests = {}
+        for key, val in six.iteritems(dct):
+            if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
+                new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
+                new_tests[key + '_flowserver'] = new_func
+        dct.update(new_tests)
+
+        return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+
+
+class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def setUp(self):
         self.mock_server = mock_server
 

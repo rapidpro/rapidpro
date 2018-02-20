@@ -53,6 +53,11 @@ before_script:
   # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
+  # setup a goflow server instance
+  - GOFLOW_VERSION=0.4.8
+  - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+  - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+
 script:
   # any non-zero error code should be treated as an immediate failure
   - set -e
@@ -70,6 +75,10 @@ script:
   # check we can collect and compress all static files
   - python manage.py collectstatic --noinput --verbosity=0
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
+
+  # fire up goflow
+  - ./flowserver &
+  - jobs
     
   # run our Python tests
   - coverage run manage.py test --noinput --verbosity=2
