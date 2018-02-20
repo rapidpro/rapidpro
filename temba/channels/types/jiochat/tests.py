@@ -6,7 +6,7 @@ from temba.contacts.models import URN
 from temba.tests import TembaTest, MockResponse
 from temba.utils.jiochat import JiochatClient
 from ...models import Channel, ChannelLog
-from .tasks import refresh_jiochat_access_tokens
+from temba.channels.types.jiochat.tasks import refresh_jiochat_access_tokens
 
 
 class JioChatTypeTest(TembaTest):
@@ -56,7 +56,7 @@ class JioChatTypeTest(TembaTest):
         self.assertEqual(send_channel.channel_type, 'JC')
 
     @patch('requests.post')
-    def test_refresh(self, mock_post):
+    def test_refresh_jiochat_tokens(self, mock_post):
         channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
                                  config={'jiochat_app_id': 'app-id',
                                          'jiochat_app_secret': 'app-secret',
