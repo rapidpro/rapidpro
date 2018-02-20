@@ -5907,7 +5907,7 @@ class Rule(object):
                 category = self.category.get(flow_lang)
 
             if not category:  # pragma: needs cover
-                category = self.category.values()[0]
+                category = list(self.category.values())[0]
 
             return category
 
