@@ -441,14 +441,10 @@ class FlowTest(TembaTest):
         self.assertFalse(contact2_run.responded)
 
         # check the path for contact 1
-        contact1_path = contact1_run.path
-        self.assertEqual(len(contact1_path), 2)
-        self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
-        self.assertIsNotNone(contact1_path[0]['arrived_on'])
-        self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
-        self.assertEqual(contact1_path[1]['node_uuid'], color_ruleset.uuid)
-        self.assertIsNotNone(contact1_path[1]['arrived_on'])
-        self.assertNotIn('exit_uuid', contact1_path[1])
+        self.assertEqual(contact1_run.path, [
+            {'node_uuid': str(color_prompt.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(color_prompt.exit_uuid)},
+            {'node_uuid': str(color_ruleset.uuid), 'arrived_on': matchers.ISODate()}
+        ])
 
         # test our message context
         context = self.flow.build_expressions_context(self.contact, None)
@@ -518,24 +514,23 @@ class FlowTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(Flow.find_and_handle(extra)[0])
 
-        contact1_path = contact1_run.path
-        self.assertEqual(len(contact1_path), 3)
-        self.assertEqual(contact1_path[0]['node_uuid'], color_prompt.uuid)
-        self.assertEqual(contact1_path[0]['exit_uuid'], color_prompt.exit_uuid)
-        self.assertEqual(contact1_path[1]['node_uuid'], color_ruleset.uuid)
-        self.assertEqual(contact1_path[1]['exit_uuid'], orange_rule.uuid)
-        self.assertEqual(contact1_path[2]['node_uuid'], color_reply.uuid)
-        self.assertNotIn('exit_uuid', contact1_path[2])
+        self.assertEqual(contact1_run.path, [
+            {'node_uuid': str(color_prompt.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(color_prompt.exit_uuid)},
+            {'node_uuid': str(color_ruleset.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(orange_rule.uuid)},
+            {'node_uuid': str(color_reply.uuid), 'arrived_on': matchers.ISODate()}
+        ])
 
         # we should also have a result for this RuleSet
-        results = contact1_run.results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
-        self.assertEqual(results['color']['name'], "color")
-        self.assertEqual(results['color']['category'], "Orange")
-        self.assertEqual(results['color']['value'], "orange")
-        self.assertEqual(results['color']['input'], "orange")
-        self.assertIsNotNone(results['color']['created_on'])
+        self.assertEqual(contact1_run.results, {
+            'color': {
+                'category': 'Orange',
+                'node_uuid': str(color_ruleset.uuid),
+                'name': 'color',
+                'value': 'orange',
+                'created_on': matchers.ISODate(),
+                'input': 'orange'
+            }
+        })
 
         # check what our message context looks like now
         context = self.flow.build_expressions_context(self.contact, incoming)
