@@ -33,7 +33,7 @@ class String(MatcherMixin, six.text_type):
 
 class ISODate(String):
     """
-    Matches any ISO8601 fornmatted datetime string
+    Matches any ISO8601 formatted datetime string
     """
     def __new__(cls):
         return super(ISODate, cls).__new__(cls, pattern=FULL_ISO8601_REGEX)
