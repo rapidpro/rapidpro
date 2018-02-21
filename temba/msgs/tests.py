@@ -1126,7 +1126,7 @@ class BroadcastTest(TembaTest):
         # test missing senders
         post_data = dict(text="message content")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("At least one recipient is required", response.content)
+        self.assertContains(response, "At least one recipient is required")
 
         # Test AJAX sender
         post_data = dict(text="message content", omnibox='')
@@ -1136,12 +1136,12 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         # send using our omnibox
         post_data = dict(text="this is a test message", omnibox="c-%s,g-%s,n-911" % (self.kevin.pk, self.joe_and_frank.pk), _format="json")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         # add flow steps
         flow = self.get_flow('favorites')
@@ -1152,13 +1152,13 @@ class BroadcastTest(TembaTest):
         # no error if we are sending from a flow node
         post_data = dict(text="message content", omnibox='', step_node=step_uuid)
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         response = self.client.post(send_url, post_data)
         self.assertRedirect(response, reverse('msgs.msg_inbox'))
 
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
         broadcast = Broadcast.objects.order_by('-id').first()
         self.assertEqual(broadcast.text, {'base': "message content"})
         self.assertEqual(broadcast.groups.count(), 0)
@@ -1170,7 +1170,7 @@ class BroadcastTest(TembaTest):
         flow.start([], [self.joe, test_contact], restart_participants=True)
 
         response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
         broadcast = Broadcast.objects.order_by('-id').first()
         self.assertEqual(broadcast.text, {'base': "message content"})
         self.assertEqual(broadcast.groups.count(), 0)

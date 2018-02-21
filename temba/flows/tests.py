@@ -2502,14 +2502,14 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertEqual(1, len(response.context['object_list']))
         # no create links
-        self.assertFalse(flow_create_url in response.content)
-        self.assertFalse(flowlabel_create_url in response.content)
+        self.assertNotContains(response, flow_create_url)
+        self.assertNotContains(response, flowlabel_create_url)
         # verify the action buttons we have
-        self.assertNotIn('object-btn-unlabel', response.content)
-        self.assertNotIn('object-btn-restore', response.content)
-        self.assertNotIn('object-btn-archive', response.content)
-        self.assertNotIn('object-btn-label', response.content)
-        self.assertIn('object-btn-export', response.content)
+        self.assertNotContains(response, 'object-btn-unlabel')
+        self.assertNotContains(response, 'object-btn-restore')
+        self.assertNotContains(response, 'object-btn-archive')
+        self.assertNotContains(response, 'object-btn-label')
+        self.assertContains(response, 'object-btn-export')
 
         # can not label
         post_data = dict()

@@ -4014,13 +4014,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertNotIn("Simulator Contact", response.content)
+        self.assertNotContains(response, "Simulator Contact")
 
         response = self.client.get(reverse('contacts.contact_filter', args=[group.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertNotIn("Simulator Contact", response.content)
+        self.assertNotContains(response, "Simulator Contact")
 
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
