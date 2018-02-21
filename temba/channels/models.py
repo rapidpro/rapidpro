@@ -238,7 +238,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_DUMMY = 'DM'
-    TYPE_VERBOICE = 'VB'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -331,18 +330,14 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_DUMMY, "Dummy"),
-                    (TYPE_VERBOICE, "Verboice"))
+                    (TYPE_DUMMY, "Dummy"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
     }
-
-    TWIML_CHANNELS = [TYPE_VERBOICE]
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
@@ -682,7 +677,7 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         elif self.channel_type == 'TW':
             return self.get_twiml_client()
-        elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
+        elif self.channel_type == 'VB':  # pragma: no cover
             return self.org.get_verboice_client()
         elif self.channel_type == 'NX':
             return self.org.get_nexmo_client()
