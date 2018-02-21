@@ -5,15 +5,16 @@ window.getSimulateURL = ->
   return window.simulateURL
 
 window.simStartLegacy = ->
-  $.post(getSimulateURL(), JSON.stringify({ has_refresh:true })).done (results) ->
+  $.post(getSimulateURL(), JSON.stringify({ has_refresh:true, version:"1" })).done (results) ->
     window.updateResultsLegacy(results)
     if window.ivr and window.simulation
       setTimeout(window.refreshSimulator, 2000)
 
 window.sendUpdateLegacy = (postData) ->
-    $.post(getSimulateURL(), JSON.stringify(postData)).done (results) ->
-      window.resetForm()
-      window.updateResultsLegacy(results)
+  postData['version'] = "1"
+  $.post(getSimulateURL(), JSON.stringify(postData)).done (results) ->
+    window.resetForm()
+    window.updateResultsLegacy(results)
 
 window.updateResultsLegacy = (data) ->
   ussd = if window.ussd then "ussd" else ""

@@ -73,13 +73,18 @@ sendMessage = (newMessage) ->
       window.legacy = newMessage == "/v1"
 
       # style our content slightly differently to let us know we are on the new engine
-      if window.legacy
-        $('.simulator-content .simulator-body').removeClass('v2')
-      else
-        $('.simulator-content .simulator-body').addClass('v2')
-
       resetForm()
-      setTimeout(resetSimulator, 500)
+
+      setTimeout(() ->
+
+        resetSimulator()
+
+        if window.legacy
+          $('.simulator-content').removeClass('v2')
+        else
+          $('.simulator-content').addClass('v2')
+
+      , 500)
       return false
 
     processForm({new_message: newMessage})
@@ -183,6 +188,7 @@ window.refreshSimulator = ->
     window.simStart()
 
 resetSimulator = ->
+  $('#simulator').removeClass('disabled')
   $(".simulator-body").html("")
   $(".simulator-body").append("<div class='ilog from'>One moment..</div>")
   $(".simulator-loading").css("display", "none")
@@ -208,23 +214,25 @@ window.hangup = ->
 
 window.addMessage = (text, type, metadata=null, level=null) ->
 
-    classes = ["imsg"]
-    if type == "log"
-      classes = ["ilog"]
+  classes = ["imsg"]
+  if type == "log" or type == "error"
+    classes = ["ilog"]
 
-    if type == "MO"
-      classes.push("to")
-    else if type == "MT"
-      classes.push("from")
+  if type == "MO"
+    classes.push("to")
+  else if type == "MT"
+    classes.push("from")
+  else if type == "error"
+    classes.push("ierror")
 
-    if level
-      classes.push(level_classes[level])
+  if level
+    classes.push(level_classes[level])
 
-    ele = "<div class=\"" + classes.join(" ") + "\">"
-    ele += text
-    ele += "</div>"
+  ele = "<div class=\"" + classes.join(" ") + "\">"
+  ele += text
+  ele += "</div>"
 
-    $(".simulator-body").append(ele)
+  $(".simulator-body").append(ele)
 
 appendMessage = (newMessage, ussd=false) ->
   ussd = if ussd then "ussd " else ""

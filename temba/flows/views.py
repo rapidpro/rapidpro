@@ -4,6 +4,7 @@ import json
 import logging
 import regex
 import six
+import time
 import traceback
 
 from random import randint
@@ -40,6 +41,7 @@ from temba.triggers.models import Trigger
 from temba.utils import analytics, on_transaction_commit, chunk_list, goflow
 from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
@@ -1126,6 +1128,35 @@ class FlowCRUDL(SmartCRUDL):
                 json_dict = json.loads(request.body)
             except Exception as e:  # pragma: needs cover
                 return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
+
+            if json_dict.get("version", None) == "1":
+                return self.handle_legacy(request, json_dict)
+            else:
+
+                # handle via the new engine
+                client = get_client()
+
+                # simulating never caches
+                asset_timestamp = int(time.time() * 1000000)
+                flow = self.get_object(self.get_queryset())
+
+                # we control the pointers to ourselves and environment ignoring what the client might send
+                flow_request = client.request_builder(asset_timestamp).asset_server(flow.org).set_environment(flow.org)
+                flow_request.request['events'] = json_dict.get('events')
+
+                # check if we are triggering a new session
+                if 'trigger' in json_dict:
+                    output = flow_request.start_manual(flow)
+                    return JsonResponse(output.as_json())
+
+                # otherwise we are resuming
+                else:
+                    session = json_dict.get('session')
+                    flow_request.request['events'] = json_dict.get('events')
+                    output = flow_request.resume(session)
+                    return JsonResponse(output.as_json())
+
+        def handle_legacy(self, request, json_dict):
 
             Contact.set_simulation(True)
             user = self.request.user

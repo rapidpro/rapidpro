@@ -1,14 +1,6 @@
 getRequest = ->
   return {
-    events: [],
-    assets: [],
-    asset_server: {
-      type_urls: {
-        flow: 'http://localhost:8888/flow/assets/' + window.orgId + '/123/flow/',
-        group: 'http://localhost:8888/flow/assets/' + window.orgId + '/123/group/'
-        field: 'http://localhost:8888/flow/assets/' + window.orgId + '/123/field/'
-      }
-    }
+    events: []
   }
 
 getStartRequest = ->
@@ -38,7 +30,7 @@ window.simStart = ->
   window.session = null
   window.resetForm()
   request = getStartRequest()
-  $.post('/engine/flow/start', JSON.stringify(request)).done (results) ->
+  $.post(getSimulateURL(), JSON.stringify(request)).done (results) ->
     window.session = results.session
 
     # first clear our body
@@ -63,7 +55,7 @@ window.sendUpdate = (postData) ->
     contact: window.session.contact
   }]
 
-  $.post('/engine/flow/resume', JSON.stringify(request)).done (results) ->
+  $.post(getSimulateURL(), JSON.stringify(request)).done (results) ->
     window.session = results.session
     window.updateResults(results)
     window.resetForm()
@@ -95,7 +87,9 @@ window.updateResults = (data) ->
       else
         window.addMessage("Couldn't reach " + event.url, "log")
     else if event.type == "error"
-      window.addMessage('')
+      window.addMessage(event.text, 'error')
+      if (event.fatal)
+        $('#simulator').addClass('disabled')
 
   $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
   $("#simulator textarea").val("")
