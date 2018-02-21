@@ -240,6 +240,8 @@ class DatesTest(TembaTest):
                              str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T00:38:09.100000-02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198537, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.198537686Z', tz, dayfirst=True))  # with nanoseconds
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T07:08:09.100000+04:30.', tz, dayfirst=True))  # trailing period
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
@@ -1808,6 +1810,7 @@ class MatchersTest(TembaTest):
 
     def test_isodate(self):
         self.assertEqual("2013-02-01T07:08:09.100000+04:30", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.198537686Z", matchers.ISODate())
         self.assertEqual("2013-02-01T07:08:09.100000Z", matchers.ISODate())
         self.assertNotEqual(None, matchers.ISODate())
         self.assertNotEqual("abc", matchers.ISODate())
