@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import logging
@@ -1103,7 +1104,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
             context['categories'] = flow.get_category_counts()['counts']
-            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() / 60)
+            context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):

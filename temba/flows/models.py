@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iso8601
 import itertools
@@ -1448,7 +1448,7 @@ class Flow(TembaModel):
             'completed': totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
             'expired': totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
             'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
-            'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
+            'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0
         }
 
     def build_expressions_context(self, contact, msg, run=None):
@@ -4935,7 +4935,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
                     print("Result export of for org #%d - %d%% complete in %0.2fs" %
-                          (self.org.id, runs_exported * 100 / len(run_ids), time.time() - start))
+                          (self.org.id, runs_exported * 100 // len(run_ids), time.time() - start))
 
         if current_contact:
             merged_sheet_row = []

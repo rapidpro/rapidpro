@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import nexmo
@@ -7,7 +8,6 @@ import six
 import stripe
 
 from bs4 import BeautifulSoup
-from context_processors import GroupPermWrapper
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -39,6 +39,7 @@ from uuid import uuid4
 from .models import Org, TopUp, Invitation, Language, TopUpCredits, DAYFIRST, MONTHFIRST, get_current_export_version
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING, WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
+from .context_processors import GroupPermWrapper
 
 
 class OrgContextProcessorTest(TembaTest):

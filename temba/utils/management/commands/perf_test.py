@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 # coding=utf-8
-from __future__ import unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import fnmatch
 import json
@@ -94,7 +95,7 @@ class URLResult(object):
         prev_avg = sum(prev_times) / len(prev_times) if prev_times else None
         if prev_avg is not None:
             self.change = this_avg - prev_avg
-            self.percentage_change = int(100 * self.change / prev_avg)
+            self.percentage_change = int(100 * self.change // prev_avg)
             self.exceeds_change = self.change > ALLOWED_CHANGE_MAXIMUM and self.percentage_change > ALLOWED_CHANGE_PERCENTAGE
         else:
             self.change = None
