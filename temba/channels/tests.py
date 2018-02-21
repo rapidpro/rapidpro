@@ -12,6 +12,8 @@ import iso8601
 import pytz
 import six
 import time
+
+from django.utils.encoding import force_text
 from six.moves.urllib.parse import quote, urlencode
 import uuid
 
@@ -9882,19 +9884,19 @@ class FcmTest(TembaTest):
         data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop'}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        contact = json.loads(response.content)
+        contact = json.loads(force_text(response.content))
 
         data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        updated_contact = json.loads(response.content)
+        updated_contact = json.loads(force_text(response.content))
 
         self.assertEqual(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
         data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'contact_uuid': contact.get('contact_uuid')}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        updated_contact = json.loads(response.content)
+        updated_contact = json.loads(force_text(response.content))
 
         self.assertEqual(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
@@ -10090,8 +10092,8 @@ class CourierTest(TembaTest):
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
             # check that messages went into the correct queues
-            high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
-            low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
+            high_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/1", 0, -1)]
+            low_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/0", 0, -1)]
 
             self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
             self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])

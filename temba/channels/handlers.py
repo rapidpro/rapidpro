@@ -20,6 +20,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
+from django.utils.encoding import force_text
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -626,7 +627,7 @@ class TelegramHandler(BaseChannelHandler):
                         content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
-                    temp.write(response.content)
+                    temp.write(force_text(response.content))
                     temp.flush()
 
                     return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
@@ -656,7 +657,7 @@ class TelegramHandler(BaseChannelHandler):
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        body = json.loads(request.body)
+        body = json.loads(force_text(request.body))
 
         if 'message' not in body:
             return make_response('No "message" found in payload', status_code=400)
@@ -1165,7 +1166,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
         action = kwargs['action'].lower()
 
-        request_body = request.body
+        request_body = force_text(request.body)
         request_path = request.get_full_path()
         request_method = request.method
 

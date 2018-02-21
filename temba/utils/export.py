@@ -11,6 +11,7 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
@@ -161,7 +162,7 @@ class TableExporter(object):
         # if this is a csv file, create our csv writer and write our header
         if self.is_csv:
             self.writer = csv.writer(self.file, quoting=csv.QUOTE_ALL)
-            self.writer.writerow([s.encode('utf-8') for s in columns])
+            self.writer.writerow([force_text(s.encode('utf-8')) for s in columns])
 
         # otherwise, just open a workbook, initializing the first sheet
         else:

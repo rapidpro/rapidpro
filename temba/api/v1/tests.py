@@ -11,6 +11,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.http import urlquote_plus
 from mock import patch
 from rest_framework.authtoken.models import Token
@@ -1405,13 +1406,13 @@ class APITest(TembaTest):
         surveyor_group = Group.objects.get(name='Surveyors')
 
         # login an admin as an admin
-        admin = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content)
+        admin = json.loads(force_text(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content))
         self.assertEqual(1, len(admin))
         self.assertEqual('Temba', admin[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role=admin_group).first())
 
         # login an admin as a surveyor
-        surveyor = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content)
+        surveyor = json.loads(force_text(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content))
         self.assertEqual(1, len(surveyor))
         self.assertEqual('Temba', surveyor[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role=surveyor_group).first())
@@ -1430,11 +1431,11 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
 
         # our surveyor can't login with an admin role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
+        response = json.loads(force_text(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content))
         self.assertEqual(0, len(response))
 
         # but they can with a surveyor role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content)
+        response = json.loads(force_text(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content))
         self.assertEqual(1, len(response))
 
         # and can fetch flows, contacts, and fields

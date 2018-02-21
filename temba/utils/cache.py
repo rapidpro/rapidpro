@@ -5,6 +5,7 @@ import json
 
 from datetime import timedelta
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django_redis import get_redis_connection
 from . import chunk_list
 
@@ -19,7 +20,7 @@ def get_cacheable(cache_key, callable, r=None, force_dirty=False):
     if not force_dirty:
         cached = r.get(cache_key)
         if cached is not None:
-            return json.loads(cached)
+            return json.loads(force_text(cached))
 
     (calculated, cache_ttl) = callable()
     r.set(cache_key, json.dumps(calculated), cache_ttl)

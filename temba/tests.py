@@ -12,6 +12,8 @@ import shutil
 import string
 import six
 import time
+
+from django.utils.encoding import force_text
 from six.moves.urllib.parse import urlparse
 
 from cgi import parse_header, parse_multipart
@@ -80,7 +82,7 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
             data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
         elif ctype == 'application/json':
             length = int(self.headers['content-length'])
-            data = json.loads(self.rfile.read(length))
+            data = json.loads(force_text(self.rfile.read(length)))
         else:
             data = {}
 

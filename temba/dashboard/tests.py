@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 from django.core.urlresolvers import reverse
+from django.utils.encoding import force_text
 
 from temba.channels.models import Channel
 from temba.msgs.models import Label
@@ -54,7 +55,7 @@ class DashboardTest(TembaTest):
 
         self.login(self.admin)
         self.create_activity()
-        response = json.loads(self.client.get(url).content)
+        response = json.loads(force_text(self.client.get(url).content))
 
         # in, out, and total
         self.assertEqual(3, len(response))

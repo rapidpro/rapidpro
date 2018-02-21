@@ -28,6 +28,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
@@ -1872,7 +1873,7 @@ class Org(SmartModel):
                 extension = 'wav'
 
             temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
+            temp.write(force_text(response.content))
             temp.flush()
 
             # save our file off
