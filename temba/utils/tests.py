@@ -1796,21 +1796,6 @@ class TestJSONAsTextField(TestCase):
 
 
 class MatchersTest(TembaTest):
-    def test_datetime(self):
-        now = timezone.now()
-        self.assertEqual(datetime.datetime(2018, 2, 21, 9, 35, 0, 0, tzinfo=pytz.UTC), matchers.DateTime())
-        self.assertNotEqual(None, matchers.DateTime())
-        self.assertNotEqual(123, matchers.DateTime())
-        self.assertNotEqual("abc", matchers.DateTime())
-
-        self.assertEqual(datetime.datetime(2018, 2, 21, 9, 35, 0, 0, tzinfo=pytz.UTC), matchers.DateTime(before=now))
-        self.assertNotEqual(datetime.datetime(2018, 2, 21, 9, 35, 0, 0, tzinfo=pytz.UTC), matchers.DateTime(after=now))
-
-        self.assertEqual({'foo': datetime.datetime(2018, 2, 21, 9, 35, 0, 0, tzinfo=pytz.UTC), 'bar': 123}, {
-            'foo': matchers.DateTime(),
-            'bar': 123
-        })
-
     def test_string(self):
         self.assertEqual("abc", matchers.String())
         self.assertEqual("", matchers.String())
