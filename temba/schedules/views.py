@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytz
 
@@ -88,7 +89,7 @@ class ScheduleCRUDL(SmartCRUDL):
             context = super(ScheduleCRUDL.Update, self).get_context_data(**kwargs)
             context['days'] = self.get_object().explode_bitmask()
             context['user_tz'] = get_current_timezone_name()
-            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() / 60)
+            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def save(self, *args, **kwargs):

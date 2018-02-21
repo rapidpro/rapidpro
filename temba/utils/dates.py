@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import calendar
 import datetime
@@ -218,7 +219,7 @@ def datetime_to_ms(dt):
     Converts a datetime to a millisecond accuracy timestamp
     """
     seconds = calendar.timegm(dt.utctimetuple())
-    return seconds * 1000 + dt.microsecond / 1000
+    return seconds * 1000 + dt.microsecond // 1000
 
 
 def ms_to_datetime(ms):

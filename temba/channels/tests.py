@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import calendar
@@ -12,7 +12,7 @@ import iso8601
 import pytz
 import six
 import time
-from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import quote, urlencode
 import uuid
 
 from datetime import timedelta, date, datetime
@@ -51,7 +51,6 @@ from temba.utils.queues import push_task
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
-from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 
@@ -1875,7 +1874,7 @@ class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
         now = timezone.now()
-        now = now.replace(microsecond=now.microsecond / 1000 * 1000)
+        now = now.replace(microsecond=now.microsecond // 1000 * 1000)
 
         epoch = datetime_to_ms(now)
         self.assertEqual(ms_to_datetime(epoch), now)
