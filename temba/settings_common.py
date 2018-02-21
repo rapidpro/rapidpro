@@ -437,6 +437,7 @@ PERMISSIONS = {
                    'activity_chart',
                    'activity_list',
                    'api',
+                   'assets',
                    'archived',
                    'broadcast',
                    'campaign',
@@ -502,7 +503,8 @@ PERMISSIONS = {
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
-        'msgs.msg_create',
+        'flows.flow_assets',
+        'msgs.msg_create'
     ),
     "Alpha": (
     ),
@@ -802,6 +804,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_activity',
         'flows.flow_activity_chart',
         'flows.flow_archived',
+        'flows.flow_assets',
         'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_category_counts',
@@ -969,11 +972,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
-    "refresh-jiochat-access-tokens": {
-        'task': 'refresh_jiochat_access_tokens',
-        'schedule': timedelta(seconds=3600),
-    },
-
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1210,6 +1208,14 @@ FLOWRUN_FIELDS_SIZE = 256
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# -----------------------------------------------------------------------------------
+# GoFlow
+# -----------------------------------------------------------------------------------
+FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
+FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro

@@ -7,7 +7,6 @@ import requests
 import six
 import time
 
-from django.core.cache import cache
 from django.utils.crypto import constant_time_compare
 from django_redis import get_redis_connection
 from temba.channels.models import ChannelLog
@@ -36,7 +35,7 @@ class JiochatClient:
 
         with r.lock(lock_name, timeout=5):
             key = JIOCHAT_ACCESS_TOKEN_KEY % self.channel_uuid
-            access_token = cache.get(key, None)
+            access_token = r.get(key)
             return access_token
 
     def refresh_access_token(self, channel_id):
@@ -66,7 +65,7 @@ class JiochatClient:
                 ChannelLog.log_channel_request(channel_id, "Successfully fetched access token from Jiochat", event, start)
 
                 access_token = response_json['access_token']
-                cache.set(key, access_token, timeout=7200)
+                r.set(key, access_token, ex=7200)
                 return access_token
 
     def verify_request(self, request, channel_secret):

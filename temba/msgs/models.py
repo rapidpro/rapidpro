@@ -1576,7 +1576,7 @@ class Msg(models.Model):
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
         else:  # pragma: no cover
-            raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")
+            raise ValueError("Message recipient must be a Contact, ContactURN or URN string")
 
         return contact, contact_urn
 

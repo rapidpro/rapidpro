@@ -13,8 +13,9 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Min, Max, Sum
+from django.db.models import Count, Min, Max, Sum, QuerySet
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -28,15 +29,16 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartList
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import Contact, ContactField, TEL_SCHEME, ContactURN
+from temba.contacts.models import Contact, ContactField, TEL_SCHEME, ContactURN, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
+from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
-from temba.msgs.models import Msg, PENDING
+from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list
+from temba.utils import analytics, on_transaction_commit, chunk_list, goflow
 from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
@@ -207,7 +209,7 @@ class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'editor', 'results', 'run_table', 'category_counts', 'json',
                'broadcast', 'activity', 'activity_chart', 'filter', 'campaign', 'completion', 'revisions',
-               'recent_messages', 'upload_media_action')
+               'recent_messages', 'assets', 'upload_media_action')
 
     model = Flow
 
@@ -1393,6 +1395,89 @@ class FlowCRUDL(SmartCRUDL):
                              restart_participants=form.cleaned_data['restart_participants'],
                              include_active=form.cleaned_data['include_active'])
             return flow
+
+    class Assets(OrgPermsMixin, SmartTemplateView):
+        """
+        Flow assets endpoint used by goflow engine and standalone flow editor. For example:
+
+        /flow_assets/123/xyz/flow/0a9f4ddd-895d-4c64-917e-b004fb048306     -> the flow with that UUID in org #123
+        /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779  -> the channel with that UUID in org #123
+        /flow_assets/123/xyz/group                                         -> all groups for org #123
+        /flow_assets/123/xyz/location_hierarchy                            -> country>states>districts>wards for org #123
+        """
+        class Resource(object):
+            def __init__(self, queryset, serializer):
+                self.queryset = queryset
+                self.serializer = serializer
+
+            def get_root(self, org):
+                return self.queryset.filter(org=org).order_by('id')
+
+            def get_item(self, org, uuid):
+                return self.get_root(org).filter(uuid=uuid).first()
+
+        class BoundaryResource(object):
+            def __init__(self, serializer):
+                self.serializer = serializer
+
+            def get_root(self, org):
+                return org.country
+
+        resources = {
+            'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
+            'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
+            'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), goflow.serialize_flow),
+            'group': Resource(ContactGroup.user_groups.filter(is_active=True), goflow.serialize_group),
+            'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
+            'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
+        }
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^%s/%s/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>\w+)/((?P<uuid>[a-z0-9-]{36})/)?$' % (path, action)
+
+        def derive_org(self):
+            if not hasattr(self, 'org'):
+                self.org = Org.objects.get(id=self.kwargs['org'])
+            return self.org
+
+        def has_permission(self, request, *args, **kwargs):
+            # allow requests from the flowserver using token authentication
+            if request.user.is_anonymous() and settings.FLOW_SERVER_AUTH_TOKEN:
+                authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+                if len(authorization) == 2 and authorization[0] == 'Token' and authorization[1] == settings.FLOW_SERVER_AUTH_TOKEN:
+                    return True
+
+            return super(FlowCRUDL.Assets, self).has_permission(request, *args, **kwargs)
+
+        def get(self, *args, **kwargs):
+            org = self.derive_org()
+            uuid = kwargs.get('uuid')
+
+            resource = self.resources[kwargs['type']]
+            if uuid:
+                result = resource.get_item(org, uuid)
+            else:
+                result = resource.get_root(org)
+
+            if isinstance(result, QuerySet):
+                page_size = self.request.GET.get('page_size')
+                page_num = self.request.GET.get('page')
+
+                if page_size is None:
+                    # the flow engine doesn't want results paged, so just return the entire set
+                    return JsonResponse([resource.serializer(o) for o in result], safe=False)
+                else:  # pragma: no cover
+                    # TODO make this meet the needs of the new editor
+                    paginator = Paginator(result, page_size)
+                    page = paginator.page(page_num)
+
+                    return JsonResponse({
+                        'results': [resource.serializer(o) for o in page.object_list],
+                        'has_next': page.has_next()
+                    })
+            else:
+                return JsonResponse(resource.serializer(result))
 
 
 # this is just for adhoc testing of the preprocess url
