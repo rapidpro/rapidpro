@@ -4,7 +4,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import regex
 import six
 
-from datetime import datetime
 from temba.utils.dates import FULL_ISO8601_REGEX
 
 UUID4_REGEX = regex.compile(r'[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', regex.IGNORECASE)
@@ -16,24 +15,6 @@ class MatcherMixin(object):
 
     def __repr__(self):
         return '<Any:%s>' % self.__class__.__name__
-
-
-class DateTime(MatcherMixin, datetime):
-    def __new__(cls, *args, **kwargs):
-        return datetime.__new__(cls, 2018, 1, 1, 0, 0, 0)
-
-    def __init__(self, after=None, before=None):
-        self.after = after
-        self.before = before
-
-    def __eq__(self, other):
-        if not isinstance(other, datetime):
-            return False
-        if self.after and other <= self.after:
-            return False
-        if self.before and other >= self.before:
-            return False
-        return True
 
 
 class String(MatcherMixin, six.text_type):
