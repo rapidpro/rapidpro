@@ -26,7 +26,8 @@ class ExternalTypeTest(TembaTest):
         post_data['number'] = '12345'
         post_data['country'] = 'RW'
         post_data['url'] = ext_url
-        post_data['method'] = 'GET'
+        post_data['method'] = 'POST'
+        post_data['body'] = 'send=true'
         post_data['scheme'] = 'tel'
         post_data['content_type'] = Channel.CONTENT_TYPE_JSON
         post_data['max_length'] = 180
