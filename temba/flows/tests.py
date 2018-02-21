@@ -30,7 +30,7 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver
+from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException
@@ -4330,15 +4330,24 @@ class WebhookTest(TembaTest):
         run1, = flow.start([], [contact])
         run1.refresh_from_db()
         self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
-
-        results = run1.results
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results['response_1']['name'], 'Response 1')
-        self.assertEqual(results['response_1']['value'], '{ "text": "Get", "blank": "" }')
-        self.assertEqual(results['response_1']['category'], 'Success')
-        self.assertEqual(results['order_status']['name'], 'Order Status')
-        self.assertEqual(results['order_status']['value'], 'Get ')
-        self.assertEqual(results['order_status']['category'], 'Other')
+        self.assertEqual(run1.results, {
+            'order_status': {
+                'category': 'Other',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'Order Status',
+                'value': 'Get ',
+                'created_on': matchers.ISODate(),
+                'input': ''
+            },
+            'response_1': {
+                'category': 'Success',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'Response 1',
+                'value': '{ "text": "Get", "blank": "" }',
+                'created_on': matchers.ISODate(),
+                'input': ''
+            }
+        })
 
         # change our webhook to a POST
         webhook = RuleSet.objects.get(flow=flow, label="Response 1")
@@ -4352,14 +4361,24 @@ class WebhookTest(TembaTest):
         run2, = flow.start([], [contact], restart_participants=True)
         run2.refresh_from_db()
 
-        results = run2.results
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results['response_1']['name'], 'Response 1')
-        self.assertEqual(results['response_1']['value'], '{ "text": "Post", "blank": "" }')
-        self.assertEqual(results['response_1']['category'], 'Success')
-        self.assertEqual(results['order_status']['name'], 'Order Status')
-        self.assertEqual(results['order_status']['value'], 'Post ')
-        self.assertEqual(results['order_status']['category'], 'Other')
+        self.assertEqual(run2.results, {
+            'order_status': {
+                'category': 'Other',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'Order Status',
+                'value': 'Post ',
+                'created_on': matchers.ISODate(),
+                'input': ''
+            },
+            'response_1': {
+                'category': 'Success',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'Response 1',
+                'value': '{ "text": "Post", "blank": "" }',
+                'created_on': matchers.ISODate(),
+                'input': ''
+            }
+        })
 
         # check parsing of a JSON array response from a webhook
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '["zero", "one", "two"]')
@@ -4404,13 +4423,18 @@ class WebhookTest(TembaTest):
 
         run7, = flow.start([], [contact], restart_participants=True)
         run7.refresh_from_db()
-        self.assertEqual(run7.fields, {})
 
-        results = run7.results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results['response_1']['name'], 'Response 1')
-        self.assertEqual(results['response_1']['value'], 'Server Error')
-        self.assertEqual(results['response_1']['category'], 'Failure')
+        self.assertEqual(run7.fields, {})
+        self.assertEqual(run7.results, {
+            'response_1': {
+                'category': 'Failure',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'Response 1',
+                'value': 'Server Error',
+                'created_on': matchers.ISODate(),
+                'input': ''
+            }
+        })
 
         # check a webhook that responds with a 400 error
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', '{ "text": "Valid", "error": "400", "message": "Missing field in request" }', status=400)
