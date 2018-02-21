@@ -4661,11 +4661,16 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(run.exit_type)
         self.assertIsNone(run.exited_on)
         self.assertTrue(run.responded)
-        self.assertEqual(len(run.results), 1)
-        self.assertEqual(run.results['color']['category'], "Red")
-        self.assertEqual(run.results['color']['input'], "I like red")
-        self.assertEqual(run.results['color']['value'], "red")
-        self.assertEqual(run.results['color']['name'], "Color")
+        self.assertEqual(run.results, {
+            'color': {
+                'category': "Red",
+                'node_uuid': str(rule_set1.uuid),
+                'name': "Color",
+                'value': "red",
+                'created_on': matchers.ISODate(),
+                'input': "I like red"
+            }
+        })
 
         cat_counts = list(FlowCategoryCount.objects.order_by('id'))
         self.assertEqual(len(cat_counts), 1)
@@ -4680,15 +4685,24 @@ class FlowsTest(FlowFileTest):
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
 
         run.refresh_from_db()
-        self.assertEqual(len(run.results), 2)
-        self.assertEqual(run.results['color']['category'], "Red")
-        self.assertEqual(run.results['color']['input'], "I like red")
-        self.assertEqual(run.results['color']['value'], "red")
-        self.assertEqual(run.results['color']['name'], "Color")
-        self.assertEqual(run.results['beer']['category'], "Primus")
-        self.assertEqual(run.results['beer']['input'], "primus")
-        self.assertEqual(run.results['beer']['value'], "primus")
-        self.assertEqual(run.results['beer']['name'], "Beer")
+        self.assertEqual(run.results, {
+            'color': {
+                'category': "Red",
+                'node_uuid': str(rule_set1.uuid),
+                'name': "Color",
+                'value': "red",
+                'created_on': matchers.ISODate(),
+                'input': "I like red"
+            },
+            'beer': {
+                'category': "Primus",
+                'node_uuid': matchers.UUID4String(),
+                'name': "Beer",
+                'value': "primus",
+                'created_on': matchers.ISODate(),
+                'input': "primus"
+            }
+        })
 
         msg5 = Msg.objects.get(id__gt=msg4.id)
         self.assertEqual(msg5.direction, 'O')
