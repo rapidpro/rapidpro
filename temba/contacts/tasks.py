@@ -25,6 +25,6 @@ def squash_contactgroupcounts():
 @task(track_started=True, name='reevaluate_dynamic_group')
 def reevaluate_dynamic_group(group_id):
     """
-    (Re)build a dynamic group
+    (Re)evaluate a dynamic group
     """
     ContactGroup.user_groups.get(id=group_id).reevaluate()

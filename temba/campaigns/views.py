@@ -45,7 +45,7 @@ class CampaignActionMixin(SmartListView):
 
 
 class UpdateCampaignForm(forms.ModelForm):
-    group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
+    group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.none(),
                                    required=True, label="Group",
                                    help_text="Which group this campaign operates on")
 
@@ -55,7 +55,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
         super(UpdateCampaignForm, self).__init__(*args, **kwargs)
         self.fields['group'].initial = self.instance.group
-        self.fields['group'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['group'].queryset = ContactGroup.get_user_groups(self.user.get_org())
 
     class Meta:
         model = Campaign
@@ -129,12 +129,9 @@ class CampaignCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         class CampaignForm(forms.ModelForm):
             def __init__(self, user, *args, **kwargs):
-                self.user = user
                 super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
 
-                group = self.fields['group']
-                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org()).order_by('name')
-                group.user = user
+                self.fields['group'].queryset = ContactGroup.get_user_groups(user.get_org()).order_by('name')
 
             class Meta:
                 model = Campaign
