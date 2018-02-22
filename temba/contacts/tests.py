@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_it_a_phonenumber
+from temba.contacts.search import is_phonenumber
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -192,6 +192,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't call update_query on a static group
         self.assertRaises(ValueError, group.update_query, "gender=M")
@@ -215,6 +216,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
         group.update_query('age > 18')
@@ -223,6 +225,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.query, 'age > 18')
         self.assertEqual(set(group.query_fields.all()), {age})
         self.assertEqual(set(group.contacts.all()), {self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
@@ -4694,22 +4697,18 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-    def test_is_it_a_phonenumber(self):
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1-234-567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1 (234) 567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12 34 567 8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber(' 234 567 8901'), '2345678901')
+    def test_is_phonenumber(self):
+        # these should match as phone numbers
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1-234-567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1 (234) 567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12 34 567 8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber(' 234 567 8901 '), (True, '2345678901'))
 
         # these should not be parsed as numbers
-        self.assertIsNone(is_it_a_phonenumber('+12345678901 not a number'))
-        self.assertIsNone(is_it_a_phonenumber(''))
-        self.assertIsNone(is_it_a_phonenumber('AMAZONS'))
-        self.assertIsNone(is_it_a_phonenumber('name = "Jack"'))
-        self.assertIsNone(is_it_a_phonenumber('(social = "234-432-324")'))
+        self.assertEqual(is_phonenumber('+12345678901 not a number'), (False, None))
+        self.assertEqual(is_phonenumber(''), (False, None))
+        self.assertEqual(is_phonenumber('AMAZONS'), (False, None))
+        self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
+        self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))

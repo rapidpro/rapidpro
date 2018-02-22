@@ -2257,11 +2257,21 @@ class ContactGroup(TembaModel):
                     (TYPE_STOPPED, "Stopped Contacts"),
                     (TYPE_USER_DEFINED, "User Defined Groups"))
 
+    STATUS_INITIALIZING = 'B'
+    STATUS_BUILDING = 'B'
+    STATUS_READY = 'R'
+
+    STATUS_CHOICES = ((STATUS_INITIALIZING, "Initializing"),
+                      (STATUS_BUILDING, "Building"),
+                      (STATUS_READY, "Ready"))
+
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
                             help_text=_("The name of this contact group"))
 
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
 
@@ -2287,13 +2297,15 @@ class ContactGroup(TembaModel):
         return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
-    def get_user_groups(cls, org, dynamic=None):
+    def get_user_groups(cls, org, dynamic=None, include_building=False):
         """
         Gets all user groups for the given org - optionally filtering by dynamic vs static
         """
         groups = cls.user_groups.filter(org=org, is_active=True)
         if dynamic is not None:
             groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
+        if not include_building:
+            groups = groups.exclude(status=ContactGroup.STATUS_BUILDING)
 
         return groups
 
@@ -2327,12 +2339,9 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
-        # we will rollback the database changes
-        with transaction.atomic():
-            group = cls._create(org, user, name, query=query)
-            group.update_query(query=query)
-            return group
+        group = cls._create(org, user, name, query=query)
+        group.update_query(query=query)
+        return group
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2350,8 +2359,14 @@ class ContactGroup(TembaModel):
             existing = cls.get_user_group(org, full_group_name)
             count += 1
 
-        return cls.user_groups.create(org=org, name=full_group_name, query=query,
-                                      import_task=task, created_by=user, modified_by=user)
+        return cls.user_groups.create(
+            org=org,
+            name=full_group_name,
+            query=query,
+            status=ContactGroup.STATUS_INITIALIZING if query else ContactGroup.STATUS_READY,
+            import_task=task,
+            created_by=user, modified_by=user
+        )
 
     @classmethod
     def clean_name(cls, name):
@@ -2449,24 +2464,31 @@ class ContactGroup(TembaModel):
 
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
+        if self.status == ContactGroup.STATUS_BUILDING:
+            raise ValueError("Cannot update query on group which is still building")
 
         parsed_query = parse_query(text=query)
 
-        if parsed_query.can_be_dynamic_group():
-            self.query = parsed_query.as_text()
-            self.save(update_fields=('query',))
+        if not parsed_query.can_be_dynamic_group():
+            raise ValueError("Query '%s' cannot be used as a dynamic group")
 
-            self.query_fields.clear()
+        self.query = parsed_query.as_text()
+        self.status = ContactGroup.STATUS_BUILDING
+        self.save(update_fields=('query', 'status'))
 
-            for field in extract_fields(self.org, self.query):
-                self.query_fields.add(field)
+        # update the set of contact fields that this query depends on
+        self.query_fields.clear()
 
-            dynamic_members, _ = self._get_dynamic_members()
-            members = list(dynamic_members)
-            self.contacts.clear()
-            self.contacts.add(*members)
-        else:
-            raise ValueError('Cannot update a dynamic query that is not allowed')
+        for field in extract_fields(self.org, self.query):
+            self.query_fields.add(field)
+
+        dynamic_members, _ = self._get_dynamic_members()
+        members = list(dynamic_members)
+        self.contacts.clear()
+        self.contacts.add(*members)
+
+        self.status = ContactGroup.STATUS_READY
+        self.save(update_fields=('status',))
 
     def _get_dynamic_members(self, base_set=None, is_new=False):
         """
