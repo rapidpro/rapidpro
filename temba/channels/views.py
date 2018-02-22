@@ -948,7 +948,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
         except Exception as e:  # pragma: needs cover
             import traceback
-            traceback.print_exc(e)
+            traceback.print_exc()
             if e.message:
                 form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
             else:
@@ -1329,7 +1329,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             except Exception as e:  # pragma: no cover
                 import traceback
-                traceback.print_exc(e)
+                traceback.print_exc()
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
                 return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 

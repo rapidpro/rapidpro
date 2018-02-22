@@ -1679,7 +1679,7 @@ class Org(SmartModel):
                 try:
                     subscription = customer.cancel_subscription(at_period_end=True)
                 except Exception as e:
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
             else:
                 raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
@@ -1694,7 +1694,7 @@ class Org(SmartModel):
 
                 except Exception as e:
                     # can't load it, oh well, we'll try to create one dynamically below
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     customer = None
 
             # if we don't have a customer, go create one
@@ -1710,7 +1710,7 @@ class Org(SmartModel):
                     analytics.track(user.username, 'temba.plan_upgraded', dict(previousPlan=self.plan, plan=new_plan))
 
                 except Exception as e:
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     raise ValidationError(_("Sorry, we were unable to charge your card, please try again later or contact us."))
 
         # update our org

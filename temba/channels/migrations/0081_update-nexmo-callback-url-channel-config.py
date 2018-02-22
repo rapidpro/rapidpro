@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                     client.update_nexmo_number(six.text_type(channel.country), channel.address, receive_url, app_id)
                 except Exception as e:
                     import traceback
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     pass
 
     operations = [

@@ -1221,7 +1221,7 @@ class FlowCRUDL(SmartCRUDL):
                                             status=PENDING)
                 except Exception as e:  # pragma: needs cover
 
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     return JsonResponse(dict(status="error", description="Error creating message: %s" % str(e)),
                                         status=400)
 

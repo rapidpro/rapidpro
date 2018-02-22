@@ -1392,7 +1392,7 @@ class Contact(TembaModel):
             except Exception as e:  # pragma: needs cover
                 if log:
                     import traceback
-                    traceback.print_exc(100, log)
+                    traceback.print_exc(limit=100, file=log)
                 raise Exception("Line %d: %s\n\n%s" % (line_number, str(e), str(log_field_values)))
 
         if import_results is not None:

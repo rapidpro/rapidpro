@@ -2597,7 +2597,7 @@ class Flow(TembaModel):
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
             logger.exception(six.text_type(e))
-            traceback.print_exc(e)
+            traceback.print_exc()
             raise e
 
         return revision
@@ -5120,7 +5120,7 @@ class FlowStart(SmartModel):
 
         except Exception as e:  # pragma: no cover
             import traceback
-            traceback.print_exc(e)
+            traceback.print_exc()
 
             self.status = FlowStart.STATUS_FAILED
             self.save(update_fields=['status'])

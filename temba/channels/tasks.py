@@ -37,7 +37,7 @@ def setup_periodic_tasks(sender, **kwargs):
     except Exception as e:  # pragma: no cover
         # we print this out because celery just silently swallows exceptions here
         import traceback
-        traceback.print_exc(e)
+        traceback.print_exc()
 
 
 @task(track_started=True, name='sync_channel_gcm_task')

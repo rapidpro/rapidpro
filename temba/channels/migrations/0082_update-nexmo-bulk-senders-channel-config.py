@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                     channel.save(update_fields=['config', 'tps'])
                 except Exception as e:
                     import traceback
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     pass
 
     def noop(apps, schema_editor):
