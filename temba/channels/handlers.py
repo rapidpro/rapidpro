@@ -1332,6 +1332,9 @@ class NexmoHandler(BaseChannelHandler):
 
 
 class VerboiceHandler(BaseChannelHandler):
+    courier_url = r'^vb/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.vb'
+
     handler_url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.verboice_handler'
 
@@ -1344,7 +1347,7 @@ class VerboiceHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True,
-                                         channel_type=Channel.TYPE_VERBOICE).first()
+                                         channel_type='VB').first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
@@ -1359,7 +1362,7 @@ class VerboiceHandler(BaseChannelHandler):
             from temba.ivr.models import IVRCall
             call = IVRCall.objects.filter(external_id=call_sid).first()
             if call:
-                call.update_status(call_status, None, Channel.TYPE_VERBOICE)
+                call.update_status(call_status, None, 'VB')
                 call.save()
                 return HttpResponse("Call Status Updated")
 

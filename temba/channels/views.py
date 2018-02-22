@@ -1050,7 +1050,7 @@ TYPE_UPDATE_FORM_CLASSES = {
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_android', 'configuration',
-               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller', 'claim_verboice',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'create_caller',
                'search_plivo', 'facebook_whitelist')
     permissions = True
 
@@ -1509,43 +1509,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             return reverse('orgs.org_home')
-
-    class ClaimVerboice(OrgPermsMixin, SmartFormView):
-        class VerboiceClaimForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. "
-                                                 "ex: +250788123124 or 15543"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username provided by the provider to use their API"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password provided by the provider to use their API"))
-            channel = forms.CharField(label=_("Channel Name"),
-                                      help_text=_("The Verboice channel that will be handling your calls"))
-
-        title = _("Connect Verboice")
-        channel_type = Channel.TYPE_VERBOICE
-        form_class = VerboiceClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-        template_name = 'channels/channel_claim_verboice.html'
-        fields = ('country', 'number', 'username', 'password', 'channel')
-
-        def form_valid(self, form):  # pragma: needs cover
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              data['country'], data['number'], Channel.TYPE_VERBOICE,
-                                                              dict(username=data['username'],
-                                                                   password=data['password'],
-                                                                   channel=data['channel']),
-                                                              role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
-            return super(ChannelCRUDL.ClaimVerboice, self).form_valid(form)
 
     class Configuration(OrgPermsMixin, SmartReadView):
 
