@@ -15,6 +15,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='contactgroup',
             name='status',
+            field=models.CharField(choices=[('I', 'Initializing'), ('V', 'Evaluating'), ('R', 'Ready')], default='R', max_length=1),
+        ),
+        migrations.AlterField(
+            model_name='contactgroup',
+            name='status',
             field=models.CharField(choices=[('I', 'Initializing'), ('V', 'Evaluating'), ('R', 'Ready')], default='I', max_length=1),
         ),
     ]

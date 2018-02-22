@@ -185,13 +185,22 @@ class ContactListView(OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        groups = list(ContactGroup.user_groups.filter(org=org).select_related('org').order_by(Upper('name')))
+        groups = (
+            ContactGroup.get_user_groups(org, ready_only=False)
+            .select_related('org')
+            .order_by(Upper('name'))
+        )
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
         for g in groups:
             rendered.append({
-                'pk': g.id, 'uuid': g.uuid, 'label': g.name, 'count': group_counts[g], 'is_dynamic': g.is_dynamic
+                'pk': g.id,
+                'uuid': g.uuid,
+                'label': g.name,
+                'count': group_counts[g],
+                'is_dynamic': g.is_dynamic,
+                'is_ready': g.status == ContactGroup.STATUS_READY
             })
 
         return rendered
