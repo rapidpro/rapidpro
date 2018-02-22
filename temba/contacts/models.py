@@ -25,7 +25,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
@@ -2257,12 +2257,12 @@ class ContactGroup(TembaModel):
                     (TYPE_STOPPED, "Stopped Contacts"),
                     (TYPE_USER_DEFINED, "User Defined Groups"))
 
-    STATUS_INITIALIZING = 'B'
-    STATUS_BUILDING = 'B'
-    STATUS_READY = 'R'
+    STATUS_INITIALIZING = 'I'  # group has been created but not yet (re)evaluated
+    STATUS_EVALUATING = 'V'    # a task is currently (re)evaluating this group
+    STATUS_READY = 'R'         # group is ready for use
 
     STATUS_CHOICES = ((STATUS_INITIALIZING, "Initializing"),
-                      (STATUS_BUILDING, "Building"),
+                      (STATUS_EVALUATING, "Evaluating"),
                       (STATUS_READY, "Ready"))
 
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
@@ -2297,15 +2297,15 @@ class ContactGroup(TembaModel):
         return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
-    def get_user_groups(cls, org, dynamic=None, include_building=False):
+    def get_user_groups(cls, org, dynamic=None, ready_only=True):
         """
         Gets all user groups for the given org - optionally filtering by dynamic vs static
         """
         groups = cls.user_groups.filter(org=org, is_active=True)
         if dynamic is not None:
             groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
-        if not include_building:
-            groups = groups.exclude(status=ContactGroup.STATUS_BUILDING)
+        if ready_only:
+            groups = groups.filter(status=ContactGroup.STATUS_READY)
 
         return groups
 
@@ -2461,19 +2461,20 @@ class ContactGroup(TembaModel):
         Updates the query for a dynamic group
         """
         from .search import extract_fields, parse_query
+        from .tasks import reevaluate_dynamic_group
 
         if not self.is_dynamic:
-            raise ValueError("Can only update query for a dynamic group")
-        if self.status == ContactGroup.STATUS_BUILDING:
-            raise ValueError("Cannot update query on group which is still building")
+            raise ValueError("Cannot update query on a non-dynamic group")
+        if self.status == ContactGroup.STATUS_EVALUATING:
+            raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         parsed_query = parse_query(text=query)
 
         if not parsed_query.can_be_dynamic_group():
-            raise ValueError("Query '%s' cannot be used as a dynamic group")
+            raise ValueError("Cannot use query '%s' as a dynamic group")
 
         self.query = parsed_query.as_text()
-        self.status = ContactGroup.STATUS_BUILDING
+        self.status = ContactGroup.STATUS_INITIALIZING
         self.save(update_fields=('query', 'status'))
 
         # update the set of contact fields that this query depends on
@@ -2481,6 +2482,21 @@ class ContactGroup(TembaModel):
 
         for field in extract_fields(self.org, self.query):
             self.query_fields.add(field)
+
+        # start background task to re-evaluate who belongs in this group
+        on_transaction_commit(lambda: reevaluate_dynamic_group.delay(self.id))
+
+    def reevaluate(self):
+        """
+        Re-evaluates the contacts in a dynamic group
+        """
+        if not self.is_dynamic:
+            raise ValueError("Cannot re-evaluate a non-dynamic group")
+        if self.status == ContactGroup.STATUS_EVALUATING:
+            raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
+
+        self.status = ContactGroup.STATUS_EVALUATING
+        self.save(update_fields=('status',))
 
         dynamic_members, _ = self._get_dynamic_members()
         members = list(dynamic_members)

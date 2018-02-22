@@ -213,6 +213,7 @@ class ContactGroupTest(TembaTest):
             '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
         )
 
+        group.refresh_from_db()
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
@@ -254,7 +255,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=215, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=216, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1456,7 +1457,7 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         self.assertItemsEqual(
