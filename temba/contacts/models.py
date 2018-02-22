@@ -2490,8 +2490,6 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates the contacts in a dynamic group
         """
-        if not self.is_dynamic:
-            raise ValueError("Cannot re-evaluate a non-dynamic group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 

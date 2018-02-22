@@ -246,6 +246,18 @@ class ContactGroupTest(TembaTest):
         response = self.client.get(filter_url)
         self.assertNotIn('unlabel', response.context['actions'])
 
+        # put group back into evaluation state
+        group.status = ContactGroup.STATUS_EVALUATING
+        group.save(update_fields=('status',))
+
+        # can't update query again while it is in this state
+        with self.assertRaises(ValueError):
+            group.update_query('age = 18')
+
+        # can't call reevaluate on it while it is in this state
+        with self.assertRaises(ValueError):
+            group.reevaluate()
+
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
