@@ -1814,6 +1814,11 @@ class APITest(TembaTest):
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
+        # a group which is being re-evaluated and shouldn't be returned
+        unready = self.create_group("Group being re-evaluated...", query="isdeveloper=NO")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
+
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 

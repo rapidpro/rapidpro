@@ -1477,8 +1477,13 @@ class ContactTest(TembaTest):
         # add a group with members and an empty group
         self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        men = self.create_group("Men", [], "gender=M")
+        men = self.create_group("Men", query="gender=M")
         nobody = self.create_group("Nobody", [])
+
+        # a group which is being re-evaluated and shouldn't appear in any omnibox results
+        unready = self.create_group("Group being re-evaluated...", query="gender=M")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
         joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
