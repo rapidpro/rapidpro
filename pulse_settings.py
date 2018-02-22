@@ -136,14 +136,14 @@ IS_PROD = env('IS_PROD', 'off') == 'on'
 
 BRANDING = {
     'pulse': {
-        'slug': env('BRANDING_SLUG', 'rapidpro'),
-        'name': env('BRANDING_NAME', 'RapidPro'),
-        'org': env('BRANDING_ORG', 'RapidPro'),
+        'slug': env('BRANDING_SLUG', 'pulse'),
+        'name': env('BRANDING_NAME', 'Pulse'),
+        'org': env('BRANDING_ORG', 'Pulse'),
         'colors': dict([rule.split('=') for rule in env('BRANDING_COLORS', 'primary=#0c6596').split(';')]),
         'styles': ['brands/pulse/font/style.css'],
         'welcome_topup': 1000,
-        'email': env('BRANDING_EMAIL', 'join@rapidpro.io'),
-        'support_email': env('BRANDING_SUPPORT_EMAIL', 'join@rapidpro.io'),
+        'email': env('BRANDING_EMAIL', 'engage@istresearch.com'),
+        'support_email': env('BRANDING_SUPPORT_EMAIL', 'no-reply@istresearch.com'),
         'link': env('BRANDING_LINK', 'https://app.rapidpro.io'),
         'api_link': env('BRANDING_API_LINK', 'https://api.rapidpro.io'),
         'docs_link': env('BRANDING_DOCS_LINK', 'http://docs.rapidpro.io'),
@@ -151,17 +151,19 @@ BRANDING = {
         'favico': env('BRANDING_FAVICO', '/brands/pulse/pulse.ico'),
         'splash': env('BRANDING_SPLASH', '/brands/pulse/splash.jpg'),
         'logo': env('BRANDING_LOGO', '/brands/pulse/logo.png'),
-        'allow_signups': env('BRANDING_ALLOW_SIGNUPS', True),
+        'allow_signups': env('BRANDING_ALLOW_SIGNUPS', False),
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
         'bundles': [],
-        'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        'welcome_packs': [dict(size=5000, name="Pulse Account"), dict(size=100000, name="Pulse Account")],
         'description': _("Pulse lets you visually build interactive SMS applications and launch them anywhere in the world."),
         'credits': _("Copyright &copy; 2012-{} IST Research Corp. All Rights Reserved.".format(
             datetime.now().strftime('%Y')
-        ))
+        )),
+        'redirect': "/msg/inbox/"
     }
 }
 DEFAULT_BRAND = 'pulse'
+LOGOUT_REDIRECT_URL = "/users/login/"
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
