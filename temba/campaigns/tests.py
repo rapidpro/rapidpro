@@ -812,3 +812,41 @@ class CampaignTest(TembaTest):
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
+
+    def test_with_dynamic_group(self):
+        # create a campaign on a dynamic group
+        self.create_field('gender', "Gender")
+        women = self.create_group("Women", query='gender="F"')
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign,
+                                                   relative_to=self.planting_date,
+                                                   offset=0, unit='D', message={'eng': "hello"},
+                                                   base_language='eng')
+
+        # create a contact not in the group, but with a field value
+        anna = self.create_contact("Anna", "+250788333333")
+        anna.set_field(self.admin, 'planting_date', "09-10-2020 12:30")
+
+        # no contacts in our dynamic group yet, so no event fires
+        self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
+
+        # update contact so that they become part of the dynamic group
+        anna.set_field(self.admin, 'gender', "f")
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # and who should now have an event fire for our campaign event
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
+
+        # change dynamic group query so anna is removed
+        women.update_query('gender=FEMALE')
+        self.assertEqual(set(women.contacts.all()), set())
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
+
+        # but if query is reverted, her event fire should be recreated
+        women.update_query('gender=F')
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)

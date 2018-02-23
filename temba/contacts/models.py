@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import itertools
 import json
 import logging
 import os
@@ -2496,10 +2497,17 @@ class ContactGroup(TembaModel):
         self.status = ContactGroup.STATUS_EVALUATING
         self.save(update_fields=('status',))
 
-        dynamic_members, _ = self._get_dynamic_members()
-        members = list(dynamic_members)
-        self.contacts.clear()
-        self.contacts.add(*members)
+        new_members, _ = self._get_dynamic_members()
+        new_member_ids = {c.id for c in new_members}
+        existing_member_ids = set(self.contacts.values_list('id', flat=True))
+        to_add = [c for c in new_members if c.id not in existing_member_ids]
+        to_remove = [c for c in self.contacts.only('id') if c.id not in new_member_ids]
+
+        self.contacts.add(*to_add)
+        self.contacts.remove(*to_remove)
+
+        for changed_contact in itertools.chain(to_add + to_remove):
+            changed_contact.handle_update(group=self)
 
         self.status = ContactGroup.STATUS_READY
         self.save(update_fields=('status',))
