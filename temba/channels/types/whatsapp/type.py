@@ -4,9 +4,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import requests
 
 from django.utils.translation import ugettext_lazy as _
+from django.conf.urls import url
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.views import ClaimView
+from temba.channels.types.whatsapp.views import ClaimView, RefreshView
 from temba.contacts.models import WHATSAPP_SCHEME
 from ...models import ChannelType
 from django.urls import reverse
@@ -36,11 +37,17 @@ class WhatsAppType(ChannelType):
     def send(self, channel, msg, text):  # pragma: no cover
         raise Exception("Sending WhatsApp messages is only possible via Courier")
 
+    def get_urls(self):
+        return [
+            self.get_claim_url(),
+            url(r'^refresh/(?P<pk>[0-9]+)/?$', RefreshView.as_view(), name='refresh')
+        ]
+
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
 
         # first set our callbacks
-        body = {
+        payload = {
             'payload': {
                 'set_settings': {
                     'webcallbacks': {
@@ -53,7 +60,7 @@ class WhatsAppType(ChannelType):
         }
 
         resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-                             json=body,
+                             json=payload,
                              auth=(channel.config[Channel.CONFIG_USERNAME],
                                    channel.config[Channel.CONFIG_PASSWORD]))
 
@@ -62,14 +69,33 @@ class WhatsAppType(ChannelType):
 
         # then make sure group chats are disabled (this has to be two requests, whatsapp doesn't allow
         # multiple settings to be set in one call)
-        body = {
+        payload = {
             "payload": {
                 "set_allow_unsolicited_group_add": False
             }
         }
 
         resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-                             json=body,
+                             json=payload,
+                             auth=(channel.config[Channel.CONFIG_USERNAME],
+                                   channel.config[Channel.CONFIG_PASSWORD]))
+
+        if resp.status_code != 200:
+            raise ValidationError(_("Unable to configure channel: %s", resp.content))
+
+        # finally, up our quotas
+        payload = {
+            "payload": {
+                "set_settings": {
+                    "messaging_api_rate_limit": ["15", "54600", "1000000"],
+                    "unique_message_sends_rate_limit": ["15", "54600", "1000000"],
+                    "contacts_api_rate_limit": ["15", "54600", "1000000"]
+                }
+            }
+        }
+
+        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
+                             json=payload,
                              auth=(channel.config[Channel.CONFIG_USERNAME],
                                    channel.config[Channel.CONFIG_PASSWORD]))
 

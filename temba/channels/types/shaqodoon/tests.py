@@ -13,7 +13,7 @@ class ShaqodoonTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        url = reverse('channels.claim_shaqodoon')
+        url = reverse('channels.types.shaqodoon.claim')
 
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertNotContains(response, url)

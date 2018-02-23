@@ -11,7 +11,7 @@ class RedRabbitTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_redrabbit')
+        url = reverse('channels.types.redrabbit.claim')
 
         self.login(self.admin)
 

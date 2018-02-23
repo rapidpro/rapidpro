@@ -5,10 +5,26 @@ import requests
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartFormView
+from smartmin.views import SmartFormView, SmartUpdateView
 from temba.contacts.models import URN
+from temba.utils.views import PostOnlyMixin
 from ...models import Channel
 from ...views import ClaimViewMixin, ALL_COUNTRIES
+from .tasks import refresh_whatsapp_contacts
+
+
+class RefreshView(PostOnlyMixin, SmartUpdateView):
+    """
+    Responsible for firing off our contact refresh task
+    """
+    model = Channel
+    fields = ()
+    success_message = _("Contacts Refresh Begun, it may take a few minutes to complete.")
+    success_url = "id@channels.channel_configuration"
+
+    def post_save(self, obj):
+        refresh_whatsapp_contacts.delay(obj.id)
+        return obj
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):

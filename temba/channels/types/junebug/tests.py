@@ -11,7 +11,7 @@ class JunebugTypeTest(TembaTest):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        url = reverse('channels.claim_junebug')
+        url = reverse('channels.types.junebug.claim')
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse('channels.channel_claim'))

@@ -13,7 +13,7 @@ class DartMediaTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_dartmedia')
+        url = reverse('channels.types.dartmedia.claim')
 
         self.login(self.admin)
 

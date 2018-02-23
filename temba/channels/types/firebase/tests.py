@@ -19,7 +19,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
 
     @patch('requests.get')
     def test_claim(self, mock_get):
-        url = reverse('channels.claim_firebase')
+        url = reverse('channels.types.firebase.claim')
 
         self.login(self.admin)
 

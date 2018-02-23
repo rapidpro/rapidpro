@@ -11,7 +11,7 @@ class MacrokioskTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_macrokiosk')
+        url = reverse('channels.types.macrokiosk.claim')
 
         self.login(self.admin)
 

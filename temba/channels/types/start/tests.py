@@ -11,7 +11,7 @@ class StartTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_start')
+        url = reverse('channels.types.start.claim')
 
         self.login(self.admin)
 

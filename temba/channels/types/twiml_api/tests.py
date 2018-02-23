@@ -17,7 +17,7 @@ class TwimlAPITypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        claim_url = reverse('channels.claim_twiml_api')
+        claim_url = reverse('channels.types.twiml_api.claim')
 
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "TwiML")

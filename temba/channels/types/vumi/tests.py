@@ -12,7 +12,7 @@ class VumiTypeTest(TembaTest):
 
     def test_claim(self):
         Channel.objects.all().delete()
-        url = reverse('channels.claim_vumi')
+        url = reverse('channels.types.vumi.claim')
 
         self.login(self.admin)
 

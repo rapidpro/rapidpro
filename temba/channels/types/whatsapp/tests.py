@@ -8,6 +8,7 @@ from temba.tests import TembaTest, MockResponse
 from ...models import Channel
 from .type import WhatsAppType
 from django.forms import ValidationError
+from .tasks import refresh_whatsapp_contacts
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -15,7 +16,7 @@ class WhatsAppTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_whatsapp')
+        url = reverse('channels.types.whatsapp.claim')
         self.login(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))
@@ -63,15 +64,20 @@ class WhatsAppTypeTest(TembaTest):
 
         # test activating the channel
         with patch('requests.post') as mock_post:
-            mock_post.side_effect = [MockResponse(200, '{ "error": "false" }'), MockResponse(200, '{ "error": "false" }')]
+            mock_post.side_effect = [
+                MockResponse(200, '{ "error": false }'),
+                MockResponse(200, '{ "error": false }'),
+                MockResponse(200, '{ "error": false }')
+            ]
             WhatsAppType().activate(channel)
             self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['set_settings']['webcallbacks']["1"],
                              'https://%s%s' % (channel.org.get_brand_domain(), reverse('courier.wa', args=[channel.uuid, 'receive'])))
             self.assertEqual(mock_post.call_args_list[1][1]['json']['payload']['set_allow_unsolicited_group_add'],
                              False)
+            self.assertIn('set_settings', mock_post.call_args_list[2][1]['json']['payload'])
 
         with patch('requests.post') as mock_post:
-            mock_post.side_effect = [MockResponse(400, '{ "error": "true" }')]
+            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
 
             try:
                 WhatsAppType().activate(channel)
@@ -80,10 +86,42 @@ class WhatsAppTypeTest(TembaTest):
                 pass
 
         with patch('requests.post') as mock_post:
-            mock_post.side_effect = [MockResponse(200, '{ "error": "false" }'), MockResponse(400, '{ "error": "true" }')]
+            mock_post.side_effect = [
+                MockResponse(200, '{ "error": "false" }'),
+                MockResponse(400, '{ "error": "true" }')
+            ]
 
             try:
                 WhatsAppType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
+                pass
+
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [
+                MockResponse(200, '{ "error": false }'),
+                MockResponse(200, '{ "error": false }'),
+                MockResponse(400, '{ "error": true }')
+            ]
+
+            try:
+                WhatsAppType().activate(channel)
+                self.fail("Should have thrown error activating channel")
+            except ValidationError:
+                pass
+
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
+            self.create_contact("Joe", urn="whatsapp:250788382382")
+            refresh_whatsapp_contacts(channel.id)
+
+            self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['users'],
+                             ['+250788382382'])
+
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            try:
+                refresh_whatsapp_contacts(channel.id)
+                self.fail("Should have thrown exception")
+            except Exception:
                 pass

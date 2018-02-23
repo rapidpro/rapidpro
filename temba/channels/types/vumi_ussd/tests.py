@@ -13,7 +13,7 @@ class VumiUSSDTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_vumi_ussd')
+        url = reverse('channels.types.vumi_ussd.claim')
 
         self.login(self.admin)
 

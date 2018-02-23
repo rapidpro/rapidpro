@@ -17,7 +17,7 @@ class KannelTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        url = reverse('channels.claim_kannel')
+        url = reverse('channels.types.kannel.claim')
 
         # should see the general channel claim page
         response = self.client.get(reverse('channels.channel_claim'))

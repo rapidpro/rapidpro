@@ -30,7 +30,7 @@ class TwitterActivityTypeTest(TembaTest):
     @patch('temba.utils.twitter.TembaTwython.register_webhook')
     @patch('twython.Twython.verify_credentials')
     def test_claim(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
-        url = reverse('channels.claim_twitter_activity')
+        url = reverse('channels.types.twitter_activity.claim')
 
         self.login(self.admin)
 

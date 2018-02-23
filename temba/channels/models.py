@@ -134,13 +134,20 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return Engine.get_default().from_string(self.claim_blurb)
 
+    def get_urls(self):
+        """
+        Returns all the URLs this channel exposes to Django, the URL should be relative.
+        """
+        if self.claim_view:
+            return [self.get_claim_url()]
+        else:
+            return []
+
     def get_claim_url(self):
         """
         Gets the URL/view configuration for this channel types's claim page
         """
-        rel_url = r'^claim/%s/' % self.slug
-        url_name = 'channels.claim_%s' % self.slug
-        return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
+        return url(r'^claim$', self.claim_view.as_view(channel_type=self), name='claim')
 
     def get_update_form(self):
         if self.update_form is None:

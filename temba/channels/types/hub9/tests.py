@@ -13,7 +13,7 @@ class Hub9TypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_hub9')
+        url = reverse('channels.types.hub9.claim')
 
         self.login(self.admin)
 

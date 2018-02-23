@@ -13,7 +13,7 @@ class ClickatellTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        url = reverse('channels.claim_clickatell')
+        url = reverse('channels.types.clickatell.claim')
 
         # should see the general channel claim page
         response = self.client.get(reverse('channels.channel_claim'))

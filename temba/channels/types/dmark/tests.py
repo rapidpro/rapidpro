@@ -13,7 +13,7 @@ class DMarkTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_dmark')
+        url = reverse('channels.types.dmark.claim')
         self.login(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))

@@ -10,9 +10,9 @@ class ArabiaCellTest(TembaTest):
 
     def test_claim(self):
         self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_claim'))
+        response = self.client.get(reverse('channels.channel.claim'))
 
-        claim_url = reverse('channels.claim_arabiacell')
+        claim_url = reverse('channels.types.arabiacell_claim')
         response = self.client.get(claim_url)
         post_data = response.context['form'].initial
 

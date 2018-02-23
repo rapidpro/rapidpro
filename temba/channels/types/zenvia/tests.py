@@ -13,7 +13,7 @@ class ZenviaTypeTest(TembaTest):
         Channel.objects.all().delete()
 
         self.login(self.admin)
-        url = reverse('channels.claim_zenvia')
+        url = reverse('channels.types.zenvia.claim')
 
         # shouldn't be able to see the claim zenvia page if we aren't part of that group
         response = self.client.get(reverse('channels.channel_claim'))

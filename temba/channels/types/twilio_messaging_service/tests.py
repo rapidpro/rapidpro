@@ -18,7 +18,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        claim_twilio_ms = reverse('channels.claim_twilio_messaging_service')
+        claim_twilio_ms = reverse('channels.types.twilio_messaging_service.claim')
 
         # remove any existing channels
         self.org.channels.all().delete()

@@ -10,7 +10,7 @@ class VerboiceTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_verboice')
+        url = reverse('channels.types.verboice.claim')
 
         self.login(self.admin)
 

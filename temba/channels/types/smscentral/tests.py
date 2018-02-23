@@ -11,7 +11,7 @@ class SMSCentralTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_smscentral')
+        url = reverse('channels.types.smscentral.claim')
 
         self.login(self.admin)
 

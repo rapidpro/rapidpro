@@ -11,7 +11,7 @@ class BlackmynaTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_blackmyna')
+        url = reverse('channels.types.blackmyna.claim')
 
         self.login(self.admin)
 

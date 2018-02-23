@@ -19,7 +19,7 @@ class LineTypeTest(TembaTest):
 
     @patch('requests.get')
     def test_claim(self, mock_get):
-        url = reverse('channels.claim_line')
+        url = reverse('channels.types.line.claim')
 
         self.login(self.admin)
 

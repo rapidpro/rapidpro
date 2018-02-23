@@ -11,7 +11,7 @@ class AfricastalkingTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_africastalking')
+        url = reverse('channels.types.africastalking.claim')
         self.login(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))

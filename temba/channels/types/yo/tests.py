@@ -11,7 +11,7 @@ class YoTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_yo')
+        url = reverse('channels.types.yo.claim')
 
         self.login(self.admin)
 
