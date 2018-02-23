@@ -111,23 +111,4 @@ window.updateResultsLegacy = (data) ->
     payload = event.target.innerText
     sendMessage(payload)
 
-  if window.simulation
-
-    # this is for angular to show activity
-    scope = $('body').scope()
-    if scope
-      scope.$apply ->
-        scope.visibleActivity =
-          active: data.activity
-          visited: data.visited
-
-    for node in $('#workspace').children('.node')
-      node = $(node).data('object')
-      node.setActivity(data)
-
-  activity = $('.activity:visible,.node .active:visible')
-  if activity
-    if activity.offset()
-      top = activity.offset().top
-      $('html, body').animate
-        scrollTop : top - 200
+  window.updateActivity(data)
