@@ -29,11 +29,9 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
-from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
-from twilio.util import RequestValidator
 from unittest import skipIf
 from uuid import uuid4
 from .http import MockServer
