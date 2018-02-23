@@ -81,7 +81,7 @@ script:
   - jobs
     
   # run our Python tests
-  - coverage run manage.py test --noinput --verbosity=2
+  - coverage run manage.py test --settings=temba.settings_travis --noinput --verbosity=2
 
   - set +e
 
