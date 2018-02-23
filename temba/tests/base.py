@@ -108,6 +108,7 @@ class AddFlowServerTestsMeta(type):
 
 class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def setUp(self):
+        self.maxDiff = 4096
         self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
