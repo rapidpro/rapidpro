@@ -9142,6 +9142,7 @@ class AssetServerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
 
+    @skip_if_no_flowserver
     def test_flows(self):
         flow1 = self.get_flow('color')
         flow2 = self.get_flow('favorites')

@@ -12,3 +12,5 @@ COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL,
                                 brand=BRANDING[DEFAULT_BRAND],
                                 debug=False,
                                 testing=False)
+
+FLOW_SERVER_URL = 'http://localhost:8080'
