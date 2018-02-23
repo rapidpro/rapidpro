@@ -15,7 +15,7 @@ class NexmoTypeTest(TembaTest):
         mock_time_sleep.return_value = None
         self.login(self.admin)
 
-        claim_nexmo = reverse('channels.claim_nexmo')
+        claim_nexmo = reverse('channels.types.nexmo.claim')
 
         # remove any existing channels
         self.org.channels.update(is_active=False)
