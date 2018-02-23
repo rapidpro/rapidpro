@@ -1814,8 +1814,8 @@ class APITest(TembaTest):
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
-        # a group which is being re-evaluated and shouldn't be returned
-        unready = self.create_group("Group being re-evaluated...", query="isdeveloper=NO")
+        # a group which is being re-evaluated
+        unready = self.create_group("Big Group", query="isdeveloper=NO")
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=('status',))
 
@@ -1830,8 +1830,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
+            {'uuid': unready.uuid, 'name': "Big Group", 'query': 'isdeveloper = "NO"', 'count': 0},
             {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = \"YES\"", 'count': 0},
-            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
+            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1},
         ])
 
         # filter by UUID
