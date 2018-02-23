@@ -30,7 +30,7 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, matchers
+from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException
@@ -9040,6 +9040,7 @@ class FlowServerTest(TembaTest):
 
         self.contact = self.create_contact("Joe", "+250788373373")
 
+    @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_session_bulk_start(self):
         flow = self.get_flow('favorites')
@@ -9089,6 +9090,7 @@ class FlowServerTest(TembaTest):
 
             self.assertEqual(flow.start([], [self.contact], restart_participants=True), [])
 
+    @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_session_resume(self):
         flow = self.get_flow('favorites')
@@ -9140,6 +9142,7 @@ class AssetServerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
 
+    @skip_if_no_flowserver
     def test_flows(self):
         flow1 = self.get_flow('color')
         flow2 = self.get_flow('favorites')

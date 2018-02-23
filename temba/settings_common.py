@@ -1211,7 +1211,7 @@ SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
 # -----------------------------------------------------------------------------------
-# GoFlow
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None
