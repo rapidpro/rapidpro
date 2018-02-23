@@ -4,7 +4,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from django.urls import reverse
 from mock import patch
 
-from temba.tests import TembaTest, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 
 
 class TwimlAPITypeTest(TembaTest):

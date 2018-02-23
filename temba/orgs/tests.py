@@ -31,7 +31,8 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest, MockResponse
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
@@ -1175,7 +1176,7 @@ class OrgTest(TembaTest):
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
-        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+        with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Full')
 
             connect_url = reverse("orgs.org_twilio_connect")
@@ -1196,7 +1197,7 @@ class OrgTest(TembaTest):
             post_data['account_token'] = "AccountToken"
 
             # but with an unexpected exception
-            with patch('temba.tests.MockTwilioClient.__init__') as mock:
+            with patch('temba.tests.twilio.MockTwilioClient.__init__') as mock:
                 mock.side_effect = Exception('Unexpected')
                 response = self.client.post(connect_url, post_data)
                 self.assertFormError(response, 'form', '__all__', 'The Twilio account SID and Token seem invalid. '
@@ -1209,7 +1210,7 @@ class OrgTest(TembaTest):
             self.assertEqual(self.org.config['ACCOUNT_TOKEN'], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
-            with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
+            with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get_primary:
                 with patch('twilio.rest.resources.ListResource.get') as mock_list_resource_get:
                     mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
                     mock_list_resource_get.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
