@@ -74,7 +74,7 @@ script:
 
   # check we can collect and compress all static files
   - python manage.py collectstatic --noinput --verbosity=0
-  - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
+  - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # fire up goflow
   - ./flowserver &
