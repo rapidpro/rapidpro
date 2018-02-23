@@ -877,11 +877,11 @@ class AnonymousOrg(object):
 
     def __enter__(self):
         self.org.is_anon = True
-        self.org.save()
+        self.org.save(update_fields=('is_anon',))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
-        self.org.save()
+        self.org.save(update_fields=('is_anon',))
 
 
 class MockRequestValidator(RequestValidator):

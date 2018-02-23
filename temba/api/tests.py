@@ -18,7 +18,7 @@ from temba.contacts.models import Contact, TEL_SCHEME
 from temba.flows.models import ActionSet, WebhookAction, Flow
 from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest, matchers
 from six.moves.urllib.parse import parse_qs
 from uuid import uuid4
 
@@ -275,10 +275,16 @@ class WebHookTest(TembaTest):
             'text': "Mauve",
             'attachments': ["image/jpeg:http://s3.com/text.jpg", "audio/mp4:http://s3.com/text.mp4"]
         })
-        self.assertEqual(data['results']['color']['category'], 'Other')
-        self.assertEqual(data['results']['color']['name'], 'color')
-        self.assertEqual(data['results']['color']['value'], 'Mauve')
-        self.assertEqual(data['results']['color']['input'], 'Mauve')
+        self.assertEqual(data['results'], {
+            'color': {
+                'category': 'Other',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'color',
+                'value': 'Mauve',
+                'created_on': matchers.ISODate(),
+                'input': 'Mauve'
+            }
+        })
 
     @patch('requests.Session.send')
     def test_webhook_first(self, mock_send):
@@ -599,7 +605,11 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         # add a webhook header to the org
-        self.channel.org.webhook = {"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}
+        self.channel.org.webhook = {
+            "url": "http://fake.com/webhook.php",
+            "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
+            "method": "POST"
+        }
         self.channel.org.save()
 
         # check that our webhook settings have saved
