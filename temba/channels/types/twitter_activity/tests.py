@@ -36,12 +36,12 @@ class TwitterActivityTypeTest(TembaTest):
 
         # check that channel is only available to beta users
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertNotContains(response, '/channels/types/twitter_activity/claim/')
+        self.assertNotContains(response, '/channels/types/twitter_activity/claim')
 
         Group.objects.get(name="Beta").user_set.add(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, '/channels/types/twitter_activity/claim/')
+        self.assertContains(response, '/channels/types/twitter_activity/claim')
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)

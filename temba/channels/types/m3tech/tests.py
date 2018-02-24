@@ -11,7 +11,7 @@ class M3TechTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.types.m3tech_claim')
+        url = reverse('channels.types.m3tech.claim')
 
         self.login(self.admin)
 
