@@ -39,7 +39,7 @@ def refresh_whatsapp_contacts(channel_id):
 
         for urn_batch in chunk_list(wa_urns, 1000):
             # need to wait 10 seconds between each batch of 1000
-            if refreshed > 0:
+            if refreshed > 0:  # pragma: no cover
                 time.sleep(10)
 
             # build a list of the fully qualified numbers we have
