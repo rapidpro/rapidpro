@@ -110,10 +110,15 @@ class WhatsAppTypeTest(TembaTest):
             except ValidationError:
                 pass
 
+        # ok, test our refreshing
+        refresh_url = reverse('channels.types.whatsapp.refresh', args=[channel.id])
+        resp = self.client.get(refresh_url)
+        self.assertEqual(405, resp.status_code)
+
         with patch('requests.post') as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
             self.create_contact("Joe", urn="whatsapp:250788382382")
-            refresh_whatsapp_contacts(channel.id)
+            self.client.post(refresh_url)
 
             self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['users'],
                              ['+250788382382'])
