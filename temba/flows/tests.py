@@ -2312,7 +2312,7 @@ class FlowTest(TembaTest):
         response = self.client.get(simulate_url)
         self.assertEqual(response.status_code, 302)
 
-        post_data = {'has_refresh': True}
+        post_data = {'has_refresh': True, 'version': '1'}
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -4489,9 +4489,7 @@ class SimulationTest(FlowFileTest):
         self.admin.last_name = "Haggerty"
         self.admin.save()
 
-        post_data = dict()
-        post_data['has_refresh'] = True
-
+        post_data = dict(has_refresh=True, version="1")
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -4523,7 +4521,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="derp")
+        post_data = dict(has_refresh=True, new_message="derp", version="1")
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4549,7 +4547,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="__interrupt__")
+        post_data = dict(has_refresh=True, new_message='__interrupt__', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4572,7 +4570,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4589,7 +4587,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -6896,12 +6894,12 @@ class FlowsTest(FlowFileTest):
         # test that simulation takes language into account
         self.login(self.admin)
         simulate_url = reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").content)
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
         simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").content)
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
