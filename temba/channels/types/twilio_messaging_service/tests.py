@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -6,7 +7,8 @@ from twilio import TwilioRestException
 
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-from temba.tests import TembaTest, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
@@ -57,7 +59,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             response = self.client.get(claim_twilio_ms)
             self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
-        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+        with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
             response = self.client.get(claim_twilio_ms)

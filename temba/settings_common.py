@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iptools
 import os
@@ -1161,6 +1162,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.verboice.VerboiceType',
     'temba.channels.types.viber_public.ViberPublicType',
     'temba.channels.types.vumi.VumiType',
     'temba.channels.types.vumi_ussd.VumiUSSDType',
@@ -1210,7 +1212,7 @@ SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
 # -----------------------------------------------------------------------------------
-# GoFlow
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -96,10 +97,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             Channel.CONFIG_SEND_URL: data['url'],
             Channel.CONFIG_SEND_METHOD: data['method'],
-            Channel.CONFIG_SEND_BODY: data['body'],
             Channel.CONFIG_CONTENT_TYPE: data['content_type'],
             Channel.CONFIG_MAX_LENGTH: data['max_length']
         }
+
+        if 'body' in data:
+            config[Channel.CONFIG_SEND_BODY] = data['body']
+
         self.object = Channel.add_config_external_channel(org, self.request.user, country, address,
                                                           self.channel_type,
                                                           config, role, [scheme], parent=channel)

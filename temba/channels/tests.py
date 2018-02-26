@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import calendar
@@ -12,7 +12,7 @@ import iso8601
 import pytz
 import six
 import time
-from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import quote, urlencode
 import uuid
 
 from datetime import timedelta, date, datetime
@@ -40,7 +40,8 @@ from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID, \
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
+from temba.tests import TembaTest, MockResponse, AnonymousOrg
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
@@ -51,7 +52,6 @@ from temba.utils.queues import push_task
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
-from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 
@@ -1875,7 +1875,7 @@ class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
         now = timezone.now()
-        now = now.replace(microsecond=now.microsecond / 1000 * 1000)
+        now = now.replace(microsecond=now.microsecond // 1000 * 1000)
 
         epoch = datetime_to_ms(now)
         self.assertEqual(ms_to_datetime(epoch), now)

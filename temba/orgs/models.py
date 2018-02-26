@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import calendar
 import itertools
@@ -901,8 +902,7 @@ class Org(SmartModel):
     def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
-        from temba.channels.models import Channel
-        if channel.channel_type == Channel.TYPE_VERBOICE:
+        if channel.channel_type == 'VB':
             return VerboiceClient(channel)
         return None
 

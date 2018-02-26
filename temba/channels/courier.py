@@ -66,7 +66,7 @@ def msg_as_task(msg):
                     sent_on=datetime_to_str(msg.sent_on, ms=True))
 
     if msg.contact_urn.auth:  # pragma: no cover
-        msg_json['contact_urn_auth'] = msg.contact_urn.auth
+        msg_json['urn_auth'] = msg.contact_urn.auth
 
     return msg_json
 

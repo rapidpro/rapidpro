@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals, absolute_import
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -26,7 +26,8 @@ class ExternalTypeTest(TembaTest):
         post_data['number'] = '12345'
         post_data['country'] = 'RW'
         post_data['url'] = ext_url
-        post_data['method'] = 'GET'
+        post_data['method'] = 'POST'
+        post_data['body'] = 'send=true'
         post_data['scheme'] = 'tel'
         post_data['content_type'] = Channel.CONTENT_TYPE_JSON
         post_data['max_length'] = 180

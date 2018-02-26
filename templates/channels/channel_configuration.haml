@@ -38,19 +38,6 @@
         %code
           {{url.url}}
 
-  -elif object.channel_type == 'VB'
-    %h4
-      -blocktrans
-        To finish configuring your connection you'll need to set the following status callback URL for your Verboice project
-
-    %hr
-
-    %h4
-      -trans "Status Callback URL"
-
-    %code
-      https://{{ domain }}{% url 'courier.vb' object.uuid 'status' %}
-
   -if show_public_addresses
     %h4
       -trans "IP Addresses"

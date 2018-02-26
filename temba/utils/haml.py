@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 """
 We need our own custom template loaders because we allow templates to be overridden even when the extension doesn't
