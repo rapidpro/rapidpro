@@ -234,7 +234,7 @@ window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
 
-window.addMessage = (text, type, metadata=null, level=null) ->
+window.addMessage = (text, type, metadata=null, level=null, onClick=null) ->
 
   classes = ["imsg"]
   if type == "log" or type == "error"
@@ -250,11 +250,18 @@ window.addMessage = (text, type, metadata=null, level=null) ->
   if level
     classes.push(level_classes[level])
 
+  if onClick
+    classes.push("link")
+
   ele = "<div class=\"" + classes.join(" ") + "\">"
   ele += text
   ele += "</div>"
 
-  $(".simulator-body").append(ele)
+  ele = $(ele)
+  if onClick
+    ele.bind("click", onClick)
+
+  ele = $(".simulator-body").append(ele)
 
 appendMessage = (newMessage, ussd=false) ->
   ussd = if ussd then "ussd " else ""

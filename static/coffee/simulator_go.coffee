@@ -62,6 +62,7 @@ window.sendUpdate = (postData) ->
 window.showModal = (title, body) ->
   modal = new ConfirmationModal(title, body);
   modal.show();
+  return modal
 
 window.updateResults = (data) ->
 
@@ -83,7 +84,12 @@ window.updateResults = (data) ->
           window.addMessage("Added to group \"" + group.name + "\"", "log")
       else if event.type == "webhook_called"
         if event.status_code
-          window.addMessage("Called " + event.url + " which returned a <a href='javascript:showModal(\"Webhook Results\", event.response);'>" + event.status_code + " response</a>.", "log")
+          webhookEvent = event
+          window.addMessage("Called " + event.url + " which returned a " + event.status_code + " response.", "log", null, null, () ->
+            modal = showModal("Webhook Results", "<pre>" + webhookEvent.response + "</pre>")
+            modal.setListeners({}, true)
+            modal.hideSecondaryButton()
+          )
         else
           window.addMessage("Couldn't reach " + event.url, "log")
       else if event.type == "error"
