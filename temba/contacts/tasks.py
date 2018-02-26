@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from celery.task import task
+from django_redis import get_redis_connection
 from temba.utils.queues import nonoverlapping_task
 from .models import ExportContactsTask, ContactGroupCount, ContactGroup
 
@@ -27,4 +28,8 @@ def reevaluate_dynamic_group(group_id):
     """
     (Re)evaluate a dynamic group
     """
-    ContactGroup.user_groups.get(id=group_id).reevaluate()
+    r = get_redis_connection()
+    lock_key = ContactGroup.REEVALUATE_LOCK_KEY % group_id
+
+    with r.lock(lock_key, 3600):
+        ContactGroup.user_groups.get(id=group_id).reevaluate()

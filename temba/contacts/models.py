@@ -2266,6 +2266,8 @@ class ContactGroup(TembaModel):
                       (STATUS_EVALUATING, "Evaluating"),
                       (STATUS_READY, "Ready"))
 
+    REEVALUATE_LOCK_KEY = 'contactgroup_reevaluating_%d'
+
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
                             help_text=_("The name of this contact group"))
 
