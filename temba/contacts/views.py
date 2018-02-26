@@ -99,8 +99,13 @@ class ContactGroupForm(forms.ModelForm):
     def clean_query(self):
         try:
             parsed_query = parse_query(text=self.cleaned_data['query'], as_anon=self.org.is_anon)
+            cleaned_query = parsed_query.as_text()
+
+            if self.instance and self.instance.status != ContactGroup.STATUS_READY and cleaned_query != self.instance.query:
+                raise forms.ValidationError(_('You cannot update the query of a group that is still re-evaluating.'))
+
             if parsed_query.can_be_dynamic_group():
-                return parsed_query.as_text()
+                return cleaned_query
             else:
                 raise forms.ValidationError(
                     _('You cannot create a dynamic group based on "name" or "id".')
@@ -1235,9 +1240,15 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs['user'] = self.request.user
             return kwargs
 
+        def form_valid(self, form):
+            self.prev_query = self.get_object().query
+
+            return super(ContactGroupCRUDL.Update, self).form_valid(form)
+
         def post_save(self, obj):
             obj = super(ContactGroupCRUDL.Update, self).post_save(obj)
-            if obj.query:
+
+            if obj.query and obj.query != self.prev_query:
                 obj.update_query(obj.query)
             return obj
 

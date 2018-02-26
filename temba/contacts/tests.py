@@ -601,6 +601,24 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
         self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
 
+        # mark our dynamic group as evaluating
+        self.dynamic_group.status = ContactGroup.STATUS_EVALUATING
+        self.dynamic_group.save(update_fields=('status',))
+
+        # and check we can't change the query while that is the case
+        response = self.client.post(url, dict(name='Frank', query='twitter = "hello"'))
+        self.assertFormError(
+            response, 'form', 'query',
+            'You cannot update the query of a group that is still re-evaluating.'
+        )
+
+        # but can change the name
+        response = self.client.post(url, dict(name='Frank2', query='twitter is "hola"'))
+        self.assertNoFormErrors(response)
+
+        self.dynamic_group.refresh_from_db()
+        self.assertEqual(self.dynamic_group.name, "Frank2")
+
     def test_delete(self):
         url = reverse('contacts.contactgroup_delete', args=[self.joe_and_frank.pk])
 
