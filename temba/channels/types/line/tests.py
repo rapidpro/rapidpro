@@ -34,7 +34,7 @@ class LineTypeTest(TembaTest):
         response = self.client.post(url, payload, follow=True)
 
         channel = Channel.objects.get(address='u1234567890')
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.id]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.config, {
             'auth_token': 'abcdef123456',
             'secret': '123456',

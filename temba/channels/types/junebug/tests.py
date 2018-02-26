@@ -40,7 +40,7 @@ class JunebugTypeTest(TembaTest):
         self.assertEqual(channel.channel_type, 'JN')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
@@ -76,7 +76,7 @@ class JunebugTypeTest(TembaTest):
         self.assertEqual(channel.channel_type, 'JN')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

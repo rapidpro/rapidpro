@@ -40,7 +40,7 @@ class WhatsAppType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            url(r'^refresh/(?P<pk>[0-9]+)/?$', RefreshView.as_view(), name='refresh')
+            url(r'^refresh/(?P<uuid>[a-z0-9\-]+)/?$', RefreshView.as_view(), name='refresh')
         ]
 
     def activate(self, channel):

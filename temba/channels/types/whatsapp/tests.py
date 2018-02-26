@@ -111,7 +111,7 @@ class WhatsAppTypeTest(TembaTest):
                 pass
 
         # ok, test our refreshing
-        refresh_url = reverse('channels.types.whatsapp.refresh', args=[channel.id])
+        refresh_url = reverse('channels.types.whatsapp.refresh', args=[channel.uuid])
         resp = self.client.get(refresh_url)
         self.assertEqual(405, resp.status_code)
 

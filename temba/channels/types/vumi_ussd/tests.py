@@ -50,7 +50,7 @@ class VumiUSSDTypeTest(TembaTest):
         self.assertEqual(channel.channel_type, 'VMU')
         self.assertEqual(channel.role, Channel.ROLE_USSD)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

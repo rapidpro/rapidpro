@@ -37,7 +37,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         }, follow=True)
 
         channel = Channel.objects.get(address='abcde12345')
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.id]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "FCM")
         self.assertEqual(
             channel.config,

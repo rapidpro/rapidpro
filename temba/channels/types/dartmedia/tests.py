@@ -49,7 +49,7 @@ class DartMediaTypeTest(TembaTest):
         self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('DA', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

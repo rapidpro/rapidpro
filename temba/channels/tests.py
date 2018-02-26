@@ -141,11 +141,11 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertEqual(404, response.status_code)
 
-    def test_channelog_links(self):
+    def test_channellog_links(self):
         self.login(self.admin)
 
         channel_types = (
-            ('JN', Channel.DEFAULT_ROLE, 'Sending Log'),
+            ('JN', Channel.DEFAULT_ROLE, 'Channel Log'),
             ('JNU', Channel.ROLE_USSD, 'USSD Log'),
             ('T', Channel.ROLE_CALL, 'Call Log'),
             ('T', Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
