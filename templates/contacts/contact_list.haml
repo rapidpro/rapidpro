@@ -52,8 +52,7 @@
                       {{group.label}} ({{ group.count | intcomma }})
                     -else
                       {{group.label}}
-                      %i
-                        (building)
+                      %i.spin.icon-loop
 
           %div{style:"margin-top: 10px"}
             - if org_perms.contacts.contact_create
