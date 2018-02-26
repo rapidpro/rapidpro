@@ -92,7 +92,7 @@ pyjwt==1.5.0              # via nexmo
 pysocks==1.6.7            # via twilio
 python-dateutil==2.2
 python-gcm==0.4
-python-magic==0.4.13
+python-magic==0.4.15
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
