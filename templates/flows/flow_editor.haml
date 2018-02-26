@@ -64,6 +64,7 @@
     window.mediaURL = '{{media_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
     window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
+    window.contactName = '{{user.get_full_name}}';
 
     $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations

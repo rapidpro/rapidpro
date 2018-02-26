@@ -12,7 +12,7 @@ getStartRequest = ->
       created_on: new Date(),
       contact: {
         uuid: uuid(),
-        name: "Eric Newcomer",
+        name: contactName,
         urns: []
       }
     }
