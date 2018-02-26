@@ -28,7 +28,6 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
-from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
@@ -1678,7 +1677,7 @@ class Org(SmartModel):
 
                 try:
                     subscription = customer.cancel_subscription(at_period_end=True)
-                except Exception as e:
+                except Exception:
                     traceback.print_exc()
                     raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
             else:
@@ -1692,7 +1691,7 @@ class Org(SmartModel):
 
                     analytics.track(user.username, 'temba.plan_upgraded', dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception as e:
+                except Exception:
                     # can't load it, oh well, we'll try to create one dynamically below
                     traceback.print_exc()
                     customer = None
@@ -1709,7 +1708,7 @@ class Org(SmartModel):
 
                     analytics.track(user.username, 'temba.plan_upgraded', dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception as e:
+                except Exception:
                     traceback.print_exc()
                     raise ValidationError(_("Sorry, we were unable to charge your card, please try again later or contact us."))
 
@@ -1872,7 +1871,7 @@ class Org(SmartModel):
                 extension = 'wav'
 
             temp = NamedTemporaryFile(delete=True)
-            temp.write(force_text(response.content))
+            temp.write(response.content)
             temp.flush()
 
             # save our file off

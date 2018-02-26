@@ -6,7 +6,6 @@ import requests
 import regex
 
 from django.core.management.base import BaseCommand
-from django.utils.encoding import force_text
 
 
 class Command(BaseCommand):
@@ -55,4 +54,4 @@ class Command(BaseCommand):
                 with open(destination, 'w') as fp:
                     response = requests.get('https://raw.githubusercontent.com/%s/master/geojson/%s' % (
                                             repo, relation_file['path']), headers=headers)
-                    fp.write(force_text(response.content))
+                    fp.write(response.content)

@@ -627,7 +627,7 @@ class TelegramHandler(BaseChannelHandler):
                         content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
-                    temp.write(force_text(response.content))
+                    temp.write(response.content)
                     temp.flush()
 
                     return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
@@ -1981,7 +1981,7 @@ class JunebugHandler(BaseChannelHandler):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
-        data = json.load(request)
+        data = json.loads(force_text(request_body))
         is_ussd = self.is_ussd_message(data)
         channel_data = data.get('channel_data', {})
         channel_types = ('JNU', 'JN')
