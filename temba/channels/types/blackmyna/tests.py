@@ -11,7 +11,7 @@ class BlackmynaTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_blackmyna')
+        url = reverse('channels.types.blackmyna.claim')
 
         self.login(self.admin)
 
@@ -44,7 +44,7 @@ class BlackmynaTypeTest(TembaTest):
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('BM', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

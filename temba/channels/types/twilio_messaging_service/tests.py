@@ -19,7 +19,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        claim_twilio_ms = reverse('channels.claim_twilio_messaging_service')
+        claim_twilio_ms = reverse('channels.types.twilio_messaging_service.claim')
 
         # remove any existing channels
         self.org.channels.all().delete()
@@ -75,7 +75,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         response = self.client.post(claim_twilio_ms, dict(country='US', messaging_service_sid='MSG-SERVICE-SID'))
         channel = self.org.channels.get()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "TMS")
 
         channel_config = channel.config

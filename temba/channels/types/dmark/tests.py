@@ -13,7 +13,7 @@ class DMarkTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_dmark')
+        url = reverse('channels.types.dmark.claim')
         self.login(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))
@@ -58,7 +58,7 @@ class DMarkTypeTest(TembaTest):
         self.assertEqual('CD', channel.country)
         self.assertEqual('DK', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

@@ -20,7 +20,7 @@ class TwitterTypeTest(TembaTest):
     @patch('temba.utils.mage.MageClient.activate_twitter_stream')
     @patch('twython.Twython.get_authorized_tokens')
     def test_claim(self, mock_get_authorized_tokens, mock_activate_twitter_stream, mock_get_authentication_tokens):
-        url = reverse('channels.claim_twitter')
+        url = reverse('channels.types.twitter.claim')
 
         mock_get_authentication_tokens.return_value = {
             'oauth_token': 'abcde',

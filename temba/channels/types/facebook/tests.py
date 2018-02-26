@@ -22,7 +22,7 @@ class FacebookTypeTest(TembaTest):
     @patch('requests.get')
     @patch('requests.post')
     def test_claim(self, mock_post, mock_get):
-        url = reverse('channels.claim_facebook')
+        url = reverse('channels.types.facebook.claim')
 
         self.login(self.admin)
 

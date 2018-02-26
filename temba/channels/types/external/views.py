@@ -53,7 +53,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     title = "Connect External Service"
     permission = 'channels.channel_claim'
-    success_url = "id@channels.channel_configuration"
+    success_url = "uuid@channels.channel_configuration"
 
     def derive_initial(self):
         return {'body': Channel.CONFIG_DEFAULT_SEND_BODY}

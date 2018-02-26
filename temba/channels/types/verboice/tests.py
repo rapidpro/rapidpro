@@ -10,7 +10,7 @@ class VerboiceTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_verboice')
+        url = reverse('channels.types.verboice.claim')
 
         self.login(self.admin)
 
@@ -40,7 +40,7 @@ class VerboiceTypeTest(TembaTest):
         self.assertEqual('VB', channel.channel_type)
         self.assertEqual('CA', channel.role)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

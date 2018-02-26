@@ -25,7 +25,7 @@
         .claim-row.recommended
           .row
             .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
                 .btn-container
                   .claim-glyph{class:"{{ ch_type.icon }}"}
                   %p.claim-text= ch_type.name
@@ -81,7 +81,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
@@ -97,7 +97,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
@@ -113,7 +113,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
@@ -129,7 +129,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
