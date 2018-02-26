@@ -49,7 +49,7 @@
 
   .row.claim-row
     .span3
-      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.claim_external' %}?role=S&channel={{request.GET.channel}}"}
+      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.types.external.claim' %}?role=S&channel={{request.GET.channel}}"}
         .claim-glyph.icon-channel-external
         %p.claim-text Connect External API
 

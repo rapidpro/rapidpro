@@ -11,7 +11,7 @@ class MacrokioskTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_macrokiosk')
+        url = reverse('channels.types.macrokiosk.claim')
 
         self.login(self.admin)
 
@@ -47,7 +47,7 @@ class MacrokioskTypeTest(TembaTest):
         self.assertEqual(channel.address, '250788123123')
         self.assertEqual(channel.channel_type, 'MK')
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

@@ -13,7 +13,7 @@
       %p
         This channel type uses the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter Activity API</a> which is
         still in beta. If your Twitter account has not been granted access to this API, then you can still
-        <a href="{% url 'channels.claim_twitter' %}">add a regular Twitter channel</a>.
+        <a href="{% url 'channels.types.twitter.claim' %}">add a regular Twitter channel</a>.
     %p
       -blocktrans with name=brand.name
         After connecting your account, any incoming direct messages will automatically be read by {{ name }},
