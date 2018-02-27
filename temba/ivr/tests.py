@@ -765,7 +765,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelSession.IN_PROGRESS, call.status)
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Enter your phone number followed by the pound sign.")
-                        in json.loads(force_text(response.content)))
+                        in response.json())
 
         # we have an input to collect the digits
         self.assertContains(response, '"action": "input",')
@@ -861,7 +861,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        response_json = json.loads(force_text(response.content))
+        response_json = response.json()
         callback_url = response_json[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Hi there! This is my voice flow.") in response_json)
@@ -869,7 +869,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
         callback_url = response_json[2]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True,
@@ -878,7 +878,7 @@ class IVRTests(FlowFileTest):
 
         # press 1
         response = self.client.post(callback_url, content_type='application/json', data=json.dumps(dict(dtmf='1')))
-        response_json = json.loads(response.content)
+        response_json = response.json()
         callback_url = response_json[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Thanks, returning to the parent flow now.")
@@ -887,7 +887,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(dtmf='')))
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         self.assertTrue(dict(action='talk', bargeIn=False,
                              text="In the child flow you picked Red. I think that is a fine choice.")
@@ -1366,7 +1366,7 @@ class IVRTests(FlowFileTest):
         self.assertTrue(dict(action='talk',
                              bargeIn=True,
                              text='Would you like me to call you? Press one for yes, two for no, or three for maybe.')
-                        in json.loads(response.content))
+                        in response.json())
 
         call = IVRCall.objects.get()
         self.assertIsNotNone(call)
@@ -1480,7 +1480,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(json.loads(force_text(response.content)), [dict(action='talk', bargeIn=False, text='')])
+        self.assertEqual(response.json(), [dict(action='talk', bargeIn=False, text='')])
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 

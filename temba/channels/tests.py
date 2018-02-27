@@ -9886,19 +9886,19 @@ class FcmTest(TembaTest):
         data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop'}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        contact = json.loads(force_text(response.content))
+        contact = response.json()
 
         data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        updated_contact = json.loads(force_text(response.content))
+        updated_contact = response.json()
 
         self.assertEqual(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
         data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'contact_uuid': contact.get('contact_uuid')}
         response = self.client.post(self.register_url, data)
         self.assertEqual(200, response.status_code)
-        updated_contact = json.loads(force_text(response.content))
+        updated_contact = response.json()
 
         self.assertEqual(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 

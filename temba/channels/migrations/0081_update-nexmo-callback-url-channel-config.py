@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
 
                     receive_url = "https://" + org.get_brand_domain() + reverse('courier.nx', args=[channel.uuid, 'receive'])
                     client.update_nexmo_number(six.text_type(channel.country), channel.address, receive_url, app_id)
-                except Exception as e:
+                except Exception:
                     import traceback
                     traceback.print_exc()
                     pass

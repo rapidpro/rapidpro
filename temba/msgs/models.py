@@ -108,7 +108,7 @@ def get_message_handlers():
             try:
                 cls = MessageHandler.find(handler_class)
                 handlers.append(cls())
-            except Exception as ee:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 traceback.print_exc()
 
         __message_handlers = handlers

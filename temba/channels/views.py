@@ -1666,11 +1666,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             if not numbers:
                 if data['country'] in ['CA', 'US']:
-                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
-                                                                    "please enter another area code and try again.")))))
+                    return JsonResponse(dict(error=str(_("Sorry, no numbers found, "
+                                                         "please enter another area code and try again."))))
                 else:
-                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
-                                                                    "please enter another pattern and try again.")))))
+                    return JsonResponse(dict(error=str(_("Sorry, no numbers found, "
+                                                         "please enter another pattern and try again."))))
 
             return JsonResponse(numbers, safe=False)
 
