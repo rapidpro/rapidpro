@@ -1143,6 +1143,11 @@ class FlowCRUDL(SmartCRUDL):
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
                 flow_request = client.request_builder(asset_timestamp).asset_server(flow.org).set_environment(flow.org)
+
+                # when testing, we need to include all of our assets
+                if settings.TESTING:
+                    flow_request.include_all(flow.org)
+
                 flow_request.request['events'] = json_dict.get('events')
 
                 # check if we are triggering a new session

@@ -33,7 +33,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
-from temba.utils.goflow import FlowServerException
+from temba.utils.goflow import FlowServerException, get_client
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -4497,7 +4497,36 @@ class WebhookTest(TembaTest):
 
 class SimulationTest(FlowFileTest):
 
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_simulation(self):
+        flow = self.get_flow('favorites')
+
+        client = get_client()
+
+        payload = client.request_builder(int(time.time() * 1000000)).set_contact(self.contact).request
+
+        # add a manual trigger
+        payload['trigger'] = {
+            'type': 'manual',
+            'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'triggered_on': timezone.now().isoformat()
+        }
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
+
+        # create a new payload based on the session we get back
+        payload = client.request_builder(int(time.time() * 1000000)).set_contact(self.contact).request
+        payload['session'] = response.json()['session']
+        self.add_message(payload, 'blue')
+
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json").json()
+        replies = self.get_replies(response)
+        self.assertEqual(1, len(replies))
+        self.assertEqual('Good choice, I like Blue too! What is your favorite beer?', replies[0])
+
+    def test_simulation_legacy(self):
         flow = self.get_flow('pick_a_number')
 
         # remove our channels
