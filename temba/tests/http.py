@@ -26,7 +26,6 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         # add some stuff to the mock from the request that the caller might want to check
         mock.requested = True
         mock.data = data
-        mock.headers = self.headers.dict
 
         # remove this mocked request now that it has been made
         self.server.mocked_requests = self.server.mocked_requests[1:]
