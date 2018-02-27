@@ -18,7 +18,7 @@ dj-database-url
 smartmin
 
 ########################## services ##########################
-analytics-python==1.2.9
+analytics-python
 boto3
 google
 librato_bg
