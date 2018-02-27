@@ -6315,7 +6315,7 @@ class PlivoTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertEqual(json.loads(mock.call_args[1]['data'])['text'], "Test message")
+            self.assertEqual(mock.call_args[1]['json']['text'], "Test message")
             self.clear_cache()
 
         with patch('requests.get') as mock:
@@ -6363,7 +6363,7 @@ class PlivoTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertEqual(json.loads(mock.call_args[1]['data'])['text'],
+            self.assertEqual(mock.call_args[1]['json']['text'],
                              "MT\nhttps://example.com/attachments/pic.jpg")
 
             self.clear_cache()

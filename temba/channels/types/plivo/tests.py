@@ -94,46 +94,40 @@ class PlivoTypeTest(TembaTest):
         # delete existing channels
         Channel.objects.all().delete()
 
-        with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
-            with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
+        with patch('temba.channels.views.requests.get') as mock_get:
+            with patch('temba.channels.views.requests.post') as mock_post:
+                response_body = json.dumps({
+                    'status': 'fulfilled',
+                    'message': 'created',
+                    'numbers': [{'status': 'Success', 'number': '27816855210'}],
+                    'api_id': '4334c747-9e83-11e5-9147-22000acb8094'
+                })
+                mock_get.side_effect = [MockResponse(200, json.dumps(dict())),
+                                        MockResponse(200, json.dumps(dict())),
+                                        MockResponse(400, json.dumps(dict()))]
+                mock_post.side_effect = [MockResponse(200, json.dumps(dict(app_id='app-id'))), MockResponse(202, response_body)]
 
-                with patch('temba.channels.types.plivo.views.plivo.RestAPI.get_number') as mock_plivo_get_number:
-                    with patch('temba.channels.types.plivo.views.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
-                        mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
+                # claim it the US number
+                session = self.client.session
+                session[Channel.CONFIG_PLIVO_AUTH_ID] = 'auth-id'
+                session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = 'auth-token'
+                session.save()
 
-                        mock_plivo_create_application.return_value = (200, dict(app_id='app-id'))
+                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
-                        mock_plivo_get_number.return_value = (400, MockResponse(400, json.dumps(dict())))
+                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1440', country='US'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
-                        response_body = json.dumps({
-                            'status': 'fulfilled',
-                            'message': 'created',
-                            'numbers': [{'status': 'Success', 'number': '27816855210'}],
-                            'api_id': '4334c747-9e83-11e5-9147-22000acb8094'
-                        })
-                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201, response_body))
-
-                        # claim it the US number
-                        session = self.client.session
-                        session[Channel.CONFIG_PLIVO_AUTH_ID] = 'auth-id'
-                        session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = 'auth-token'
-                        session.save()
-
-                        self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                        self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-                        response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1440', country='US'))
-                        self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-
-                        # make sure it is actually connected
-                        channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEqual(channel.config, {
-                            Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
-                            Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                            Channel.CONFIG_PLIVO_APP_ID: 'app-id',
-                            Channel.CONFIG_CALLBACK_DOMAIN: 'app.rapidpro.io'
-                        })
-                        self.assertEqual(channel.address, "+16062681440")
-                        # no more credential in the session
-                        self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                        self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type='PL', org=self.org)
+                self.assertEqual(channel.config, {
+                    Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
+                    Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
+                    Channel.CONFIG_PLIVO_APP_ID: 'app-id',
+                    Channel.CONFIG_CALLBACK_DOMAIN: 'app.rapidpro.io'
+                })
+                self.assertEqual(channel.address, "+16062681440")
+                # no more credential in the session
+                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
