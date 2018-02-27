@@ -1,0 +1,40 @@
+{
+  "campaigns": [], 
+  "version": "11.3", 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "57d339ba-e45c-4676-aa1a-4d9790186dfc", 
+          "exit_uuid": "4d29c82e-3fb2-4f8e-9156-e15e77046259", 
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "actions": [
+            {
+              "action": "POST", 
+              "type": "api", 
+              "webhook": "http://localhost:49999/send_results", 
+              "uuid": "ef0066d0-bf06-4383-8b9b-ef4b5c6d3667", 
+              "webhook_headers": []
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "57d339ba-e45c-4676-aa1a-4d9790186dfc", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "3047532d-2d77-4735-bf45-5a67c89be74e", 
+        "name": "Empty Payload", 
+        "saved_on": "2018-02-01T01:26:11.196807Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

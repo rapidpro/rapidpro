@@ -1629,6 +1629,10 @@ class ChannelCRUDL(SmartCRUDL):
             context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
 
+            # populate with our channel type
+            channel_type = Channel.get_type_from_code(self.object.channel_type)
+            context['configuration_blurb'] = channel_type.get_configuration_blurb(self.object)
+
             return context
 
     class ClaimAndroid(OrgPermsMixin, SmartFormView):

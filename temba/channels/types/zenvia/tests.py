@@ -30,8 +30,8 @@ class ZenviaTypeTest(TembaTest):
         response = self.client.get(url)
         post_data = response.context['form'].initial
 
-        post_data['account'] = 'rapidpro.gw'
-        post_data['code'] = 'h7GpAIEp85'
+        post_data['username'] = 'zvUsername'
+        post_data['password'] = 'zvPassword'
         post_data['shortcode'] = '28595'
 
         response = self.client.post(url, post_data)
@@ -39,8 +39,8 @@ class ZenviaTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('BR', channel.country)
-        self.assertEqual(post_data['account'], channel.config_json()['account'])
-        self.assertEqual(post_data['code'], channel.config_json()['code'])
+        self.assertEqual('zvUsername', channel.config_json()[Channel.CONFIG_USERNAME])
+        self.assertEqual('zvPassword', channel.config_json()[Channel.CONFIG_PASSWORD])
         self.assertEqual(post_data['shortcode'], channel.address)
         self.assertEqual('ZV', channel.channel_type)
 
