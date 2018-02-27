@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import json
 import six
 import pytz
 
@@ -9,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, ImportTask, Contact, ContactGroup
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
@@ -258,6 +259,9 @@ class CampaignTest(TembaTest):
         # go to to the creation page
         response = self.client.get(reverse('campaigns.campaign_create'))
         self.assertEqual(200, response.status_code)
+
+        # groups shouldn't include the group that isn't ready
+        self.assertEqual(set(response.context['form'].fields['group'].queryset), {self.farmers})
 
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
         response = self.client.post(reverse('campaigns.campaign_create'), post_data)
@@ -536,8 +540,6 @@ class CampaignTest(TembaTest):
         extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
         import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
 
-        from temba.contacts.models import ImportTask, Contact
-        import json
         task = ImportTask.objects.create(
             created_by=self.admin, modified_by=self.admin,
             csv_file='test_imports/' + filename,
@@ -555,7 +557,6 @@ class CampaignTest(TembaTest):
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
-        from temba.contacts.models import ContactGroup
         self.farmers = ContactGroup.user_groups.get(name='Farmers')
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
@@ -804,3 +805,41 @@ class CampaignTest(TembaTest):
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
+
+    def test_with_dynamic_group(self):
+        # create a campaign on a dynamic group
+        self.create_field('gender', "Gender")
+        women = self.create_group("Women", query='gender="F"')
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign,
+                                                   relative_to=self.planting_date,
+                                                   offset=0, unit='D', message={'eng': "hello"},
+                                                   base_language='eng')
+
+        # create a contact not in the group, but with a field value
+        anna = self.create_contact("Anna", "+250788333333")
+        anna.set_field(self.admin, 'planting_date', "09-10-2020 12:30")
+
+        # no contacts in our dynamic group yet, so no event fires
+        self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
+
+        # update contact so that they become part of the dynamic group
+        anna.set_field(self.admin, 'gender', "f")
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # and who should now have an event fire for our campaign event
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
+
+        # change dynamic group query so anna is removed
+        women.update_query('gender=FEMALE')
+        self.assertEqual(set(women.contacts.all()), set())
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
+
+        # but if query is reverted, her event fire should be recreated
+        women.update_query('gender=F')
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)

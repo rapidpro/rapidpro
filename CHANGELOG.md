@@ -1,3 +1,13 @@
+v3.0.325
+----------
+ * Build dynamic groups in background thread
+ * Dynamic Channel changes, use uuids in URLs, allow custom views
+ * Allow WhatsApp channels to refresh contacts manually
+ * Allow brands to specifiy includes for the document head
+ * Fix external claim page, rename auth_urn for courier
+ * Change VB channel type to be a dynamic channel
+ * Remove unused templates
+
 v3.0.324
 ----------
  * Add ability to run select flows against a flowserver instance

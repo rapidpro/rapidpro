@@ -616,17 +616,16 @@ class ContactQLVisitor(ParseTreeVisitor):
 
 
 def parse_query(text, optimize=True, as_anon=False):
+    """
+    Parses the given contact query and optionally optimizes it
+    """
     from .gen.ContactQLLexer import ContactQLLexer
     from .gen.ContactQLParser import ContactQLParser
 
-    if as_anon is False:
-        # if the search query looks like a phone number, clean it before parsing
-        cleaned_phonenumber = is_it_a_phonenumber(text)
-    else:
-        cleaned_phonenumber = None
+    is_phone, cleaned_phone = is_phonenumber(text)
 
-    if cleaned_phonenumber:
-        stream = InputStream(cleaned_phonenumber)
+    if not as_anon and is_phone:
+        stream = InputStream(cleaned_phone)
     else:
         stream = InputStream(text)
 
@@ -677,12 +676,12 @@ def extract_fields(org, text):
     return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]
 
 
-def is_it_a_phonenumber(text):
+def is_phonenumber(text):
     """
-    Checks if query looks like a phone number and strips special characters
+    Checks if query looks like a phone number, and if so returns a cleaned version of it
     """
-
-    if TEL_VALUE_REGEX.match(text):
-        return CLEAN_SPECIAL_CHARS_REGEX.sub('', text)
+    matches = TEL_VALUE_REGEX.match(text)
+    if matches:
+        return True, CLEAN_SPECIAL_CHARS_REGEX.sub('', text)
     else:
-        return None
+        return False, None
