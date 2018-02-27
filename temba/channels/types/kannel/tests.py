@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -16,7 +17,7 @@ class KannelTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        url = reverse('channels.claim_kannel')
+        url = reverse('channels.types.kannel.claim')
 
         # should see the general channel claim page
         response = self.client.get(reverse('channels.channel_claim'))
@@ -49,7 +50,7 @@ class KannelTypeTest(TembaTest):
         self.assertEqual(channel.config[Channel.CONFIG_CALLBACK_DOMAIN], "custom-brand.io")
         self.assertEqual('KN', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

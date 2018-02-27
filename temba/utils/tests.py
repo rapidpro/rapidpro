@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import copy
 import datetime
@@ -28,7 +28,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabelCount
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import TembaTest
+from temba.tests import TembaTest, matchers
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
 from . import format_decimal, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
@@ -240,6 +240,14 @@ class DatesTest(TembaTest):
                              str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T00:38:09.100000-02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 0, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09Z', tz, dayfirst=True))  # with no second fraction
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198000, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.198Z', tz, dayfirst=True))  # with milliseconds
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198537, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.198537686Z', tz, dayfirst=True))  # with nanoseconds
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198500, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.1985Z', tz, dayfirst=True))  # with 4 second fraction digits
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T07:08:09.100000+04:30.', tz, dayfirst=True))  # trailing period
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
@@ -1662,7 +1670,6 @@ class MakeTestDBTest(SimpleTestCase):
         def assertOrgCounts(qs, counts):
             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        print(User.objects.all())
         self.assertEqual(User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12)
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
@@ -1794,3 +1801,31 @@ class TestJSONAsTextField(TestCase):
             cur.execute('DELETE FROM utils_jsonmodeltestdefault')
             cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('null',))
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+
+class MatchersTest(TembaTest):
+    def test_string(self):
+        self.assertEqual("abc", matchers.String())
+        self.assertEqual("", matchers.String())
+        self.assertNotEqual(None, matchers.String())
+        self.assertNotEqual(123, matchers.String())
+
+        self.assertEqual("abc", matchers.String(pattern=r'\w{3}$'))
+        self.assertNotEqual("ab", matchers.String(pattern=r'\w{3}$'))
+        self.assertNotEqual("abcd", matchers.String(pattern=r'\w{3}$'))
+
+    def test_isodate(self):
+        self.assertEqual("2013-02-01T07:08:09.100000+04:30", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.198537686Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.19853768Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.198Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07Z", matchers.ISODate())
+        self.assertEqual("2013-02-01T07:08:09.100000Z", matchers.ISODate())
+        self.assertNotEqual(None, matchers.ISODate())
+        self.assertNotEqual("abc", matchers.ISODate())
+
+    def test_uuid4string(self):
+        self.assertEqual("85ECBE45-E2DF-4785-8FC8-16FA941E0A79", matchers.UUID4String())
+        self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
+        self.assertNotEqual(None, matchers.UUID4String())
+        self.assertNotEqual("abc", matchers.UUID4String())

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import phonenumbers
 import plivo
@@ -68,7 +69,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.channel_search_plivo')
 
     def get_claim_url(self):
-        return reverse('channels.claim_plivo')
+        return reverse('channels.types.plivo.claim')
 
     def get_supported_countries_tuple(self):
         return PLIVO_SUPPORTED_COUNTRIES

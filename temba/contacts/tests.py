@@ -1,5 +1,5 @@
-# coding=utf-8
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import pytz
@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_it_a_phonenumber
+from temba.contacts.search import is_phonenumber
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -192,6 +192,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't call update_query on a static group
         self.assertRaises(ValueError, group.update_query, "gender=M")
@@ -212,9 +213,11 @@ class ContactGroupTest(TembaTest):
             '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
         )
 
+        group.refresh_from_db()
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
         group.update_query('age > 18')
@@ -223,6 +226,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.query, 'age > 18')
         self.assertEqual(set(group.query_fields.all()), {age})
         self.assertEqual(set(group.contacts.all()), {self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
@@ -242,6 +246,18 @@ class ContactGroupTest(TembaTest):
         response = self.client.get(filter_url)
         self.assertNotIn('unlabel', response.context['actions'])
 
+        # put group back into evaluation state
+        group.status = ContactGroup.STATUS_EVALUATING
+        group.save(update_fields=('status',))
+
+        # can't update query again while it is in this state
+        with self.assertRaises(ValueError):
+            group.update_query('age = 18')
+
+        # can't call reevaluate on it while it is in this state
+        with self.assertRaises(ValueError):
+            group.reevaluate()
+
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
@@ -251,7 +267,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=215, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=216, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -584,6 +600,24 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(self.dynamic_group.name, "Frank")
         self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
         self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
+
+        # mark our dynamic group as evaluating
+        self.dynamic_group.status = ContactGroup.STATUS_EVALUATING
+        self.dynamic_group.save(update_fields=('status',))
+
+        # and check we can't change the query while that is the case
+        response = self.client.post(url, dict(name='Frank', query='twitter = "hello"'))
+        self.assertFormError(
+            response, 'form', 'query',
+            'You cannot update the query of a group that is evaluating.'
+        )
+
+        # but can change the name
+        response = self.client.post(url, dict(name='Frank2', query='twitter is "hola"'))
+        self.assertNoFormErrors(response)
+
+        self.dynamic_group.refresh_from_db()
+        self.assertEqual(self.dynamic_group.name, "Frank2")
 
     def test_delete(self):
         url = reverse('contacts.contactgroup_delete', args=[self.joe_and_frank.pk])
@@ -1453,7 +1487,7 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         self.assertItemsEqual(
@@ -1473,8 +1507,13 @@ class ContactTest(TembaTest):
         # add a group with members and an empty group
         self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        men = self.create_group("Men", [], "gender=M")
+        men = self.create_group("Men", query="gender=M")
         nobody = self.create_group("Nobody", [])
+
+        # a group which is being re-evaluated and shouldn't appear in any omnibox results
+        unready = self.create_group("Group being re-evaluated...", query="gender=M")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
         joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
@@ -2413,7 +2452,7 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'urn__twitter__0', 'urn__tel__1', 'loc'])
+        self.assertEqual(list(response.context['form'].fields.keys()), ['name', 'groups', 'urn__twitter__0', 'urn__tel__1', 'loc'])
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
         self.assertEqual(response.context['form'].fields['urn__tel__1'].initial, "+250781111111")
 
@@ -4064,7 +4103,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
@@ -4077,7 +4116,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(21):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
         self.assertItemsEqual(
@@ -4694,22 +4733,18 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-    def test_is_it_a_phonenumber(self):
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1-234-567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1 (234) 567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12 34 567 8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber(' 234 567 8901'), '2345678901')
+    def test_is_phonenumber(self):
+        # these should match as phone numbers
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1-234-567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1 (234) 567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12 34 567 8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber(' 234 567 8901 '), (True, '2345678901'))
 
         # these should not be parsed as numbers
-        self.assertIsNone(is_it_a_phonenumber('+12345678901 not a number'))
-        self.assertIsNone(is_it_a_phonenumber(''))
-        self.assertIsNone(is_it_a_phonenumber('AMAZONS'))
-        self.assertIsNone(is_it_a_phonenumber('name = "Jack"'))
-        self.assertIsNone(is_it_a_phonenumber('(social = "234-432-324")'))
+        self.assertEqual(is_phonenumber('+12345678901 not a number'), (False, None))
+        self.assertEqual(is_phonenumber(''), (False, None))
+        self.assertEqual(is_phonenumber('AMAZONS'), (False, None))
+        self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
+        self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))

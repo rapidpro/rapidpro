@@ -1,5 +1,5 @@
-# coding=utf-8
-from __future__ import absolute_import, print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import inspect
 import json
@@ -11,20 +11,17 @@ import shutil
 import string
 import six
 import time
-from six.moves.urllib.parse import urlparse
 
-from cgi import parse_header, parse_multipart
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from future.moves.html.parser import HTMLParser
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, URN
@@ -32,99 +29,12 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
-from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
-from threading import Thread
-from twilio.util import RequestValidator
+from unittest import skipIf
 from uuid import uuid4
-
-
-class MockServerRequestHandler(BaseHTTPRequestHandler):
-    """
-    A simple HTTP handler which responds to a request with a matching mocked request
-    """
-    def _handle_request(self, method, data=None):
-
-        if not self.server.mocked_requests:
-            raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
-
-        mock = self.server.mocked_requests[0]
-        if mock.method != method or mock.path != self.path:
-            raise ValueError("expected request %s %s but received %s %s" % (mock.method, mock.path, method, self.path))
-
-        # add some stuff to the mock from the request that the caller might want to check
-        mock.requested = True
-        mock.data = data
-        mock.headers = self.headers.dict
-
-        # remove this mocked request now that it has been made
-        self.server.mocked_requests = self.server.mocked_requests[1:]
-
-        self.send_response(mock.status)
-        self.send_header("Content-type", mock.content_type)
-        self.end_headers()
-        self.wfile.write(mock.content.encode('utf-8'))
-
-    def do_GET(self):
-        return self._handle_request('GET')
-
-    def do_POST(self):
-        ctype, pdict = parse_header(self.headers['content-type'])
-        if ctype == 'multipart/form-data':
-            data = parse_multipart(self.rfile, pdict)
-        elif ctype == 'application/x-www-form-urlencoded':
-            length = int(self.headers['content-length'])
-            data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
-        elif ctype == 'application/json':
-            length = int(self.headers['content-length'])
-            data = json.loads(self.rfile.read(length))
-        else:
-            data = {}
-
-        return self._handle_request('POST', data)
-
-
-class MockServer(HTTPServer):
-    """
-    Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
-    and provides a mechanism for mocking requests to particular URLs
-    """
-    @six.python_2_unicode_compatible
-    class Request(object):
-        def __init__(self, method, path, content, content_type, status):
-            self.method = method
-            self.path = path
-            self.content = content
-            self.content_type = content_type
-            self.status = status
-
-            self.requested = False
-            self.data = None
-            self.headers = None
-
-        def __str__(self):
-            return '%s %s -> %s' % (self.method, self.path, self.content)
-
-    def __init__(self):
-        HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
-
-        self.base_url = 'http://localhost:49999'
-        self.mocked_requests = []
-
-    def start(self):
-        """
-        Starts running mock server in a daemon thread which will automatically shut down when the main process exits
-        """
-        t = Thread(target=self.serve_forever)
-        t.setDaemon(True)
-        t.start()
-
-    def mock_request(self, method, path, content, content_type, status):
-        request = MockServer.Request(method, path, content, content_type, status)
-        self.mocked_requests.append(request)
-        return request
+from .http import MockServer
 
 
 mock_server = MockServer()
@@ -161,8 +71,42 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-class TembaTest(SmartminTest):
+def skip_if_no_flowserver(test):
+    """
+    Skip a test if flow server isn't configured
+    """
+    return skipIf(settings.FLOW_SERVER_URL is None, "this test can't be run without a flowserver instance")(test)
+
+
+def also_in_flowserver(test_func):
+    """
+    Decorator to mark a test function as one that should also be run with the flow server
+    """
+    test_func._also_in_flowserver = True
+    return test_func
+
+
+class AddFlowServerTestsMeta(type):
+    """
+    Metaclass with adds new flowserver-based tests based on existing tests decorated with @also_in_flowserver. For
+    example a test method called test_foo will become two test methods - the original test_foo which runs in the old
+    engine, and a new one called test_foo_flowserver with is run using the flowserver.
+    """
+    def __new__(mcs, name, bases, dct):
+        if settings.FLOW_SERVER_URL:
+            new_tests = {}
+            for key, val in six.iteritems(dct):
+                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
+                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
+                    new_tests[key + '_flowserver'] = new_func
+            dct.update(new_tests)
+
+        return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+
+
+class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def setUp(self):
+        self.maxDiff = 4096
         self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
@@ -848,123 +792,8 @@ class AnonymousOrg(object):
 
     def __enter__(self):
         self.org.is_anon = True
-        self.org.save()
+        self.org.save(update_fields=('is_anon',))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
-        self.org.save()
-
-
-class MockRequestValidator(RequestValidator):
-
-    def __init__(self, token):
-        pass
-
-    def validate(self, url, post, signature):
-        return True
-
-
-class MockTwilioClient(TwilioClient):
-
-    def __init__(self, sid, token, org=None, base=None):
-        self.org = org
-        self.base = base
-        self.applications = MockTwilioClient.MockApplications()
-        self.calls = MockTwilioClient.MockCalls()
-        self.accounts = MockTwilioClient.MockAccounts()
-        self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
-        self.sms = MockTwilioClient.MockSMS()
-        self.auth = ['', 'FakeRequestToken']
-
-    def validate(self, request):
-        return True
-
-    class MockShortCode(object):
-        def __init__(self, short_code):
-            self.short_code = short_code
-            self.sid = "ShortSid"
-
-    class MockShortCodes(object):
-        def __init__(self, *args):
-            pass
-
-        def list(self, short_code=None):
-            return [MockTwilioClient.MockShortCode(short_code)]
-
-        def update(self, sid, **kwargs):
-            print("Updating short code with sid %s" % sid)
-
-    class MockSMS(object):
-        def __init__(self, *args):
-            self.uri = "/SMS"
-            self.short_codes = MockTwilioClient.MockShortCodes()
-
-    class MockCall(object):
-        def __init__(self, to=None, from_=None, url=None, status_callback=None):
-            self.to = to
-            self.from_ = from_
-            self.url = url
-            self.status_callback = status_callback
-            self.sid = 'CallSid'
-
-    class MockApplication(object):
-        def __init__(self, friendly_name):
-            self.friendly_name = friendly_name
-            self.sid = 'TwilioTestSid'
-
-    class MockPhoneNumber(object):
-        def __init__(self, phone_number):
-            self.phone_number = phone_number
-            self.sid = 'PhoneNumberSid'
-
-    class MockAccount(object):
-        def __init__(self, account_type, auth_token='AccountToken'):
-            self.type = account_type
-            self.auth_token = auth_token
-            self.sid = 'AccountSid'
-
-    class MockAccounts(object):
-        def __init__(self, *args):
-            pass
-
-        def get(self, account_type):
-            return MockTwilioClient.MockAccount(account_type)
-
-    class MockPhoneNumbers(object):
-        def __init__(self, *args):
-            pass
-
-        def list(self, phone_number=None):
-            return [MockTwilioClient.MockPhoneNumber(phone_number)]
-
-        def search(self, **kwargs):
-            return []
-
-        def update(self, sid, **kwargs):
-            print("Updating phone number with sid %s" % sid)
-
-    class MockApplications(object):
-        def __init__(self, *args):
-            pass
-
-        def create(self, **kwargs):
-            return MockTwilioClient.MockApplication('temba.io/1234')
-
-        def list(self, friendly_name=None):
-            return [MockTwilioClient.MockApplication(friendly_name)]
-
-        def delete(self, **kwargs):
-            return True
-
-    class MockCalls(object):
-        def __init__(self):
-            self.events = []
-
-        def create(self, to=None, from_=None, url=None, status_callback=None):
-            return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
-
-        def hangup(self, external_id):
-            print("Hanging up %s on Twilio" % external_id)
-
-        def update(self, external_id, url):
-            print("Updating call for %s to url %s" % (external_id, url))
+        self.org.save(update_fields=('is_anon',))

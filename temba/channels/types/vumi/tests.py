@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import uuid
 
@@ -11,7 +12,7 @@ class VumiTypeTest(TembaTest):
 
     def test_claim(self):
         Channel.objects.all().delete()
-        url = reverse('channels.claim_vumi')
+        url = reverse('channels.types.vumi.claim')
 
         self.login(self.admin)
 
@@ -49,7 +50,7 @@ class VumiTypeTest(TembaTest):
         self.assertEqual(channel.channel_type, 'VM')
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

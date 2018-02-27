@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from collections import OrderedDict
 from django.conf import settings
@@ -45,7 +46,7 @@ def reload_channel_types():
             free_sending=False,
             update_form=TYPE_UPDATE_FORM_CLASSES.get(code),
             send=SEND_FUNCTIONS.get(code),
-            ivr_protocol=ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML if code in Channel.TWIML_CHANNELS else None
+            ivr_protocol=None
         ))
         register_channel_type(dyn_type_class)
 

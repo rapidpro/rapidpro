@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import six
 import time
@@ -177,13 +177,13 @@ class TriggerTest(TembaTest):
 
         # flow is required
         response = self.client.post(reverse('triggers.trigger_inbound_call'), dict())
-        self.assertEqual(response.context['form'].errors.keys(), ['flow'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['flow'])
 
         # flow must be an ivr flow
         message_flow = self.create_flow()
         post_data = dict(flow=message_flow.pk)
         response = self.client.post(reverse('triggers.trigger_inbound_call'), post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['flow'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['flow'])
 
         # now lets create our first valid inbound call trigger
         guitarist_flow = self.create_flow()
@@ -234,7 +234,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         response = self.client.post(create_url, post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['flow'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['flow'])
 
         # ok, valid referrer id and flow
         post_data = dict(flow=flow.id, referrer_id='signup')
@@ -255,7 +255,7 @@ class TriggerTest(TembaTest):
         # try to create the same trigger, should fail as we can only have one per referrer
         post_data = dict(flow=flow.id, referrer_id='signup')
         response = self.client.post(create_url, post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['__all__'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['__all__'])
 
         # should work if we specify a specific channel
         post_data['channel'] = self.fb_channel.id
@@ -271,7 +271,7 @@ class TriggerTest(TembaTest):
         update_url = reverse('triggers.trigger_update', args=[second_trigger.id])
         del post_data['channel']
         response = self.client.post(update_url, post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['__all__'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['__all__'])
 
         # archive our first trigger
         Trigger.apply_action_archive(self.admin, Trigger.objects.filter(channel=None))
@@ -305,7 +305,7 @@ class TriggerTest(TembaTest):
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
 
         response = self.client.post(reverse("triggers.trigger_schedule"), post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['flow'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['flow'])
         self.assertFalse(Trigger.objects.all())
         self.assertFalse(Schedule.objects.all())
 
@@ -393,7 +393,7 @@ class TriggerTest(TembaTest):
         post_data['start_datetime_value'] = "%d" % now_stamp
 
         response = self.client.post(update_url, post_data)
-        self.assertEqual(response.context['form'].errors.keys(), ['flow'])
+        self.assertEqual(list(response.context['form'].errors.keys()), ['flow'])
 
         post_data = dict()
         post_data['flow'] = flow.pk

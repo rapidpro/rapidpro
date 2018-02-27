@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 
 from django.urls import reverse
@@ -12,7 +13,7 @@ class JunebugTypeTest(TembaTest):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        url = reverse('channels.claim_junebug_ussd')
+        url = reverse('channels.types.junebug_ussd.claim')
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse('channels.channel_claim'))

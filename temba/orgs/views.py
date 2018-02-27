@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import itertools
 import json
@@ -620,7 +621,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_twilio'
+        success_url = '@channels.types.twilio.claim'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -651,7 +652,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (domain, mo_path),
                                             'http://%s%s' % (domain, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -809,7 +810,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_plivo'
+        success_url = '@channels.types.plivo.claim'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
@@ -1117,7 +1118,7 @@ class OrgCRUDL(SmartCRUDL):
                         field_mapping.append((field_name, check_field))
                         fields.append(field_name)
 
-                    self.fields = OrderedDict(self.fields.items() + field_mapping)
+                    self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                     fields_by_user[user] = fields
                 return fields_by_user
 
@@ -1126,7 +1127,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 for invite in invites:
                     field_name = "%s_%d" % ('remove_invite', invite.pk)
-                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    self.fields = OrderedDict(list(self.fields.items()) + [(field_name, forms.BooleanField(required=False))])
                     fields_by_invite[invite] = field_name
 
                 return fields_by_invite
@@ -1864,7 +1865,7 @@ class OrgCRUDL(SmartCRUDL):
                     field_mapping.append((field_name, check_field))
                     resthooks.append(dict(resthook=resthook, field=field_name))
 
-                self.fields = OrderedDict(self.fields.items() + field_mapping)
+                self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                 return resthooks
 
             def clean_resthook(self):

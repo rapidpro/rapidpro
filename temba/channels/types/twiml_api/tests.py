@@ -1,9 +1,11 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
 
-from temba.tests import TembaTest, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 
 
 class TwimlAPITypeTest(TembaTest):
@@ -16,7 +18,7 @@ class TwimlAPITypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        claim_url = reverse('channels.claim_twiml_api')
+        claim_url = reverse('channels.types.twiml_api.claim')
 
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "TwiML")
@@ -32,7 +34,7 @@ class TwimlAPITypeTest(TembaTest):
 
         response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
         channel = self.org.channels.all().first()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(
@@ -43,7 +45,7 @@ class TwimlAPITypeTest(TembaTest):
 
         response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd4321', account_token='abcd4321'))
         channel = self.org.channels.all().first()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(
@@ -56,7 +58,7 @@ class TwimlAPITypeTest(TembaTest):
 
         response = self.client.post(claim_url, dict(country='US', number='8080', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
         channel = self.org.channels.all().first()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(

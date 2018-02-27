@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iptools
 import os
@@ -436,6 +437,7 @@ PERMISSIONS = {
                    'activity_chart',
                    'activity_list',
                    'api',
+                   'assets',
                    'archived',
                    'broadcast',
                    'campaign',
@@ -501,7 +503,8 @@ PERMISSIONS = {
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
-        'msgs.msg_create',
+        'flows.flow_assets',
+        'msgs.msg_create'
     ),
     "Alpha": (
     ),
@@ -801,6 +804,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_activity',
         'flows.flow_activity_chart',
         'flows.flow_archived',
+        'flows.flow_assets',
         'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_category_counts',
@@ -968,11 +972,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
-    "refresh-jiochat-access-tokens": {
-        'task': 'refresh_jiochat_access_tokens',
-        'schedule': timedelta(seconds=3600),
-    },
-
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1162,6 +1161,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.verboice.VerboiceType',
     'temba.channels.types.viber_public.ViberPublicType',
     'temba.channels.types.vumi.VumiType',
     'temba.channels.types.vumi_ussd.VumiUSSDType',
@@ -1209,6 +1209,14 @@ FLOWRUN_FIELDS_SIZE = 256
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# -----------------------------------------------------------------------------------
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
+# -----------------------------------------------------------------------------------
+FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
+FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro

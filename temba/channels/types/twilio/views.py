@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import phonenumbers
 
@@ -62,7 +63,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.channel_search_numbers')
 
     def get_claim_url(self):
-        return reverse('channels.claim_twilio')
+        return reverse('channels.types.twilio.claim')
 
     def get_context_data(self, **kwargs):
         context = super(ClaimView, self).get_context_data(**kwargs)

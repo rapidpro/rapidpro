@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import calendar
@@ -12,7 +12,7 @@ import iso8601
 import pytz
 import six
 import time
-import urllib2
+from six.moves.urllib.parse import quote, urlencode
 import uuid
 
 from datetime import timedelta, date, datetime
@@ -40,7 +40,8 @@ from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID, \
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
+from temba.tests import TembaTest, MockResponse, AnonymousOrg
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_str, datetime_to_ms, ms_to_datetime
@@ -51,7 +52,6 @@ from temba.utils.queues import push_task
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
-from urllib import urlencode
 from xml.etree import ElementTree as ET
 
 
@@ -142,11 +142,11 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertEqual(404, response.status_code)
 
-    def test_channelog_links(self):
+    def test_channellog_links(self):
         self.login(self.admin)
 
         channel_types = (
-            ('JN', Channel.DEFAULT_ROLE, 'Sending Log'),
+            ('JN', Channel.DEFAULT_ROLE, 'Channel Log'),
             ('JNU', Channel.ROLE_USSD, 'USSD Log'),
             ('T', Channel.ROLE_CALL, 'Call Log'),
             ('T', Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
@@ -575,7 +575,7 @@ class ChannelTest(TembaTest):
             signature = hmac.new(key=key, msg=bytes(post_data), digestmod=hashlib.sha256).digest()
 
             # base64 and url sanitize
-            signature = urllib2.quote(base64.urlsafe_b64encode(signature))
+            signature = quote(base64.urlsafe_b64encode(signature))
 
         return self.client.post("%s?signature=%s&ts=%d" % (reverse('sync', args=[channel.pk]), signature, ts),
                                 content_type='application/json', data=post_data)
@@ -1875,7 +1875,7 @@ class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
         now = timezone.now()
-        now = now.replace(microsecond=now.microsecond / 1000 * 1000)
+        now = now.replace(microsecond=now.microsecond // 1000 * 1000)
 
         epoch = datetime_to_ms(now)
         self.assertEqual(ms_to_datetime(epoch), now)

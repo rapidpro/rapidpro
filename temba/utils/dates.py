@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import calendar
 import datetime
@@ -13,7 +14,7 @@ from django.utils import timezone
 MAX_UTC_OFFSET = 14 * 60 * 60
 
 # pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
-FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?([\+\-]\d{2}:\d{2}|Z)$')
+FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$')
 
 # patterns for date and time formats supported for human-entered data
 DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
@@ -218,7 +219,7 @@ def datetime_to_ms(dt):
     Converts a datetime to a millisecond accuracy timestamp
     """
     seconds = calendar.timegm(dt.utctimetuple())
-    return seconds * 1000 + dt.microsecond / 1000
+    return seconds * 1000 + dt.microsecond // 1000
 
 
 def ms_to_datetime(ms):

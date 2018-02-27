@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -19,7 +20,7 @@ class ViberPublicTypeTest(TembaTest):
     @override_settings(IS_PROD=True)
     @patch('requests.post')
     def test_claim(self, mock_post):
-        url = reverse('channels.claim_viber_public')
+        url = reverse('channels.types.viber_public.claim')
 
         self.login(self.admin)
 

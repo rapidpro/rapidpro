@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.conf.urls import url, include
 from .handlers import VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
@@ -7,9 +8,6 @@ from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnec
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, get_channel_handlers
 from .models import Channel
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
-
-
-claim_page_urls = [ch_type.get_claim_url() for ch_type in Channel.get_types() if ch_type.claim_view]
 
 courier_urls = []
 handler_urls = []
@@ -23,15 +21,25 @@ for handler in get_channel_handlers():
     if rel_url:
         handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
+# we iterate all our channel types, finding all the URLs they want to wire in
+type_urls = []
+for ch_type in Channel.get_types():
+    channel_urls = ch_type.get_urls()
+    for u in channel_urls:
+        u.name = 'channels.types.%s.%s' % (ch_type.slug, u.name)
+
+    if channel_urls:
+        type_urls.append(
+            url('^%s/' % ch_type.slug, include(channel_urls))
+        )
+
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
-
     url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
-
-    url(r'^channels/', include(claim_page_urls)),
 
     url(r'^c/', include(courier_urls)),
     url(r'^handlers/', include(handler_urls)),
+    url(r'^channels/types/', include(type_urls)),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well
     url(r'^api/v1/', include([

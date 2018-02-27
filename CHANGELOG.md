@@ -1,3 +1,27 @@
+v3.0.325
+----------
+ * Build dynamic groups in background thread
+ * Dynamic Channel changes, use uuids in URLs, allow custom views
+ * Allow WhatsApp channels to refresh contacts manually
+ * Allow brands to specifiy includes for the document head
+ * Fix external claim page, rename auth_urn for courier
+ * Change VB channel type to be a dynamic channel
+ * Remove unused templates
+
+v3.0.324
+----------
+ * Add ability to run select flows against a flowserver instance
+
+v3.0.323
+----------
+ * Move JioChat access creation to channel task
+ * Use 'list()' on python3 dict iterators
+ * Use analytics-python===1.2.9, python3 compatible
+ * Fix using PlayAction in simulator and add tests
+ * Fix HasEmailTest to strip surrounding punctuation
+ * ContainsPhraseTest shouldn't blow up if test string is empty
+ * Use 'six' library for urlparse, urlencode
+
 v3.0.322
 ----------
  * Unfreeze phonenumbers library so we always use latest

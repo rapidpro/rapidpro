@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -11,7 +12,7 @@ class MtargetTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('channels.channel_claim'))
 
-        claim_url = reverse('channels.claim_mtarget')
+        claim_url = reverse('channels.types.mtarget.claim')
         self.assertContains(response, claim_url)
 
         # claim it

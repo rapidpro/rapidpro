@@ -1,4 +1,5 @@
-from __future__ import absolute_import, print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import logging
@@ -133,13 +134,20 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return Engine.get_default().from_string(self.claim_blurb)
 
+    def get_urls(self):
+        """
+        Returns all the URLs this channel exposes to Django, the URL should be relative.
+        """
+        if self.claim_view:
+            return [self.get_claim_url()]
+        else:
+            return []
+
     def get_claim_url(self):
         """
         Gets the URL/view configuration for this channel types's claim page
         """
-        rel_url = r'^claim/%s/' % self.slug
-        url_name = 'channels.claim_%s' % self.slug
-        return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
+        return url(r'^claim$', self.claim_view.as_view(channel_type=self), name='claim')
 
     def get_update_form(self):
         if self.update_form is None:
@@ -237,7 +245,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_DUMMY = 'DM'
-    TYPE_VERBOICE = 'VB'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -330,18 +337,14 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_DUMMY, "Dummy"),
-                    (TYPE_VERBOICE, "Verboice"))
+                    (TYPE_DUMMY, "Dummy"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
     }
-
-    TWIML_CHANNELS = [TYPE_VERBOICE]
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
@@ -681,7 +684,7 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         elif self.channel_type == 'TW':
             return self.get_twiml_client()
-        elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
+        elif self.channel_type == 'VB':  # pragma: no cover
             return self.org.get_verboice_client()
         elif self.channel_type == 'NX':
             return self.org.get_nexmo_client()

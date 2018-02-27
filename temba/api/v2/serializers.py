@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iso8601
 import json
@@ -538,7 +539,13 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
 
 class ContactGroupReadSerializer(ReadSerializer):
+    status = serializers.SerializerMethodField()
     count = serializers.SerializerMethodField()
+
+    STATUSES = extract_constants(ContactGroup.STATUS_CONFIG)
+
+    def get_status(self, obj):
+        return self.STATUSES[obj.status]
 
     def get_count(self, obj):
         # count may be cached on the object
@@ -546,7 +553,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ('uuid', 'name', 'query', 'count')
+        fields = ('uuid', 'name', 'query', 'status', 'count')
 
 
 class ContactGroupWriteSerializer(WriteSerializer):

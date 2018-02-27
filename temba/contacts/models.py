@@ -1,6 +1,8 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import itertools
 import json
 import logging
 import os
@@ -24,7 +26,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user
+from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.cache import get_cacheable_attr
@@ -895,7 +897,7 @@ class Contact(TembaModel):
         else:
             kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
             contact = Contact.objects.create(**kwargs)
-            updated_attrs = kwargs.keys()
+            updated_attrs = list(kwargs.keys())
 
             if existing_urn:
                 ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
@@ -1036,7 +1038,7 @@ class Contact(TembaModel):
                 kwargs = dict(org=org, name=name, language=language, is_test=is_test,
                               created_by=user, modified_by=user)
                 contact = Contact.objects.create(**kwargs)
-                updated_attrs = kwargs.keys()
+                updated_attrs = list(kwargs.keys())
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -1053,7 +1055,7 @@ class Contact(TembaModel):
                 urn_objects[raw] = urn
 
             # save which urns were updated
-            updated_urns = urn_objects.keys()
+            updated_urns = list(urn_objects.keys())
 
         # record contact creation in analytics
         if getattr(contact, 'is_new', False):
@@ -2256,11 +2258,26 @@ class ContactGroup(TembaModel):
                     (TYPE_STOPPED, "Stopped Contacts"),
                     (TYPE_USER_DEFINED, "User Defined Groups"))
 
+    STATUS_INITIALIZING = 'I'  # group has been created but not yet (re)evaluated
+    STATUS_EVALUATING = 'V'    # a task is currently (re)evaluating this group
+    STATUS_READY = 'R'         # group is ready for use
+
+    # single char flag, human readable name, API readable name
+    STATUS_CONFIG = ((STATUS_INITIALIZING, _("Initializing"), 'initializing'),
+                     (STATUS_EVALUATING, _("Evaluating"), 'evaluating'),
+                     (STATUS_READY, _("Ready"), 'ready'))
+
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+
+    REEVALUATE_LOCK_KEY = 'contactgroup_reevaluating_%d'
+
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
                             help_text=_("The name of this contact group"))
 
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
 
@@ -2286,13 +2303,15 @@ class ContactGroup(TembaModel):
         return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
-    def get_user_groups(cls, org, dynamic=None):
+    def get_user_groups(cls, org, dynamic=None, ready_only=True):
         """
         Gets all user groups for the given org - optionally filtering by dynamic vs static
         """
         groups = cls.user_groups.filter(org=org, is_active=True)
         if dynamic is not None:
             groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
+        if ready_only:
+            groups = groups.filter(status=ContactGroup.STATUS_READY)
 
         return groups
 
@@ -2326,12 +2345,9 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        # this is in a transaction and if update_query raises ValueError (because the query is invalid)
-        # we will rollback the database changes
-        with transaction.atomic():
-            group = cls._create(org, user, name, query=query)
-            group.update_query(query=query)
-            return group
+        group = cls._create(org, user, name, query=query)
+        group.update_query(query=query)
+        return group
 
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
@@ -2349,8 +2365,14 @@ class ContactGroup(TembaModel):
             existing = cls.get_user_group(org, full_group_name)
             count += 1
 
-        return cls.user_groups.create(org=org, name=full_group_name, query=query,
-                                      import_task=task, created_by=user, modified_by=user)
+        return cls.user_groups.create(
+            org=org,
+            name=full_group_name,
+            query=query,
+            status=ContactGroup.STATUS_INITIALIZING if query else ContactGroup.STATUS_READY,
+            import_task=task,
+            created_by=user, modified_by=user
+        )
 
     @classmethod
     def clean_name(cls, name):
@@ -2445,27 +2467,55 @@ class ContactGroup(TembaModel):
         Updates the query for a dynamic group
         """
         from .search import extract_fields, parse_query
+        from .tasks import reevaluate_dynamic_group
 
         if not self.is_dynamic:
-            raise ValueError("Can only update query for a dynamic group")
+            raise ValueError("Cannot update query on a non-dynamic group")
+        if self.status == ContactGroup.STATUS_EVALUATING:
+            raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         parsed_query = parse_query(text=query)
 
-        if parsed_query.can_be_dynamic_group():
-            self.query = parsed_query.as_text()
-            self.save(update_fields=('query',))
+        if not parsed_query.can_be_dynamic_group():
+            raise ValueError("Cannot use query '%s' as a dynamic group")
 
-            self.query_fields.clear()
+        self.query = parsed_query.as_text()
+        self.status = ContactGroup.STATUS_INITIALIZING
+        self.save(update_fields=('query', 'status'))
 
-            for field in extract_fields(self.org, self.query):
-                self.query_fields.add(field)
+        # update the set of contact fields that this query depends on
+        self.query_fields.clear()
 
-            dynamic_members, _ = self._get_dynamic_members()
-            members = list(dynamic_members)
-            self.contacts.clear()
-            self.contacts.add(*members)
-        else:
-            raise ValueError('Cannot update a dynamic query that is not allowed')
+        for field in extract_fields(self.org, self.query):
+            self.query_fields.add(field)
+
+        # start background task to re-evaluate who belongs in this group
+        on_transaction_commit(lambda: reevaluate_dynamic_group.delay(self.id))
+
+    def reevaluate(self):
+        """
+        Re-evaluates the contacts in a dynamic group
+        """
+        if self.status == ContactGroup.STATUS_EVALUATING:
+            raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
+
+        self.status = ContactGroup.STATUS_EVALUATING
+        self.save(update_fields=('status',))
+
+        new_members, _ = self._get_dynamic_members()
+        new_member_ids = {c.id for c in new_members}
+        existing_member_ids = set(self.contacts.values_list('id', flat=True))
+        to_add = [c for c in new_members if c.id not in existing_member_ids]
+        to_remove = [c for c in self.contacts.only('id') if c.id not in new_member_ids]
+
+        self.contacts.add(*to_add)
+        self.contacts.remove(*to_remove)
+
+        for changed_contact in itertools.chain(to_add + to_remove):
+            changed_contact.handle_update(group=self)
+
+        self.status = ContactGroup.STATUS_READY
+        self.save(update_fields=('status',))
 
     def _get_dynamic_members(self, base_set=None, is_new=False):
         """
@@ -2625,7 +2675,7 @@ class ExportContactsTask(BaseExportTask):
 
             scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
-            schemes = scheme_counts.keys()
+            schemes = list(scheme_counts.keys())
             schemes.sort()
 
             for scheme in schemes:
@@ -2721,10 +2771,10 @@ class ExportContactsTask(BaseExportTask):
                 # output some status information every 10,000 contacts
                 if current_contact % 10000 == 0:  # pragma: no cover
                     elapsed = time.time() - start
-                    predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
+                    predicted = elapsed // (current_contact / len(contact_ids))
 
                     print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                          (self.org.name, current_contact * 100 / len(contact_ids),
+                          (self.org.name, current_contact * 100 // len(contact_ids),
                            "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                            time.time() - start, predicted))
 

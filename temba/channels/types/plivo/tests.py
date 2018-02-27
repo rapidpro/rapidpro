@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -18,12 +19,12 @@ class PlivoTypeTest(TembaTest):
         self.org.channels.update(is_active=False)
 
         connect_plivo_url = reverse('orgs.org_plivo_connect')
-        claim_plivo_url = reverse('channels.claim_plivo')
+        claim_plivo_url = reverse('channels.types.plivo.claim')
 
         # make sure plivo is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Plivo")
-        self.assertContains(response, reverse('channels.claim_plivo'))
+        self.assertContains(response, claim_plivo_url)
 
         with patch('requests.get') as plivo_get:
             plivo_get.return_value = MockResponse(400, {})

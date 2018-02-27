@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -11,7 +12,7 @@ class ArabiaCellTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('channels.channel_claim'))
 
-        claim_url = reverse('channels.claim_arabiacell')
+        claim_url = reverse('channels.types.arabiacell.claim')
         response = self.client.get(claim_url)
         post_data = response.context['form'].initial
 
