@@ -2262,9 +2262,12 @@ class ContactGroup(TembaModel):
     STATUS_EVALUATING = 'V'    # a task is currently (re)evaluating this group
     STATUS_READY = 'R'         # group is ready for use
 
-    STATUS_CHOICES = ((STATUS_INITIALIZING, "Initializing"),
-                      (STATUS_EVALUATING, "Evaluating"),
-                      (STATUS_READY, "Ready"))
+    # single char flag, human readable name, API readable name
+    STATUS_CONFIG = ((STATUS_INITIALIZING, _("Initializing"), 'initializing'),
+                     (STATUS_EVALUATING, _("Evaluating"), 'evaluating'),
+                     (STATUS_READY, _("Ready"), 'ready'))
+
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     REEVALUATE_LOCK_KEY = 'contactgroup_reevaluating_%d'
 
