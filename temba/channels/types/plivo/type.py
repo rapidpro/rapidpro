@@ -68,7 +68,7 @@ class PlivoType(ChannelType):
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code not in [200, 201, 202]:
+        if response.status_code not in [200, 201, 202]:  # pragma: no cover
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 

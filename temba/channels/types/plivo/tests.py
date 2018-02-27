@@ -102,10 +102,16 @@ class PlivoTypeTest(TembaTest):
                     'numbers': [{'status': 'Success', 'number': '27816855210'}],
                     'api_id': '4334c747-9e83-11e5-9147-22000acb8094'
                 })
-                mock_get.side_effect = [MockResponse(200, json.dumps(dict())),
-                                        MockResponse(200, json.dumps(dict())),
-                                        MockResponse(400, json.dumps(dict()))]
-                mock_post.side_effect = [MockResponse(200, json.dumps(dict(app_id='app-id'))), MockResponse(202, response_body)]
+                mock_get.side_effect = [
+                    MockResponse(200, json.dumps(dict())),  # get account
+                    MockResponse(400, json.dumps(dict())),  # failed get number
+                    MockResponse(200, json.dumps(dict()))  # successful get number after buying it
+                ]
+                mock_post.side_effect = [
+                    MockResponse(200, json.dumps(dict(app_id='app-id'))),  # create application
+                    MockResponse(201, json.dumps(dict())),  # buy number
+                    MockResponse(202, response_body)  # update number
+                ]
 
                 # claim it the US number
                 session = self.client.session

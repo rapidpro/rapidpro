@@ -1273,6 +1273,12 @@ class ChannelTest(TembaTest):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, 'error')
 
+            plivo_get.side_effect = [MockResponse(400, "Bad request")]
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'error')
+
     def test_release(self):
         Channel.objects.all().delete()
         self.login(self.admin)
