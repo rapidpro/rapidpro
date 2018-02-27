@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import json
 import six
 import pytz
 
@@ -9,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
-from temba.contacts.models import ContactField, ContactGroup
+from temba.contacts.models import ContactField, ImportTask, Contact, ContactGroup
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
@@ -37,11 +38,6 @@ class CampaignTest(TembaTest):
 
         # create a contact field for our planting date
         self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
-
-        # a group which is being re-evaluated and shouldn't be available as a campaign option
-        self.nonready = self.create_group("Big Dynamic Group", query='planting_date != ""')
-        self.nonready.status = ContactGroup.STATUS_EVALUATING
-        self.nonready.save(update_fields=('status',))
 
     def test_get_unique_name(self):
         campaign1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
@@ -544,8 +540,6 @@ class CampaignTest(TembaTest):
         extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
         import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
 
-        from temba.contacts.models import ImportTask, Contact
-        import json
         task = ImportTask.objects.create(
             created_by=self.admin, modified_by=self.admin,
             csv_file='test_imports/' + filename,
@@ -563,7 +557,6 @@ class CampaignTest(TembaTest):
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
-        from temba.contacts.models import ContactGroup
         self.farmers = ContactGroup.user_groups.get(name='Farmers')
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)

@@ -55,7 +55,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
         super(UpdateCampaignForm, self).__init__(*args, **kwargs)
         self.fields['group'].initial = self.instance.group
-        self.fields['group'].queryset = ContactGroup.get_user_groups(self.user.get_org())
+        self.fields['group'].queryset = ContactGroup.get_user_groups(self.user.get_org(), ready_only=False)
 
     class Meta:
         model = Campaign
