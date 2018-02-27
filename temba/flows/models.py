@@ -12,7 +12,6 @@ import six
 import time
 import traceback
 import six.moves.urllib_request as urllib2
-import copy
 
 from array import array
 from collections import OrderedDict, defaultdict
@@ -2515,28 +2514,38 @@ class Flow(TembaModel):
 
                         existing_actionsets[uuid] = existing
 
+            existing_actionsets_to_delete = set()
+            seen_existing_actionsets = {}
+
             # now work through all our objects once more, making sure all uuids map appropriately
-            existing_actionsets_copy = copy.deepcopy(existing_actionsets)
+            for uuid, actionset in existing_actionsets.items():
+                if uuid not in seen:
+                    existing_actionsets_to_delete.add(uuid)
+                else:
+                    seen_existing_actionsets[uuid] = actionset
 
-            for existing in existing_actionsets.values():
-                if existing.uuid not in seen:
-                    del existing_actionsets_copy[existing.uuid]
-                    existing.delete()
+            # delete actionset which are not seen
+            ActionSet.objects.filter(uuid__in=existing_actionsets_to_delete).delete()
 
-            existing_actionsets = existing_actionsets_copy
+            existing_actionsets = seen_existing_actionsets
 
-            existing_rulesets_copy = copy.deepcopy(existing_rulesets)
-            for existing in existing_rulesets.values():
-                if existing.uuid not in seen:
+            existing_rulesets_to_delete = set()
+            seen_existing_rulesets = {}
 
-                    del existing_rulesets_copy[existing.uuid]
+            for uuid, ruleset in existing_rulesets.items():
+                if uuid not in seen:
+                    existing_rulesets_to_delete.add(uuid)
 
                     # instead of deleting it, make it a phantom ruleset until we do away with values_value
-                    existing.flow = None
-                    existing.uuid = str(uuid4())
-                    existing.save(update_fields=('flow', 'uuid'))
+                    ruleset.flow = None
+                    ruleset.uuid = str(uuid4())
+                    ruleset.save(update_fields=('flow', 'uuid'))
+                else:
+                    seen_existing_rulesets[uuid] = ruleset
 
-            existing_rulesets = existing_rulesets_copy
+            # delete ruleset which are not seen
+            RuleSet.objects.filter(uuid__in=existing_rulesets_to_delete).delete()
+            existing_rulesets = seen_existing_rulesets
 
             # make sure all destinations are present though
             for destination in destinations:
