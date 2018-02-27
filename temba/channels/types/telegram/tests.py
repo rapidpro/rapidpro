@@ -23,7 +23,7 @@ class TelegramTypeTest(TembaTest):
     @patch('telegram.Bot.get_me')
     @patch('telegram.Bot.set_webhook')
     def test_claim(self, mock_set_webhook, mock_get_me):
-        url = reverse('channels.claim_telegram')
+        url = reverse('channels.types.telegram.claim')
 
         self.login(self.admin)
 

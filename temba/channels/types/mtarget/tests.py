@@ -12,7 +12,7 @@ class MtargetTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('channels.channel_claim'))
 
-        claim_url = reverse('channels.claim_mtarget')
+        claim_url = reverse('channels.types.mtarget.claim')
         self.assertContains(response, claim_url)
 
         # claim it

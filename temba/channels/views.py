@@ -764,7 +764,7 @@ class ClaimViewMixin(OrgPermsMixin):
 
     def get_success_url(self):
         if self.channel_type.show_config_page:
-            return reverse('channels.channel_configuration', args=[self.object.id])
+            return reverse('channels.channel_configuration', args=[self.object.uuid])
         else:
             return reverse('channels.channel_read', args=[self.object.uuid])
 
@@ -1511,6 +1511,7 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse('orgs.org_home')
 
     class Configuration(OrgPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
 
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Configuration, self).get_context_data(**kwargs)

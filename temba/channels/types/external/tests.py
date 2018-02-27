@@ -8,7 +8,7 @@ from ...models import Channel
 
 class ExternalTypeTest(TembaTest):
     def test_claim(self):
-        url = reverse('channels.claim_external')
+        url = reverse('channels.types.external.claim')
 
         self.login(self.admin)
 
@@ -44,7 +44,7 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, 'EX')
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

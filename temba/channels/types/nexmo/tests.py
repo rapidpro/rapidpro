@@ -15,7 +15,7 @@ class NexmoTypeTest(TembaTest):
         mock_time_sleep.return_value = None
         self.login(self.admin)
 
-        claim_nexmo = reverse('channels.claim_nexmo')
+        claim_nexmo = reverse('channels.types.nexmo.claim')
 
         # remove any existing channels
         self.org.channels.update(is_active=False)
@@ -189,7 +189,7 @@ class NexmoTypeTest(TembaTest):
                 # as is our old one
                 self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
 
-                config_url = reverse('channels.channel_configuration', args=[channel.pk])
+                config_url = reverse('channels.channel_configuration', args=[channel.uuid])
                 response = self.client.get(config_url)
                 self.assertEqual(200, response.status_code)
 

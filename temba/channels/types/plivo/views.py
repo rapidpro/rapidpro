@@ -69,7 +69,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.channel_search_plivo')
 
     def get_claim_url(self):
-        return reverse('channels.claim_plivo')
+        return reverse('channels.types.plivo.claim')
 
     def get_supported_countries_tuple(self):
         return PLIVO_SUPPORTED_COUNTRIES

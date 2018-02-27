@@ -11,7 +11,7 @@ class HighConnectionTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_high_connection')
+        url = reverse('channels.types.high_connection.claim')
 
         self.login(self.admin)
 
@@ -47,7 +47,7 @@ class HighConnectionTypeTest(TembaTest):
         self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('HX', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

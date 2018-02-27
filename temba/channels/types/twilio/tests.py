@@ -21,7 +21,7 @@ class TwilioTypeTest(TembaTest):
     def test_claim(self):
         self.login(self.admin)
 
-        claim_twilio = reverse('channels.claim_twilio')
+        claim_twilio = reverse('channels.types.twilio.claim')
 
         # remove any existing channels
         self.org.channels.update(is_active=False)

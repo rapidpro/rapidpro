@@ -12,7 +12,7 @@ class GlobeTypeTest(TembaTest):
         self.org.channels.all().update(is_active=False)
 
         self.login(self.admin)
-        claim_url = reverse('channels.claim_globe')
+        claim_url = reverse('channels.types.globe.claim')
 
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertNotContains(response, claim_url)

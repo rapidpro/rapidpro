@@ -11,7 +11,7 @@ class InfobipTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_infobip')
+        url = reverse('channels.types.infobip.claim')
 
         self.login(self.admin)
 
@@ -38,7 +38,7 @@ class InfobipTypeTest(TembaTest):
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('IB', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

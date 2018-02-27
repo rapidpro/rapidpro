@@ -12,7 +12,7 @@ from temba.channels.types.jiochat.tasks import refresh_jiochat_access_tokens
 
 class JioChatTypeTest(TembaTest):
     def test_claim(self):
-        url = reverse('channels.claim_jiochat')
+        url = reverse('channels.types.jiochat.claim')
 
         self.login(self.admin)
 
@@ -39,7 +39,7 @@ class JioChatTypeTest(TembaTest):
             }
         )
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

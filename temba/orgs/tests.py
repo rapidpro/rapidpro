@@ -1219,7 +1219,7 @@ class OrgTest(TembaTest):
                     self.assertEqual(response.status_code, 302)
 
                     response = self.client.post(connect_url, post_data, follow=True)
-                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.claim_twilio"))
+                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.types.twilio.claim"))
 
                     self.org.refresh_from_db()
                     self.assertEqual(self.org.config['ACCOUNT_SID'], "AccountSid")
@@ -1730,7 +1730,7 @@ class OrgTest(TembaTest):
             self.assertEqual(response.status_code, 302)
 
             response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request['PATH_INFO'], reverse('channels.claim_nexmo'))
+            self.assertEqual(response.request['PATH_INFO'], reverse('channels.types.nexmo.claim'))
 
         with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]

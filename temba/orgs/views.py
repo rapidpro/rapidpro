@@ -622,7 +622,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_twilio'
+        success_url = '@channels.types.twilio.claim'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -653,7 +653,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (domain, mo_path),
                                             'http://%s%s' % (domain, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -811,7 +811,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_plivo'
+        success_url = '@channels.types.plivo.claim'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 

@@ -56,7 +56,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.channel_search_nexmo')
 
     def get_claim_url(self):
-        return reverse('channels.claim_nexmo')
+        return reverse('channels.types.nexmo.claim')
 
     def get_supported_countries_tuple(self):
         return NEXMO_SUPPORTED_COUNTRIES
