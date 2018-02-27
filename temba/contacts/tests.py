@@ -609,7 +609,7 @@ class ContactGroupCRUDLTest(TembaTest):
         response = self.client.post(url, dict(name='Frank', query='twitter = "hello"'))
         self.assertFormError(
             response, 'form', 'query',
-            'You cannot update the query of a group that is still re-evaluating.'
+            'You cannot update the query of a group that is evaluating.'
         )
 
         # but can change the name

@@ -102,7 +102,7 @@ class ContactGroupForm(forms.ModelForm):
             cleaned_query = parsed_query.as_text()
 
             if self.instance and self.instance.status != ContactGroup.STATUS_READY and cleaned_query != self.instance.query:
-                raise forms.ValidationError(_('You cannot update the query of a group that is still re-evaluating.'))
+                raise forms.ValidationError(_('You cannot update the query of a group that is evaluating.'))
 
             if parsed_query.can_be_dynamic_group():
                 return cleaned_query
