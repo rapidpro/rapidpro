@@ -4,9 +4,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import itertools
 import json
 import logging
-import plivo
 import nexmo
 import six
+import requests
 
 from collections import OrderedDict
 from datetime import datetime
@@ -41,6 +41,7 @@ from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
+from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
@@ -797,13 +798,11 @@ class OrgCRUDL(SmartCRUDL):
                 auth_id = self.cleaned_data.get('auth_id', None)
                 auth_token = self.cleaned_data.get('auth_token', None)
 
-                try:
-                    client = plivo.RestAPI(auth_id, auth_token)
-                    validation_response = client.get_account()
-                except Exception:  # pragma: needs cover
-                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+                headers = http_headers(extra={'Content-Type': "application/json"})
 
-                if validation_response[0] != 200:
+                response = requests.get("https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token))
+
+                if response.status_code != 200:
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data

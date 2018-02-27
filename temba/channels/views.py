@@ -6,7 +6,6 @@ import hashlib
 import hmac
 import json
 import phonenumbers
-import plivo
 import pytz
 import six
 import time
@@ -23,6 +22,7 @@ from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from smartmin.views import SmartCRUDL, SmartReadView
@@ -34,6 +34,7 @@ from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics
+from temba.utils.http import http_headers
 from twilio import TwilioRestException
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
@@ -1707,38 +1708,34 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = SearchPlivoForm
 
         def pre_process(self, *args, **kwargs):  # pragma: needs cover
-            client = self.get_valid_client()
+            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
 
-            if client:
+            headers = http_headers(extra={'Content-Type': "application/json"})
+            response = requests.get("https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token))
+
+            if response.status_code == 200:
                 return None
             else:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
-        def get_valid_client(self):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
+            data = form.cleaned_data
             auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
             auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
 
-            try:
-                client = plivo.RestAPI(auth_id, auth_token)
-                validation_response = client.get_account()
-
-                if validation_response[0] != 200:
-                    client = None
-            except Exception:
-                client = None
-
-            return client
-
-        def form_valid(self, form, *args, **kwargs):
-            data = form.cleaned_data
-            client = self.get_valid_client()
-
             results_numbers = []
             try:
-                status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
+                url = "https://api.plivo.com/v1/Account/%s/PhoneNumber/?%s" % (auth_id, urlencode(dict(country_iso=data['country'], pattern=data['area_code'])))
 
-                if status == 200:
+                headers = http_headers(extra={'Content-Type': "application/json"})
+                response = requests.get(url, headers=headers, auth=(auth_id, auth_token))
+
+                if response.status_code == 200:
+                    response_data = response.json()
                     results_numbers = ['+' + number_dict['number'] for number_dict in response_data['objects']]
+                else:
+                    return JsonResponse(dict(error=response.content))
 
                 numbers = [phonenumbers.format_number(phonenumbers.parse(number, None),
                                                       phonenumbers.PhoneNumberFormat.INTERNATIONAL)
