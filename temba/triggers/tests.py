@@ -1155,7 +1155,7 @@ class TriggerTest(TembaTest):
         self.assertContains(response, 'USSD mobile initiated flow')
 
         channel = Channel.add_config_external_channel(self.org, self.user,
-                                                      "HU", 1234, 'VMU',
+                                                      "HU", 1234, 'JNU',
                                                       dict(account_key="11111",
                                                            access_token=str(uuid4()),
                                                            transport_name="ussd_transport",
