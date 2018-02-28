@@ -108,8 +108,8 @@ def get_message_handlers():
             try:
                 cls = MessageHandler.find(handler_class)
                 handlers.append(cls())
-            except Exception as ee:  # pragma: no cover
-                traceback.print_exc(ee)
+            except Exception:  # pragma: no cover
+                traceback.print_exc()
 
         __message_handlers = handlers
 
@@ -873,7 +873,7 @@ class Msg(models.Model):
                         break
                 except Exception as e:  # pragma: no cover
                     import traceback
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     logger.exception("Error in message handling: %s" % e)
 
         cls.mark_handled(msg)

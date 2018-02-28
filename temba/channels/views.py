@@ -23,6 +23,7 @@ from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from smartmin.views import SmartCRUDL, SmartReadView
@@ -725,7 +726,7 @@ def register(request):
     if request.method != 'POST':
         return HttpResponse(status=500, content=_('POST Required'))
 
-    client_payload = json.loads(request.body)
+    client_payload = json.loads(force_text(request.body))
     cmds = client_payload['cmds']
 
     # look up a channel with that id
@@ -947,7 +948,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
         except Exception as e:  # pragma: needs cover
             import traceback
-            traceback.print_exc(e)
+            traceback.print_exc()
             if e.message:
                 form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
             else:
@@ -1328,7 +1329,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             except Exception as e:  # pragma: no cover
                 import traceback
-                traceback.print_exc(e)
+                traceback.print_exc()
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
                 return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
@@ -1665,11 +1666,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             if not numbers:
                 if data['country'] in ['CA', 'US']:
-                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
-                                                                    "please enter another area code and try again.")))))
+                    return JsonResponse(dict(error=str(_("Sorry, no numbers found, "
+                                                         "please enter another area code and try again."))))
                 else:
-                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
-                                                                    "please enter another pattern and try again.")))))
+                    return JsonResponse(dict(error=str(_("Sorry, no numbers found, "
+                                                         "please enter another pattern and try again."))))
 
             return JsonResponse(numbers, safe=False)
 

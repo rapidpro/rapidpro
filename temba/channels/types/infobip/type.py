@@ -65,8 +65,8 @@ class InfobipType(ChannelType):
     def send(self, channel, msg, text):
         url = "https://api.infobip.com/sms/1/text/advanced"
 
-        username = channel.config['username']
-        password = channel.config['password']
+        username = bytes(channel.config['username'])
+        password = bytes(channel.config['password'])
         encoded_auth = base64.b64encode(username + ":" + password)
 
         headers = http_headers(extra={

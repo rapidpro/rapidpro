@@ -16,7 +16,7 @@ class ExceptionMiddleware(object):
 
     def process_exception(self, request, exception):
         if settings.DEBUG:
-            traceback.print_exc(exception)
+            traceback.print_exc()
 
         return None
 
