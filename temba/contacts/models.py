@@ -1431,7 +1431,7 @@ class Contact(TembaModel):
         tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
         filename.open()
 
-        out_file = open(tmp_file, 'w')
+        out_file = open(tmp_file, 'wb')
         out_file.write(filename.read())
         out_file.close()
 

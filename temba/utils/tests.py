@@ -9,6 +9,7 @@ import pycountry
 import pytz
 import six
 import time
+import os
 
 from celery.app.task import Task
 from decimal import Decimal
@@ -1170,18 +1171,34 @@ class ExportTest(TembaTest):
         # ok, let's check the result now
         temp_file, file_ext = exporter.save_file()
 
-        with open(temp_file.name, 'rb') as csvfile:
-            import csv
-            reader = csv.reader(csvfile)
+        if six.PY2:
+            csvfile = open(temp_file.name, 'rb')
+        else:
+            csvfile = open(temp_file.name, 'rt')
 
-            for idx, row in enumerate(reader):
-                if idx == 0:
-                    self.assertEqual(cols, row)
-                else:
-                    self.assertEqual(values, row)
+        import csv
+        reader = csv.reader(csvfile)
 
-            # should only be three rows
-            self.assertEqual(2, idx)
+        column_row = next(reader, [])
+        self.assertListEqual(cols, column_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        # should only be three rows
+        empty_row = next(reader, None)
+        self.assertIsNone(empty_row)
+
+        # remove temporary file on PY3
+        if six.PY3:  # pragma: no cover
+            if hasattr(temp_file, 'delete'):
+                if temp_file.delete is False:
+                    os.unlink(temp_file.name)
+            else:
+                os.unlink(temp_file.name)
 
     @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
@@ -1228,6 +1245,9 @@ class ExportTest(TembaTest):
 
         self.assertEqual(200 + 2, len(list(sheet2.rows)))
         self.assertEqual(32, len(list(sheet2.columns)))
+
+        if six.PY3:
+            os.unlink(temp_file.name)
 
 
 class CurrencyTest(TembaTest):
