@@ -133,7 +133,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             response = requests.get("https://api.plivo.com/v1/Account/%s/Number/%s/" % (auth_id, plivo_number), headers=headers, auth=(auth_id, auth_token))
 
         if response.status_code == 200:
-            response = requests.post("https://api.plivo.com/v1/Account/%s/PhoneNumber/%s/" % (auth_id, plivo_number),
+            response = requests.post("https://api.plivo.com/v1/Account/%s/Number/%s/" % (auth_id, plivo_number),
                                      json=dict(app_id=plivo_app_id), headers=headers, auth=(auth_id, auth_token))
 
             if response.status_code != 202:  # pragma: no cover

@@ -133,7 +133,16 @@ class PlivoTypeTest(TembaTest):
                     Channel.CONFIG_PLIVO_APP_ID: 'app-id',
                     Channel.CONFIG_CALLBACK_DOMAIN: 'app.rapidpro.io'
                 })
+
                 self.assertEqual(channel.address, "+16062681440")
                 # no more credential in the session
                 self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                 self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+
+                self.assertEqual(mock_get.call_args_list[0][0][0], "https://api.plivo.com/v1/Account/auth-id/")
+                self.assertEqual(mock_get.call_args_list[1][0][0], "https://api.plivo.com/v1/Account/auth-id/Number/16062681440/")
+                self.assertEqual(mock_get.call_args_list[2][0][0], "https://api.plivo.com/v1/Account/auth-id/Number/16062681440/")
+
+                self.assertEqual(mock_post.call_args_list[0][0][0], "https://api.plivo.com/v1/Account/auth-id/Application/")
+                self.assertEqual(mock_post.call_args_list[1][0][0], "https://api.plivo.com/v1/Account/auth-id/PhoneNumber/16062681440/")
+                self.assertEqual(mock_post.call_args_list[2][0][0], "https://api.plivo.com/v1/Account/auth-id/Number/16062681440/")

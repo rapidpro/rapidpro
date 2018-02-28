@@ -823,12 +823,7 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
             self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
