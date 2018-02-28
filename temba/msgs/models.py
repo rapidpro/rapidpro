@@ -2014,7 +2014,7 @@ class LabelCount(SquashableModel):
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
-class MsgIterator(object):
+class MsgIterator(six.Iterator):
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """
@@ -2045,7 +2045,7 @@ class MsgIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         return next(self._generator)
 
 
