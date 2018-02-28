@@ -15,10 +15,10 @@ django-storages
 django-timezone-field
 djangorestframework==3.5.1
 dj-database-url
-smartmin==1.11.7
+smartmin
 
 ########################## services ##########################
-analytics-python==1.2.9
+analytics-python
 boto3
 google
 librato_bg
@@ -41,7 +41,7 @@ openpyxl
 pisa
 pyexcel-xls
 pyexcel-xlsx
-python-magic==0.4.15
+python-magic
 xlutils
 
 ########################## misc ##########################
