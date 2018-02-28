@@ -1225,7 +1225,7 @@ class Channel(TembaModel):
                 ChannelLog.log_exception(channel, msg, e)
 
                 import traceback
-                traceback.print_exc(e)
+                traceback.print_exc()
 
                 Msg.mark_error(r, channel, msg, fatal=e.fatal)
                 sent_count -= 1
@@ -1234,7 +1234,7 @@ class Channel(TembaModel):
                 ChannelLog.log_error(msg, six.text_type(e))
 
                 import traceback
-                traceback.print_exc(e)
+                traceback.print_exc()
 
                 Msg.mark_error(r, channel, msg)
                 sent_count -= 1

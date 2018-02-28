@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
-
 from django.urls import reverse
 from mock import patch
 from twilio import TwilioRestException
@@ -83,7 +81,7 @@ class TwilioTypeTest(TembaTest):
 
             mock_search.return_value = []
             response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
-            self.assertEqual(json.loads(response.content)['error'],
+            self.assertEqual(response.json()['error'],
                              "Sorry, no numbers found, please enter another area code and try again.")
 
             # try searching for non-US number
@@ -93,7 +91,7 @@ class TwilioTypeTest(TembaTest):
 
             mock_search.return_value = []
             response = self.client.post(search_url, {'country': 'GB', 'area_code': ''})
-            self.assertEqual(json.loads(response.content)['error'],
+            self.assertEqual(response.json()['error'],
                              "Sorry, no numbers found, please enter another pattern and try again.")
 
         with patch('temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:

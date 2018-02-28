@@ -7,6 +7,7 @@ import importlib
 
 from celery import current_app, shared_task
 from django.conf import settings
+from django.utils.encoding import force_text
 from django_redis import get_redis_connection
 from temba.utils import dict_to_json
 
@@ -80,7 +81,7 @@ def start_task(task_name):
 
         # found a task? then break out
         if task is not None:
-            task = json.loads(task)
+            task = json.loads(force_text(task))
             break
 
         # if we didn't get a task, then run again against a new queue until there is nothing left in our task queue
