@@ -9,6 +9,7 @@ import jwt
 import requests
 import nexmo as nx
 import six
+from django.utils.encoding import force_bytes
 
 from temba.utils.gsm7 import is_gsm7
 from django.utils.http import urlencode
@@ -156,7 +157,7 @@ class NexmoClient(nx.Client):
 
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
-        return dict(self.headers, Authorization=b'Bearer ' + token)
+        return dict(self.headers, Authorization=b'Bearer ' + force_bytes(token))
 
 
 def __main__():  # pragma: no cover

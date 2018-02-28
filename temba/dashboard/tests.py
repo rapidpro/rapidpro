@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
 from django.core.urlresolvers import reverse
 
 from temba.channels.models import Channel
@@ -54,7 +53,7 @@ class DashboardTest(TembaTest):
 
         self.login(self.admin)
         self.create_activity()
-        response = json.loads(self.client.get(url).content)
+        response = self.client.get(url).json()
 
         # in, out, and total
         self.assertEqual(3, len(response))

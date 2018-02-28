@@ -74,29 +74,29 @@ class PublicTest(SmartminTest):
         coupon_url = reverse('demo.generate_coupon')
         response = self.client.get(coupon_url, follow=True)
         self.assertEqual(response.request['PATH_INFO'], coupon_url)
-        self.assertIn('coupon', response.content)
+        self.assertContains(response, 'coupon')
 
     def test_demo_status(self):
         status_url = reverse('demo.order_status')
         response = self.client.get(status_url, follow=True)
         self.assertEqual(response.request['PATH_INFO'], status_url)
-        self.assertIn('Invalid', response.content)
+        self.assertContains(response, 'Invalid')
 
         response = self.client.get("%s?text=somethinginvalid" % status_url)
         self.assertEqual(response.request['PATH_INFO'], status_url)
-        self.assertIn('Invalid', response.content)
+        self.assertContains(response, 'Invalid')
 
         response = self.client.get("%s?text=cu001" % status_url)
         self.assertEqual(response.request['PATH_INFO'], status_url)
-        self.assertIn('Shipped', response.content)
+        self.assertContains(response, 'Shipped')
 
         response = self.client.get("%s?text=cu002" % status_url)
         self.assertEqual(response.request['PATH_INFO'], status_url)
-        self.assertIn('Pending', response.content)
+        self.assertContains(response, 'Pending')
 
         response = self.client.get("%s?text=cu003" % status_url)
         self.assertEqual(response.request['PATH_INFO'], status_url)
-        self.assertIn('Cancelled', response.content)
+        self.assertContains(response, 'Cancelled')
 
     def test_templatetags(self):
         from .templatetags.public import gear_link_classes

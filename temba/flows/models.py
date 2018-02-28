@@ -2514,21 +2514,38 @@ class Flow(TembaModel):
 
                         existing_actionsets[uuid] = existing
 
+            existing_actionsets_to_delete = set()
+            seen_existing_actionsets = {}
+
             # now work through all our objects once more, making sure all uuids map appropriately
-            for existing in existing_actionsets.values():
-                if existing.uuid not in seen:
-                    del existing_actionsets[existing.uuid]
-                    existing.delete()
+            for uuid, actionset in existing_actionsets.items():
+                if uuid not in seen:
+                    existing_actionsets_to_delete.add(uuid)
+                else:
+                    seen_existing_actionsets[uuid] = actionset
 
-            for existing in existing_rulesets.values():
-                if existing.uuid not in seen:
+            # delete actionset which are not seen
+            ActionSet.objects.filter(uuid__in=existing_actionsets_to_delete).delete()
 
-                    del existing_rulesets[existing.uuid]
+            existing_actionsets = seen_existing_actionsets
+
+            existing_rulesets_to_delete = set()
+            seen_existing_rulesets = {}
+
+            for uuid, ruleset in existing_rulesets.items():
+                if uuid not in seen:
+                    existing_rulesets_to_delete.add(uuid)
 
                     # instead of deleting it, make it a phantom ruleset until we do away with values_value
-                    existing.flow = None
-                    existing.uuid = str(uuid4())
-                    existing.save(update_fields=('flow', 'uuid'))
+                    ruleset.flow = None
+                    ruleset.uuid = str(uuid4())
+                    ruleset.save(update_fields=('flow', 'uuid'))
+                else:
+                    seen_existing_rulesets[uuid] = ruleset
+
+            # delete ruleset which are not seen
+            RuleSet.objects.filter(uuid__in=existing_rulesets_to_delete).delete()
+            existing_rulesets = seen_existing_rulesets
 
             # make sure all destinations are present though
             for destination in destinations:
@@ -2597,7 +2614,7 @@ class Flow(TembaModel):
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
             logger.exception(six.text_type(e))
-            traceback.print_exc(e)
+            traceback.print_exc()
             raise e
 
         return revision
@@ -5120,7 +5137,7 @@ class FlowStart(SmartModel):
 
         except Exception as e:  # pragma: no cover
             import traceback
-            traceback.print_exc(e)
+            traceback.print_exc()
 
             self.status = FlowStart.STATUS_FAILED
             self.save(update_fields=['status'])

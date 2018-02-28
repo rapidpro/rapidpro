@@ -1405,13 +1405,13 @@ class APITest(TembaTest):
         surveyor_group = Group.objects.get(name='Surveyors')
 
         # login an admin as an admin
-        admin = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content)
+        admin = self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).json()
         self.assertEqual(1, len(admin))
         self.assertEqual('Temba', admin[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role=admin_group).first())
 
         # login an admin as a surveyor
-        surveyor = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content)
+        surveyor = self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).json()
         self.assertEqual(1, len(surveyor))
         self.assertEqual('Temba', surveyor[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role=surveyor_group).first())
@@ -1430,11 +1430,11 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
 
         # our surveyor can't login with an admin role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
+        response = self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).json()
         self.assertEqual(0, len(response))
 
         # but they can with a surveyor role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content)
+        response = self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).json()
         self.assertEqual(1, len(response))
 
         # and can fetch flows, contacts, and fields

@@ -53,7 +53,7 @@ google==1.9.3
 gunicorn==19.7.1
 httplib2==0.10.3          # via twilio
 idna==2.5                 # via cryptography, requests
-ipaddress==1.0.18         # via cryptography
+ipaddress==1.0.19         # via cryptography
 iptools==0.6.1
 iso-639==0.4.5
 iso8601==0.1.12
@@ -91,7 +91,7 @@ pyflakes==1.5.0           # via flake8
 pyjwt==1.5.0              # via nexmo
 python-dateutil==2.2
 python-gcm==0.4
-python-magic==0.4.13
+python-magic==0.4.15
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
@@ -108,7 +108,7 @@ rjsmin==1.0.12            # via django-compressor
 s3transfer==0.1.10        # via boto3
 selenium==3.4.3
 six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, rapidpro-expressions, responses, smartmin, twilio
-smartmin==1.11.6
+smartmin==1.11.7
 sqlparse==0.2.3           # via django-debug-toolbar, smartmin
 stop-words==2015.2.23.1
 stripe==1.59.0

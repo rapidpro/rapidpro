@@ -456,14 +456,14 @@ class FlowTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
 
-        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        activity = self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).json()
         self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertFalse(activity['is_starting'])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
-        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        activity = self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).json()
         self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
 
@@ -2497,14 +2497,14 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertEqual(1, len(response.context['object_list']))
         # no create links
-        self.assertFalse(flow_create_url in response.content)
-        self.assertFalse(flowlabel_create_url in response.content)
+        self.assertNotContains(response, flow_create_url)
+        self.assertNotContains(response, flowlabel_create_url)
         # verify the action buttons we have
-        self.assertNotIn('object-btn-unlabel', response.content)
-        self.assertNotIn('object-btn-restore', response.content)
-        self.assertNotIn('object-btn-archive', response.content)
-        self.assertNotIn('object-btn-label', response.content)
-        self.assertIn('object-btn-export', response.content)
+        self.assertNotContains(response, 'object-btn-unlabel')
+        self.assertNotContains(response, 'object-btn-restore')
+        self.assertNotContains(response, 'object-btn-archive')
+        self.assertNotContains(response, 'object-btn-label')
+        self.assertContains(response, 'object-btn-export')
 
         # can not label
         post_data = dict()
@@ -5045,7 +5045,7 @@ class FlowsTest(FlowFileTest):
 
             # fetch counts endpoint, should have 2 color results (one is a test contact)
             response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
-            counts = json.loads(response.content)['counts']
+            counts = response.json()['counts']
             self.assertEqual("Color", counts[0]['name'])
             self.assertEqual(2, counts[0]['total'])
 
@@ -6929,12 +6929,12 @@ class FlowsTest(FlowFileTest):
         # test that simulation takes language into account
         self.login(self.admin)
         simulate_url = reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").json()
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
         simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").json()
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):

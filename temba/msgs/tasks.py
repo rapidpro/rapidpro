@@ -13,6 +13,7 @@ from django.core.cache import cache
 from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django_redis import get_redis_connection
 from temba.contacts.models import Contact, STOP_CONTACT_EVENT
 from temba.channels.models import ChannelEvent, CHANNEL_EVENT
@@ -122,7 +123,7 @@ def process_message_task(msg_event):
                     return
 
                 # we have a message in our contact queue, look it up
-                msg_event = json.loads(contact_msg[0])
+                msg_event = json.loads(force_text(contact_msg[0]))
                 msg = (
                     Msg.objects.filter(id=msg_event['id'])
                     .order_by()
