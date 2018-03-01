@@ -13,7 +13,7 @@ import pytz
 import six
 import time
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, force_bytes
 from six.moves.urllib.parse import quote, urlencode
 import uuid
 
@@ -574,7 +574,7 @@ class ChannelTest(TembaTest):
 
             # sign the request
             key = str(channel.secret) + str(ts)
-            signature = hmac.new(key=key, msg=bytes(post_data), digestmod=hashlib.sha256).digest()
+            signature = hmac.new(key=force_bytes(key), msg=force_bytes(post_data), digestmod=hashlib.sha256).digest()
 
             # base64 and url sanitize
             signature = quote(base64.urlsafe_b64encode(signature))
@@ -7284,8 +7284,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                                args=['event', self.channel.uuid])
         response = self.client.post(delivery_url, data=json.dumps({}),
                                     content_type='application/json')
-        self.assertEqual(400, response.status_code)
-        self.assertIn('Missing one of', response.content)
+        self.assertContains(response, 'Missing one of', status_code=400)
 
     def test_status(self):
         # ok, what happens with an invalid uuid?
@@ -7392,8 +7391,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                                args=['inbound', self.channel.uuid])
         response = self.client.post(callback_url, json.dumps({}),
                                     content_type='application/json')
-        self.assertEqual(400, response.status_code)
-        self.assertIn('Missing one of', response.content)
+        self.assertContains(response, 'Missing one of', status_code=400)
 
     def test_receive(self):
         data = self.mk_msg(content="événement")
@@ -9316,7 +9314,7 @@ class ViberPublicTest(TembaTest):
         data['message']['type'] = msg_type
         data['message'][payload_name] = payload_value
 
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
 
         msg = Msg.objects.get()
         self.assertEqual(msg.text, assert_text)
@@ -9340,7 +9338,7 @@ class ViberPublicTest(TembaTest):
                 }
             }
 
-            response = self.assertSignedRequest(json.dumps(data), 400)
+            response = self.assertSignedRequest(force_bytes(json.dumps(data)), 400)
             self.assertContains(response, "Missing text or media in message in request body.", status_code=400)
             Msg.objects.all().delete()
 
@@ -9365,7 +9363,7 @@ class ViberPublicTest(TembaTest):
             "timestamp": 4987034606158369000,
             "message_token": 1481059480858
         }
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
 
     def test_subscribed(self):
         data = {
@@ -9381,7 +9379,7 @@ class ViberPublicTest(TembaTest):
             },
             "message_token": 4912661846655238145
         }
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
 
         # check that the contact was created
         contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
@@ -9393,13 +9391,13 @@ class ViberPublicTest(TembaTest):
             "user_id": "01234567890A=",
             "message_token": 4912661846655238145
         }
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
         contact.refresh_from_db()
         self.assertTrue(contact.is_stopped)
 
         # use a user id we haven't seen before
         data['user_id'] = "01234567890B="
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
 
         # should not create contacts we don't already know about
         self.assertIsNone(Contact.from_urn(self.org, URN.from_viber("01234567890B=")))
@@ -9419,7 +9417,7 @@ class ViberPublicTest(TembaTest):
                 },
                 "message_token": 4912661846655238145
             }
-            self.assertSignedRequest(json.dumps(data))
+            self.assertSignedRequest(force_bytes(json.dumps(data)))
 
             # check that the contact was created
             contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
@@ -9446,7 +9444,7 @@ class ViberPublicTest(TembaTest):
                 "api_version": 1
             }
         }
-        self.assertSignedRequest(json.dumps(data))
+        self.assertSignedRequest(force_bytes(json.dumps(data)))
 
     @override_settings(SEND_MESSAGES=True)
     def test_send(self):

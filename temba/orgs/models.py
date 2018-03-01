@@ -743,7 +743,7 @@ class Org(SmartModel):
         from temba.airtime.models import AirtimeTransfer
         response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token,
                                                                 action='check_wallet')
-        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+        parsed_response = AirtimeTransfer.parse_transferto_response(response.text)
         account_currency = parsed_response.get('currency', '')
         config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
         self.config = config

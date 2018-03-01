@@ -23,7 +23,7 @@ from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, force_bytes
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from smartmin.views import SmartCRUDL, SmartReadView
@@ -570,7 +570,7 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 3, "error": "Old Request", "cmds": []}, status=401)
 
     # sign the request
-    signature = hmac.new(key=str(channel.secret + request_time), msg=bytes(request.body), digestmod=hashlib.sha256).digest()
+    signature = hmac.new(key=force_bytes(str(channel.secret + request_time)), msg=force_bytes(request.body), digestmod=hashlib.sha256).digest()
 
     # base64 and url sanitize
     signature = base64.urlsafe_b64encode(signature).strip()

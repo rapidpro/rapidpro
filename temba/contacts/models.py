@@ -1287,7 +1287,7 @@ class Contact(TembaModel):
         # write our file out
         tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s' % str(uuid4()))
 
-        out_file = open(tmp_file, 'w')
+        out_file = open(tmp_file, 'wb')
         out_file.write(csv_file.read())
         out_file.close()
 

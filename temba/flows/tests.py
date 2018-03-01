@@ -13,6 +13,7 @@ from uuid import uuid4
 from datetime import timedelta
 from decimal import Decimal
 
+from django.utils.encoding import force_text
 from mock import patch
 from openpyxl import load_workbook
 
@@ -5075,7 +5076,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(1, len(response.context['runs']))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', force_text(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
