@@ -24,7 +24,19 @@ and all their associated callbacks. (sent, delivered, errors, etc..) In time
 Message Mage will take over these tasks as it can perform them more efficiently
 and allow for schema changes without any loss in handling messages.
 
-## Message Mage Web Service
+## Courier
+
+[Courier](/rapidpro/docs/courier) is the service responsible for sending
+and receiving messages on RapidPro. It is a golang application that exposes endpoints
+for aggregators to hit when delivering messages as well as background processes which
+take care of sending messages to said services.
+
+Refer to the courier README for more information on configuration Courier for use with
+RapidPro. See the [Courier](/rapidpro/docs/courier) page for more information on running Courier with RapidPro.
+
+## Message Mage Web Service (deprecated)
+
+**Note that mage has been deprecated and is being replaced by Courier, see above.**
 
 [Message Mage](https://github.com/rapidpro/mage) is aimed to be a highly performant
 web service for handling of incoming messages, delivery receipts and such. Though
@@ -40,10 +52,6 @@ duplicate any of that logic.
 Mage is also responsible for maintaining long running connections for some of our
 channels like Twitter. It maintains a connection to Twitter for each handle
 to trap and handle new direct messages in real time.
-
-Currently though Mage is currently able to process incoming messages for Twilio,
-Vumi and Kannel, no existing installation yet uses it for that purpose. (Django
-has proven to be fast enough)
 
 If you do not plan to support Twitter channels, Mage can be left out of
 hosting installations without any effect given low enough volume.
