@@ -1409,9 +1409,9 @@ class Org(SmartModel):
         either ORG_CREDITS_CACHE_TTL or time remaining on the expiration
         """
         if not topup:
-            return 0
+            return 10
 
-        return max(0, min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds()))))
+        return max(10, min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds()))))
 
     def _calculate_active_topup(self):
         """
