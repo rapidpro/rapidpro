@@ -9082,7 +9082,7 @@ class FlowServerTest(TembaTest):
         run5_output = run5.session.output['runs'][0]
 
         self.assertTrue(run5_output['path'][0]['events'][0]['type'], "msg_received")
-        self.assertTrue(run5_output['path'][0]['events'][0]['text'], "Hello")
+        self.assertTrue(run5_output['path'][0]['events'][0]['msg']['text'], "Hello")
 
         # when flowserver returns an error
         with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:

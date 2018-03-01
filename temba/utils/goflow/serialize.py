@@ -135,3 +135,20 @@ def serialize_location_hierarchy(country, aliases_from_org=None):
         return rendered
 
     return [_serialize_node(node) for node in get_cached_trees(queryset)][0]
+
+
+def serialize_message(msg):
+    serialized = {
+        'uuid': str(msg.uuid),
+        'created_on': msg.created_on.isoformat(),
+        'text': msg.text,
+    }
+
+    if msg.contact_urn:
+        serialized['urn'] = msg.contact_urn.urn
+    if msg.channel:
+        serialized['channel'] = {'uuid': str(msg.channel.uuid), 'name': msg.channel.name}
+    if msg.attachments:
+        serialized['attachments'] = msg.attachments
+
+    return serialized

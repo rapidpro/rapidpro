@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from .serialize import (
     serialize_contact, serialize_label, serialize_field, serialize_channel, serialize_flow, serialize_group,
-    serialize_location_hierarchy, serialize_environment
+    serialize_location_hierarchy, serialize_environment, serialize_message
 )
 
 
@@ -91,12 +91,11 @@ class RequestBuilder(object):
         """
         Notify the engine that the environment has changed
         """
-        event = serialize_environment(org)
-        event.update({
+        self.request['events'].append({
             'type': "environment_changed",
             'created_on': timezone.now().isoformat(),
+            'environment': serialize_environment(org)
         })
-        self.request['events'].append(event)
         return self
 
     def notify_contact_changed(self, contact):
@@ -114,21 +113,11 @@ class RequestBuilder(object):
         """
         Notify the engine that an incoming message has been received from the session contact
         """
-        event = {
+        self.request['events'].append({
             'type': "msg_received",
-            'created_on': msg.created_on.isoformat(),
-            'msg_uuid': str(msg.uuid),
-            'text': msg.text,
-            'contact_uuid': str(msg.contact.uuid),
-        }
-        if msg.contact_urn:
-            event['urn'] = msg.contact_urn.urn
-        if msg.channel:
-            event['channel_uuid'] = str(msg.channel.uuid)
-        if msg.attachments:
-            event['attachments'] = msg.attachments
-
-        self.request['events'].append(event)
+            'created_on': timezone.now().isoformat(),
+            'msg': serialize_message(msg)
+        })
         return self
 
     def notify_run_expired(self, run):
