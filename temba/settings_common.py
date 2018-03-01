@@ -1213,7 +1213,7 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = None
+FLOW_SERVER_URL = 'http://localhost:8080'
 FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
