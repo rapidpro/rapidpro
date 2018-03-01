@@ -23,7 +23,6 @@ boto3
 google
 librato_bg
 nexmo==1.4.0
-plivo
 pyfcm
 python-gcm
 python-telegram-bot

@@ -1275,6 +1275,15 @@ class ChannelTest(TembaTest):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, 'error')
 
+            plivo_get.side_effect = [
+                MockResponse(200, json.dumps(dict())),  # get account in pre_process
+                MockResponse(400, "Bad request")  # failed search numbers
+            ]
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Bad request')
+
     def test_release(self):
         Channel.objects.all().delete()
         self.login(self.admin)
@@ -6056,7 +6065,7 @@ class PlivoTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertEqual(json.loads(mock.call_args[1]['data'])['text'], "Test message")
+            self.assertEqual(mock.call_args[1]['json']['text'], "Test message")
             self.clear_cache()
 
         with patch('requests.get') as mock:
@@ -6104,7 +6113,7 @@ class PlivoTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertEqual(json.loads(mock.call_args[1]['data'])['text'],
+            self.assertEqual(mock.call_args[1]['json']['text'],
                              "MT\nhttps://example.com/attachments/pic.jpg")
 
             self.clear_cache()
