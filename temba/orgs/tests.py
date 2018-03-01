@@ -920,6 +920,11 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+        # ttl should never be negative even if expired
+        topup.expires_on = timezone.now() - timedelta(days=1)
+        topup.save(update_fields=['expires_on'])
+        self.assertEqual(10, self.org.get_topup_ttl(topup))
+
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
