@@ -949,8 +949,9 @@ class BaseClaimNumberMixin(ClaimViewMixin):
         except Exception as e:  # pragma: needs cover
             import traceback
             traceback.print_exc()
-            if e.message:
-                form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
+            message = six.text_type(e)
+            if message:
+                form._errors['phone_number'] = form.error_class([message])
             else:
                 form._errors['phone_number'] = _(
                     "An error occurred connecting your Twilio number, try removing your "
