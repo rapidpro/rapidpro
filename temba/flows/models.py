@@ -1003,7 +1003,7 @@ class Flow(TembaModel):
                     extra = message_context.get('extra', {})
                     extra['flow'] = message_context.get('flow', {})
 
-                    if msg.id > 0:
+                    if msg.id:
                         run.add_messages([msg], step=step)
                         run.update_expiration(timezone.now())
 
@@ -1032,7 +1032,7 @@ class Flow(TembaModel):
         flow = ruleset.flow
 
         # add the message to our step
-        if msg.id > 0:
+        if msg.id:
             run.add_messages([msg], step=step)
             run.update_expiration(timezone.now())
 
@@ -4149,7 +4149,7 @@ class RuleSet(models.Model):
                 rules = self.get_rules()
                 for rule in rules:
                     (result, value) = rule.matches(run, msg, context, text)
-                    if result > 0:
+                    if result:
                         # treat category as the base category
                         return rule, value
             finally:
