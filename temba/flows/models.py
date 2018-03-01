@@ -175,7 +175,7 @@ class FlowSession(models.Model):
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
-                request.notify_msg_received(msg_in)
+                request.add_msg_received(msg_in)
 
             try:
                 if parent_run_summary:
@@ -228,13 +228,13 @@ class FlowSession(models.Model):
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
-            request.notify_msg_received(msg_in)
+            request.add_msg_received(msg_in)
         if expired_child_run:  # pragma: needs cover
-            request.notify_run_expired(expired_child_run)
+            request.add_run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
-        # request = request.notify_contact_changed(self.contact)
-        # request = request.notify_environment_changed(self.org)
+        # request = request.add_contact_changed(self.contact)
+        # request = request.add_environment_changed(self.org)
 
         try:
             new_output = request.resume(self.output)

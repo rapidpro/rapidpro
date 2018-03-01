@@ -87,7 +87,7 @@ class RequestBuilder(object):
         })
         return self
 
-    def notify_environment_changed(self, org):
+    def add_environment_changed(self, org):
         """
         Notify the engine that the environment has changed
         """
@@ -98,7 +98,7 @@ class RequestBuilder(object):
         })
         return self
 
-    def notify_contact_changed(self, contact):
+    def add_contact_changed(self, contact):
         """
         Notify the engine that the contact has changed
         """
@@ -109,7 +109,7 @@ class RequestBuilder(object):
         })
         return self
 
-    def notify_msg_received(self, msg):
+    def add_msg_received(self, msg):
         """
         Notify the engine that an incoming message has been received from the session contact
         """
@@ -120,7 +120,7 @@ class RequestBuilder(object):
         })
         return self
 
-    def notify_run_expired(self, run):
+    def add_run_expired(self, run):
         """
         Notify the engine that the active run in this session has expired
         """
@@ -146,11 +146,11 @@ class RequestBuilder(object):
         self.request['asset_server'] = {'type_urls': type_urls}
         return self
 
-    def start_manual(self, org, contact, flow, params):
+    def start_manual(self, org, contact, flow, params=None):
         """
         User is manually starting this session
         """
-        self.request['trigger'] = {
+        trigger = {
             'type': 'manual',
             'environment': serialize_environment(org),
             'contact': serialize_contact(contact),
@@ -158,6 +158,10 @@ class RequestBuilder(object):
             'params': params,
             'triggered_on': timezone.now().isoformat()
         }
+        if params:
+            trigger['params'] = params
+
+        self.request['trigger'] = trigger
 
         return self.client.start(self.request)
 
