@@ -1814,6 +1814,11 @@ class APITest(TembaTest):
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
+        # a group which is being re-evaluated
+        unready = self.create_group("Big Group", query="isdeveloper=NO")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
+
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
@@ -1825,8 +1830,27 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = \"YES\"", 'count': 0},
-            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
+            {
+                'uuid': unready.uuid,
+                'name': "Big Group",
+                'query': 'isdeveloper = "NO"',
+                'status': 'evaluating',
+                'count': 0
+            },
+            {
+                'uuid': developers.uuid,
+                'name': "Developers",
+                'query': "isdeveloper = \"YES\"",
+                'status': 'ready',
+                'count': 0
+            },
+            {
+                'uuid': customers.uuid,
+                'name': "Customers",
+                'query': None,
+                'status': 'ready',
+                'count': 1
+            },
         ])
 
         # filter by UUID
@@ -1850,7 +1874,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         reporters = ContactGroup.user_groups.get(name="Reporters")
-        self.assertEqual(response.json(), {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
+        self.assertEqual(response.json(), {
+            'uuid': reporters.uuid,
+            'name': "Reporters",
+            'query': None,
+            'status': 'ready',
+            'count': 0
+        })
 
         # try to create another group with same name
         response = self.postJSON(url, None, {'name': "reporters"})
