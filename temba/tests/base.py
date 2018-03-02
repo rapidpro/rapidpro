@@ -362,9 +362,12 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         """
         payload['events'] = [{
             'type': 'msg_received',
-            'text': text,
-            'msg_uuid': six.text_type(uuid4()),
-            'urn': 'tel:+12065551212',
+            'msg': {
+                'text': text,
+                'uuid': six.text_type(uuid4()),
+                'urn': 'tel:+12065551212',
+                'created_on': timezone.now().isoformat(),
+            },
             'created_on': timezone.now().isoformat(),
             'contact': payload['session']['contact']
         }]
@@ -376,7 +379,7 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         replies = []
         for log in response['log']:
             if 'event' in log:
-                if log['event']['type'] == 'send_msg':
+                if log['event']['type'] == 'broadcast_created':
                     replies.append(log['event']['text'])
         return replies
 

@@ -8,7 +8,7 @@ getStartRequest = ->
   request = getRequest()
   request['events'] = [
     {
-      type: "set_contact",
+      type: "contact_changed",
       created_on: new Date(),
       contact: {
         uuid: uuid(),
@@ -47,9 +47,12 @@ window.sendUpdate = (postData) ->
   request['session'] = window.session
   request['events'] = [{
     type: "msg_received",
-    text: postData.new_message,
-    msg_uuid: uuid(),
-    urn: "tel:+12065551212",
+    msg: {
+      text: postData.new_message,
+      uuid: uuid(),
+      urn: "tel:+12065551212",
+      created_on: new Date(),
+    },
     created_on: new Date(),
     contact: window.session.contact
   }]
@@ -69,16 +72,19 @@ window.updateResults = (data) ->
   if data.log
     for log in data.log
       event = log.event
-
+      if event.type == "broadcast_created"
+        window.addMessage(event.text, "MT")
       if event.type == "send_msg"
         window.addMessage(event.text, "MT")
       else if event.type == "flow_triggered"
         window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
-      else if event.type == "save_flow_result"
+      else if event.type == "run_result_changed"
         slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
         window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
-      else if event.type == "update_contact"
-        window.addMessage("Updated " + event.field_name + " to \"" + event.value + "\"", "log")
+      else if event.type == "contact_property_changed"
+        window.addMessage("Updated " + event.property + " to \"" + event.value + "\"", "log")
+      else if event.type == "contact_field_changed"
+        window.addMessage("Updated " + event.field.label + " to \"" + event.value + "\"", "log")
       else if event.type == "add_to_group"
         for group in event.groups
           window.addMessage("Added to group \"" + group.name + "\"", "log")
@@ -105,6 +111,7 @@ window.updateResults = (data) ->
       # the initial flow doesn't get a flow exit event
       scope = $("#ctlr").data('$scope')
       window.addMessage("Exited the flow \"" + scope.flow.metadata.name + "\"", "log")
+      $('#simulator').addClass('disabled')
 
     # we need to construct the old style activity format
     visited = {}
