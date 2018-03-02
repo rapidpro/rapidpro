@@ -1,3 +1,13 @@
+v3.0.329
+----------
+ * Fix negative cache ttl for topups
+
+v3.0.328
+----------
+ * Remove Vumi Type
+ * Remove custom autoscaler for Celery
+ * Implement Plivo without Plivo library
+
 v3.0.325
 ----------
  * Build dynamic groups in background thread

@@ -65,6 +65,19 @@ class ClientTest(TembaTest):
                 }
             }])
 
+    def test_add_environment_changed(self):
+        with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
+            self.assertEqual(self.client.request_builder(1234).add_environment_changed(self.org).request['events'], [{
+                'type': "environment_changed",
+                'created_on': "2018-01-18T14:24:30+00:00",
+                'environment': {
+                    'date_format': 'dd-MM-yyyy',
+                    'languages': [],
+                    'time_format': 'hh:mm',
+                    'timezone': 'Africa/Kigali'
+                }
+            }])
+
     def test_add_run_expired(self):
         flow = self.get_flow('color')
         run, = flow.start([], [self.contact])

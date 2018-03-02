@@ -999,14 +999,6 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
-AUTOSCALE_MAX_CPU_USAGE = 80
-AUTOSCALE_MAX_USED_MEMORY = 80
-AUTOSCALE_MAX_WORKER_INC_BY = 2
-AUTOSCALE_MAX_WORKER_DEC_BY = 2
-AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
-AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
-
 IS_PROD = False
 HOSTNAME = "localhost"
 
@@ -1163,8 +1155,6 @@ CHANNEL_TYPES = [
     'temba.channels.types.twitter_activity.TwitterActivityType',
     'temba.channels.types.verboice.VerboiceType',
     'temba.channels.types.viber_public.ViberPublicType',
-    'temba.channels.types.vumi.VumiType',
-    'temba.channels.types.vumi_ussd.VumiUSSDType',
     'temba.channels.types.yo.YoType',
     'temba.channels.types.zenvia.ZenviaType',
 ]

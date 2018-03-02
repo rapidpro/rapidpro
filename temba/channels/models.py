@@ -314,8 +314,6 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
-    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
-
     CONTENT_TYPE_URLENCODED = 'urlencoded'
     CONTENT_TYPE_JSON = 'json'
     CONTENT_TYPE_XML = 'xml'
