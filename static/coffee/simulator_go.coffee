@@ -6,20 +6,14 @@ getRequest = ->
 getStartRequest = ->
   scope = $("#ctlr").data('$scope')
   request = getRequest()
-  request['events'] = [
-    {
-      type: "contact_changed",
-      created_on: new Date(),
-      contact: {
-        uuid: uuid(),
-        name: contactName,
-        urns: []
-      }
-    }
-  ]
 
   request['trigger'] = {
     type: "manual",
+    contact: {
+      uuid: uuid(),
+      name: contactName,
+      urns: []
+    }
     flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name}
     triggered_on: new Date()
   }
@@ -72,9 +66,7 @@ window.updateResults = (data) ->
   if data.log
     for log in data.log
       event = log.event
-      if event.type == "broadcast_created"
-        window.addMessage(event.text, "MT")
-      if event.type == "send_msg"
+      if event.type == "broadcast_created" or event.type == "msg_created"
         window.addMessage(event.text, "MT")
       else if event.type == "flow_triggered"
         window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
@@ -85,9 +77,12 @@ window.updateResults = (data) ->
         window.addMessage("Updated " + event.property + " to \"" + event.value + "\"", "log")
       else if event.type == "contact_field_changed"
         window.addMessage("Updated " + event.field.label + " to \"" + event.value + "\"", "log")
-      else if event.type == "add_to_group"
+      else if event.type == "contact_group_added"
         for group in event.groups
           window.addMessage("Added to group \"" + group.name + "\"", "log")
+      else if event.type == "contact_group_removed"
+        for group in event.groups
+          window.addMessage("Removed from group \"" + group.name + "\"", "log")
       else if event.type == "webhook_called"
         if event.status_code
           webhookEvent = event
