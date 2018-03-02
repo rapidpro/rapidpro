@@ -1,3 +1,7 @@
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
 v3.0.329
 ----------
  * Fix negative cache ttl for topups
