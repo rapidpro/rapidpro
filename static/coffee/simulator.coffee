@@ -22,7 +22,6 @@ toExpand.autosize callback: ->
     $(".simulator-body").css "height", initSimulatorBody - footer + 30
     $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
 
-
 # check form errors
 checkForm = (newMessage) ->
   valid = true
@@ -43,7 +42,6 @@ window.resetForm = ->
     $('.simulator-footer .media-button').hide()
     $('.simulator-footer .imessage').show()
     $("#simulator textarea").val("")
-
 
     # hide loading first
     $(".simulator-loading").css "display", "none"
@@ -183,7 +181,7 @@ showSimulator = (reset=false) ->
   else
     refreshSimulator()
 
-  moving_sim = true
+  window.moving_sim = true
   fitSimToScreen()
   $("#toolbar .actions").fadeOut();
   $("#show-simulator").stop().animate { right: '-110px' }, 200, ->
@@ -194,7 +192,7 @@ showSimulator = (reset=false) ->
     sim.show()
     sim.animate right: 30, 400, "easeOutExpo", ->
       $(".simulator-content textarea").focus()
-      moving_sim = false
+      window.moving_sim = false
   window.simulation = true
 
 window.refreshSimulator = ->
@@ -313,11 +311,11 @@ $("#simulator textarea").keypress (event) ->
           appendMessage newMessage
 
 $("#show-simulator").hover ->
-  if not moving_sim
+  if not window.moving_sim
     $(this).stop().animate {width: '110px'}, 200, "easeOutBack", ->
       $(this).find('.message').stop().fadeIn('fast')
 , ->
-  if not moving_sim
+  if not window.moving_sim
     $(this).find('.message').hide()
     $(this).stop().animate { width: '40px'}, 200, "easeOutBack", ->
 
