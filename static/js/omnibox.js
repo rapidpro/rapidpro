@@ -107,7 +107,7 @@ function initializeOmnibox(initial) {
         minimumInputLength: 0,
         multiple: true,
         ajax: {
-            url: "/contact/omnibox/",
+            url: "/contact/omnibox/?types=cu",
             dataType: 'json',
             data: function (term, page) {
                 return {
