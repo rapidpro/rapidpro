@@ -21,6 +21,7 @@ from django.db import connection
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from django.utils.encoding import force_bytes
 from future.moves.html.parser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -785,7 +786,7 @@ class MockResponse(object):
 
     def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
-        self.content = text
+        self.content = force_bytes(text)
         self.body = text
         self.status_code = status_code
         self.headers = headers if headers else {}

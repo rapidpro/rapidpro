@@ -20,6 +20,7 @@ from django.db.models import Count, Min, Max, Sum, QuerySet
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -1256,7 +1257,7 @@ class FlowCRUDL(SmartCRUDL):
                                             status=PENDING)
                 except Exception as e:  # pragma: needs cover
 
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     return JsonResponse(dict(status="error", description="Error creating message: %s" % str(e)),
                                         status=400)
 
@@ -1322,7 +1323,7 @@ class FlowCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('flows.flow_json', args=[self.get_object().pk]))
 
             # try to parse our body
-            json_string = request.body
+            json_string = force_text(request.body)
 
             # if the last modified on this flow is more than a day ago, log that this flow as updated
             if self.get_object().saved_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover

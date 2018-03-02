@@ -663,5 +663,4 @@ class WebHookTest(TembaTest):
             self.assertNotIn('bogus', mock.call_args[1]['data'])
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
-            self.assertEqual(400, response.status_code)
-            self.assertTrue(response.content.find("Must include") >= 0)
+            self.assertContains(response, "Must include", status_code=400)

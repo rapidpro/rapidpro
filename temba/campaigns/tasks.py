@@ -99,7 +99,7 @@ def update_event_fires_for_campaign(campaign_id):
 
         except Exception as e:  # pragma: no cover
             import traceback
-            traceback.print_exc(e)
+            traceback.print_exc()
 
             # requeue our task to try again in five minutes
             update_event_fires_for_campaign(campaign_id).delay(countdown=60 * 5)

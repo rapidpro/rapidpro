@@ -41,14 +41,14 @@ class ClientTest(TembaTest):
         self.contact = self.create_contact("Bob", number="+12345670987")
         self.client = get_client()
 
-    def test_set_contact(self):
+    def test_add_contact_changed(self):
 
         with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
             self.contact.set_field(self.admin, 'gender', "M")
             self.contact.set_field(self.admin, 'age', 36)
 
-            self.assertEqual(self.client.request_builder(1234).set_contact(self.contact).request['events'], [{
-                'type': "set_contact",
+            self.assertEqual(self.client.request_builder(1234).add_contact_changed(self.contact).request['events'], [{
+                'type': "contact_changed",
                 'created_on': "2018-01-18T14:24:30+00:00",
                 'contact': {
                     'uuid': str(self.contact.uuid),
@@ -65,16 +65,7 @@ class ClientTest(TembaTest):
                 }
             }])
 
-    def test_set_extra(self):
-        with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
-
-            self.assertEqual(self.client.request_builder(1234).set_extra({'foo': "bar"}).request['events'], [{
-                'type': "set_extra",
-                'created_on': "2018-01-18T14:24:30+00:00",
-                'extra': {'foo': "bar"}
-            }])
-
-    def test_run_expired(self):
+    def test_add_run_expired(self):
         flow = self.get_flow('color')
         run, = flow.start([], [self.contact])
         run.set_interrupted()
@@ -92,8 +83,9 @@ class ClientTest(TembaTest):
         mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
         flow = self.get_flow('color')
+        contact = self.create_contact("Joe", number='+29638356667')
 
         with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(1234).start_manual(flow)
+            self.client.request_builder(1234).start_manual(self.org, contact, flow)
 
         self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
