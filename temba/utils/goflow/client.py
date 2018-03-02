@@ -191,22 +191,29 @@ class RequestBuilder(object):
 
 class Output(object):
     class LogEntry(object):
-        def __init__(self, step_uuid, action_uuid, event):
-            self.step_uuid = step_uuid
-            self.action_uuid = action_uuid
-            self.event = event
 
         @classmethod
         def from_json(cls, entry_json):
             return cls(entry_json.get('step_uuid'), entry_json.get('action_uuid'), entry_json['event'])
 
-    def __init__(self, session, log):
-        self.session = session
-        self.log = log
+        def __init__(self, step_uuid, action_uuid, event):
+            self.step_uuid = step_uuid
+            self.action_uuid = action_uuid
+            self.event = event
+
+        def as_json(self):
+            return dict(step_uuid=self.step_uuid, action_uuid=self.action_uuid, event=self.event)
 
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json['session'], [Output.LogEntry.from_json(e) for e in output_json.get('log', [])])
+
+    def __init__(self, session, log):
+        self.session = session
+        self.log = log
+
+    def as_json(self):
+        return dict(session=self.session, log=[entry.as_json() for entry in self.log])
 
 
 class FlowServerException(Exception):

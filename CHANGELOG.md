@@ -1,3 +1,11 @@
+v3.0.331
+----------
+ * Fix scoping for sim show/hide
+
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
 v3.0.329
 ----------
  * Fix negative cache ttl for topups

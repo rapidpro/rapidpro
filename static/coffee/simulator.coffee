@@ -1,121 +1,7 @@
 window.simulation = false
-moving_sim = false
-level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
-
-window.updateSimulator = (data) ->
-  ussd = if window.ussd then "ussd" else ""
-
-  $(".simulator-body").html ""
-  i = 0
-
-  $('.simulator-body').data('message-count', data.messages.length)
-
-  if data.ruleset
-    $('.simulator-footer .media-button').hide()
-
-    if data.ruleset.ruleset_type == 'wait_gps'
-      $('.simulator-footer .imessage').hide()
-      $('.simulator-footer .gps-button').show()
-    else if data.ruleset.ruleset_type == 'wait_photo'
-      $('.simulator-footer .imessage').hide()
-      $('.simulator-footer .photo-button').show()
-    else if data.ruleset.ruleset_type == 'wait_video'
-      $('.simulator-footer .imessage').hide()
-      $('.simulator-footer .video-button').show()
-    else if data.ruleset.ruleset_type == 'wait_audio'
-      $('.simulator-footer .imessage').hide()
-      $('.simulator-footer .audio-button').show()
-    else
-      $('.simulator-footer .imessage').show()
-  else
-    $('.simulator-footer .media-button').hide()
-    $('.simulator-footer .imessage').show()
-
-
-  while i < data.messages.length
-    msg = data.messages[i]
-
-    model = (if (msg.model is "msg") then "imsg" else "ilog")
-    level = (if msg.level? then level_classes[msg.level] else "")
-    direction = (if (msg.direction is "O") then "from" else "to")
-
-    media_type = null
-    media_viewer_elt = null
-
-    quick_replies = null
-
-    metadata = msg.metadata
-    if metadata and metadata.quick_replies?
-      quick_replies = "<div id='quick-reply-content'>"
-      for reply in metadata.quick_replies
-        quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
-      quick_replies += "</div>"
-
-    if msg.attachments and msg.attachments.length > 0
-      attachment = msg.attachments[0]
-      parts = attachment.split(':')
-      media_type = parts[0]
-      media_url = parts.slice(1).join(":")
-
-      if media_type == 'geo'
-        media_type = 'icon-pin_drop'
-      else
-        media_type = media_type.split('/')[0]
-        if media_type == 'image'
-          media_type = 'icon-photo_camera'
-          media_viewer_elt = "<span class=\"media-file\"><img src=\"" + media_url + "\"></span>"
-        else if media_type == 'video'
-          media_type = 'icon-videocam'
-          media_viewer_elt = "<span class=\"media-file\"><video controls src=\"" + media_url + "\"></span>"
-        else if media_type == 'audio'
-          media_type = 'icon-mic'
-          media_viewer_elt = "<span class=\"media-file\"><audio controls src=\"" + media_url + "\"></span>"
-
-    ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
-    if media_type
-      ele += " media-msg"
-    ele += "\">"
-    ele += msg.text
-    ele += "</div>"
-
-    if quick_replies
-      ele_quick_replies = "<div class='ilog " + level + " " + direction + " " + ussd + "'>"
-      ele_quick_replies += quick_replies
-      ele_quick_replies += "</div>"
-      ele += ele_quick_replies
-    
-    if media_type and media_viewer_elt
-      ele += media_viewer_elt
-
-    $(".simulator-body").append(ele)
-    i++
-  $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
-  $("#simulator textarea").val ""
-
-  $(".btn.quick-reply").on "click", (event) ->
-    payload = event.target.innerText
-    sendMessage(payload)
-
-  if window.simulation
-
-    # this is for angular to show activity
-    scope = $('body').scope()
-    if scope
-      scope.$apply ->
-        scope.visibleActivity =
-          active: data.activity
-          visited: data.visited
-
-    for node in $('#workspace').children('.node')
-      node = $(node).data('object')
-      node.setActivity(data)
-
-  activity = $('.activity:visible,.node .active:visible')
-  if activity
-    if activity.offset()
-      top = activity.offset().top
-      $('html, body').animate
-        scrollTop : top - 200
+window.moving_sim = false
+window.level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
+window.legacy = true
 
 $ ->
   $(window).scroll (evt) ->
@@ -136,7 +22,6 @@ toExpand.autosize callback: ->
     $(".simulator-body").css "height", initSimulatorBody - footer + 30
     $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
 
-
 # check form errors
 checkForm = (newMessage) ->
   valid = true
@@ -152,6 +37,18 @@ checkForm = (newMessage) ->
   $(".simulator-body").css "height", "360px"
   return valid
 
+window.resetForm = ->
+    # reset our form input
+    $('.simulator-footer .media-button').hide()
+    $('.simulator-footer .imessage').show()
+    $("#simulator textarea").val("")
+
+    # hide loading first
+    $(".simulator-loading").css "display", "none"
+    $(".simulator-body").css "height", "360px"
+
+    $("#simulator textarea").removeClass "error"
+
 processForm = (postData) ->
     # if we are currently saving to don't post message yet
     scope = $('html').scope('scope')
@@ -161,22 +58,35 @@ processForm = (postData) ->
       , 500
       return
 
-    $.post(getSimulateURL(), JSON.stringify(postData)).done (data) ->
-
-      # reset our form input
-      $('.simulator-footer .media-button').hide()
-      $('.simulator-footer .imessage').show()
-      window.updateSimulator(data)
-
-      # hide loading first
-      $(".simulator-loading").css "display", "none"
-      $(".simulator-body").css "height", "360px"
-
-    $("#simulator textarea").removeClass "error"
+    if window.legacy
+      window.sendUpdateLegacy(postData)
+    else
+      window.sendUpdate(postData)
 
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
+
+    # handle commands
+    if newMessage == "/v1" or newMessage == "/v2"
+      window.legacy = newMessage == "/v1"
+
+      # style our content slightly differently to let us know we are on the new engine
+      resetForm()
+
+      setTimeout(() ->
+
+        resetSimulator()
+
+        if window.legacy
+          $('.simulator-content').removeClass('v2')
+        else
+          $('.simulator-content').addClass('v2')
+
+      , 500)
+      return false
+
     processForm({new_message: newMessage})
+    return true
 
 sendPhoto = ->
   processForm({new_photo: true})
@@ -216,6 +126,28 @@ fitSimToScreen = ->
     if simBottom < workspaceBottom and sim.hasClass('on-footer')
       sim.removeClass('on-footer')
 
+window.updateActivity = (data) ->
+
+  if window.simulation
+    # this is for angular to show activity
+    scope = $('body').scope()
+    if scope
+      scope.$apply ->
+        scope.visibleActivity =
+          active: data.activity
+          visited: data.visited
+
+    for node in $('#workspace').children('.node')
+      node = $(node).data('object')
+      node.setActivity(data)
+
+  activity = $('.activity:visible,.node .active:visible')
+  if activity
+    if activity.offset()
+      top = activity.offset().top
+      $('html, body').animate
+        scrollTop : top - 200
+
 hideSimulator = ->
   moving_sim = true
   sim = $("#simulator")
@@ -240,13 +172,6 @@ hideSimulator = ->
   if window.is_voice
     window.hangup()
 
-
-getSimulateURL = ->
-  scope = $('html').scope()
-  if scope and scope.language
-    return window.simulateURL + '?lang=' + scope.language.iso_code
-  return window.simulateURL
-
 showSimulator = (reset=false) ->
 
   messageCount = $(".simulator-body").data('message-count')
@@ -256,7 +181,7 @@ showSimulator = (reset=false) ->
   else
     refreshSimulator()
 
-  moving_sim = true
+  window.moving_sim = true
   fitSimToScreen()
   $("#toolbar .actions").fadeOut();
   $("#show-simulator").stop().animate { right: '-110px' }, 200, ->
@@ -267,25 +192,26 @@ showSimulator = (reset=false) ->
     sim.show()
     sim.animate right: 30, 400, "easeOutExpo", ->
       $(".simulator-content textarea").focus()
-      moving_sim = false
+      window.moving_sim = false
   window.simulation = true
 
 window.refreshSimulator = ->
-
   # if we are currently saving to don't post message yet
   scope = $('html').scope('scope')
   if scope and scope.saving
     setTimeout(refreshSimulator, 500)
     return
 
-  $.post(getSimulateURL(), JSON.stringify({ has_refresh:false })).done (data) ->
-    window.updateSimulator(data)
-    if window.ivr and window.simulation
-      setTimeout(window.refreshSimulator, 2000)
+  if window.legacy
+    window.simStartLegacy()
+  else
+    window.simStart()
 
-window.resetSimulator = ->
-  $(".simulator-body").html ""
-  $(".simulator-body").append "<div class='ilog from'>One moment..</div>"
+resetSimulator = ->
+  $('#simulator').removeClass('disabled')
+  $(".simulator-body").html("")
+  $(".simulator-body").append("<div class='ilog from'>One moment..</div>")
+  $(".simulator-loading").css("display", "none")
 
   # reset our form input
   $('.simulator-footer .media-button').hide()
@@ -297,14 +223,43 @@ window.resetSimulator = ->
     setTimeout(resetSimulator, 500)
     return
 
-  $.post(getSimulateURL(), JSON.stringify({ has_refresh:true })).done (data) ->
-    window.updateSimulator(data)
-    if window.ivr and window.simulation
-      setTimeout(window.refreshSimulator, 2000)
+  if window.legacy
+    window.simStartLegacy()
+  else
+    window.simStart()
 
 window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
+
+window.addMessage = (text, type, metadata=null, level=null, onClick=null) ->
+
+  classes = ["imsg"]
+  if type == "log" or type == "error"
+    classes = ["ilog"]
+
+  if type == "MO"
+    classes.push("to")
+  else if type == "MT"
+    classes.push("from")
+  else if type == "error"
+    classes.push("ierror")
+
+  if level
+    classes.push(level_classes[level])
+
+  if onClick
+    classes.push("link")
+
+  ele = "<div class=\"" + classes.join(" ") + "\">"
+  ele += text
+  ele += "</div>"
+
+  ele = $(ele)
+  if onClick
+    ele.bind("click", onClick)
+
+  ele = $(".simulator-body").append(ele)
 
 appendMessage = (newMessage, ussd=false) ->
   ussd = if ussd then "ussd " else ""
@@ -335,34 +290,32 @@ $('#simulator .audio-button').on 'click', ->
 $("#simulator .send-message").on "click", ->
   newMessage = $("#simulator textarea").val()
   $(this).addClass("to-ignore")
-  sendMessage(newMessage)
-
-  # add the progress gif
-  if window.ussd and newMessage.length <= 182
-    appendMessage newMessage, true
-  else if newMessage.length <= 160 and newMessage.length > 0
-    appendMessage newMessage
+  if sendMessage(newMessage)
+    # add the progress gif
+    if window.ussd and newMessage.length <= 182
+      appendMessage newMessage, true
+    else if newMessage.length <= 160 and newMessage.length > 0
+      appendMessage newMessage
 
 # send new message on key press (enter)
 $("#simulator textarea").keypress (event) ->
   if event.which is 13
     event.preventDefault()
     newMessage = $("#simulator textarea").val()
-    sendMessage(newMessage)
-
-    # add the progress gif
-    if newMessage
-      if window.ussd and newMessage.length <= 182
-        appendMessage newMessage, true
-      else if newMessage.length <= 160
-        appendMessage newMessage
+    if sendMessage(newMessage)
+      # add the progress gif
+      if newMessage
+        if window.ussd and newMessage.length <= 182
+          appendMessage newMessage, true
+        else if newMessage.length <= 160
+          appendMessage newMessage
 
 $("#show-simulator").hover ->
-  if not moving_sim
+  if not window.moving_sim
     $(this).stop().animate {width: '110px'}, 200, "easeOutBack", ->
       $(this).find('.message').stop().fadeIn('fast')
 , ->
-  if not moving_sim
+  if not window.moving_sim
     $(this).find('.message').hide()
     $(this).stop().animate { width: '40px'}, 200, "easeOutBack", ->
 
@@ -401,5 +354,5 @@ $(".simulator-close").on "click", ->
 
 # refresh the simulator
 $(".simulator-refresh").on "click", ->
-  window.resetSimulator()
+  resetSimulator()
 
