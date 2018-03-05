@@ -1490,7 +1490,8 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(38):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
         )
 
@@ -1498,7 +1499,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'gender', 'male')
         contact.set_field(self.user, 'age', 20)
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()],
             ['cannon fodder', 'urn group', 'Age field is set']
         )
@@ -4119,7 +4121,8 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(21):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
             ['Empty age field', 'urn group']
         )
