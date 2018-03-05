@@ -2536,8 +2536,6 @@ class Flow(TembaModel):
                 else:
                     seen_existing_rulesets[uuid] = ruleset
 
-            # delete ruleset which are not seen
-            RuleSet.objects.filter(uuid__in=existing_rulesets_to_delete).delete()
             existing_rulesets = seen_existing_rulesets
 
             # make sure all destinations are present though

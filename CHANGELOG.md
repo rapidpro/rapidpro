@@ -1,3 +1,7 @@
+v3.0.332
+----------
+ * Do not delete RuleSets only disconnect them from flows
+
 v3.0.331
 ----------
  * Fix scoping for sim show/hide
