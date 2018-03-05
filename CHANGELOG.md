@@ -1,3 +1,25 @@
+v3.0.332
+----------
+ * Do not delete RuleSets only disconnect them from flows
+
+v3.0.331
+----------
+ * Fix scoping for sim show/hide
+
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
+v3.0.329
+----------
+ * Fix negative cache ttl for topups
+
+v3.0.328
+----------
+ * Remove Vumi Type
+ * Remove custom autoscaler for Celery
+ * Implement Plivo without Plivo library
+
 v3.0.325
 ----------
  * Build dynamic groups in background thread

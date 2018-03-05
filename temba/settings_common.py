@@ -437,8 +437,8 @@ PERMISSIONS = {
                    'activity_chart',
                    'activity_list',
                    'api',
-                   'assets',
                    'archived',
+                   'assets',
                    'broadcast',
                    'campaign',
                    'category_counts',
@@ -998,14 +998,6 @@ BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
-CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
-AUTOSCALE_MAX_CPU_USAGE = 80
-AUTOSCALE_MAX_USED_MEMORY = 80
-AUTOSCALE_MAX_WORKER_INC_BY = 2
-AUTOSCALE_MAX_WORKER_DEC_BY = 2
-AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
-AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
 IS_PROD = False
 HOSTNAME = "localhost"

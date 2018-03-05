@@ -26,6 +26,12 @@
   top: 130px;
   right: 30px;
 
+  &.disabled {
+    .simulator-footer {
+      visibility: hidden;
+    }
+  }
+
   &:hover {
   }
 
@@ -40,6 +46,11 @@
     margin-top:-540px;
   }
 
+}
+
+.link {
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .simulator-spacer {
@@ -129,6 +140,7 @@
   textarea {
     line-height: 20px;
   }
+
 }
 
 #footer {
@@ -139,11 +151,15 @@
 .simulator-body {
   width: 240px;
   padding-top: 5px;
-  margin-left: 20px;
+  margin-left: 18px;
   margin-top: -20px;
   height: 355px;
   overflow-x: hidden;
   overflow-y: scroll;
+
+  &.v2 {
+    background-color: #fff6c0;
+  }
 
   .imsg {
     .media-file {
@@ -179,6 +195,7 @@
   border: 1px solid #ddd;
   border-top: 0 none;
 }
+
 .simulator-footer {
   width: 234px;
   height: 35px;

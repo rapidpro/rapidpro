@@ -3,94 +3,13 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 import requests
-import six
 
 from django.conf import settings
-from django.db.models import Prefetch
 from django.utils import timezone
-from mptt.utils import get_cached_trees
-from temba.values.models import Value
-
-
-VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
-
-
-def serialize_flow(flow, strip_ui=True):
-    """
-    Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
-    goflow because of unsupported features.
-    """
-    flow.ensure_current_version()
-    flow_def = flow.as_json(expand_contacts=True)
-
-    migrated_flow_def = get_client().migrate({'flows': [flow_def]})[0]
-
-    if strip_ui:
-        del migrated_flow_def['_ui']
-
-    return migrated_flow_def
-
-
-def serialize_channel(channel):
-    return {
-        'uuid': str(channel.uuid),
-        'name': six.text_type(channel.get_name()),
-        'type': channel.channel_type,
-        'address': channel.address
-    }
-
-
-def serialize_field(field):
-    return {'key': field.key, 'label': field.label, 'value_type': VALUE_TYPE_NAMES[field.value_type]}
-
-
-def serialize_group(group):
-    return {'uuid': str(group.uuid), 'name': group.name, 'query': group.query}
-
-
-def serialize_label(label):
-    return {'uuid': str(label.uuid), 'name': label.name}
-
-
-def serialize_location_hierarchy(country, aliases_from_org=None):
-    """
-    Serializes a country as a location hierarchy, e.g.
-    {
-        "name": "Rwanda",
-        "children": [
-            {
-                "name": "Kigali City",
-                "aliases": ["Kigali", "Kigari"],
-                "children": [
-                    ...
-                ]
-            }
-        ]
-    }
-    """
-    queryset = country.get_descendants(include_self=True)
-
-    if aliases_from_org:
-        from temba.locations.models import BoundaryAlias
-
-        queryset = queryset.prefetch_related(
-            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=aliases_from_org)),
-        )
-
-    def _serialize_node(node):
-        rendered = {'name': node.name}
-
-        if aliases_from_org:
-            rendered['aliases'] = [a.name for a in node.aliases.all()]
-
-        children = node.get_children()
-        if children:
-            rendered['children'] = []
-            for child in node.get_children():
-                rendered['children'].append(_serialize_node(child))
-        return rendered
-
-    return [_serialize_node(node) for node in get_cached_trees(queryset)][0]
+from .serialize import (
+    serialize_contact, serialize_label, serialize_field, serialize_channel, serialize_flow, serialize_group,
+    serialize_location_hierarchy, serialize_environment, serialize_message
+)
 
 
 class RequestBuilder(object):
@@ -168,101 +87,42 @@ class RequestBuilder(object):
         })
         return self
 
-    def set_environment(self, org):
+    def add_environment_changed(self, org):
         """
-        Include a set_environment event to start a session with the given environment
+        Notify the engine that the environment has changed
         """
-        languages = [org.primary_language.iso_code] if org.primary_language else []
-
         self.request['events'].append({
-            'type': "set_environment",
+            'type': "environment_changed",
             'created_on': timezone.now().isoformat(),
-            'date_format': "dd-MM-yyyy" if org.date_format == 'D' else "MM-dd-yyyy",
-            'time_format': "hh:mm",
-            'timezone': six.text_type(org.timezone),
-            'languages': languages
+            'environment': serialize_environment(org)
         })
         return self
 
-    def set_contact(self, contact):
+    def add_contact_changed(self, contact):
         """
-        Include a set_contact event to start a session with the given contact
-        """
-        from temba.contacts.models import Contact
-        from temba.msgs.models import Msg
-        from temba.values.models import Value
-
-        org_fields = {f.id: f for f in contact.org.contactfields.filter(is_active=True)}
-        values = Value.objects.filter(contact=contact, contact_field_id__in=org_fields.keys())
-        field_values = {}
-        for v in values:
-            field = org_fields[v.contact_field_id]
-            field_values[field.key] = {
-                'value': Contact.serialize_field_value(field, v),
-                'created_on': v.created_on.isoformat()
-            }
-
-        _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
-
-        event = {
-            'type': "set_contact",
-            'created_on': timezone.now().isoformat(),
-            'contact': {
-                'uuid': contact.uuid,
-                'name': contact.name,
-                'urns': [urn.urn for urn in contact.urns.all()],
-                'group_uuids': [group.uuid for group in contact.user_groups.all()],
-                'timezone': "UTC",
-                'language': contact.language,
-                'fields': field_values
-            }
-        }
-
-        # only populate channel if this contact can actually be reached (ie, has a URN)
-        if contact_urn:
-            channel = contact.org.get_send_channel(contact_urn=contact_urn)
-            if channel:
-                event['contact']['channel_uuid'] = channel.uuid
-
-        self.request['events'].append(event)
-        return self
-
-    def set_extra(self, extra):
-        """
-        Include a set_extra event to start a session with the given extra data
+        Notify the engine that the contact has changed
         """
         self.request['events'].append({
-            'type': "set_extra",
+            'type': "contact_changed",
             'created_on': timezone.now().isoformat(),
-            'extra': extra
+            'contact': serialize_contact(contact)
         })
         return self
 
     def add_msg_received(self, msg):
         """
-        Include a msg_received event in response to receiving a message from the session contact
+        Notify the engine that an incoming message has been received from the session contact
         """
-        event = {
+        self.request['events'].append({
             'type': "msg_received",
-            'created_on': msg.created_on.isoformat(),
-            'msg_uuid': str(msg.uuid),
-            'text': msg.text,
-            'contact_uuid': str(msg.contact.uuid),
-
-        }
-        if msg.contact_urn:
-            event['urn'] = msg.contact_urn.urn
-        if msg.channel:
-            event['channel_uuid'] = str(msg.channel.uuid)
-        if msg.attachments:
-            event['attachments'] = msg.attachments
-
-        self.request['events'].append(event)
+            'created_on': timezone.now().isoformat(),
+            'msg': serialize_message(msg)
+        })
         return self
 
     def add_run_expired(self, run):
         """
-        Include a run_expired event in response to the active run in this session expiring
+        Notify the engine that the active run in this session has expired
         """
         self.request['events'].append({
             'type': "run_expired",
@@ -286,24 +146,33 @@ class RequestBuilder(object):
         self.request['asset_server'] = {'type_urls': type_urls}
         return self
 
-    def start_manual(self, flow):
+    def start_manual(self, org, contact, flow, params=None):
         """
         User is manually starting this session
         """
-        self.request['trigger'] = {
+        trigger = {
             'type': 'manual',
+            'environment': serialize_environment(org),
+            'contact': serialize_contact(contact),
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'params': params,
             'triggered_on': timezone.now().isoformat()
         }
+        if params:
+            trigger['params'] = params
+
+        self.request['trigger'] = trigger
 
         return self.client.start(self.request)
 
-    def start_by_flow_action(self, flow, parent_run_summary):
+    def start_by_flow_action(self, org, contact, flow, parent_run_summary):
         """
         New session was triggered by a flow action in a different run
         """
         self.request['trigger'] = {
             'type': 'flow_action',
+            'environment': serialize_environment(org),
+            'contact': serialize_contact(contact),
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
             'triggered_on': timezone.now().isoformat(),
             'run': parent_run_summary
@@ -322,22 +191,29 @@ class RequestBuilder(object):
 
 class Output(object):
     class LogEntry(object):
-        def __init__(self, step_uuid, action_uuid, event):
-            self.step_uuid = step_uuid
-            self.action_uuid = action_uuid
-            self.event = event
 
         @classmethod
         def from_json(cls, entry_json):
             return cls(entry_json.get('step_uuid'), entry_json.get('action_uuid'), entry_json['event'])
 
-    def __init__(self, session, log):
-        self.session = session
-        self.log = log
+        def __init__(self, step_uuid, action_uuid, event):
+            self.step_uuid = step_uuid
+            self.action_uuid = action_uuid
+            self.event = event
+
+        def as_json(self):
+            return dict(step_uuid=self.step_uuid, action_uuid=self.action_uuid, event=self.event)
 
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json['session'], [Output.LogEntry.from_json(e) for e in output_json.get('log', [])])
+
+    def __init__(self, session, log):
+        self.session = session
+        self.log = log
+
+    def as_json(self):
+        return dict(session=self.session, log=[entry.as_json() for entry in self.log])
 
 
 class FlowServerException(Exception):

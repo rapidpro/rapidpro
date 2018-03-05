@@ -34,7 +34,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
-from temba.utils.goflow import FlowServerException
+from temba.utils.goflow import FlowServerException, get_client
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -2308,7 +2308,7 @@ class FlowTest(TembaTest):
         response = self.client.get(simulate_url)
         self.assertEqual(response.status_code, 302)
 
-        post_data = {'has_refresh': True}
+        post_data = {'has_refresh': True, 'version': '1'}
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -4498,7 +4498,36 @@ class WebhookTest(TembaTest):
 
 class SimulationTest(FlowFileTest):
 
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_simulation(self):
+        flow = self.get_flow('favorites')
+
+        client = get_client()
+
+        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+
+        # add a manual trigger
+        payload['trigger'] = {
+            'type': 'manual',
+            'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'triggered_on': timezone.now().isoformat()
+        }
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
+
+        # create a new payload based on the session we get back
+        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        payload['session'] = response.json()['session']
+        self.add_message(payload, 'blue')
+
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json").json()
+        replies = self.get_replies(response)
+        self.assertEqual(1, len(replies))
+        self.assertEqual('Good choice, I like Blue too! What is your favorite beer?', replies[0])
+
+    def test_simulation_legacy(self):
         flow = self.get_flow('pick_a_number')
 
         # remove our channels
@@ -4509,9 +4538,7 @@ class SimulationTest(FlowFileTest):
         self.admin.last_name = "Haggerty"
         self.admin.save()
 
-        post_data = dict()
-        post_data['has_refresh'] = True
-
+        post_data = dict(has_refresh=True, version="1")
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -4543,7 +4570,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="derp")
+        post_data = dict(has_refresh=True, new_message="derp", version="1")
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4569,7 +4596,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="__interrupt__")
+        post_data = dict(has_refresh=True, new_message='__interrupt__', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4592,7 +4619,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4609,7 +4636,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -6930,12 +6957,12 @@ class FlowsTest(FlowFileTest):
         # test that simulation takes language into account
         self.login(self.admin)
         simulate_url = reverse('flows.flow_simulate', args=[favorites.pk])
-        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").json()
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").json()
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
         simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
-        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").json()
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").json()
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
@@ -9075,15 +9102,15 @@ class FlowServerTest(TembaTest):
         # with some extra
         run4, = flow.start([], [self.contact], restart_participants=True, extra={'foo': "bar"})
 
-        self.assertTrue(run4.session.output['runs'][0]['extra'], {'foo': "bar"})
+        self.assertTrue(run4.session.output['trigger']['params'], {'foo': "bar"})
 
         # with an initial message
         msg = self.create_msg(direction='I', text="Hello", contact=self.contact)
         run5, = flow.start([], [self.contact], restart_participants=True, start_msg=msg)
         run5_output = run5.session.output['runs'][0]
 
-        self.assertTrue(run5_output['path'][0]['events'][2]['type'], "msg_received")
-        self.assertTrue(run5_output['path'][0]['events'][2]['text'], "Hello")
+        self.assertTrue(run5_output['path'][0]['events'][0]['type'], "msg_received")
+        self.assertTrue(run5_output['path'][0]['events'][0]['msg']['text'], "Hello")
 
         # when flowserver returns an error
         with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:

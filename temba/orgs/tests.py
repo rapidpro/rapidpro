@@ -920,6 +920,11 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+        # ttl should never be negative even if expired
+        topup.expires_on = timezone.now() - timedelta(days=1)
+        topup.save(update_fields=['expires_on'])
+        self.assertEqual(10, self.org.get_topup_ttl(topup))
+
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
@@ -1761,11 +1766,13 @@ class OrgTest(TembaTest):
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
             plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
-            self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+            response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
+
+            self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
 

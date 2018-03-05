@@ -152,7 +152,7 @@ class FlowSession(models.Model):
         cls.objects.filter(contact__in=contacts, status=FlowSession.STATUS_WAITING).update(status=FlowSession.STATUS_INTERRUPTED)
 
     @classmethod
-    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, extra=None):
+    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, params=None):
         """
         Starts a contact in the given flow
         """
@@ -167,12 +167,7 @@ class FlowSession(models.Model):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = (
-                client.request_builder(asset_timestamp)
-                .asset_server(flow.org)
-                .set_environment(flow.org)
-                .set_contact(contact)
-            )
+            request = client.request_builder(asset_timestamp).asset_server(flow.org)
 
             if settings.TESTING:
                 # TODO find a way to run an assets server during testing?
@@ -181,14 +176,12 @@ class FlowSession(models.Model):
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
                 request.add_msg_received(msg_in)
-            if extra:
-                request.set_extra(extra)
 
             try:
                 if parent_run_summary:
-                    output = request.start_by_flow_action(flow, parent_run_summary)
+                    output = request.start_by_flow_action(flow.org, contact, flow, parent_run_summary)
                 else:
-                    output = request.start_manual(flow)
+                    output = request.start_manual(flow.org, contact, flow, params)
 
             except goflow.FlowServerException:
                 continue
@@ -240,8 +233,8 @@ class FlowSession(models.Model):
             request.add_run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
-        request = request.set_contact(self.contact)
-        request = request.set_environment(self.org)
+        # request = request.add_contact_changed(self.contact)
+        # request = request.add_environment_changed(self.org)
 
         try:
             new_output = request.resume(self.output)
@@ -1755,7 +1748,7 @@ class Flow(TembaModel):
         # only use flowserver if flow supports it, message is an actual message, and parent wasn't run in old engine
         if self.use_flow_server() and not (start_msg and not start_msg.contact_urn) and not parent_run:
             contacts = Contact.objects.filter(id__in=all_contact_ids).order_by('id')
-            runs = FlowSession.bulk_start(contacts, self, msg_in=start_msg, extra=extra)
+            runs = FlowSession.bulk_start(contacts, self, msg_in=start_msg, params=extra)
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
@@ -2543,8 +2536,6 @@ class Flow(TembaModel):
                 else:
                     seen_existing_rulesets[uuid] = ruleset
 
-            # delete ruleset which are not seen
-            RuleSet.objects.filter(uuid__in=existing_rulesets_to_delete).delete()
             existing_rulesets = seen_existing_rulesets
 
             # make sure all destinations are present though
@@ -2926,8 +2917,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for entry in run_log:
             # print("⚡ %s %s" % (entry.event['type'], json.dumps({k: v for k, v in six.iteritems(entry.event) if k != 'type'})))
 
-            if entry.event['type'] == 'send_msg':
-                msgs_to_send, run_messages = self.apply_send_msg(entry.event, msg_in)
+            if entry.event['type'] == 'broadcast_created':
+                msgs_to_send, run_messages = self.apply_broadcast_created(entry.event, msg_in)
 
                 all_msgs_to_send += msgs_to_send
                 all_run_messages += run_messages
@@ -2938,9 +2929,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return all_msgs_to_send, all_run_messages
 
-    def apply_send_msg(self, event, msg):
+    def apply_broadcast_created(self, event, msg):
         """
-        An outgoing message being sent (not necessarily this contact)
+        An outgoing broadcast being sent (not necessarily this contact)
         """
         urns = event.get('urns', [])
         contact_refs = event.get('contacts', [])
@@ -2987,7 +2978,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return msgs_to_send, run_messages
 
-    def apply_send_email(self, event, msg):
+    def apply_email_created(self, event, msg):
         """
         Email being sent out
         """
@@ -3001,29 +2992,29 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             quoted_addresses = ['"%s"' % elt for elt in addresses]
             ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(quoted_addresses)))
 
-    def apply_update_contact(self, event, msg):
+    def apply_contact_property_changed(self, event, msg):
         """
         Name or language being updated
         """
-        field_name = event['field_name']
+        prop = event['property']
         value = event['value']
         update_fields = []
 
-        if field_name == "language":
+        if prop == "language":
             self.contact.language = value or None
             update_fields.append('language')
-        elif field_name == "name":
+        elif prop == "name":
             self.contact.name = value
             update_fields.append("name")
         else:  # pragma: no cover
-            raise ValueError("Unknown field to update contact: %s" % field_name)
+            raise ValueError("Unknown property to update on contact: %s" % prop)
 
         self.contact.save(update_fields=update_fields)
 
         if self.contact.is_test:  # pragma: no cover
-            ActionLog.create(self, _("Updated %s to '%s'") % (field_name, value))
+            ActionLog.create(self, _("Updated %s to '%s'") % (prop, value))
 
-    def apply_add_urn(self, event, msg):
+    def apply_contact_urn_added(self, event, msg):
         """
         New URN being added to the contact
         """
@@ -3038,7 +3029,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:
             self.contact.update_urns(user, urns)
 
-    def apply_save_contact_field(self, event, msg):
+    def apply_contact_field_changed(self, event, msg):
         """
         Properties of this contact being updated
         """
@@ -3051,13 +3042,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
 
-    def apply_save_flow_result(self, event, msg):
+    def apply_run_result_changed(self, event, msg):
         # flow results are actually saved in create_or_update_from_goflow
         if self.contact.is_test:
             ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['name'])),
                              created_on=iso8601.parse_date(event['created_on']))
 
-    def apply_add_label(self, event, msg):
+    def apply_input_labels_added(self, event, msg):
         if not msg:  # pragma: no cover
             return
 
@@ -3068,7 +3059,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             else:  # pragma: no cover
                 ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg.text))
 
-    def apply_add_to_group(self, event, msg):
+    def apply_contact_groups_added(self, event, msg):
         """
         This contact being added to one or more groups
         """
@@ -3081,7 +3072,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
-    def apply_remove_from_group(self, event, msg):
+    def apply_contact_groups_removed(self, event, msg):
         """
         This contact being removed from one or more groups
         """
