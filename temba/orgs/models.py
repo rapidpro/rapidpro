@@ -1058,6 +1058,17 @@ class Org(SmartModel):
 
         return boundary
 
+    def parse_location_path(self, location_string):
+        """
+        Parses a location path into a single location, returning None if not found
+        """
+        # while technically we could resolve a full boundary path without a country, our policy is that
+        # if you don't have a country set then you don't have locations
+        if not self.country_id or not isinstance(location_string, six.string_types):
+            return []
+
+        return AdminBoundary.objects.filter(path__iexact=location_string).first()
+
     def parse_location(self, location_string, level, parent=None):
         """
         Attempts to parse the passed in location string at the passed in level. This does various tokenizing
@@ -1069,11 +1080,20 @@ class Org(SmartModel):
         if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
-        # now look up the boundary by full name
-        boundary = self.find_boundary_by_name(location_string, level, parent)
+        boundary = None
 
+        # try it as a path first if it looks possible
+        if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
+            boundary = self.parse_location_path(location_string)
+            if boundary:
+                boundary = [boundary]
+
+        # try to look up it by full name
         if not boundary:
-            # try removing punctuation and try that
+            boundary = self.find_boundary_by_name(location_string, level, parent)
+
+        # try removing punctuation and try that
+        if not boundary:
             bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 

@@ -267,7 +267,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=216, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=224, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -3704,6 +3704,82 @@ class ContactTest(TembaTest):
         self.assertEqual(c5.pk, c1.pk)
         self.assertEqual(c5.name, "Goran Dragic")
 
+    def test_field_json(self):
+        # simple text field
+        self.joe.set_field(self.user, 'dog', "Chef", label="Dog")
+        dog_uuid = six.text_type(ContactField.objects.get(key="dog").uuid)
+
+        self.assertDictEqual(self.joe.fields, {dog_uuid: {"text": "Chef"}})
+
+        self.joe.set_field(self.user, 'dog', "")
+        self.assertDictEqual(self.joe.fields, {})
+
+        # numeric field value
+        self.joe.set_field(self.user, 'dog', "23")
+        self.assertDictEqual(self.joe.fields, {dog_uuid: {"text": "23", "decimal": "23"}})
+
+        # datetime instead
+        self.joe.set_field(self.user, 'dog', "2018-03-05T02:31:00.000Z")
+        self.assertDictEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"}
+            }
+        )
+
+        # setting another field doesn't ruin anything
+        self.joe.set_field(self.user, 'cat', "Rando", label="Cat")
+        cat_uuid = six.text_type(ContactField.objects.get(key="cat").uuid)
+        self.assertDictEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
+                cat_uuid: {"text": "Rando"}
+            }
+        )
+
+        # setting a fully qualified path parses to that level, regardless of field type
+        self.joe.set_field(self.user, 'cat', "Rwanda > Kigali City")
+        self.assertDictEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
+                cat_uuid: {"text": "Rwanda > Kigali City", "state": "Rwanda > Kigali City"}
+            }
+        )
+
+        # clear our previous fields
+        self.joe.set_field(self.user, 'dog', "")
+        self.joe.set_field(self.user, 'cat', "")
+
+        # we try a bit harder if we know it is a location field
+        state_uuid = six.text_type(
+            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=Value.TYPE_STATE).uuid)
+        self.joe.set_field(self.user, 'state', "i live in eastern province")
+        self.assertDictEqual(
+            self.joe.fields,
+            {
+                state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"}
+            }
+        )
+
+        # ok, let's test our other boundary levels
+        district_uuid = six.text_type(
+            ContactField.get_or_create(self.org, self.user, "district", "District", value_type=Value.TYPE_DISTRICT).uuid)
+        ward_uuid = six.text_type(
+            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=Value.TYPE_WARD).uuid)
+        self.joe.set_field(self.user, 'district', 'gatsibo')
+        self.joe.set_field(self.user, 'ward', 'kageyo')
+
+        self.assertDictEqual(
+            self.joe.fields,
+            {
+                state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"},
+                district_uuid: {"text": "gatsibo", "district": "Rwanda > Eastern Province > Gatsibo"},
+                ward_uuid: {"text": "kageyo", "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo"},
+            }
+        )
+
     def test_fields(self):
         # set a field on joe
         self.joe.set_field(self.user, 'abc_1234', 'Joe', label="Name")
@@ -3727,7 +3803,7 @@ class ContactTest(TembaTest):
         modified_on = self.joe.modified_on
 
         # set_field should only write to the database if the value changes
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             self.joe.set_field(self.user, 'abc_1234', 'Joe')
 
         self.joe.refresh_from_db()
