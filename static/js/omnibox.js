@@ -29,7 +29,7 @@ function omnibox(ele, types, options) {
     if (types == 'g'){
         placeholder = gettext("Enter one or more contact groups");
     } else if (types == 'cu'){
-        placeholder = gettext("Recipients, enter contacts or numbers");
+        placeholder = gettext("Recipients, enter contacts or phone numbers");
     }
     else {
         placeholder = gettext("Recipients, enter contacts or groups");
@@ -108,7 +108,7 @@ function prepareOmnibox(types) {
 
 function initializeOmnibox(initial) {
     var options = {
-        placeholder: gettext("Recipients, enter contacts or numbers"),
+        placeholder: gettext("Recipients, enter contacts or phone numbers"),
         minimumInputLength: 0,
         multiple: true,
         ajax: {
