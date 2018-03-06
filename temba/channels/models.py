@@ -39,7 +39,6 @@ from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
 from temba.utils.text import random_string
@@ -316,10 +315,6 @@ class Channel(TembaModel):
 
     # how big each batch of outgoing messages can be
     SEND_BATCH_SIZE = 100
-
-    YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
-    YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
-    YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
     CONTENT_TYPE_URLENCODED = 'urlencoded'
     CONTENT_TYPE_JSON = 'json'
