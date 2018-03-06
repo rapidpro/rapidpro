@@ -7001,7 +7001,7 @@ class FlowsTest(FlowFileTest):
         # disconnect action from interrupt state
         ruleset = flow.rule_sets.first()
         rules = ruleset.get_rules()
-        interrupt_rule = list(filter(lambda rule: isinstance(rule.test, InterruptTest), rules))[0]
+        interrupt_rule = next(rule for rule in rules if isinstance(rule.test, InterruptTest))
         interrupt_rule.destination = None
         interrupt_rule.destination_type = None
         ruleset.set_rules(rules)
