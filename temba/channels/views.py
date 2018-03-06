@@ -1737,7 +1737,7 @@ class ChannelCRUDL(SmartCRUDL):
                     response_data = response.json()
                     results_numbers = ['+' + number_dict['number'] for number_dict in response_data['objects']]
                 else:
-                    return JsonResponse(dict(error=response.content))
+                    return JsonResponse(dict(error=response.text))
 
                 numbers = [phonenumbers.format_number(phonenumbers.parse(number, None),
                                                       phonenumbers.PhoneNumberFormat.INTERNATIONAL)

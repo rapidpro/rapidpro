@@ -88,8 +88,7 @@ class AirtimeEventTest(TembaTest):
 
         with self.settings(SEND_AIRTIME=True):
             response = self.airtime.get_transferto_response(action='command')
-            self.assertEqual(200, response.status_code)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
 
             mock_post_transferto.assert_called_once_with('mylogin', 'api_token', airtime_obj=self.airtime,
                                                          action='command')
