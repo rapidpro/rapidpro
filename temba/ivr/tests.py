@@ -1250,8 +1250,7 @@ class IVRTests(FlowFileTest):
 
         # no channel found for call handle
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict())
-        self.assertEqual(400, response.status_code)
-        self.assertEqual('No channel found', response.content)
+        self.assertContains(response, 'No channel found', status_code=400)
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -1452,8 +1451,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(404, response.status_code)
-        self.assertEqual('Channel not found for number: 250785551212', response.content)
+        self.assertContains(response, 'Channel not found for number: 250785551212', status_code=404)
 
         # no call object created
         self.assertFalse(IVRCall.objects.all())
