@@ -5,10 +5,11 @@ import pytz
 
 from datetime import datetime
 from mock import patch
+from temba.channels.models import Channel
 from temba.msgs.models import Label
 from temba.tests import TembaTest, MockResponse
 from temba.values.models import Value
-from .client import serialize_field, serialize_label, get_client, FlowServerException
+from .client import serialize_field, serialize_label, serialize_channel, get_client, FlowServerException
 
 
 class SerializationTest(TembaTest):
@@ -30,6 +31,26 @@ class SerializationTest(TembaTest):
     def test_serialize_label(self):
         spam = Label.get_or_create(self.org, self.admin, "Spam")
         self.assertEqual(serialize_label(spam), {'uuid': str(spam.uuid), 'name': "Spam"})
+
+    def test_serialize_channel(self):
+        self.assertEqual(serialize_channel(self.channel), {
+            'uuid': str(self.channel.uuid),
+            'name': "Test Channel",
+            'address': '+250785551212',
+            'roles': ['send', 'receive'],
+            'schemes': ['tel'],
+        })
+
+        bulk_sender = Channel.create(self.org, self.admin, "RW", "NX", "Bulk Sender", role='S', parent=self.channel)
+
+        self.assertEqual(serialize_channel(bulk_sender), {
+            'uuid': str(bulk_sender.uuid),
+            'name': "Bulk Sender",
+            'address': None,
+            'roles': ['send'],
+            'schemes': ['tel'],
+            'parent': {'uuid': str(self.channel.uuid), 'name': "Test Channel"}
+        })
 
 
 class ClientTest(TembaTest):

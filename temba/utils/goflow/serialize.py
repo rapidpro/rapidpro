@@ -29,12 +29,24 @@ def serialize_flow(flow, strip_ui=True):
 
 
 def serialize_channel(channel):
-    return {
+    from temba.channels.models import Channel
+
+    serialized = {
         'uuid': str(channel.uuid),
         'name': six.text_type(channel.get_name()),
-        'type': channel.channel_type,
-        'address': channel.address
+        'address': channel.address,
+        'schemes': channel.schemes,
+        'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
     }
+
+    if channel.parent_id:
+        serialized['parent'] = serialize_channel_ref(channel.parent)
+
+    return serialized
+
+
+def serialize_channel_ref(channel):
+    return {'uuid': str(channel.uuid), 'name': channel.name}
 
 
 def serialize_contact(contact):
@@ -68,7 +80,7 @@ def serialize_contact(contact):
     if contact_urn:
         channel = contact.org.get_send_channel(contact_urn=contact_urn)
         if channel:
-            serialized['channel_uuid'] = channel.uuid
+            serialized['channel'] = serialize_channel_ref(channel)
 
     return serialized
 
@@ -147,7 +159,7 @@ def serialize_message(msg):
     if msg.contact_urn:
         serialized['urn'] = msg.contact_urn.urn
     if msg.channel:
-        serialized['channel'] = {'uuid': str(msg.channel.uuid), 'name': msg.channel.name}
+        serialized['channel'] = serialize_channel_ref(msg.channel)
     if msg.attachments:
         serialized['attachments'] = msg.attachments
 

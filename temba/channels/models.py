@@ -244,7 +244,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 @six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
-    TYPE_DUMMY = 'DM'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -304,6 +303,14 @@ class Channel(TembaModel):
 
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
+    ROLE_CONFIG = {
+        ROLE_SEND: 'send',
+        ROLE_RECEIVE: 'receive',
+        ROLE_CALL: 'call',
+        ROLE_ANSWER: 'answer',
+        ROLE_USSD: 'ussd',
+    }
+
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
 
@@ -334,11 +341,9 @@ class Channel(TembaModel):
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
     }
 
-    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_DUMMY, "Dummy"))
+    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),)
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
@@ -1098,21 +1103,6 @@ class Channel(TembaModel):
                                       CHATBASE_TYPE_AGENT)
 
     @classmethod
-    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
-        from temba.msgs.models import WIRED
-
-        delay = channel.config.get('delay', 1000)
-        start = time.time()
-
-        # sleep that amount
-        time.sleep(delay / float(1000))
-
-        event = HttpEvent('GET', 'http://fake')
-
-        # record the message as sent
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1322,10 +1312,6 @@ STATUS_CHARGING = "CHA"
 STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
-
-SEND_FUNCTIONS = {
-    Channel.TYPE_DUMMY: Channel.send_dummy_message,
-}
 
 
 @six.python_2_unicode_compatible
