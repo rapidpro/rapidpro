@@ -81,7 +81,7 @@ class ClientTest(TembaTest):
                     },
                     'group_uuids': [],
                     'language': None,
-                    'channel_uuid': str(self.channel.uuid),
+                    'channel': {'uuid': str(self.channel.uuid), 'name': "Test Channel"},
                     'timezone': 'UTC',
                 }
             }])
