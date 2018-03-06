@@ -23,7 +23,7 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonRespons
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.http import urlencode
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, force_bytes
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from smartmin.views import SmartCRUDL, SmartReadView
@@ -556,7 +556,7 @@ def sync(request, channel_id):
     channel = channel[0]
 
     request_time = request.GET.get('ts', '')
-    request_signature = request.GET.get('signature', '')
+    request_signature = force_bytes(request.GET.get('signature', ''))
 
     if not channel.secret or not channel.org:
         return JsonResponse(dict(cmds=[channel.build_registration_command()]))
@@ -571,7 +571,7 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 3, "error": "Old Request", "cmds": []}, status=401)
 
     # sign the request
-    signature = hmac.new(key=str(channel.secret + request_time), msg=bytes(request.body), digestmod=hashlib.sha256).digest()
+    signature = hmac.new(key=force_bytes(str(channel.secret + request_time)), msg=force_bytes(request.body), digestmod=hashlib.sha256).digest()
 
     # base64 and url sanitize
     signature = base64.urlsafe_b64encode(signature).strip()
@@ -950,8 +950,9 @@ class BaseClaimNumberMixin(ClaimViewMixin):
         except Exception as e:  # pragma: needs cover
             import traceback
             traceback.print_exc()
-            if e.message:
-                form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
+            message = six.text_type(e)
+            if message:
+                form._errors['phone_number'] = form.error_class([message])
             else:
                 form._errors['phone_number'] = _(
                     "An error occurred connecting your Twilio number, try removing your "

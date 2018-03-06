@@ -47,7 +47,8 @@ class NexmoClient(nx.Client):
         try:
             response = nx.Client.get_account_numbers(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 response = nx.Client.get_account_numbers(self, params=params)
             else:  # pragma: no cover
@@ -117,7 +118,8 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.buy_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 nx.Client.buy_number(self, params=params)
             else:  # pragma: needs cover
@@ -130,7 +132,8 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.update_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(2)
                 nx.Client.update_number(self, params=params)
             else:  # pragma: needs cover

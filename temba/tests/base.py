@@ -796,6 +796,8 @@ class MockResponse(object):
         self.url = url
         self.ok = True
         self.cookies = dict()
+        self.streaming = False
+        self.charset = 'utf-8'
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))

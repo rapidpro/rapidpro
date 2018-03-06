@@ -551,8 +551,7 @@ class ExternalHandler(BaseChannelHandler):
                 try:
                     date = json_date_to_datetime(date)
                 except ValueError as e:
-                    return HttpResponse("Bad parameter error: %s" % e.message, status=400)
-
+                    return HttpResponse("Bad parameter error: %s" % six.text_type(e), status=400)
             urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 

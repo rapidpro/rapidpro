@@ -43,8 +43,7 @@ class AirtimeEventTest(TembaTest):
             model_obj_response = self.airtime.response
 
             response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', action='ping')
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
 
             self.assertEqual(mock_post.call_count, 1)
             self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
@@ -65,8 +64,7 @@ class AirtimeEventTest(TembaTest):
 
             response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', airtime_obj=self.airtime,
                                                                     action='ping')
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
             self.assertEqual(mock_post.call_count, 1)
             self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]

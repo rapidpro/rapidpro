@@ -1131,7 +1131,7 @@ class BroadcastTest(TembaTest):
         # Test AJAX sender
         post_data = dict(text="message content", omnibox='')
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("At least one recipient is required", response.content)
+        self.assertContains(response, "At least one recipient is required", status_code=400)
         self.assertEqual('application/json', response._headers.get('content-type')[1])
 
         post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")

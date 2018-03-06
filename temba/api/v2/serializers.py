@@ -228,7 +228,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
     campaign = fields.CampaignField(required=True)
     offset = serializers.IntegerField(required=True)
-    unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
+    unit = serializers.ChoiceField(required=True, choices=list(UNITS.keys()))
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
     message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
@@ -501,7 +501,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
         UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)
     ])
-    value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
+    value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 
     def validate_label(self, value):
         if not ContactField.is_valid_label(value):
