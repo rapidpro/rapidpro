@@ -575,7 +575,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # items within buckets are sorted by type and name
             def sort_key(c):
-                return c.__class__, c.name.lower()
+                return c.__class__.__name__, c.name.lower()
 
             # buckets with a single item are merged into a special singles bucket
             for b in buckets:

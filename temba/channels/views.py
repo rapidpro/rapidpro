@@ -556,7 +556,7 @@ def sync(request, channel_id):
     channel = channel[0]
 
     request_time = request.GET.get('ts', '')
-    request_signature = request.GET.get('signature', '')
+    request_signature = force_bytes(request.GET.get('signature', ''))
 
     if not channel.secret or not channel.org:
         return JsonResponse(dict(cmds=[channel.build_registration_command()]))
