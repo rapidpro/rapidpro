@@ -60,6 +60,7 @@ class ClientTest(TembaTest):
         self.gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
         self.age = self.create_field('age', "Age", Value.TYPE_DECIMAL)
         self.contact = self.create_contact("Bob", number="+12345670987")
+        self.testers = self.create_group("Testers", [self.contact])
         self.client = get_client()
 
     def test_add_contact_changed(self):
@@ -79,7 +80,9 @@ class ClientTest(TembaTest):
                         'gender': {'value': 'M', 'created_on': "2018-01-18T14:24:30+00:00"},
                         'age': {'value': '36', 'created_on': "2018-01-18T14:24:30+00:00"}
                     },
-                    'group_uuids': [],
+                    'groups': [
+                        {'uuid': str(self.testers.uuid), 'name': "Testers"}
+                    ],
                     'language': None,
                     'channel': {'uuid': str(self.channel.uuid), 'name': "Test Channel"},
                     'timezone': 'UTC',

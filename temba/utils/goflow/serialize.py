@@ -69,10 +69,10 @@ def serialize_contact(contact):
     serialized = {
         'uuid': contact.uuid,
         'name': contact.name,
-        'urns': [urn.urn for urn in contact.urns.all()],
-        'group_uuids': [group.uuid for group in contact.user_groups.all()],
-        'timezone': "UTC",
         'language': contact.language,
+        'timezone': "UTC",
+        'urns': [urn.urn for urn in contact.urns.all()],
+        'groups': [serialize_group_ref(group) for group in contact.user_groups.all()],
         'fields': field_values
     }
 
@@ -102,6 +102,10 @@ def serialize_field(field):
 
 def serialize_group(group):
     return {'uuid': str(group.uuid), 'name': group.name, 'query': group.query}
+
+
+def serialize_group_ref(group):
+    return {'uuid': str(group.uuid), 'name': group.name}
 
 
 def serialize_label(label):
