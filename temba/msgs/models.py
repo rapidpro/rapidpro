@@ -779,7 +779,7 @@ class Msg(models.Model):
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
                                            .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
-                                           .exclude(contact__is_test=True)
+                                           .exclude(contact__is_test=True).select_related("response_to")
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue

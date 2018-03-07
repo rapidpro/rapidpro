@@ -55,6 +55,7 @@ def msg_as_task(msg):
                     attachments=msg.attachments,
                     metadata=msg.metadata,
                     response_to_id=msg.response_to_id,
+                    response_to_external_id=msg.response_to.external_id if msg.response_to else "",
                     external_id=msg.external_id,
 
                     tps_cost=msg.channel.calculate_tps_cost(msg),
