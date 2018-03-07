@@ -9784,7 +9784,7 @@ class CourierTest(TembaTest):
             self.channel.save()
 
             bob = self.create_contact("Bob", urn='tel:+12065551111')
-            incoming = self.create_msg(contact=bob, text="Hello", direction="I")
+            incoming = self.create_msg(contact=bob, text="Hello", direction="I", external_id="external-id")
 
             # create some outgoing messages for our channel
             msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
@@ -9832,6 +9832,7 @@ class CourierTest(TembaTest):
             self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
             self.assertIsNone(low_priority_msgs[1][0]['attachments'])
             self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
+            self.assertEqual(low_priority_msgs[1][0]['response_to_external_id'], "external-id")
             self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
