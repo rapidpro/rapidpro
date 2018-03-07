@@ -13,10 +13,9 @@ import six
 import time
 import uuid
 
-from django_redis import get_redis_connection
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction, IntegrityError
+from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -744,7 +743,7 @@ class Contact(TembaModel):
         if value is None or value == '':
             # setting a blank value is equivalent to removing the value
             value = None
-            has_changed = True
+
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -776,53 +775,57 @@ class Contact(TembaModel):
                 else:
                     loc_value = None
 
-        # We now update a single field for all contact fields so we have to prevent race conditions when updating
-        # fields (an update on a single field could overwrite a previous update otherwise)
-        # We need to grab a lock on the contact, get the latest value of our fields, update, then release the lock.
-        r = get_redis_connection()
-        with r.lock('contact_field_%d' % self.id):
-            field_uuid = six.text_type(field.uuid)
+        field_uuid = six.text_type(field.uuid)
+        if self.fields is None:
+            self.fields = {}
 
-            # reread our field value
-            self.refresh_from_db(fields=['fields'])
-            if self.fields is None:
-                self.fields = {}
+        # value being cleared, remove our key
+        if value is None:
+            if field_uuid in self.fields:
+                del self.fields[field_uuid]
+                has_changed = True
 
-            # value being cleared, remove our key
-            if value is None:
-                if field_uuid in self.fields:
-                    del self.fields[field_uuid]
-                    has_changed = True
+        # otherwise, update our field in our fields dict
+        else:
+            # all fields have a text value
+            field_dict = {ContactField.TEXT_KEY: str_value}
 
-            # otherwise, update our field in our fields dict
-            else:
-                # all fields have a text value
-                field_dict = {ContactField.TEXT_KEY: str_value}
+            # set all the other fields that have a non-zero value
+            if dt_value is not None:
+                field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
 
-                # set all the other fields that have a non-zero value
-                if dt_value is not None:
-                    field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
+            if dec_value is not None:
+                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value)
 
-                if dec_value is not None:
-                    field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value)
+            if loc_value:
+                if loc_value.level == AdminBoundary.LEVEL_STATE:
+                    field_dict[ContactField.STATE_KEY] = loc_value.path
+                elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+                    field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                elif loc_value.level == AdminBoundary.LEVEL_WARD:
+                    field_dict[ContactField.WARD_KEY] = loc_value.path
 
-                if loc_value:
-                    if loc_value.level == AdminBoundary.LEVEL_STATE:
-                        field_dict[ContactField.STATE_KEY] = loc_value.path
-                    elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
-                        field_dict[ContactField.DISTRICT_KEY] = loc_value.path
-                    elif loc_value.level == AdminBoundary.LEVEL_WARD:
-                        field_dict[ContactField.WARD_KEY] = loc_value.path
+            # update our field if it is different
+            if self.fields.get(field_uuid) != field_dict:
+                self.fields[field_uuid] = field_dict
+                has_changed = True
 
-                # update our field if it is different
-                if self.fields.get(field_uuid) != field_dict:
-                    self.fields[field_uuid] = field_dict
-                    has_changed = True
+        # if there was a change, update our JSONB on our contact
+        if has_changed:
+            self.modified_by = user
+            self.modified_on = timezone.now()
 
-            # if there was a change, update our fields and modified_by
-            if has_changed:
-                self.modified_by = user
-                self.save(update_fields=['fields', 'modified_by', 'modified_on'])
+            with connection.cursor() as cursor:
+                if value is None:
+                    # delete the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = fields - %s, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [field_uuid, self.modified_by.id, self.modified_on, self.id]))
+                else:
+                    # update the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
 
         # legacy method of setting field
         if value is None or value == '':

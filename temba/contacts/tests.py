@@ -3707,20 +3707,24 @@ class ContactTest(TembaTest):
     def test_field_json(self):
         # simple text field
         self.joe.set_field(self.user, 'dog', "Chef", label="Dog")
+        self.joe.refresh_from_db()
         dog_uuid = six.text_type(ContactField.objects.get(key="dog").uuid)
 
-        self.assertDictEqual(self.joe.fields, {dog_uuid: {"text": "Chef"}})
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "Chef"}})
 
         self.joe.set_field(self.user, 'dog', "")
-        self.assertDictEqual(self.joe.fields, {})
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.fields, {})
 
         # numeric field value
         self.joe.set_field(self.user, 'dog', "23")
-        self.assertDictEqual(self.joe.fields, {dog_uuid: {"text": "23", "decimal": "23"}})
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23", "decimal": "23"}})
 
         # datetime instead
         self.joe.set_field(self.user, 'dog', "2018-03-05T02:31:00.000Z")
-        self.assertDictEqual(
+        self.joe.refresh_from_db()
+        self.assertEqual(
             self.joe.fields,
             {
                 dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"}
@@ -3729,8 +3733,9 @@ class ContactTest(TembaTest):
 
         # setting another field doesn't ruin anything
         self.joe.set_field(self.user, 'cat', "Rando", label="Cat")
+        self.joe.refresh_from_db()
         cat_uuid = six.text_type(ContactField.objects.get(key="cat").uuid)
-        self.assertDictEqual(
+        self.assertEqual(
             self.joe.fields,
             {
                 dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
@@ -3740,7 +3745,8 @@ class ContactTest(TembaTest):
 
         # setting a fully qualified path parses to that level, regardless of field type
         self.joe.set_field(self.user, 'cat', "Rwanda > Kigali City")
-        self.assertDictEqual(
+        self.joe.refresh_from_db()
+        self.assertEqual(
             self.joe.fields,
             {
                 dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
@@ -3751,12 +3757,14 @@ class ContactTest(TembaTest):
         # clear our previous fields
         self.joe.set_field(self.user, 'dog', "")
         self.joe.set_field(self.user, 'cat', "")
+        self.joe.refresh_from_db()
 
         # we try a bit harder if we know it is a location field
         state_uuid = six.text_type(
             ContactField.get_or_create(self.org, self.user, "state", "State", value_type=Value.TYPE_STATE).uuid)
         self.joe.set_field(self.user, 'state', "i live in eastern province")
-        self.assertDictEqual(
+        self.joe.refresh_from_db()
+        self.assertEqual(
             self.joe.fields,
             {
                 state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"}
@@ -3770,8 +3778,9 @@ class ContactTest(TembaTest):
             ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=Value.TYPE_WARD).uuid)
         self.joe.set_field(self.user, 'district', 'gatsibo')
         self.joe.set_field(self.user, 'ward', 'kageyo')
+        self.joe.refresh_from_db()
 
-        self.assertDictEqual(
+        self.assertEqual(
             self.joe.fields,
             {
                 state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"},
