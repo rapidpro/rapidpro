@@ -2588,9 +2588,9 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], 'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
-                                                            'from=%%2B250788123123&from_no_plus=250788123123&'
-                                                            'channel=%d' % (msg.id, self.channel.id))
+                self.assertEqual(mock.call_args[1]['data'], b'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
+                                                            b'from=%%2B250788123123&from_no_plus=250788123123&'
+                                                            b'channel=%d' % (msg.id, self.channel.id))
 
         self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
                                Channel.CONFIG_SEND_BODY: '{ "text": {{text}}, "to": {{to_no_plus}} }',
@@ -2660,7 +2660,7 @@ class ExternalTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertIn("text=Test+message", mock.call_args[1]['data'])
+            self.assertIn(b"text=Test+message", mock.call_args[1]['data'])
 
             self.clear_cache()
 
@@ -2730,7 +2730,7 @@ class ExternalTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertIn("text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[1]['data'])
+            self.assertIn(b"text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[1]['data'])
 
             self.clear_cache()
 
@@ -7338,11 +7338,10 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                     args=['event', self.channel.uuid]),
             data=json.dumps(data),
             content_type='application/json')
-        self.assertEqual(400, response.status_code)
-        self.assertEqual(
-            response.content,
+        self.assertContains(
+            response,
             "Message with external id of '%s' not found" % (
-                data['message_id'],))
+                data['message_id'],), status_code=400)
 
     def test_status_with_auth(self):
         config = self.channel.config
@@ -8526,7 +8525,7 @@ class JiochatTest(TembaTest):
             self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
             self.assertEqual(mock.call_count, 1)
 
-            self.assertEqual(channel_client.get_access_token(), 'ABC1234')
+            self.assertEqual(channel_client.get_access_token(), b'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
                                                                  'grant_type': 'client_credentials',
                                                                  'client_id': u'app-id'})

@@ -424,20 +424,20 @@ class CacheTest(TembaTest):
         r.set('bar', 20)
 
         incrby_existing('foo', 3, r)  # positive delta
-        self.assertEqual(r.get('foo'), '13')
+        self.assertEqual(r.get('foo'), b'13')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('foo', -1, r)  # negative delta
-        self.assertEqual(r.get('foo'), '12')
+        self.assertEqual(r.get('foo'), b'12')
         self.assertTrue(r.ttl('foo') > 0)
 
         r.setex('foo', 100, 0)
         incrby_existing('foo', 5, r)  # zero val key
-        self.assertEqual(r.get('foo'), '5')
+        self.assertEqual(r.get('foo'), b'5')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('bar', 5, r)  # persistent key
-        self.assertEqual(r.get('bar'), '25')
+        self.assertEqual(r.get('bar'), b'25')
         self.assertTrue(r.ttl('bar') < 0)
 
         incrby_existing('xxx', -2, r)  # non-existent key
