@@ -88,7 +88,7 @@ class DictStruct(object):
 
     def __getattr__(self, item):
         if item not in self._values:
-            raise Exception("%s does not have a %s field" % (self._classname, item))
+            raise AttributeError("%s does not have a %s field" % (self._classname, item))
 
         return self._values[item]
 
@@ -98,7 +98,7 @@ class DictStruct(object):
             return object.__setattr__(self, item, value)
 
         if item not in self._values:
-            raise Exception("%s does not have a %s field" % (self._classname, item))
+            raise AttributeError("%s does not have a %s field" % (self._classname, item))
 
         self._values[item] = value
 
