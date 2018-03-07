@@ -2588,9 +2588,9 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], b'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
-                                                            b'from=%%2B250788123123&from_no_plus=250788123123&'
-                                                            b'channel=%d' % (msg.id, self.channel.id))
+                self.assertEqual(mock.call_args[1]['data'], force_bytes('id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
+                                                                        'from=%%2B250788123123&from_no_plus=250788123123&'
+                                                                        'channel=%d' % (msg.id, self.channel.id)))
 
         self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
                                Channel.CONFIG_SEND_BODY: '{ "text": {{text}}, "to": {{to_no_plus}} }',
@@ -2605,7 +2605,7 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], '{ "text": "Test message", "to": "250788383383" }')
+                self.assertEqual(mock.call_args[1]['data'], force_bytes('{ "text": "Test message", "to": "250788383383" }'))
                 self.assertEqual(mock.call_args[1]['headers']['Content-Type'], "application/json")
 
         self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
@@ -2623,7 +2623,7 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], 'text=' + msg.text + '&to=250788383383')
+                self.assertEqual(mock.call_args[1]['data'], force_bytes('text=' + msg.text + '&to=250788383383'))
 
         self.channel.config = {Channel.CONFIG_SEND_URL: 'http://foo.com/send',
                                Channel.CONFIG_SEND_BODY: '<msg><text>{{text}}</text><to>{{to_no_plus}}</to></msg>',
@@ -2641,7 +2641,7 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], '<msg><text>التوطين</text><to>250788383383</to></msg>'.encode('utf8'))
+                self.assertEqual(mock.call_args[1]['data'], force_bytes('<msg><text>التوطين</text><to>250788383383</to></msg>'))
                 self.assertEqual(mock.call_args[1]['headers']['Content-Type'], Channel.CONTENT_TYPES[Channel.CONTENT_TYPE_XML])
 
     @override_settings(SEND_MESSAGES=True)
