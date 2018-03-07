@@ -267,7 +267,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=224, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=192, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -3812,7 +3812,7 @@ class ContactTest(TembaTest):
         modified_on = self.joe.modified_on
 
         # set_field should only write to the database if the value changes
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(4):
             self.joe.set_field(self.user, 'abc_1234', 'Joe')
 
         self.joe.refresh_from_db()
