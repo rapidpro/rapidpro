@@ -59,11 +59,15 @@ class ClientTest(TembaTest):
 
         self.gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
         self.age = self.create_field('age', "Age", Value.TYPE_DECIMAL)
-        self.contact = self.create_contact("Bob", number="+12345670987")
+        self.contact = self.create_contact("Bob", number="+12345670987", urn='twitterid:123456785#bobby')
         self.testers = self.create_group("Testers", [self.contact])
         self.client = get_client()
 
     def test_add_contact_changed(self):
+        twitter = Channel.create(self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=['twitter', 'twitterid'])
+        self.contact.set_preferred_channel(twitter)
+        self.contact.urns.filter(scheme='twitterid').update(channel=twitter)
+        self.contact.clear_urn_cache()
 
         with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
             self.contact.set_field(self.admin, 'gender', "M")
@@ -75,17 +79,16 @@ class ClientTest(TembaTest):
                 'contact': {
                     'uuid': str(self.contact.uuid),
                     'name': 'Bob',
-                    'urns': ['tel:+12345670987'],
+                    'language': None,
+                    'timezone': 'UTC',
+                    'urns': ['twitterid:123456785?channel=%s#bobby' % str(twitter.uuid), 'tel:+12345670987'],
                     'fields': {
                         'gender': {'value': 'M', 'created_on': "2018-01-18T14:24:30+00:00"},
                         'age': {'value': '36', 'created_on': "2018-01-18T14:24:30+00:00"}
                     },
                     'groups': [
                         {'uuid': str(self.testers.uuid), 'name': "Testers"}
-                    ],
-                    'language': None,
-                    'channel': {'uuid': str(self.channel.uuid), 'name': "Test Channel"},
-                    'timezone': 'UTC',
+                    ]
                 }
             }])
 

@@ -50,8 +50,7 @@ def serialize_channel_ref(channel):
 
 
 def serialize_contact(contact):
-    from temba.contacts.models import Contact
-    from temba.msgs.models import Msg
+    from temba.contacts.models import Contact, URN
     from temba.values.models import Value
 
     org_fields = {f.id: f for f in contact.org.contactfields.filter(is_active=True)}
@@ -64,25 +63,22 @@ def serialize_contact(contact):
             'created_on': v.created_on.isoformat()
         }
 
-    _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
+    # augment URN values with preferred channel UUID as a parameter
+    urn_values = []
+    for u in contact.urns.order_by('-priority', 'id'):
+        scheme, path, display = URN.to_parts(u.urn)
+        query = {'channel': str(u.channel.uuid)} if u.channel_id else None
+        urn_values.append(URN.from_parts(scheme, path, display, query=query))
 
-    serialized = {
+    return {
         'uuid': contact.uuid,
         'name': contact.name,
         'language': contact.language,
         'timezone': "UTC",
-        'urns': [urn.urn for urn in contact.urns.all()],
+        'urns': urn_values,
         'groups': [serialize_group_ref(group) for group in contact.user_groups.all()],
         'fields': field_values
     }
-
-    # only populate channel if this contact can actually be reached (ie, has a URN)
-    if contact_urn:
-        channel = contact.org.get_send_channel(contact_urn=contact_urn)
-        if channel:
-            serialized['channel'] = serialize_channel_ref(channel)
-
-    return serialized
 
 
 def serialize_environment(org):

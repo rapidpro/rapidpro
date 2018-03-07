@@ -4632,6 +4632,11 @@ class URNTest(TembaTest):
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")
         self.assertEqual(URN.from_parts("tel", "(917) 992-5253"), "tel:(917) 992-5253")
         self.assertEqual(URN.from_parts("mailto", "a_b+c@d.com"), "mailto:a_b+c@d.com")
+        self.assertEqual(URN.from_parts("twitterid", "2352362611", display="bobby"), "twitterid:2352362611#bobby")
+        self.assertEqual(
+            URN.from_parts("twitterid", "2352362611", display="bobby", query={'channel': "my-twitter-channel"}),
+            "twitterid:2352362611?channel=my-twitter-channel#bobby"
+        )
 
         self.assertEqual(URN.from_tel("+12345"), "tel:+12345")
         self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")

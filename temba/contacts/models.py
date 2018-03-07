@@ -20,6 +20,7 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
+from six.moves.urllib.parse import urlencode
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
@@ -96,7 +97,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path, display=None):
+    def from_parts(cls, scheme, path, display=None, query=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -106,10 +107,14 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
+        urn = "%s:%s" % (scheme, path)
+
+        if query:
+            urn += '?%s' % urlencode(query)
         if display:
-            return '%s:%s#%s' % (scheme, path, display)
-        else:
-            return '%s:%s' % (scheme, path)
+            urn += '#%s' % display
+
+        return urn
 
     @classmethod
     def to_parts(cls, urn):
