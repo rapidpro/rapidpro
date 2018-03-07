@@ -2660,7 +2660,7 @@ class ExternalTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertIn(b"text=Test+message", mock.call_args[1]['data'])
+            self.assertIn(force_bytes("text=Test+message"), mock.call_args[1]['data'])
 
             self.clear_cache()
 
@@ -2730,7 +2730,7 @@ class ExternalTest(TembaTest):
             self.assertEqual(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertIn(b"text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[1]['data'])
+            self.assertIn(force_bytes("text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"), mock.call_args[1]['data'])
 
             self.clear_cache()
 
@@ -8525,7 +8525,7 @@ class JiochatTest(TembaTest):
             self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
             self.assertEqual(mock.call_count, 1)
 
-            self.assertEqual(channel_client.get_access_token(), b'ABC1234')
+            self.assertEqual(channel_client.get_access_token(), force_bytes('ABC1234'))
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
                                                                  'grant_type': 'client_credentials',
                                                                  'client_id': u'app-id'})
