@@ -3,7 +3,8 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-from django.db.models.expressions import Concat, Value, F
+from django.db.models.functions import Concat
+from django.db.models import Value, F
 
 
 def populate_paths(apps, schema_editor):
