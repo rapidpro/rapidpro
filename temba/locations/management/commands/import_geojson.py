@@ -126,7 +126,7 @@ class Command(BaseCommand):  # pragma: no cover
             # otherwise, this is new, so create it
             else:
                 print(" ** adding %s (%s)" % (name, osm_id))
-                boundary = AdminBoundary.objects.create(**kwargs)
+                AdminBoundary.objects.create(**kwargs)
 
             # keep track of this osm_id
             seen_osm_ids.append(osm_id)
