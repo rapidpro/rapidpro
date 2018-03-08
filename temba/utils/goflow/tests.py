@@ -5,10 +5,11 @@ import pytz
 
 from datetime import datetime
 from mock import patch
+from temba.channels.models import Channel
 from temba.msgs.models import Label
 from temba.tests import TembaTest, MockResponse
 from temba.values.models import Value
-from .client import serialize_field, serialize_label, get_client, FlowServerException
+from .client import serialize_field, serialize_label, serialize_channel, get_client, FlowServerException
 
 
 class SerializationTest(TembaTest):
@@ -31,6 +32,26 @@ class SerializationTest(TembaTest):
         spam = Label.get_or_create(self.org, self.admin, "Spam")
         self.assertEqual(serialize_label(spam), {'uuid': str(spam.uuid), 'name': "Spam"})
 
+    def test_serialize_channel(self):
+        self.assertEqual(serialize_channel(self.channel), {
+            'uuid': str(self.channel.uuid),
+            'name': "Test Channel",
+            'address': '+250785551212',
+            'roles': ['send', 'receive'],
+            'schemes': ['tel'],
+        })
+
+        bulk_sender = Channel.create(self.org, self.admin, "RW", "NX", "Bulk Sender", role='S', parent=self.channel)
+
+        self.assertEqual(serialize_channel(bulk_sender), {
+            'uuid': str(bulk_sender.uuid),
+            'name': "Bulk Sender",
+            'address': None,
+            'roles': ['send'],
+            'schemes': ['tel'],
+            'parent': {'uuid': str(self.channel.uuid), 'name': "Test Channel"}
+        })
+
 
 class ClientTest(TembaTest):
     def setUp(self):
@@ -38,10 +59,15 @@ class ClientTest(TembaTest):
 
         self.gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
         self.age = self.create_field('age', "Age", Value.TYPE_DECIMAL)
-        self.contact = self.create_contact("Bob", number="+12345670987")
+        self.contact = self.create_contact("Bob", number="+12345670987", urn='twitterid:123456785#bobby')
+        self.testers = self.create_group("Testers", [self.contact])
         self.client = get_client()
 
     def test_add_contact_changed(self):
+        twitter = Channel.create(self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=['twitter', 'twitterid'])
+        self.contact.set_preferred_channel(twitter)
+        self.contact.urns.filter(scheme='twitterid').update(channel=twitter)
+        self.contact.clear_urn_cache()
 
         with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
             self.contact.set_field(self.admin, 'gender', "M")
@@ -53,15 +79,16 @@ class ClientTest(TembaTest):
                 'contact': {
                     'uuid': str(self.contact.uuid),
                     'name': 'Bob',
-                    'urns': ['tel:+12345670987'],
+                    'language': None,
+                    'timezone': 'UTC',
+                    'urns': ['twitterid:123456785?channel=%s#bobby' % str(twitter.uuid), 'tel:+12345670987'],
                     'fields': {
                         'gender': {'value': 'M', 'created_on': "2018-01-18T14:24:30+00:00"},
                         'age': {'value': '36', 'created_on': "2018-01-18T14:24:30+00:00"}
                     },
-                    'group_uuids': [],
-                    'language': None,
-                    'channel_uuid': str(self.channel.uuid),
-                    'timezone': 'UTC',
+                    'groups': [
+                        {'uuid': str(self.testers.uuid), 'name': "Testers"}
+                    ]
                 }
             }])
 

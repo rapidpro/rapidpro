@@ -39,7 +39,6 @@ from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
 from temba.utils.text import random_string
@@ -244,7 +243,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 @six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
-    TYPE_DUMMY = 'DM'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -304,15 +302,19 @@ class Channel(TembaModel):
 
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
+    ROLE_CONFIG = {
+        ROLE_SEND: 'send',
+        ROLE_RECEIVE: 'receive',
+        ROLE_CALL: 'call',
+        ROLE_ANSWER: 'answer',
+        ROLE_USSD: 'ussd',
+    }
+
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
 
     # how big each batch of outgoing messages can be
     SEND_BATCH_SIZE = 100
-
-    YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
-    YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
-    YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
     CONTENT_TYPE_URLENCODED = 'urlencoded'
     CONTENT_TYPE_JSON = 'json'
@@ -334,11 +336,9 @@ class Channel(TembaModel):
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
     }
 
-    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_DUMMY, "Dummy"))
+    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),)
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
@@ -1098,21 +1098,6 @@ class Channel(TembaModel):
                                       CHATBASE_TYPE_AGENT)
 
     @classmethod
-    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
-        from temba.msgs.models import WIRED
-
-        delay = channel.config.get('delay', 1000)
-        start = time.time()
-
-        # sleep that amount
-        time.sleep(delay / float(1000))
-
-        event = HttpEvent('GET', 'http://fake')
-
-        # record the message as sent
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1322,10 +1307,6 @@ STATUS_CHARGING = "CHA"
 STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
-
-SEND_FUNCTIONS = {
-    Channel.TYPE_DUMMY: Channel.send_dummy_message,
-}
 
 
 @six.python_2_unicode_compatible

@@ -97,7 +97,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path, display=None):
+    def from_parts(cls, scheme, path, query=None, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -107,7 +107,7 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return six.text_type(ParsedURN(scheme, path, fragment=display))
+        return six.text_type(ParsedURN(scheme, path, query=query, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -122,7 +122,7 @@ class URN(object):
         if parsed.scheme not in cls.VALID_SCHEMES:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        return parsed.scheme, parsed.path, parsed.fragment or None
+        return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -130,7 +130,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path, display = cls.to_parts(urn)
+            scheme, path, query, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -190,7 +190,7 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path, display = cls.to_parts(urn)
+        scheme, path, query, display = cls.to_parts(urn)
 
         norm_path = six.text_type(path).strip()
 
@@ -211,7 +211,7 @@ class URN(object):
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path, display)
+        return cls.from_parts(scheme, norm_path, query, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -251,7 +251,7 @@ class URN(object):
 
     @classmethod
     def identity(cls, urn):
-        scheme, path, display = URN.to_parts(urn)
+        scheme, path, query, display = URN.to_parts(urn)
         return URN.from_parts(scheme, path)
 
     @classmethod
@@ -278,7 +278,7 @@ class URN(object):
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, screen_name)
+        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
 
     @classmethod
     def from_email(cls, path):
@@ -2102,7 +2102,7 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path, display = URN.to_parts(urn_as_string)
+        scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
@@ -2120,7 +2120,7 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         identity = URN.identity(urn_as_string)
-        (scheme, path, display) = URN.to_parts(urn_as_string)
+        (scheme, path, query, display) = URN.to_parts(urn_as_string)
 
         existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 
@@ -2208,13 +2208,10 @@ class ContactURN(models.Model):
         """
         Returns a full representation of this contact URN as a string
         """
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     def __str__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
-
-    def __unicode__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return self.urn
 
     class Meta:
         unique_together = ('identity', 'org')
