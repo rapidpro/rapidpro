@@ -329,7 +329,7 @@ class IVRTests(FlowFileTest):
     def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid='12345')))
-        mock_jwt.return_value = 'Encoded data'
+        mock_jwt.return_value = b'Encoded data'
 
         # connect Nexmo
         self.org.connect_nexmo('123', '456', self.admin)
@@ -782,7 +782,7 @@ class IVRTests(FlowFileTest):
     def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid='12345'))))
-        mock_jwt.return_value = "Encoded data"
+        mock_jwt.return_value = b"Encoded data"
 
         request = MagicMock()
         request.body = json.dumps(dict(call_id='12345'))
