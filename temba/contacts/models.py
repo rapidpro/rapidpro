@@ -122,7 +122,7 @@ class URN(object):
         if parsed.scheme not in cls.VALID_SCHEMES:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        return parsed.scheme, parsed.path, parsed.fragment or None
+        return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -130,7 +130,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path, display = cls.to_parts(urn)
+            scheme, path, query, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -251,7 +251,7 @@ class URN(object):
 
     @classmethod
     def identity(cls, urn):
-        scheme, path, display = URN.to_parts(urn)
+        scheme, path, query, display = URN.to_parts(urn)
         return URN.from_parts(scheme, path)
 
     @classmethod
@@ -2102,7 +2102,7 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path, display = URN.to_parts(urn_as_string)
+        scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
@@ -2120,7 +2120,7 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         identity = URN.identity(urn_as_string)
-        (scheme, path, display) = URN.to_parts(urn_as_string)
+        (scheme, path, query, display) = URN.to_parts(urn_as_string)
 
         existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 

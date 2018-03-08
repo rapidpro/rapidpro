@@ -67,7 +67,7 @@ def serialize_contact(contact):
     # augment URN values with preferred channel UUID as a parameter
     urn_values = []
     for u in contact.urns.order_by('-priority', 'id'):
-        scheme, path, display = URN.to_parts(u.urn)
+        scheme, path, query, display = URN.to_parts(u.urn)
         query = urlencode({'channel': str(u.channel.uuid)}) if u.channel_id else None
         urn_values.append(URN.from_parts(scheme, path, query=query, display=display))
 
