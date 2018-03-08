@@ -5,6 +5,7 @@ import six
 
 from django.db.models import Prefetch
 from mptt.utils import get_cached_trees
+from six.moves.urllib.parse import urlencode
 from temba.values.models import Value
 
 VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
@@ -67,8 +68,8 @@ def serialize_contact(contact):
     urn_values = []
     for u in contact.urns.order_by('-priority', 'id'):
         scheme, path, display = URN.to_parts(u.urn)
-        query = {'channel': str(u.channel.uuid)} if u.channel_id else None
-        urn_values.append(URN.from_parts(scheme, path, display, query=query))
+        query = urlencode({'channel': str(u.channel.uuid)}) if u.channel_id else None
+        urn_values.append(URN.from_parts(scheme, path, query=query, display=display))
 
     return {
         'uuid': contact.uuid,
