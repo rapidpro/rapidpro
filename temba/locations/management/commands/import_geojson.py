@@ -108,14 +108,13 @@ class Command(BaseCommand):  # pragma: no cover
             else:
                 kwargs['geometry'] = geometry
 
-            # figure out our path
-            if not parent:
-                kwargs['path'] = name
-            else:
-                kwargs['path'] = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
-
             # if this is an update, just update with those fields
             if boundary:
+                if not parent:
+                    kwargs['path'] = name
+                else:
+                    kwargs['path'] = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
+
                 print(" ** updating %s (%s)" % (name, osm_id))
                 boundary = boundary.first()
                 boundary.update(**kwargs)
@@ -126,7 +125,7 @@ class Command(BaseCommand):  # pragma: no cover
             # otherwise, this is new, so create it
             else:
                 print(" ** adding %s (%s)" % (name, osm_id))
-                boundary = AdminBoundary.objects.create(**kwargs)
+                boundary = AdminBoundary.create(**kwargs)
 
             # keep track of this osm_id
             seen_osm_ids.append(osm_id)

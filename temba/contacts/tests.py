@@ -45,8 +45,8 @@ class ContactCRUDLTest(_CRUDLTest):
         from temba.contacts.views import ContactCRUDL
         super(ContactCRUDLTest, self).setUp()
 
-        self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
-        AdminBoundary.objects.create(osm_id='1708283', name='Kigali', level=1, parent=self.country)
+        self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
+        AdminBoundary.create(osm_id='1708283', name='Kigali', level=1, parent=self.country)
 
         self.crudl = ContactCRUDL
         self.user = self.create_user("tito")
@@ -2572,7 +2572,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Rwamagana')
 
         # change the name of the Rwamagana boundary, our display should change appropriately as well
-        rwamagana = AdminBoundary.objects.get(name="Rwamagana")
+        rwamagana = AdminBoundary.get(name="Rwamagana")
         rwamagana.update(name="Rwa-magana")
         self.assertEqual("Rwa-magana", rwamagana.name)
         self.assertTrue(Value.objects.filter(location_value=rwamagana, category="Rwa-magana"))
@@ -3930,10 +3930,10 @@ class ContactTest(TembaTest):
         not_state_field = ContactField.get_or_create(self.org, self.admin, 'not_state', 'Not State', None, Value.TYPE_TEXT)
 
         # add duplicate district in different states
-        east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
-        AdminBoundary.objects.create(osm_id='R004', name='Remera', level=2, parent=east_province)
+        east_province = AdminBoundary.create(osm_id='R005', name='East Province', level=1, parent=self.country)
+        AdminBoundary.create(osm_id='R004', name='Remera', level=2, parent=east_province)
         kigali = AdminBoundary.objects.get(name="Kigali City")
-        AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
+        AdminBoundary.create(osm_id='R003', name='Remera', level=2, parent=kigali)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field(self.user, 'district', 'Remera')
@@ -3963,9 +3963,9 @@ class ContactTest(TembaTest):
 
     def test_set_location_ward_fields(self):
 
-        state = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
-        district = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=state)
-        ward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=district)
+        state = AdminBoundary.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        district = AdminBoundary.create(osm_id='3710307', name='Bichi', level=2, parent=state)
+        ward = AdminBoundary.create(osm_id='3710377', name='Bichi', level=3, parent=district)
         user1 = self.create_user("mcren")
 
         ContactField.get_or_create(self.org, user1, 'state', 'State', None, Value.TYPE_STATE)

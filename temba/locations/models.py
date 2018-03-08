@@ -121,6 +121,17 @@ class AdminBoundary(MPTTModel, models.Model):
         _update_child_paths(self)
 
     @classmethod
+    def create(cls, osm_id, name, level, parent=None):
+        """
+        Create method that takes care of creating path based on name and parent
+        """
+        path = name
+        if parent is not None:
+            path = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
+
+        AdminBoundary.objects.create(osm_id=osm_id, name=name, level=level, parent=parent, path=path)
+
+    @classmethod
     def strip_last_path(cls, path):
         """
         Strips the last part of the passed in path. Throws if there is no separator
