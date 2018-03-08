@@ -749,11 +749,14 @@ class Contact(TembaModel):
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
+            loc_value = None
 
-            # for locations, preference is always given to a full path, ex: "USA > Seattle > King County"
-            loc_value = self.org.parse_location_path(value)
+            # for locations, if it has a '>' then it is explicit, look it up that way
+            if AdminBoundary.PATH_SEPARATOR in value:
+                loc_value = self.org.parse_location_path(value)
 
-            if not loc_value:
+            # otherwise, try to parse it as a name at the appropriate level
+            else:
                 if field.value_type == Value.TYPE_WARD:
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                     district_value = self.get_field(district_field.key)
@@ -802,8 +805,11 @@ class Contact(TembaModel):
                     field_dict[ContactField.STATE_KEY] = loc_value.path
                 elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
                     field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
                 elif loc_value.level == AdminBoundary.LEVEL_WARD:
                     field_dict[ContactField.WARD_KEY] = loc_value.path
+                    field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(field_dict[ContactField.DISTRICT_KEY])
 
             # update our field if it is different
             if self.fields.get(field_uuid) != field_dict:
@@ -828,7 +834,7 @@ class Contact(TembaModel):
                         [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
 
         # legacy method of setting field
-        if value is None or value == '':
+        if value is None:
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
             value = None
             has_changed = True

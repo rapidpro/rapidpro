@@ -3719,7 +3719,15 @@ class ContactTest(TembaTest):
         # numeric field value
         self.joe.set_field(self.user, 'dog', "23")
         self.joe.refresh_from_db()
-        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23", "decimal": "23"}})
+        self.assertEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {
+                    "text": "23",
+                    "decimal": "23"
+                }
+            }
+        )
 
         # datetime instead
         self.joe.set_field(self.user, 'dog', "2018-03-05T02:31:00.000Z")
@@ -3727,7 +3735,10 @@ class ContactTest(TembaTest):
         self.assertEqual(
             self.joe.fields,
             {
-                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"}
+                dog_uuid: {
+                    "text": "2018-03-05T02:31:00.000Z",
+                    "datetime": "2018-03-05T02:31:00+00:00"
+                }
             }
         )
 
@@ -3738,8 +3749,13 @@ class ContactTest(TembaTest):
         self.assertEqual(
             self.joe.fields,
             {
-                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
-                cat_uuid: {"text": "Rando"}
+                dog_uuid: {
+                    "text": "2018-03-05T02:31:00.000Z",
+                    "datetime": "2018-03-05T02:31:00+00:00"
+                },
+                cat_uuid: {
+                    "text": "Rando"
+                }
             }
         )
 
@@ -3749,13 +3765,30 @@ class ContactTest(TembaTest):
         self.assertEqual(
             self.joe.fields,
             {
-                dog_uuid: {"text": "2018-03-05T02:31:00.000Z", "datetime": "2018-03-05T02:31:00+00:00"},
-                cat_uuid: {"text": "Rwanda > Kigali City", "state": "Rwanda > Kigali City"}
+                dog_uuid: {
+                    "text": "2018-03-05T02:31:00.000Z",
+                    "datetime": "2018-03-05T02:31:00+00:00"
+                },
+                cat_uuid: {
+                    "text": "Rwanda > Kigali City",
+                    "state": "Rwanda > Kigali City"
+                }
             }
         )
 
         # clear our previous fields
         self.joe.set_field(self.user, 'dog', "")
+        self.assertEqual(
+            self.joe.fields,
+            {
+                cat_uuid: {
+                    "text": "Rwanda > Kigali City",
+                    "state": "Rwanda > Kigali City"
+                }
+            }
+        )
+        self.joe.refresh_from_db()
+
         self.joe.set_field(self.user, 'cat', "")
         self.joe.refresh_from_db()
 
@@ -3767,7 +3800,10 @@ class ContactTest(TembaTest):
         self.assertEqual(
             self.joe.fields,
             {
-                state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"}
+                state_uuid: {
+                    "text": "i live in eastern province",
+                    "state": "Rwanda > Eastern Province"
+                }
             }
         )
 
@@ -3783,9 +3819,21 @@ class ContactTest(TembaTest):
         self.assertEqual(
             self.joe.fields,
             {
-                state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"},
-                district_uuid: {"text": "gatsibo", "district": "Rwanda > Eastern Province > Gatsibo"},
-                ward_uuid: {"text": "kageyo", "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo"},
+                state_uuid: {
+                    "text": "i live in eastern province",
+                    "state": "Rwanda > Eastern Province",
+                },
+                district_uuid: {
+                    "text": "gatsibo",
+                    "state": "Rwanda > Eastern Province",
+                    "district": "Rwanda > Eastern Province > Gatsibo",
+                },
+                ward_uuid: {
+                    "text": "kageyo",
+                    "state": "Rwanda > Eastern Province",
+                    "district": "Rwanda > Eastern Province > Gatsibo",
+                    "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo",
+                },
             }
         )
 
