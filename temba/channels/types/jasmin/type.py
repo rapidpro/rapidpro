@@ -52,7 +52,7 @@ class JasminType(ChannelType):
 
     def send(self, channel, msg, text):
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s' % (channel.callback_domain, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
+        dlr_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.js', args=[channel.uuid, 'status']))
 
         # encode to GSM7
         encoded = gsm7.encode(text, 'replace')[0]
