@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import six
@@ -9,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, ImportTask, Contact, ContactGroup
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
@@ -71,7 +72,7 @@ class CampaignTest(TembaTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+        FlowRevision.create_instance(dict(flow=flow, definition=flow_json,
                                           spec_version=3, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
@@ -127,7 +128,7 @@ class CampaignTest(TembaTest):
         # go create an event that based on a message
         url = '%s?campaign=%d' % (reverse('campaigns.campaignevent_create'), campaign.id)
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
 
         # should be no language list
         self.assertNotContains(response, 'show_language')
@@ -141,17 +142,17 @@ class CampaignTest(TembaTest):
 
         # now we should have ace as our primary
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
 
         # add second language
         spa = Language.objects.create(org=self.org, name='Spanish', iso_code='spa',
                                       created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(url)
-        self.assertFalse('base' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
-        self.assertTrue('spa' in response.context['form'].fields)
+        self.assertNotIn('base', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
+        self.assertIn('spa', response.context['form'].fields)
 
         # and our language list should be there
         self.assertContains(response, 'show_language')
@@ -160,9 +161,9 @@ class CampaignTest(TembaTest):
         self.org.save()
 
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
-        self.assertTrue('spa' in response.context['form'].fields)
-        self.assertTrue('ace' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
+        self.assertIn('spa', response.context['form'].fields)
+        self.assertIn('ace', response.context['form'].fields)
 
         post_data = dict(relative_to=self.planting_date.pk, event_type='M', base="This is my message", spa="hola",
                          direction='B', offset=1, unit='W', flow_to_start='', delivery_hour=13)
@@ -203,7 +204,7 @@ class CampaignTest(TembaTest):
 
         # the base language needs to stay present since it's the true backdown
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
         self.assertEqual('This is my message', response.context['form'].fields['base'].initial)
         self.assertEqual('hola', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
@@ -224,7 +225,7 @@ class CampaignTest(TembaTest):
 
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
-        self.assertTrue('base' in response.context['form'].fields)
+        self.assertIn('base', response.context['form'].fields)
         self.assertEqual('This is my spanish @contact.planting_date', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
 
@@ -258,6 +259,9 @@ class CampaignTest(TembaTest):
         # go to to the creation page
         response = self.client.get(reverse('campaigns.campaign_create'))
         self.assertEqual(200, response.status_code)
+
+        # groups shouldn't include the group that isn't ready
+        self.assertEqual(set(response.context['form'].fields['group'].queryset), {self.farmers})
 
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
         response = self.client.post(reverse('campaigns.campaign_create'), post_data)
@@ -329,7 +333,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('A message is required' in six.text_type(response.context['form'].errors['__all__']))
+        self.assertIn('A message is required', six.text_type(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='allo!' * 500, direction='A',
                          offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
@@ -343,7 +347,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('Please select a flow' in response.context['form'].errors['flow_to_start'])
+        self.assertIn('Please select a flow', response.context['form'].errors['flow_to_start'])
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
@@ -536,8 +540,6 @@ class CampaignTest(TembaTest):
         extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
         import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
 
-        from temba.contacts.models import ImportTask, Contact
-        import json
         task = ImportTask.objects.create(
             created_by=self.admin, modified_by=self.admin,
             csv_file='test_imports/' + filename,
@@ -555,7 +557,6 @@ class CampaignTest(TembaTest):
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
-        from temba.contacts.models import ContactGroup
         self.farmers = ContactGroup.user_groups.get(name='Farmers')
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
@@ -804,3 +805,41 @@ class CampaignTest(TembaTest):
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
+
+    def test_with_dynamic_group(self):
+        # create a campaign on a dynamic group
+        self.create_field('gender', "Gender")
+        women = self.create_group("Women", query='gender="F"')
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign,
+                                                   relative_to=self.planting_date,
+                                                   offset=0, unit='D', message={'eng': "hello"},
+                                                   base_language='eng')
+
+        # create a contact not in the group, but with a field value
+        anna = self.create_contact("Anna", "+250788333333")
+        anna.set_field(self.admin, 'planting_date', "09-10-2020 12:30")
+
+        # no contacts in our dynamic group yet, so no event fires
+        self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
+
+        # update contact so that they become part of the dynamic group
+        anna.set_field(self.admin, 'gender', "f")
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # and who should now have an event fire for our campaign event
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
+
+        # change dynamic group query so anna is removed
+        women.update_query('gender=FEMALE')
+        self.assertEqual(set(women.contacts.all()), set())
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
+
+        # but if query is reverted, her event fire should be recreated
+        women.update_query('gender=F')
+        self.assertEqual(set(women.contacts.all()), {anna})
+
+        # check that her event fire is now removed
+        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import logging
 import six
@@ -43,7 +44,7 @@ class TwitterActivityType(ChannelType):
         sender.add_periodic_task(900, resolve_twitter_ids)
 
     def activate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
 
         callback_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.twt', args=[channel.uuid]))
@@ -54,7 +55,7 @@ class TwitterActivityType(ChannelType):
             logger.exception(six.text_type(e))
 
     def deactivate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
         client.delete_webhook(config['env_name'])
 

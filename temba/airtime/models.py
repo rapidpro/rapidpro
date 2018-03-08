@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import hashlib
 import json
@@ -8,6 +9,7 @@ import time
 
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import force_bytes
 from smartmin.models import SmartModel
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, TEL_SCHEME
@@ -57,7 +59,7 @@ class AirtimeTransfer(SmartModel):
 
         key = str(int(time.time()))
         md5 = hashlib.md5()
-        md5.update(login + token + key)
+        md5.update(force_bytes(login + token + key))
         md5 = md5.hexdigest()
 
         data = kwargs
@@ -67,7 +69,7 @@ class AirtimeTransfer(SmartModel):
 
         if airtime_obj is not None:
             airtime_obj.data += json.dumps(data, indent=2) + AirtimeTransfer.LOG_DIVIDER
-            airtime_obj.response += response.content + AirtimeTransfer.LOG_DIVIDER
+            airtime_obj.response += response.text + AirtimeTransfer.LOG_DIVIDER
             airtime_obj.save()
 
         return response
@@ -88,7 +90,7 @@ class AirtimeTransfer(SmartModel):
         return parsed
 
     def get_transferto_response(self, **kwargs):
-        config = self.org.config_json()
+        config = self.org.config
         login = config.get(TRANSFERTO_ACCOUNT_LOGIN, '')
         token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, '')
 
@@ -120,18 +122,18 @@ class AirtimeTransfer(SmartModel):
                 airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
-            config = org.config_json()
+            config = org.config
             account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
             if not account_currency:
                 org.refresh_transferto_account_currency()
-                config = org.config_json()
+                config = org.config
                 account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
 
             action = 'msisdn_info'
             request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency,
                                   delivered_amount_info='1')
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = AirtimeTransfer.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.text)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)
@@ -143,8 +145,7 @@ class AirtimeTransfer(SmartModel):
 
             country_name = content_json.get('country', '')
             country_code = get_country_code_by_name(country_name)
-            amount_config = ruleset.config_json()
-            country_config = amount_config.get(country_code, dict())
+            country_config = ruleset.config.get(country_code, dict())
             amount = country_config.get('amount', 0)
 
             airtime.amount = amount
@@ -202,7 +203,7 @@ class AirtimeTransfer(SmartModel):
             action = 'reserve_id'
             request_kwargs = dict(action=action)
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = AirtimeTransfer.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.text)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)
@@ -226,7 +227,7 @@ class AirtimeTransfer(SmartModel):
                 request_kwargs['skuid'] = skuid
 
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = AirtimeTransfer.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.text)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)

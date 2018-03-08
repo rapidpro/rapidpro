@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -21,8 +22,26 @@ class TwilioMessagingServiceType(ChannelType):
     slug = "twilio_messaging_service"
     icon = "icon-channel-twilio"
 
-    claim_blurb = _("""You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>""")
     claim_view = ClaimView
+    claim_blurb = _(
+        """
+        You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
+        """
+    )
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your Messaging Service Inbound Settings.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Request URL"),
+            url="https://{{ channel.callback_domain }}{% url 'handlers.twiml_api_handler' channel.uuid %}",
+            description=_("This endpoint should be called by Twilio when new messages are received by your Messaging Service."),
+        ),
+    )
 
     schemes = [TEL_SCHEME]
     max_length = 1600

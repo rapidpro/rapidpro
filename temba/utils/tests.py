@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import copy
 import datetime
@@ -9,14 +9,17 @@ import pycountry
 import pytz
 import six
 import time
+import os
 
 from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
+from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.test import override_settings, SimpleTestCase
+from django.db import models, connection
+from django.test import override_settings, SimpleTestCase, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
@@ -26,7 +29,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabelCount
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import TembaTest
+from temba.tests import TembaTest, matchers
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
 from . import format_decimal, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
@@ -47,6 +50,7 @@ from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRI
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
+from .models import JSONAsTextField
 
 
 class InitTest(TembaTest):
@@ -237,6 +241,14 @@ class DatesTest(TembaTest):
                              str_to_datetime('2013-02-01T04:38:09.100000+02:00', tz, dayfirst=True))  # ISO in other tz
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T00:38:09.100000-02:00', tz, dayfirst=True))  # ISO in other tz
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 0, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09Z', tz, dayfirst=True))  # with no second fraction
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198000, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.198Z', tz, dayfirst=True))  # with milliseconds
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198537, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.198537686Z', tz, dayfirst=True))  # with nanoseconds
+            self.assertEqual(datetime.datetime(2013, 2, 1, 7, 8, 9, 198500, tzinfo=pytz.UTC),
+                             str_to_datetime('2013-02-01T07:08:09.1985Z', tz, dayfirst=True))  # with 4 second fraction digits
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
                              str_to_datetime('2013-02-01T07:08:09.100000+04:30.', tz, dayfirst=True))  # trailing period
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 0, 0, 0, 0)),
@@ -412,20 +424,20 @@ class CacheTest(TembaTest):
         r.set('bar', 20)
 
         incrby_existing('foo', 3, r)  # positive delta
-        self.assertEqual(r.get('foo'), '13')
+        self.assertEqual(r.get('foo'), b'13')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('foo', -1, r)  # negative delta
-        self.assertEqual(r.get('foo'), '12')
+        self.assertEqual(r.get('foo'), b'12')
         self.assertTrue(r.ttl('foo') > 0)
 
         r.setex('foo', 100, 0)
         incrby_existing('foo', 5, r)  # zero val key
-        self.assertEqual(r.get('foo'), '5')
+        self.assertEqual(r.get('foo'), b'5')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('bar', 5, r)  # persistent key
-        self.assertEqual(r.get('bar'), '25')
+        self.assertEqual(r.get('bar'), b'25')
         self.assertTrue(r.ttl('bar') < 0)
 
         incrby_existing('xxx', -2, r)  # non-existent key
@@ -1159,18 +1171,34 @@ class ExportTest(TembaTest):
         # ok, let's check the result now
         temp_file, file_ext = exporter.save_file()
 
-        with open(temp_file.name, 'rb') as csvfile:
-            import csv
-            reader = csv.reader(csvfile)
+        if six.PY2:
+            csvfile = open(temp_file.name, 'rb')
+        else:
+            csvfile = open(temp_file.name, 'rt')
 
-            for idx, row in enumerate(reader):
-                if idx == 0:
-                    self.assertEqual(cols, row)
-                else:
-                    self.assertEqual(values, row)
+        import csv
+        reader = csv.reader(csvfile)
 
-            # should only be three rows
-            self.assertEqual(2, idx)
+        column_row = next(reader, [])
+        self.assertListEqual(cols, column_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        # should only be three rows
+        empty_row = next(reader, None)
+        self.assertIsNone(empty_row)
+
+        # remove temporary file on PY3
+        if six.PY3:  # pragma: no cover
+            if hasattr(temp_file, 'delete'):
+                if temp_file.delete is False:
+                    os.unlink(temp_file.name)
+            else:
+                os.unlink(temp_file.name)
 
     @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
@@ -1217,6 +1245,9 @@ class ExportTest(TembaTest):
 
         self.assertEqual(200 + 2, len(list(sheet2.rows)))
         self.assertEqual(32, len(list(sheet2.columns)))
+
+        if six.PY3:
+            os.unlink(temp_file.name)
 
 
 class CurrencyTest(TembaTest):
@@ -1659,7 +1690,6 @@ class MakeTestDBTest(SimpleTestCase):
         def assertOrgCounts(qs, counts):
             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        print(User.objects.all())
         self.assertEqual(User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12)
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
@@ -1680,3 +1710,142 @@ class MakeTestDBTest(SimpleTestCase):
 
         # but simulate can
         call_command('test_db', 'simulate', num_runs=2)
+
+
+class JsonModelTestDefaultNull(models.Model):
+    field = JSONAsTextField(default=dict, null=True)
+
+
+class JsonModelTestDefault(models.Model):
+    field = JSONAsTextField(default=dict, null=False)
+
+
+class JsonModelTestNull(models.Model):
+    field = JSONAsTextField(null=True)
+
+
+class TestJSONAsTextField(TestCase):
+    def test_invalid_default(self):
+
+        class InvalidJsonModel(models.Model):
+            field = JSONAsTextField(default={})
+
+        model = InvalidJsonModel()
+        self.assertEqual(model.check(), [
+            checks.Warning(
+                msg=(
+                    'JSONAsTextField default should be a callable instead of an instance so that it\'s not shared '
+                    'between all field instances.'
+                ),
+                hint='Use a callable instead, e.g., use `dict` instead of `{}`.',
+                obj=InvalidJsonModel._meta.get_field('field'),
+                id='postgres.E003',
+            )
+        ])
+
+    def test_to_python(self):
+
+        field = JSONAsTextField(default=dict)
+
+        self.assertEqual(field.to_python({}), {})
+
+        self.assertEqual(field.to_python('{}'), {})
+
+    def test_default_with_null(self):
+
+        model = JsonModelTestDefaultNull()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database is null, and we have set the default value so we get the default value
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefaultnull')
+
+            data = cur.fetchall()
+        # but in the database the field is saved as null
+        self.assertEqual(data[0][1], None)
+
+    def test_default_without_null(self):
+
+        model = JsonModelTestDefault()
+        model.save()
+        model.refresh_from_db()
+
+        # the field in the database saves the default value, and we get the default value back
+        self.assertEqual(model.field, {})
+
+        with connection.cursor() as cur:
+            cur.execute('select * from utils_jsonmodeltestdefault')
+
+            data = cur.fetchall()
+        # and in the database the field saved as default value
+        self.assertEqual(data[0][1], '{}')
+
+    def test_invalid_field_values(self):
+        model = JsonModelTestDefault()
+        model.field = '53'
+        self.assertRaises(ValueError, model.save)
+
+        model.field = 34
+        self.assertRaises(ValueError, model.save)
+
+        model.field = ''
+        self.assertRaises(ValueError, model.save)
+
+    def test_write_None_value(self):
+        model = JsonModelTestDefault()
+        # assign None (null) value to the field
+        model.field = None
+
+        self.assertRaises(Exception, model.save)
+
+    def test_read_None_value(self):
+        with connection.cursor() as null_cur:
+            null_cur.execute('DELETE FROM utils_jsonmodeltestnull')
+            null_cur.execute('INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)', (None,))
+
+            self.assertEqual(JsonModelTestNull.objects.first().field, None)
+
+    def test_invalid_field_values_db(self):
+        with connection.cursor() as cur:
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('53', ))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('None',))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            cur.execute('DELETE FROM utils_jsonmodeltestdefault')
+            cur.execute('INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)', ('null',))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+
+class MatchersTest(TembaTest):
+    def test_string(self):
+        self.assertEqual("abc", matchers.String())
+        self.assertEqual("", matchers.String())
+        self.assertNotEqual(None, matchers.String())
+        self.assertNotEqual(123, matchers.String())
+
+        self.assertEqual("abc", matchers.String(pattern=r'\w{3}$'))
+        self.assertNotEqual("ab", matchers.String(pattern=r'\w{3}$'))
+        self.assertNotEqual("abcd", matchers.String(pattern=r'\w{3}$'))
+
+    def test_isodate(self):
+        self.assertEqual("2013-02-01T07:08:09.100000+04:30", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.198537686Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.19853768Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07.198Z", matchers.ISODate())
+        self.assertEqual("2018-02-21T20:34:07Z", matchers.ISODate())
+        self.assertEqual("2013-02-01T07:08:09.100000Z", matchers.ISODate())
+        self.assertNotEqual(None, matchers.ISODate())
+        self.assertNotEqual("abc", matchers.ISODate())
+
+    def test_uuid4string(self):
+        self.assertEqual("85ECBE45-E2DF-4785-8FC8-16FA941E0A79", matchers.UUID4String())
+        self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
+        self.assertNotEqual(None, matchers.UUID4String())
+        self.assertNotEqual("abc", matchers.UUID4String())

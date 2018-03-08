@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import itertools
 import six
@@ -310,7 +311,7 @@ class BaseAPIView(generics.GenericAPIView):
                 lookup_values[field] = param_value
 
         if len(lookup_values) > 1:
-            raise InvalidQueryError("URL can only contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
+            raise InvalidQueryError("URL can only contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys())))
 
         return lookup_values
 
@@ -483,7 +484,7 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
         self.lookup_values = self.get_lookup_values()
 
         if not self.lookup_values:
-            raise InvalidQueryError("URL must contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
+            raise InvalidQueryError("URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys())))
 
         instance = self.get_object()
         self.perform_destroy(instance)

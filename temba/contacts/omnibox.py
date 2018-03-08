@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import operator
 
@@ -77,7 +78,7 @@ def omnibox_mixed_search(org, search, types):
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
-        groups = ContactGroup.user_groups.filter(org=org, is_active=True)
+        groups = ContactGroup.get_user_groups(org)
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:

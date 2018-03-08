@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -12,7 +13,7 @@ class ClickatellTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        url = reverse('channels.claim_clickatell')
+        url = reverse('channels.types.clickatell.claim')
 
         # should see the general channel claim page
         response = self.client.get(reverse('channels.channel_claim'))
@@ -33,10 +34,10 @@ class ClickatellTypeTest(TembaTest):
         self.assertEqual('US', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual('+12065551212', channel.address)
-        self.assertEqual('12345', channel.config_json()['api_key'])
+        self.assertEqual('12345', channel.config['api_key'])
         self.assertEqual('CT', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
