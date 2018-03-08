@@ -2693,6 +2693,9 @@ class FCMHandler(BaseChannelHandler):
     handler_url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.fcm_handler'
 
+    courier_url = r'^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$'
+    courier_name = 'courier.fcm'
+
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
 
