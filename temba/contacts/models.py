@@ -752,8 +752,8 @@ class Contact(TembaModel):
             loc_value = None
 
             # for locations, if it has a '>' then it is explicit, look it up that way
-            if AdminBoundary.PATH_SEPARATOR in value:
-                loc_value = self.org.parse_location_path(value)
+            if AdminBoundary.PATH_SEPARATOR in str_value:
+                loc_value = self.org.parse_location_path(str_value)
 
             # otherwise, try to parse it as a name at the appropriate level
             else:
@@ -761,17 +761,17 @@ class Contact(TembaModel):
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                     district_value = self.get_field(district_field.key)
                     if district_value:
-                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
                 elif field.value_type == Value.TYPE_DISTRICT:
                     state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                     if state_field:
                         state_value = self.get_field(state_field.key)
                         if state_value:
-                            loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
 
                 elif field.value_type == Value.TYPE_STATE:
-                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
+                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
 
                 if loc_value is not None and len(loc_value) > 0:
                     loc_value = loc_value[0]
