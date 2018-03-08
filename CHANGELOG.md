@@ -1,3 +1,9 @@
+v3.0.334
+----------
+ * Add response to external ID to courier serialized msg if we have response to
+ * More Py3 migration work
+ * Remove broadcasting to groups from Send Message dialog
+
 v3.0.332
 ----------
  * Do not delete RuleSets only disconnect them from flows

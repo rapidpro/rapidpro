@@ -21,7 +21,7 @@ from django.db import connection
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes, force_text
 from future.moves.html.parser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -788,14 +788,16 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 class MockResponse(object):
 
     def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
-        self.text = text
+        self.text = force_text(text)
         self.content = force_bytes(text)
-        self.body = text
+        self.body = force_text(text)
         self.status_code = status_code
         self.headers = headers if headers else {}
         self.url = url
         self.ok = True
         self.cookies = dict()
+        self.streaming = False
+        self.charset = 'utf-8'
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))

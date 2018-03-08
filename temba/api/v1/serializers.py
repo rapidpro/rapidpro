@@ -747,7 +747,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     normalized = URN.normalize(urn, country)
                 except ValueError as e:  # pragma: needs cover
-                    raise serializers.ValidationError(e.message)
+                    raise serializers.ValidationError(six.text_type(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)

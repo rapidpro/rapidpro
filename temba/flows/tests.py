@@ -13,6 +13,7 @@ from uuid import uuid4
 from datetime import timedelta
 from decimal import Decimal
 
+from django.utils.encoding import force_text
 from mock import patch
 from openpyxl import load_workbook
 
@@ -3329,7 +3330,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
+        six.assertCountEqual(self, list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])
@@ -5102,7 +5103,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(1, len(response.context['runs']))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', force_text(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
@@ -7000,7 +7001,7 @@ class FlowsTest(FlowFileTest):
         # disconnect action from interrupt state
         ruleset = flow.rule_sets.first()
         rules = ruleset.get_rules()
-        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
+        interrupt_rule = next(rule for rule in rules if isinstance(rule.test, InterruptTest))
         interrupt_rule.destination = None
         interrupt_rule.destination_type = None
         ruleset.set_rules(rules)

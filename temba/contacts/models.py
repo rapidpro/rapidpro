@@ -1253,11 +1253,11 @@ class Contact(TembaModel):
         active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
         # remove any field that's not a reserved field or an explicitly included extra field
-        for key in field_dict.keys():
-            if (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme:
-                del field_dict[key]
-
-        return field_dict
+        return {
+            key: value
+            for key, value in field_dict.items()
+            if not ((key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme)
+        }
 
     @classmethod
     def get_org_import_file_headers(cls, csv_file, org):
@@ -1276,7 +1276,7 @@ class Contact(TembaModel):
         # write our file out
         tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s' % str(uuid4()))
 
-        out_file = open(tmp_file, 'w')
+        out_file = open(tmp_file, 'wb')
         out_file.write(csv_file.read())
         out_file.close()
 
@@ -1421,7 +1421,7 @@ class Contact(TembaModel):
         tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
         filename.open()
 
-        out_file = open(tmp_file, 'w')
+        out_file = open(tmp_file, 'wb')
         out_file.write(filename.read())
         out_file.close()
 
