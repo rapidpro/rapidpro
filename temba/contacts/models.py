@@ -33,6 +33,7 @@ from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
+from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
 
 logger = logging.getLogger(__name__)
@@ -106,10 +107,7 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        if display:
-            return '%s:%s#%s' % (scheme, path, display)
-        else:
-            return '%s:%s' % (scheme, path)
+        return six.text_type(ParsedURN(scheme, path, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -117,23 +115,14 @@ class URN(object):
         Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
         """
         try:
-            scheme, path = urn.split(':', 1)
-        except Exception:
+            parsed = parse_urn(urn)
+        except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if not scheme or scheme not in cls.VALID_SCHEMES:
-            raise ValueError("URN contains an invalid scheme component: '%s'" % scheme)
+        if parsed.scheme not in cls.VALID_SCHEMES:
+            raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        if not path:
-            raise ValueError("URN contains an invalid path component: '%s'" % path)
-
-        path_parts = path.split("#")
-        display = None
-        if len(path_parts) > 1:
-            path = path_parts[0]
-            display = path_parts[1]
-
-        return scheme, path, display
+        return parsed.scheme, parsed.path, parsed.fragment or None
 
     @classmethod
     def validate(cls, urn, country_code=None):
