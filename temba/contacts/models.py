@@ -122,7 +122,7 @@ class URN(object):
         if parsed.scheme not in cls.VALID_SCHEMES:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        return parsed.scheme, parsed.path, parsed.fragment
+        return parsed.scheme, parsed.path, parsed.fragment or None
 
     @classmethod
     def validate(cls, urn, country_code=None):

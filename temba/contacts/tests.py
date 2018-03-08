@@ -4645,14 +4645,14 @@ class URNTest(TembaTest):
         self.assertRaises(ValueError, URN.from_parts, "xxx", "12345")
 
     def test_to_parts(self):
-        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", ""))
-        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", ""))
-        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", ""))
-        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", ""))
-        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", ""))
-        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", ""))
+        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", None))
+        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", None))
+        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None))
+        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None))
+        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None))
+        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None))
         self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", "foobar"))
-        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", ""))
+        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None))
 
         self.assertRaises(ValueError, URN.to_parts, "tel")
         self.assertRaises(ValueError, URN.to_parts, "tel:")  # missing scheme
