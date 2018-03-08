@@ -20,7 +20,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, force_bytes
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -2487,7 +2487,7 @@ class ViberPublicHandler(BaseChannelHandler):
 
     @classmethod
     def calculate_sig(cls, request_body, auth_token):
-        return hmac.new(bytes(auth_token.encode('ascii')),
+        return hmac.new(force_bytes(auth_token.encode('ascii')),
                         msg=request_body, digestmod=hashlib.sha256).hexdigest()
 
     def get(self, request, *args, **kwargs):
