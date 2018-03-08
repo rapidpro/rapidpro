@@ -129,7 +129,7 @@ class AdminBoundary(MPTTModel, models.Model):
         if parent is not None:
             path = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
 
-        AdminBoundary.objects.create(osm_id=osm_id, name=name, level=level, parent=parent, path=path)
+        return AdminBoundary.objects.create(osm_id=osm_id, name=name, level=level, parent=parent, path=path)
 
     @classmethod
     def strip_last_path(cls, path):
