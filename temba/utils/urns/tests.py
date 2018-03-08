@@ -61,7 +61,7 @@ class URNTest(TembaTest):
                 matches = p.scheme == tc.scheme and p.path == tc.path and p.query == tc.query and p.fragment == tc.fragment
                 self.assertTrue(matches, "Failed parsing URN, got %s|%s|%s|%s, expected %s|%s|%s|%s for '%s'"
                                 % (p.scheme, p.path, p.query, p.fragment, tc.scheme, tc.path, tc.query, tc.fragment, tc.input))
-                if not matches:
-                    back_to_str = six.text_type(p)
-                    self.assertEqual(back_to_str, tc.input, "Failed stringifying URN, got '%s', expected '%s' for %s|%s|%s|%s"
-                                     % (back_to_str, tc.input, tc.scheme, tc.path, tc.query, tc.fragment))
+
+                back_to_str = six.text_type(p)
+                self.assertEqual(back_to_str, tc.input, "Failed stringifying URN, got '%s', expected '%s' for %s|%s|%s|%s"
+                                 % (back_to_str, tc.input, tc.scheme, tc.path, tc.query, tc.fragment))
