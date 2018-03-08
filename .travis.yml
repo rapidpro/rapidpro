@@ -77,7 +77,7 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # fire up goflow
-  - ./flowserver &
+  - ./flowserver -log-level=error &
   - jobs
     
   # run our Python tests
