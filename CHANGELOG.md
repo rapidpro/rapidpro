@@ -1,3 +1,9 @@
+v3.0.336
+----------
+ * Update middlewares to Django defaults for security
+ * Add JSON fields to Contact, set in set_field
+ * backfill any null location paths, make not null, update import to set path, set other levels on fields when setting location
+
 v3.0.335
 ----------
  * Allow groups when scheduling flows or triggers
