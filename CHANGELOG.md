@@ -1,3 +1,10 @@
+v3.0.335
+----------
+ * Allow groups when scheduling flows or triggers
+ * Fix configuration page URLs and use courier URLs
+ * Replace contact.channel in goflow serialization with a channel query param in each contact URN
+ * Serialize contact.group_uuids as groups with name and UUID
+
 v3.0.334
 ----------
  * Add response to external ID to courier serialized msg if we have response to
