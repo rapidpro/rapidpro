@@ -24,7 +24,7 @@ class LocationTest(TembaTest):
 
         # try stripping path on our country, will fail
         with self.assertRaises(Exception):
-            AdminBoundary.strip_last_path(self.org.country.path)
+            AdminBoundary.strip_last_path("Rwanda")
 
         # normal strip
         self.assertEqual(AdminBoundary.strip_last_path("Rwanda > Kigali City"), "Rwanda")

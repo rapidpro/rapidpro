@@ -137,7 +137,7 @@ class AdminBoundary(MPTTModel, models.Model):
         Strips the last part of the passed in path. Throws if there is no separator
         """
         parts = path.split(AdminBoundary.PADDED_PATH_SEPARATOR)
-        if len(parts) <= 1:
+        if len(parts) <= 1:  # pragma: no cover
             raise Exception("strip_last_path called without a path to strip")
 
         return AdminBoundary.PADDED_PATH_SEPARATOR.join(parts[:-1])
