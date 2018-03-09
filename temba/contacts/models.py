@@ -15,7 +15,7 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction, IntegrityError
+from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -35,6 +35,7 @@ from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
+from django.contrib.postgres.fields import JSONField
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +327,14 @@ class ContactField(SmartModel):
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
 
+    DATETIME_KEY = 'datetime'
+    TEXT_KEY = 'text'
+    DECIMAL_KEY = 'decimal'
+    COUNTRY_KEY = 'country'
+    STATE_KEY = 'state'
+    DISTRICT_KEY = 'district'
+    WARD_KEY = 'ward'
+
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
@@ -483,6 +492,9 @@ class Contact(TembaModel):
 
     language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
                                 help_text=_("The preferred language for this contact"))
+
+    fields = JSONField(verbose_name=_("Fields"), null=True,
+                       help_text=_("The fields set for this contact, keyed by UUID"))
 
     simulation = False
 
@@ -716,10 +728,11 @@ class Contact(TembaModel):
         existing = None
         has_changed = False
 
+        # parse into the appropriate value types
         if value is None or value == '':
             # setting a blank value is equivalent to removing the value
-            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
-            has_changed = True
+            value = None
+
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -727,26 +740,94 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == Value.TYPE_WARD:
-                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                district_value = self.get_field(district_field.key)
-                if district_value:
-                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+            # for locations, if it has a '>' then it is explicit, look it up that way
+            if AdminBoundary.PATH_SEPARATOR in str_value:
+                loc_value = self.org.parse_location_path(str_value)
 
-            elif field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
-                if state_field:
-                    state_value = self.get_field(state_field.key)
-                    if state_value:
-                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+            # otherwise, try to parse it as a name at the appropriate level
             else:
-                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
+                if field.value_type == Value.TYPE_WARD:
+                    district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                    district_value = self.get_field(district_field.key)
+                    if district_value:
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
-            if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value[0]
-            else:
-                loc_value = None
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
+                    if state_field:
+                        state_value = self.get_field(state_field.key)
+                        if state_value:
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
 
+                elif field.value_type == Value.TYPE_STATE:
+                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+
+                if loc_value is not None and len(loc_value) > 0:
+                    loc_value = loc_value[0]
+                else:
+                    loc_value = None
+
+        field_uuid = six.text_type(field.uuid)
+        if self.fields is None:
+            self.fields = {}
+
+        # value being cleared, remove our key
+        if value is None:
+            if field_uuid in self.fields:
+                del self.fields[field_uuid]
+                has_changed = True
+
+        # otherwise, update our field in our fields dict
+        else:
+            # all fields have a text value
+            field_dict = {ContactField.TEXT_KEY: str_value}
+
+            # set all the other fields that have a non-zero value
+            if dt_value is not None:
+                field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
+
+            if dec_value is not None:
+                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value)
+
+            if loc_value:
+                if loc_value.level == AdminBoundary.LEVEL_STATE:
+                    field_dict[ContactField.STATE_KEY] = loc_value.path
+                elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+                    field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                elif loc_value.level == AdminBoundary.LEVEL_WARD:
+                    field_dict[ContactField.WARD_KEY] = loc_value.path
+                    field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(field_dict[ContactField.DISTRICT_KEY])
+
+            # update our field if it is different
+            if self.fields.get(field_uuid) != field_dict:
+                self.fields[field_uuid] = field_dict
+                has_changed = True
+
+        # if there was a change, update our JSONB on our contact
+        if has_changed:
+            self.modified_by = user
+            self.modified_on = timezone.now()
+
+            with connection.cursor() as cursor:
+                if value is None:
+                    # delete the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = fields - %s, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [field_uuid, self.modified_by.id, self.modified_on, self.id]))
+                else:
+                    # update the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
+
+        # legacy method of setting field
+        if value is None:
+            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
+            value = None
+            has_changed = True
+        else:
             category = loc_value.name if loc_value else None
 
             # find the existing value
@@ -783,13 +864,9 @@ class Contact(TembaModel):
         # cache this field value
         self.set_cached_field_value(key, existing)
 
-        if has_changed:
-            self.modified_by = user
-            self.save(update_fields=('modified_by', 'modified_on'))
-
-            # update any groups or campaigns for this contact if not importing
-            if not importing:
-                self.handle_update(field=field)
+        # update any groups or campaigns for this contact if not importing
+        if has_changed and not importing:
+            self.handle_update(field=field)
 
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)

@@ -1853,14 +1853,14 @@ class FlowTest(TembaTest):
 
     def test_location_entry_test(self):
 
-        self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)
-        kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
-        lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
-        ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=kano)
-        bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=kano)
-        apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=lagos)
-        bichiward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=bichi)
-        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=ajingi)
+        self.country = AdminBoundary.create(osm_id='192787', name='Nigeria', level=0)
+        kano = AdminBoundary.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        lagos = AdminBoundary.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        ajingi = AdminBoundary.create(osm_id='3710308', name='Ajingi', level=2, parent=kano)
+        bichi = AdminBoundary.create(osm_id='3710307', name='Bichi', level=2, parent=kano)
+        apapa = AdminBoundary.create(osm_id='3718187', name='Apapa', level=2, parent=lagos)
+        bichiward = AdminBoundary.create(osm_id='3710377', name='Bichi', level=3, parent=bichi)
+        AdminBoundary.create(osm_id='3710378', name='Ajingi', level=3, parent=ajingi)
         sms = self.create_msg(contact=self.contact, text="awesome text")
         self.sms = sms
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -1909,7 +1909,7 @@ class FlowTest(TembaTest):
         self.assertEqual(ward_tuple[1], bichiward)
 
         # misconfigured flows should not match if wards not unique
-        AdminBoundary.objects.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
+        AdminBoundary.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
         ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
         self.assertEqual(ward_tuple[1], None)
 
@@ -8912,7 +8912,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=147, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=142, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
