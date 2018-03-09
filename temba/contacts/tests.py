@@ -1490,7 +1490,8 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(38):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
         )
 
@@ -1498,7 +1499,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'gender', 'male')
         contact.set_field(self.user, 'age', 20)
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()],
             ['cannon fodder', 'urn group', 'Age field is set']
         )
@@ -4252,7 +4254,8 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(21):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
             ['Empty age field', 'urn group']
         )
@@ -4765,6 +4768,11 @@ class URNTest(TembaTest):
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")
         self.assertEqual(URN.from_parts("tel", "(917) 992-5253"), "tel:(917) 992-5253")
         self.assertEqual(URN.from_parts("mailto", "a_b+c@d.com"), "mailto:a_b+c@d.com")
+        self.assertEqual(URN.from_parts("twitterid", "2352362611", display="bobby"), "twitterid:2352362611#bobby")
+        self.assertEqual(
+            URN.from_parts("twitterid", "2352362611", query='foo=ba?r', display="bobby"),
+            "twitterid:2352362611?foo=ba%3Fr#bobby"
+        )
 
         self.assertEqual(URN.from_tel("+12345"), "tel:+12345")
         self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
@@ -4778,14 +4786,14 @@ class URNTest(TembaTest):
         self.assertRaises(ValueError, URN.from_parts, "xxx", "12345")
 
     def test_to_parts(self):
-        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", None))
-        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", None))
-        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None))
-        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None))
-        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None))
-        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None))
-        self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", "foobar"))
-        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None))
+        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", None, None))
+        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", None, None))
+        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None, None))
+        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None, None))
+        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None, None))
+        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None, None))
+        self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", None, "foobar"))
+        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None, None))
 
         self.assertRaises(ValueError, URN.to_parts, "tel")
         self.assertRaises(ValueError, URN.to_parts, "tel:")  # missing scheme

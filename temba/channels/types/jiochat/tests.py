@@ -88,7 +88,7 @@ class JioChatTypeTest(TembaTest):
         self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
         self.assertEqual(mock_post.call_count, 1)
 
-        self.assertEqual(channel_client.get_access_token(), 'ABC1234')
+        self.assertEqual(channel_client.get_access_token(), b'ABC1234')
         self.assertEqual(mock_post.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
                                                                   'grant_type': 'client_credentials',
                                                                   'client_id': u'app-id'})

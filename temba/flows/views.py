@@ -1462,7 +1462,7 @@ class FlowCRUDL(SmartCRUDL):
                 return org.country
 
         resources = {
-            'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
+            'channel': Resource(Channel.objects.filter(is_active=True).select_related('parent'), goflow.serialize_channel),
             'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
             'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), goflow.serialize_flow),
             'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), goflow.serialize_group),

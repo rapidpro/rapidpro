@@ -81,7 +81,7 @@ class NexmoClient(NexmoCli):
 
             call.status = IVRCall.FAILED
             call.save()
-            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e))
 
     def download_media(self, call, media_url):
         """

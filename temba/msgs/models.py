@@ -1572,7 +1572,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path, display = URN.to_parts(recipient)
+            scheme, path, query, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
         else:  # pragma: no cover
@@ -2014,7 +2014,7 @@ class LabelCount(SquashableModel):
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
-class MsgIterator(object):
+class MsgIterator(six.Iterator):
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """
@@ -2045,7 +2045,7 @@ class MsgIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         return next(self._generator)
 
 

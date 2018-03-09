@@ -996,7 +996,7 @@ class Flow(TembaModel):
                     extra = message_context.get('extra', {})
                     extra['flow'] = message_context.get('flow', {})
 
-                    if msg.id > 0:
+                    if msg.id:
                         run.add_messages([msg], step=step)
                         run.update_expiration(timezone.now())
 
@@ -1025,7 +1025,7 @@ class Flow(TembaModel):
         flow = ruleset.flow
 
         # add the message to our step
-        if msg.id > 0:
+        if msg.id:
             run.add_messages([msg], step=step)
             run.update_expiration(timezone.now())
 
@@ -3024,7 +3024,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # don't really update URNs on test contacts
         if self.contact.is_test:
-            scheme, path, display = URN.to_parts(event['urn'])
+            scheme, path, query, display = URN.to_parts(event['urn'])
             ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
         else:
             self.contact.update_urns(user, urns)
@@ -4140,7 +4140,7 @@ class RuleSet(models.Model):
                 rules = self.get_rules()
                 for rule in rules:
                     (result, value) = rule.matches(run, msg, context, text)
-                    if result > 0:
+                    if result:
                         # treat category as the base category
                         return rule, value
             finally:

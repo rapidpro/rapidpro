@@ -63,8 +63,8 @@ class HighConnectionType(ChannelType):
             'ret_id': msg.id,
             'datacoding': 8,
             'userdata': 'textit',
-            'ret_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
-            'ret_mo_url': 'https://%s%s' % (callback_domain, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
+            'ret_url': 'https://%s%s' % (callback_domain, reverse('courier.hx', args=[channel.uuid, 'status'])),
+            'ret_mo_url': 'https://%s%s' % (callback_domain, reverse('courier.hx', args=[channel.uuid, 'receive']))
         }
 
         # build our send URL

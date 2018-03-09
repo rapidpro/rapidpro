@@ -1,3 +1,16 @@
+v3.0.335
+----------
+ * Allow groups when scheduling flows or triggers
+ * Fix configuration page URLs and use courier URLs
+ * Replace contact.channel in goflow serialization with a channel query param in each contact URN
+ * Serialize contact.group_uuids as groups with name and UUID
+
+v3.0.334
+----------
+ * Add response to external ID to courier serialized msg if we have response to
+ * More Py3 migration work
+ * Remove broadcasting to groups from Send Message dialog
+
 v3.0.332
 ----------
  * Do not delete RuleSets only disconnect them from flows

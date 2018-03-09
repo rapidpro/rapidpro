@@ -20,7 +20,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, force_bytes
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -551,8 +551,7 @@ class ExternalHandler(BaseChannelHandler):
                 try:
                     date = json_date_to_datetime(date)
                 except ValueError as e:
-                    return HttpResponse("Bad parameter error: %s" % e.message, status=400)
-
+                    return HttpResponse("Bad parameter error: %s" % six.text_type(e), status=400)
             urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
@@ -2410,7 +2409,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, query, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2420,7 +2419,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, query, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2488,7 +2487,7 @@ class ViberPublicHandler(BaseChannelHandler):
 
     @classmethod
     def calculate_sig(cls, request_body, auth_token):
-        return hmac.new(bytes(auth_token.encode('ascii')),
+        return hmac.new(force_bytes(auth_token.encode('ascii')),
                         msg=request_body, digestmod=hashlib.sha256).hexdigest()
 
     def get(self, request, *args, **kwargs):
@@ -2693,6 +2692,9 @@ class ViberPublicHandler(BaseChannelHandler):
 class FCMHandler(BaseChannelHandler):
     handler_url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.fcm_handler'
+
+    courier_url = r'^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$'
+    courier_name = 'courier.fcm'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)

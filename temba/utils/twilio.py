@@ -2,6 +2,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
+
+from django.utils.encoding import force_text
 from six.moves.urllib.parse import urlencode
 
 import six
@@ -60,7 +62,7 @@ class LoggingResource(Resource):  # pragma: no cover
 
         event.url = resp.url
         event.status_code = resp.status_code
-        event.response_body = six.text_type(resp.content)
+        event.response_body = force_text(resp.content)
 
         if method == "DELETE":
             return resp, {}

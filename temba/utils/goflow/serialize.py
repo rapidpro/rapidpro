@@ -5,6 +5,7 @@ import six
 
 from django.db.models import Prefetch
 from mptt.utils import get_cached_trees
+from six.moves.urllib.parse import urlencode
 from temba.values.models import Value
 
 VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
@@ -29,17 +30,28 @@ def serialize_flow(flow, strip_ui=True):
 
 
 def serialize_channel(channel):
-    return {
+    from temba.channels.models import Channel
+
+    serialized = {
         'uuid': str(channel.uuid),
         'name': six.text_type(channel.get_name()),
-        'type': channel.channel_type,
-        'address': channel.address
+        'address': channel.address,
+        'schemes': channel.schemes,
+        'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
     }
+
+    if channel.parent_id:
+        serialized['parent'] = serialize_channel_ref(channel.parent)
+
+    return serialized
+
+
+def serialize_channel_ref(channel):
+    return {'uuid': str(channel.uuid), 'name': channel.name}
 
 
 def serialize_contact(contact):
-    from temba.contacts.models import Contact
-    from temba.msgs.models import Msg
+    from temba.contacts.models import Contact, URN
     from temba.values.models import Value
 
     org_fields = {f.id: f for f in contact.org.contactfields.filter(is_active=True)}
@@ -52,25 +64,22 @@ def serialize_contact(contact):
             'created_on': v.created_on.isoformat()
         }
 
-    _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
+    # augment URN values with preferred channel UUID as a parameter
+    urn_values = []
+    for u in contact.urns.order_by('-priority', 'id'):
+        scheme, path, query, display = URN.to_parts(u.urn)
+        query = urlencode({'channel': str(u.channel.uuid)}) if u.channel_id else None
+        urn_values.append(URN.from_parts(scheme, path, query=query, display=display))
 
-    serialized = {
+    return {
         'uuid': contact.uuid,
         'name': contact.name,
-        'urns': [urn.urn for urn in contact.urns.all()],
-        'group_uuids': [group.uuid for group in contact.user_groups.all()],
-        'timezone': "UTC",
         'language': contact.language,
+        'timezone': "UTC",
+        'urns': urn_values,
+        'groups': [serialize_group_ref(group) for group in contact.user_groups.all()],
         'fields': field_values
     }
-
-    # only populate channel if this contact can actually be reached (ie, has a URN)
-    if contact_urn:
-        channel = contact.org.get_send_channel(contact_urn=contact_urn)
-        if channel:
-            serialized['channel_uuid'] = channel.uuid
-
-    return serialized
 
 
 def serialize_environment(org):
@@ -90,6 +99,10 @@ def serialize_field(field):
 
 def serialize_group(group):
     return {'uuid': str(group.uuid), 'name': group.name, 'query': group.query}
+
+
+def serialize_group_ref(group):
+    return {'uuid': str(group.uuid), 'name': group.name}
 
 
 def serialize_label(label):
@@ -147,7 +160,7 @@ def serialize_message(msg):
     if msg.contact_urn:
         serialized['urn'] = msg.contact_urn.urn
     if msg.channel:
-        serialized['channel'] = {'uuid': str(msg.channel.uuid), 'name': msg.channel.name}
+        serialized['channel'] = serialize_channel_ref(msg.channel)
     if msg.attachments:
         serialized['attachments'] = msg.attachments
 

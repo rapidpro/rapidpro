@@ -201,4 +201,4 @@ class NexmoTypeTest(TembaTest):
                 response = self.client.get(call_handler_event_url)
 
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.content, "")
+                self.assertEqual(len(response.content), 0)
