@@ -7122,7 +7122,7 @@ class JasminTest(TembaTest):
         def assertStatus(sms, dlvrd, err, assert_status):
             data['dlvrd'] = dlvrd
             data['err'] = err
-            response = self.client.post(reverse('handlers.jasmin_handler', args=['status', self.channel.uuid]), data)
+            response = self.client.post(reverse('courier.js', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -7141,7 +7141,7 @@ class JasminTest(TembaTest):
             'content': gsm7.encode("événement")[0],
             'id': 'external1'
         }
-        callback_url = reverse('handlers.jasmin_handler', args=['receive', self.channel.uuid])
+        callback_url = reverse('courier.js', args=[self.channel.uuid, 'receive'])
         response = self.client.post(callback_url, data)
 
         self.assertContains(response, "ACK/Jasmin")
