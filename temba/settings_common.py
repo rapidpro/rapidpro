@@ -180,6 +180,10 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.OrgHeaderMiddleware',
 )
 
+# security middleware configuration
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+
 ROOT_URLCONF = 'temba.urls'
 
 # other urls to add
