@@ -41,17 +41,6 @@ class SerializationTest(TembaTest):
             'schemes': ['tel'],
         })
 
-        bulk_sender = Channel.create(self.org, self.admin, "RW", "NX", "Bulk Sender", role='S', parent=self.channel)
-
-        self.assertEqual(serialize_channel(bulk_sender), {
-            'uuid': str(bulk_sender.uuid),
-            'name': "Bulk Sender",
-            'address': None,
-            'roles': ['send'],
-            'schemes': ['tel'],
-            'parent': {'uuid': str(self.channel.uuid), 'name': "Test Channel"}
-        })
-
 
 class ClientTest(TembaTest):
     def setUp(self):
@@ -81,7 +70,10 @@ class ClientTest(TembaTest):
                     'name': 'Bob',
                     'language': None,
                     'timezone': 'UTC',
-                    'urns': ['twitterid:123456785?channel=%s#bobby' % str(twitter.uuid), 'tel:+12345670987'],
+                    'urns': [
+                        'twitterid:123456785?channel=%s#bobby' % str(twitter.uuid),
+                        'tel:+12345670987?channel=%s' % str(self.channel.uuid)
+                    ],
                     'fields': {
                         'gender': {'value': 'M', 'created_on': "2018-01-18T14:24:30+00:00"},
                         'age': {'value': '36', 'created_on': "2018-01-18T14:24:30+00:00"}
