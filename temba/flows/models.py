@@ -2938,16 +2938,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
-        # convert attachment URLs to absolute URLs
-        attachments = []
-        for attachment in event.get('attachments', []):
-            media_type, media_url = attachment.split(':', 1)
-
-            if not media_url.startswith('http://') and not media_url.startswith('https://'):
-                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
-
-            attachments.append("%s:%s" % (media_type, media_url))
-
+        attachments = self._resolve_attachments(event.get('attachments', []))
         urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
 
         msgs_to_send = []
@@ -2987,15 +2978,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
-        # convert attachment URLs to absolute URLs
-        attachments = []
-        for attachment in msg.get('attachments', []):
-            media_type, media_url = attachment.split(':', 1)
-
-            if not media_url.startswith('http://') and not media_url.startswith('https://'):
-                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
-
-            attachments.append("%s:%s" % (media_type, media_url))
+        attachments = self._resolve_attachments(msg.get('attachments', []))
 
         msg_out = Msg.create_outgoing(
             self.org, user, urn,
@@ -3182,6 +3165,21 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 contacts.add(contact)
 
         return urns, contacts
+
+    def _resolve_attachments(self, relative_urls):
+        """
+        Convert attachment URLs to absolute URLs
+        """
+        attachments = []
+        for attachment in relative_urls:
+            media_type, media_url = attachment.split(':', 1)
+
+            if not media_url.startswith('http://') and not media_url.startswith('https://'):
+                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
+
+            attachments.append("%s:%s" % (media_type, media_url))
+
+        return attachments
 
     @classmethod
     def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
