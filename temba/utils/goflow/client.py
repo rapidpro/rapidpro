@@ -18,22 +18,28 @@ class RequestBuilder(object):
         self.asset_timestamp = asset_timestamp
         self.request = {'assets': [], 'events': []}
 
-    def include_all(self, org):
+    def include_all(self, org, simulator=False):
         request = self
         for f in org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
 
-        request = request.include_fields(org).include_groups(org).include_labels(org).include_channels(org)
+        request = request.include_fields(org).include_groups(org).include_labels(org).include_channels(org, simulator)
         if org.country_id:
             request = request.include_country(org)
 
         return request
 
-    def include_channels(self, org):
+    def include_channels(self, org, simulator):
+        from temba.channels.models import Channel
+
+        channels = [serialize_channel(c) for c in org.channels.filter(is_active=True)]
+        if simulator:
+            channels.append(Channel.SIMULATOR_CHANNEL)
+
         self.request['assets'].append({
             'type': "channel",
-            'url': get_assets_url(org, self.asset_timestamp, 'channel'),
-            'content': [serialize_channel(c) for c in org.channels.filter(is_active=True)],
+            'url': get_assets_url(org, self.asset_timestamp, 'channel', simulator=simulator),
+            'content': channels,
             'is_set': True
         })
         return self
@@ -131,9 +137,9 @@ class RequestBuilder(object):
         })
         return self
 
-    def asset_server(self, org):
+    def asset_server(self, org, simulator=False):
         type_urls = {
-            'channel': get_assets_url(org, self.asset_timestamp, 'channel'),
+            'channel': get_assets_url(org, self.asset_timestamp, 'channel', simulator=simulator),
             'field': get_assets_url(org, self.asset_timestamp, 'field'),
             'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
             'group': get_assets_url(org, self.asset_timestamp, 'group'),
@@ -220,10 +226,12 @@ class FlowServerException(Exception):
     pass
 
 
-class FlowServerClient:
+class FlowServerClient(object):
     """
     Basic client for GoFlow's flow server
     """
+    headers = {'User-Agent': 'Temba'}
+
     def __init__(self, base_url, debug=False):
         self.base_url = base_url
         self.debug = debug
@@ -246,7 +254,7 @@ class FlowServerClient:
             print(json.dumps(payload, indent=2))
             print('[GOFLOW]=============== /%s request ===============' % endpoint)
 
-        response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
+        response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
         if self.debug:
@@ -263,16 +271,20 @@ class FlowServerClient:
         return resp_json
 
 
-def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None):
+def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None, simulator=False):
     if settings.TESTING:
         url = 'http://localhost:8000/flow/assets/%d/%d/' % (org.id, timestamp)
     else:  # pragma: no cover
         url = 'https://%s/flow/assets/%d/%d/' % (settings.HOSTNAME, org.id, timestamp)
 
     if asset_type:
-        url = url + asset_type + '/'
+        url += asset_type + '/'
     if asset_uuid:
-        url = url + asset_uuid + '/'
+        url += asset_uuid + '/'
+
+    if simulator:
+        url += '?simulator=1'
+
     return url
 
 
