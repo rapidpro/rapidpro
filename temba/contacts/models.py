@@ -787,7 +787,7 @@ class Contact(TembaModel):
                 field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
 
             if dec_value is not None:
-                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value)
+                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value.normalize())
 
             if loc_value:
                 if loc_value.level == AdminBoundary.LEVEL_STATE:
