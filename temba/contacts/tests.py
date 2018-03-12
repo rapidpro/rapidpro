@@ -3498,6 +3498,7 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, hypens")
 
+        post_data['column_country_label'] = 'Whatevaar'  # reset invalid label value with a valid one
         post_data['column_joined_label'] = 'District'
 
         response = self.client.post(customize_url, post_data, follow=True)
@@ -4618,7 +4619,7 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = "town"
 
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names must be unique. 'Town' is duplicated")
+        self.assertFormError(response, 'form', None, "Field names must be unique. 'town' is duplicated")
         self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
         self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
 

@@ -2205,7 +2205,7 @@ class FlowTest(TembaTest):
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
         response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
-        self.assertEqual(response.context['form'].fields['keyword_triggers'].initial, "it,everything,changes")
+        self.assertEqual(response.context['form'].fields['keyword_triggers'].initial, "it,changes,everything")
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
         trigger = Trigger.objects.get(keyword="everything", flow=flow3)
@@ -4684,7 +4684,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(run.exit_type)
         self.assertIsNone(run.exited_on)
         self.assertTrue(run.responded)
-        self.assertEqual(run.results, {
+        six.assertCountEqual(self, run.results, {
             'color': {
                 'category': "Red",
                 'node_uuid': str(rule_set1.uuid),
@@ -4708,7 +4708,7 @@ class FlowsTest(FlowFileTest):
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
 
         run.refresh_from_db()
-        self.assertEqual(run.results, {
+        six.assertCountEqual(self, run.results, {
             'color': {
                 'category': "Red",
                 'node_uuid': str(rule_set1.uuid),

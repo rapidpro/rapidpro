@@ -9274,7 +9274,7 @@ class ViberPublicTest(TembaTest):
         contact.name = "ET4"
         contact.save(update_fields=['name'])
         response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
-                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE=b'ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
         self.assertEqual(response.status_code, 200)
 
         # refresh our contact, name shouldn't have changed
