@@ -51,7 +51,7 @@ def backfill_contact_fields(Contact, ContactField, Value):
 
     max_id = r.get('cf_max_id')
     if max_id is None:
-        max_id = Contact.objects.all().order_by('pk').first()
+        max_id = Contact.objects.all().order_by('-pk').first()
         if max_id is not None:
             max_id = max_id.id
         else:
