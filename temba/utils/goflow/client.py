@@ -22,19 +22,19 @@ class RequestBuilder(object):
         request = self
         for f in org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
-        for channel in org.channels.filter(is_active=True):
-            request = request.include_channel(channel)
-        request = request.include_fields(org).include_groups(org).include_labels(org)
+
+        request = request.include_fields(org).include_groups(org).include_labels(org).include_channels(org)
         if org.country_id:
             request = request.include_country(org)
 
         return request
 
-    def include_channel(self, channel):
+    def include_channels(self, org):
         self.request['assets'].append({
             'type': "channel",
-            'url': get_assets_url(channel.org, self.asset_timestamp, 'channel', str(channel.uuid)),
-            'content': serialize_channel(channel)
+            'url': get_assets_url(org, self.asset_timestamp, 'channel'),
+            'content': [serialize_channel(c) for c in org.channels.filter(is_active=True)],
+            'is_set': True
         })
         return self
 
@@ -115,7 +115,7 @@ class RequestBuilder(object):
         """
         self.request['events'].append({
             'type': "msg_received",
-            'created_on': timezone.now().isoformat(),
+            'created_on': msg.created_on.isoformat(),
             'msg': serialize_message(msg)
         })
         return self

@@ -34,7 +34,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
-from temba.utils.goflow import FlowServerException, get_client
+from temba.utils.goflow import FlowServerException, get_client, serialize_contact
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -4504,12 +4504,13 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        payload = client.request_builder(int(time.time() * 1000000)).request
 
         # add a manual trigger
         payload['trigger'] = {
             'type': 'manual',
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'contact': serialize_contact(self.contact),
             'triggered_on': timezone.now().isoformat()
         }
 
@@ -4691,7 +4692,7 @@ class FlowsTest(FlowFileTest):
                 'name': "Color",
                 'value': "red",
                 'created_on': matchers.ISODate(),
-                'input': "I like red"
+                'input': "I like red\nhttp://example.com/test.jpg"
             }
         })
 
@@ -4715,7 +4716,7 @@ class FlowsTest(FlowFileTest):
                 'name': "Color",
                 'value': "red",
                 'created_on': matchers.ISODate(),
-                'input': "I like red"
+                'input': "I like red\nhttp://example.com/test.jpg"
             },
             'beer': {
                 'category': "Primus",
@@ -6606,7 +6607,7 @@ class FlowsTest(FlowFileTest):
         subflow_ruleset = RuleSet.objects.get(flow=parent, ruleset_type='subflow')
         subflow_reply = ActionSet.objects.get(flow=parent, y=386, x=341)
 
-        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "001122")], restart_participants=True)
+        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "+12347778888")], restart_participants=True)
 
         msg = Msg.objects.filter(contact=self.contact).first()
         self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
