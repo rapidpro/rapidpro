@@ -33,6 +33,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
+from temba.flows.models import get_flow_user
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +335,10 @@ class ContactField(SmartModel):
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
+    REFERRER_FIELD = "referrer_field"
+    REFERRER_LABEL = "referrer-field"
+    UNCAUGHT_FIELD = "uncaught_field"
+    UNCAUGHT_LABEL = "uncaught-field"
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -536,6 +541,14 @@ class Contact(TembaModel):
             obj['urns'] = urns
 
         return obj
+
+    def add_field_to_contact(self, label, field, value, org):
+        user = get_flow_user(org)
+        contact_field = ContactField.objects.filter(
+                            org=org, key=field).first()
+        if not contact_field:
+            ContactField.get_or_create(org, user, field, label)
+        contact.set_field(user,field, value)
 
     def groups_as_text(self):
         groups = self.user_groups.all().order_by('name')

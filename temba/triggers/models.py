@@ -275,11 +275,29 @@ class Trigger(SmartModel):
             triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
 
         if referrer_id is not None:
+            all_referrer_triggers = triggers
             triggers = triggers.filter(models.Q(referrer_id__iexact=referrer_id) | models.Q(referrer_id=''))
 
             # if we catch more than one trigger with a referrer_id, ignore the catchall
             if len(triggers) > 1:
                 triggers = triggers.exclude(referrer_id='')
+
+            if not triggers:
+                #Now check if can use regex expression
+                triggers = all_referrer_triggers.filter(models.Q(referrer_id__contains="regex"))
+                from temba.flows.models import get_flow_user
+                for trigger in triggers:
+                    prog = re.compile(trigger.referrer_id.split('_')[1])
+                    if re.match(prog,referrer_id):
+                        triggers = triggers.filter(models.Q(referrer_id__iexact=trigger.referrer_id))
+                        ############ Save last uncaught response from contact ###############
+                        contact.add_field_to_contact(
+                              label=ContactField.REFERRER_LABEL,
+                              field=ContactField.REFERRER_FIELD,
+                              value=referrer_id,
+                              org=entity.org)
+                        break
+
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list('pk', flat=True)
@@ -325,7 +343,7 @@ class Trigger(SmartModel):
         #########################     MX CHANGE      #########################
         #  NOW CHECK TWO WORDS TRIGGER
         trigger = trigger_selection.filter(keyword__iexact=words[0], match_type__in=match_types)
-        if not trigger and len(words)>1:            
+        if not trigger and len(words)>1:
             trigger = trigger_selection.filter(keyword__iexact=words[0]+" "+words[1], match_type__in=match_types)
 
         # trigger needs to match the contact's groups or be non-group specific

@@ -20,15 +20,10 @@ class CatchAllHandler(MessageHandler):
 
     def handle(self, msg):
         ############ Save last uncaught response from contact ###############
-        UNCAUGHT_FIELD = "uncaught_field"
-        UNCAUGHT_LABEL = "uncaught-field" 
-        contact = msg.contact
-        user = get_flow_user(msg.org)
-        contact_field = ContactField.objects.filter(
-            org=msg.org, key=UNCAUGHT_FIELD).first()
-        if not contact_field:
-            ContactField.get_or_create(msg.org, user, UNCAUGHT_FIELD,
-                                       UNCAUGHT_LABEL)
-        contact.set_field(user, UNCAUGHT_FIELD, msg.text)
+        contact.add_field_to_contact(
+              label=ContactField.UNCAUGHT_LABEL,
+              field=ContactField.UNCAUGHT_FIELD,
+              value=msg.text,
+              org=msg.org)
 
         return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
