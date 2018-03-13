@@ -41,7 +41,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
-from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
+from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
 from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
@@ -2935,38 +2936,34 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         urns = event.get('urns', [])
         contact_refs = event.get('contacts', [])
         group_refs = event.get('groups', [])
-        created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
-
-        attachments = self._resolve_attachments(event.get('attachments', []))
         urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
 
-        msgs_to_send = []
-        run_messages = []
+        text = {}
+        media = {}
+        quick_replies = {}
+        for lang, translation in six.iteritems(event['translations']):
+            text[lang] = translation.get('text', "")
+            attachments = self._resolve_attachments(translation.get('attachments', []))
+            quick_replies[lang] = translation.get('quick_replies', [])
 
-        for recipient in itertools.chain(urns, contacts):
-            high_priority = (recipient == self.contact and self.session.responded)
-            channel = msg_in.channel if msg_in and msg_in.contact == recipient else None
+            # we currently only support one attachment per language
+            media[lang] = attachments[0] if attachments else None
 
-            try:
-                msg_out = Msg.create_outgoing(
-                    self.org, user, recipient,
-                    text=event['text'],
-                    attachments=attachments,
-                    quick_replies=event.get('quick_replies', []),
-                    channel=channel,
-                    high_priority=high_priority,
-                    created_on=created_on,
-                    response_to=msg_in if msg_in and msg_in.id else None
-                )
-                msgs_to_send.append(msg_out)
-                if msg_out.contact == self.contact:
-                    run_messages.append(msg_out)
+        # re-organize quick replies from dict of lists, to list of dicts
+        quick_replies = [dict(zip(quick_replies, t)) for t in zip(*quick_replies.values())]
 
-            except UnreachableException:  # pragma: no cover
-                continue
+        broadcast = Broadcast.create(
+            self.org, user,
+            text,
+            recipients=itertools.chain(urns, contacts),
+            media=media,
+            quick_replies=quick_replies,
+            base_language=event['base_language']
+        )
 
-        return msgs_to_send, run_messages
+        # send in task
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id, with_expressions=False))
 
     def apply_msg_created(self, event, msg_in):
         """
