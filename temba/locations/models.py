@@ -144,15 +144,16 @@ class AdminBoundary(MPTTModel, models.Model):
 
     @classmethod
     def get_by_path(cls, org, path):
-        field_attr = '_ab-%s' % path
+        cache = getattr(org, '_abs', {})
+        if not cache:
+            setattr(org, '_abs', cache)
 
-        if hasattr(org, field_attr):
-            return getattr(org, field_attr)
+        boundary = cache.get(path)
+        if not boundary:
+            boundary = AdminBoundary.objects.filter(path=path).first()
+            cache[path] = boundary
 
-        field = AdminBoundary.objects.filter(path=path).first()
-        setattr(org, field_attr, field)
-
-        return field
+        return boundary
 
     def __str__(self):
         return "%s" % self.name

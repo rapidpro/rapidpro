@@ -821,14 +821,14 @@ class Contact(TembaModel):
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                     district_value = self.get_field_value(district_field.uuid)
                     if district_value:
-                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
                 elif field.value_type == Value.TYPE_DISTRICT:
                     state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                     if state_field:
                         state_value = self.get_field_value(state_field.uuid)
                         if state_value:
-                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
                 elif field.value_type == Value.TYPE_STATE:
                     loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)

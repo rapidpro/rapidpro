@@ -661,7 +661,7 @@ class ContactTest(TembaTest):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.get_flow('color')
-        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date", value_type=Value.TYPE_DATETIME)
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create af flow event
@@ -2589,6 +2589,9 @@ class ContactTest(TembaTest):
         state.value_type = Value.TYPE_TEXT
         state.save()
 
+        # set our value as text
+        self.joe.set_field(self.admin, "state", "Rwama Value")
+
         # should now be using stored string_value instead of state name
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Rwama Value')
@@ -3598,8 +3601,7 @@ class ContactTest(TembaTest):
         event_fire = EventFire.objects.filter(event=self.message_event, contact=contact1,
                                               event__campaign__group__in=[ballers]).first()
 
-        planting_date = ContactField.get_or_create(self.org, self.user, 'planting_date')
-        contact1_planting_date = contact1.get_field_value(planting_date.uuid).datetime_value.replace(second=0, microsecond=0)
+        contact1_planting_date = contact1.get_field_value(self.planting_date.uuid).replace(second=0, microsecond=0)
         self.assertEqual(event_fire.scheduled, contact1_planting_date + timedelta(days=7))
 
     def test_contact_import_with_languages(self):
@@ -3879,7 +3881,7 @@ class ContactTest(TembaTest):
         # check that this field has been set
         self.assertEqual(self.joe.get_field_value(birth_date.uuid), urn)
         self.assertIsNone(self.joe.get_field_json(birth_date.uuid).get('decimal'))
-        self.assertIsNone(self.joe.get_field_json(birth_date.uuis).get('datetime'))
+        self.assertIsNone(self.joe.get_field_json(birth_date.uuid).get('datetime'))
 
     def test_field_values(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
