@@ -80,7 +80,7 @@ def backfill_contact_fields(Org, Contact, ContactField, Value):
     contact_values = Value.objects.exclude(contact_field=None).prefetch_related('location_value')
 
     start = time.time()
-    processed = 0
+    processed = 1
 
     # 100 contacts at a time, select a contact and all its values
     for batch in chunk_list(range(last_id, max_id + 1), 100):
