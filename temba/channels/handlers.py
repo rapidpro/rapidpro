@@ -2487,8 +2487,8 @@ class ViberPublicHandler(BaseChannelHandler):
 
     @classmethod
     def calculate_sig(cls, request_body, auth_token):
-        return hmac.new(force_bytes(auth_token.encode('ascii')),
-                        msg=request_body, digestmod=hashlib.sha256).hexdigest()
+        return hmac.new(force_bytes(auth_token, encoding='ascii'),
+                        msg=force_bytes(request_body), digestmod=hashlib.sha256).hexdigest()
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
