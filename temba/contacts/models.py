@@ -784,7 +784,7 @@ class Contact(TembaModel):
 
             # set all the other fields that have a non-zero value
             if dt_value is not None:
-                field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
+                field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
             if dec_value is not None:
                 field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value.normalize())
