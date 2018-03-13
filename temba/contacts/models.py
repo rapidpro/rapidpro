@@ -33,7 +33,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
-from temba.flows.models import get_flow_user
+from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -543,7 +543,9 @@ class Contact(TembaModel):
         return obj
 
     def add_field_to_contact(self, label, field, value, org):
-        user = get_flow_user(org)
+        branding = org.get_branding()
+        email = branding['support_email']
+        user = User.objects.filter(username=username).first()
         contact_field = ContactField.objects.filter(
                             org=org, key=field).first()
         if not contact_field:

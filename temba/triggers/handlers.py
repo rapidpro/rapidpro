@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 from temba.msgs.handler import MessageHandler
 from .models import Trigger
 from temba.contacts.models import ContactField
-from temba.flows.models import get_flow_user
 
 class TriggerHandler(MessageHandler):
     def __init__(self):
