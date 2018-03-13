@@ -7,13 +7,11 @@ sudo:
 language: python
 python:
   - "2.7.11"
-
+  - "3.6.4"
 addons:
   apt:
     packages:
       - postgresql-9.6-postgis-2.3
-      - python3
-      - python3-pip
   postgresql: "9.6"
 
 services:
@@ -29,12 +27,7 @@ install:
   - pip --version
   - pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
-
-  # install flake8 on Python 3
-  - export PATH=$HOME/.local/bin:$PATH
-  - python3 --version
-  - pip3 --version
-  - pip3 install flake8 --user `whoami`
+  - pip install flake8
 
   # switch to Node 6 and install our node dependencies
   - nvm install 6
@@ -64,7 +57,6 @@ script:
 
   # test PEP8 compliance on both Python 2 and 3
   - flake8
-  - /home/travis/.local/bin/flake8
   
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
