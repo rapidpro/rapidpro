@@ -286,6 +286,7 @@ class Trigger(SmartModel):
                 #Now check if can use regex expression
                 triggers = all_referrer_triggers.filter(models.Q(referrer_id__contains="regex"))
                 from temba.flows.models import get_flow_user
+                import re
                 for trigger in triggers:
                     prog = re.compile(trigger.referrer_id.split('_')[1])
                     if re.match(prog,referrer_id):
