@@ -9189,6 +9189,40 @@ class AssetServerTest(TembaTest):
         resp_json = response.json()
         self.assertEqual(resp_json['uuid'], str(flow2.uuid))
 
+    def test_channels(self):
+        self.login(self.admin)
+
+        # get all channels
+        response = self.client.get('/flow/assets/%d/1234/channel/' % self.org.id)
+        self.assertEqual(response.json(), [
+            {
+                'name': 'Test Channel',
+                'schemes': ['tel'],
+                'uuid': str(self.channel.uuid),
+                'roles': ['send', 'receive'],
+                'address': '+250785551212'
+            }
+        ])
+
+        # specifying simulator mode, adds the fake simulator channel
+        response = self.client.get('/flow/assets/%d/1234/channel/?simulator=1' % self.org.id)
+        self.assertEqual(response.json(), [
+            {
+                'uuid': str(self.channel.uuid),
+                'name': 'Test Channel',
+                'address': '+250785551212',
+                'schemes': ['tel'],
+                'roles': ['send', 'receive']
+            },
+            {
+                'uuid': '440099cf-200c-4d45-a8e7-4a564f4a0e8b',
+                'name': "Simulator Channel",
+                'address': '+18005551212',
+                'schemes': ['tel'],
+                'roles': ['send']
+            }
+        ])
+
     def test_location_hierarchy(self):
         self.login(self.admin)
 
