@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -10,7 +11,7 @@ class MacrokioskTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_macrokiosk')
+        url = reverse('channels.types.macrokiosk.claim')
 
         self.login(self.admin)
 
@@ -39,14 +40,14 @@ class MacrokioskTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual(channel.country, 'MY')
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
-        self.assertEqual(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
+        self.assertEqual(channel.config['username'], post_data['username'])
+        self.assertEqual(channel.config['password'], post_data['password'])
+        self.assertEqual(channel.config[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
+        self.assertEqual(channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
         self.assertEqual(channel.address, '250788123123')
         self.assertEqual(channel.channel_type, 'MK')
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

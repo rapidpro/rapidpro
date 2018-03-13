@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import telegram
 
@@ -22,7 +23,7 @@ class TelegramTypeTest(TembaTest):
     @patch('telegram.Bot.get_me')
     @patch('telegram.Bot.set_webhook')
     def test_claim(self, mock_set_webhook, mock_get_me):
-        url = reverse('channels.claim_telegram')
+        url = reverse('channels.types.telegram.claim')
 
         self.login(self.admin)
 
@@ -52,7 +53,7 @@ class TelegramTypeTest(TembaTest):
         response = self.client.post(url, {'auth_token': '184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'})
         channel = Channel.objects.get(address="rapidbot")
         self.assertEqual(channel.channel_type, 'TG')
-        self.assertEqual(channel.config_json(), {
+        self.assertEqual(channel.config, {
             'auth_token': '184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8', 'callback_domain': channel.callback_domain
         })
 

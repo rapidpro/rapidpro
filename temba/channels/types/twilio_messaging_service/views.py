@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
 from django.http import HttpResponseRedirect
@@ -32,7 +33,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.client = org.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
-            self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
+            self.account = self.client.accounts.get(org.config[ACCOUNT_SID])
         except TwilioRestException:
             return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
@@ -50,7 +51,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        org_config = org.config_json()
+        org_config = org.config
         config = {Channel.CONFIG_MESSAGING_SERVICE_SID: data['messaging_service_sid'],
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID],
                   Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN],

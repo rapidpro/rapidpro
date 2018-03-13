@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import requests
@@ -32,6 +33,8 @@ class LineType(ChannelType):
     max_length = 1600
     attachment_support = False
     free_sending = True
+
+    show_public_addresses = True
 
     def send(self, channel, msg, text):
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)

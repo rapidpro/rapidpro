@@ -1,5 +1,5 @@
-# coding=utf-8
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import pytz
@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_it_a_phonenumber
+from temba.contacts.search import is_phonenumber
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -34,7 +34,7 @@ from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_form
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
-from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
 from .templatetags.contacts import contact_field, activity_icon, history_class
@@ -192,6 +192,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't call update_query on a static group
         self.assertRaises(ValueError, group.update_query, "gender=M")
@@ -212,9 +213,11 @@ class ContactGroupTest(TembaTest):
             '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
         )
 
+        group.refresh_from_db()
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
         group.update_query('age > 18')
@@ -223,6 +226,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.query, 'age > 18')
         self.assertEqual(set(group.query_fields.all()), {age})
         self.assertEqual(set(group.contacts.all()), {self.mary})
+        self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
@@ -240,7 +244,19 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
         filter_url = reverse('contacts.contact_filter', args=[group.uuid])
         response = self.client.get(filter_url)
-        self.assertFalse('unlabel' in response.context['actions'])
+        self.assertNotIn('unlabel', response.context['actions'])
+
+        # put group back into evaluation state
+        group.status = ContactGroup.STATUS_EVALUATING
+        group.save(update_fields=('status',))
+
+        # can't update query again while it is in this state
+        with self.assertRaises(ValueError):
+            group.update_query('age = 18')
+
+        # can't call reevaluate on it while it is in this state
+        with self.assertRaises(ValueError):
+            group.reevaluate()
 
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow('initialize')
@@ -251,7 +267,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=215, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=216, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -584,6 +600,24 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(self.dynamic_group.name, "Frank")
         self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
         self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
+
+        # mark our dynamic group as evaluating
+        self.dynamic_group.status = ContactGroup.STATUS_EVALUATING
+        self.dynamic_group.save(update_fields=('status',))
+
+        # and check we can't change the query while that is the case
+        response = self.client.post(url, dict(name='Frank', query='twitter = "hello"'))
+        self.assertFormError(
+            response, 'form', 'query',
+            'You cannot update the query of a group that is evaluating.'
+        )
+
+        # but can change the name
+        response = self.client.post(url, dict(name='Frank2', query='twitter is "hola"'))
+        self.assertNoFormErrors(response)
+
+        self.dynamic_group.refresh_from_db()
+        self.assertEqual(self.dynamic_group.name, "Frank2")
 
     def test_delete(self):
         url = reverse('contacts.contactgroup_delete', args=[self.joe_and_frank.pk])
@@ -1453,10 +1487,11 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
         )
 
@@ -1464,7 +1499,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'gender', 'male')
         contact.set_field(self.user, 'age', 20)
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in contact.user_groups.filter(is_active=True).all()],
             ['cannon fodder', 'urn group', 'Age field is set']
         )
@@ -1473,8 +1509,13 @@ class ContactTest(TembaTest):
         # add a group with members and an empty group
         self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        men = self.create_group("Men", [], "gender=M")
+        men = self.create_group("Men", query="gender=M")
         nobody = self.create_group("Nobody", [])
+
+        # a group which is being re-evaluated and shouldn't appear in any omnibox results
+        unready = self.create_group("Group being re-evaluated...", query="gender=M")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
         joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
@@ -1687,7 +1728,7 @@ class ContactTest(TembaTest):
 
             # create a missed call
             ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
-                                timezone.now(), 5)
+                                timezone.now(), {})
 
             # try adding some failed calls
             IVRCall.objects.create(contact=self.joe, status=IVRCall.NO_ANSWER, created_by=self.admin,
@@ -2262,7 +2303,7 @@ class ContactTest(TembaTest):
 
         self.assertContains(response, update_url)
         response = self.client.get(update_url)
-        self.assertTrue('name' in response.context['form'].fields)
+        self.assertIn('name', response.context['form'].fields)
 
         response = self.client.post(update_url, dict(name="New Test"))
         self.assertRedirect(response, filter_url)
@@ -2413,7 +2454,7 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'urn__twitter__0', 'urn__tel__1', 'loc'])
+        self.assertEqual(list(response.context['form'].fields.keys()), ['name', 'groups', 'urn__twitter__0', 'urn__tel__1', 'loc'])
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
         self.assertEqual(response.context['form'].fields['urn__tel__1'].initial, "+250781111111")
 
@@ -2480,7 +2521,7 @@ class ContactTest(TembaTest):
         # should no longer be in our update form either
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertEqual(response.context['form'].fields['urn__tel__0'].initial, "+250781111111")
-        self.assertFalse('urn__tel__1' in response.context['form'].fields)
+        self.assertNotIn('urn__tel__1', response.context['form'].fields)
 
         # check that groups field isn't displayed when contact is blocked
         self.joe.block(self.user)
@@ -2595,7 +2636,7 @@ class ContactTest(TembaTest):
 
         # try delete action
         event = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)),
-                                    ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
+                                    ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
 
@@ -2709,10 +2750,11 @@ class ContactTest(TembaTest):
     def test_get_import_file_headers(self):
         with open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb') as open_file:
             csv_file = ContentFile(open_file.read())
-            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes']
+
+            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes', 'email']
             self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
-            self.assertFalse('email' in Contact.get_org_import_file_headers(csv_file, self.org))
+            self.assertNotIn('twitter', Contact.get_org_import_file_headers(csv_file, self.org))
 
         with open('%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls' % settings.MEDIA_ROOT,
                   'rb') as open_file:
@@ -3024,7 +3066,7 @@ class ContactTest(TembaTest):
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
-                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                 "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                  "external, jiochat, fcm, whatsapp should be provided or a Contact UUID"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
@@ -3096,7 +3138,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                 "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # lock for creates only
@@ -3164,7 +3206,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, mailto, "
                                                                 "external, jiochat, fcm, whatsapp should be provided or a Contact UUID")]))
 
             # only lock for create
@@ -3303,7 +3345,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
                              '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
@@ -3311,7 +3353,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
                              '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -3336,7 +3378,7 @@ class ContactTest(TembaTest):
 
         # import spreadsheet with extra columns
         response = self.assertContactImport('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT,
-                                            None, task_customize=True, custom_fields_number=21)
+                                            None, task_customize=True, custom_fields_number=24)
 
         # all checkboxes should default to True
         for key in response.context['form'].fields.keys():
@@ -3344,29 +3386,31 @@ class ContactTest(TembaTest):
                 self.assertTrue(response.context['form'].fields[key].initial)
 
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
-        post_data = dict()
-        post_data['column_country_include'] = 'on'
-        post_data['column_professional_status_include'] = 'on'
-        post_data['column_zip_code_include'] = 'on'
-        post_data['column_joined_include'] = 'on'
-        post_data['column_vehicle_include'] = 'on'
-        post_data['column_shoes_include'] = 'on'
-
-        post_data['column_country_label'] = '[_NEW_]Location'
-        post_data['column_district_label'] = 'District'
-        post_data['column_professional_status_label'] = 'Job and Projects'
-        post_data['column_zip_code_label'] = 'Postal Code'
-        post_data['column_joined_label'] = 'Joined'
-        post_data['column_vehicle_label'] = 'Vehicle'
-        post_data['column_shoes_label'] = ' Shoes  '
-
-        post_data['column_country_type'] = 'T'
-        post_data['column_district_type'] = 'T'
-        post_data['column_professional_status_type'] = 'T'
-        post_data['column_zip_code_type'] = 'N'
-        post_data['column_joined_type'] = 'D'
-        post_data['column_vehicle_type'] = 'T'
-        post_data['column_shoes_type'] = 'N'
+        post_data = {
+            'column_country_include': 'on',
+            'column_professional_status_include': 'on',
+            'column_zip_code_include': 'on',
+            'column_joined_include': 'on',
+            'column_vehicle_include': 'on',
+            'column_shoes_include': 'on',
+            'column_email_include': 'on',
+            'column_country_label': '[_NEW_]Location',
+            'column_district_label': 'District',
+            'column_professional_status_label': 'Job and Projects',
+            'column_zip_code_label': 'Postal Code',
+            'column_joined_label': 'Joined',
+            'column_vehicle_label': 'Vehicle',
+            'column_shoes_label': ' Shoes  ',
+            'column_email_label': 'Email',
+            'column_country_type': 'T',
+            'column_district_type': 'T',
+            'column_professional_status_type': 'T',
+            'column_zip_code_type': 'N',
+            'column_joined_type': 'D',
+            'column_vehicle_type': 'T',
+            'column_shoes_type': 'N',
+            'column_email_type': 'T',
+        }
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEqual(
@@ -3385,10 +3429,10 @@ class ContactTest(TembaTest):
 
         self.assertEqual(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
         self.assertEqual(contact1.get_field_raw('wears'), 'Bứnto')  # existing field was looked up by label & stripped
+        self.assertEqual(contact1.get_field_raw('email'), 'eric@example.com')
 
         self.assertEqual(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
         self.assertEqual(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
-        self.assertEqual(contact1.get_urn(schemes=[EMAIL_SCHEME]).path, 'eric@example.com')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)
@@ -4011,13 +4055,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotContains(response, "Simulator Contact")
 
         response = self.client.get(reverse('contacts.contact_filter', args=[group.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
-        self.assertFalse("Simulator Contact" in response.content)
+        self.assertNotContains(response, "Simulator Contact")
 
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
@@ -4061,7 +4105,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
@@ -4074,10 +4118,11 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(21):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
-        self.assertItemsEqual(
+        six.assertCountEqual(
+            self,
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
             ['Empty age field', 'urn group']
         )
@@ -4148,9 +4193,9 @@ class ContactFieldTest(TembaTest):
         another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME)
         self.assertTrue(another.show_in_table)
 
-        for elt in Contact.RESERVED_FIELDS:
+        for key in Contact.RESERVED_FIELD_KEYS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
+                ContactField.get_or_create(self.org, self.admin, key, key, value_type=Value.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, 'groups_field', 'Groups Field')
         self.assertEqual(groups_field.key, 'groups_field')
@@ -4216,12 +4261,15 @@ class ContactFieldTest(TembaTest):
     def test_is_valid_key(self):
         self.assertTrue(ContactField.is_valid_key("age"))
         self.assertTrue(ContactField.is_valid_key("age_now_2"))
-        self.assertFalse(ContactField.is_valid_key("Age"))   # must be lowercase
-        self.assertFalse(ContactField.is_valid_key("age!"))  # can't have punctuation
-        self.assertFalse(ContactField.is_valid_key("âge"))   # a-z only
-        self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
-        self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
+        self.assertTrue(ContactField.is_valid_key("email"))
+        self.assertFalse(ContactField.is_valid_key("Age"))     # must be lowercase
+        self.assertFalse(ContactField.is_valid_key("age!"))    # can't have punctuation
+        self.assertFalse(ContactField.is_valid_key("âge"))     # a-z only
+        self.assertFalse(ContactField.is_valid_key("2up"))     # can't start with a number
+        self.assertFalse(ContactField.is_valid_key("name"))    # can't be a contact attribute
         self.assertFalse(ContactField.is_valid_key("uuid"))
+        self.assertFalse(ContactField.is_valid_key("tel"))     # can't be URN scheme
+        self.assertFalse(ContactField.is_valid_key("mailto"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_label(self):
@@ -4398,7 +4446,7 @@ class ContactFieldTest(TembaTest):
         # now we should be successful
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
         self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
     def test_manage_fields(self):
@@ -4427,7 +4475,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # should still have three contact fields
         self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
@@ -4451,7 +4499,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # make sure we didn't have an error
-        self.assertTrue('form' not in response.context)
+        self.assertNotIn('form', response.context)
 
         # first field was blank, so it should be inactive
         self.assertIsNone(ContactField.objects.filter(org=self.org, key="first", is_active=True).first())
@@ -4688,22 +4736,18 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-    def test_is_it_a_phonenumber(self):
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1-234-567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+1 (234) 567-8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12345678901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber('+12 34 567 8901'), '12345678901')
-
-        self.assertEqual(is_it_a_phonenumber(' 234 567 8901'), '2345678901')
+    def test_is_phonenumber(self):
+        # these should match as phone numbers
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1-234-567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+1 (234) 567-8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12345678901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber('+12 34 567 8901'), (True, '12345678901'))
+        self.assertEqual(is_phonenumber(' 234 567 8901 '), (True, '2345678901'))
 
         # these should not be parsed as numbers
-        self.assertIsNone(is_it_a_phonenumber('+12345678901 not a number'))
-        self.assertIsNone(is_it_a_phonenumber(''))
-        self.assertIsNone(is_it_a_phonenumber('AMAZONS'))
-        self.assertIsNone(is_it_a_phonenumber('name = "Jack"'))
-        self.assertIsNone(is_it_a_phonenumber('(social = "234-432-324")'))
+        self.assertEqual(is_phonenumber('+12345678901 not a number'), (False, None))
+        self.assertEqual(is_phonenumber(''), (False, None))
+        self.assertEqual(is_phonenumber('AMAZONS'), (False, None))
+        self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
+        self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))
