@@ -551,7 +551,7 @@ class Contact(TembaModel):
                             org=org, key=field).first()
         if not contact_field:
             ContactField.get_or_create(org, user, field, label)
-        contact.set_field(user,field, value)
+        self.set_field(user,field, value)
 
     def groups_as_text(self):
         groups = self.user_groups.all().order_by('name')
