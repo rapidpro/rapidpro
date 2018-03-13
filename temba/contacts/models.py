@@ -545,6 +545,7 @@ class Contact(TembaModel):
     def add_field_to_contact(self, label, field, value, org):
         branding = org.get_branding()
         email = branding['support_email']
+        username = '%s_flow' % branding['slug']
         user = User.objects.filter(username=username).first()
         contact_field = ContactField.objects.filter(
                             org=org, key=field).first()
