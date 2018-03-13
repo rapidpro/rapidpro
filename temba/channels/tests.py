@@ -28,7 +28,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from django.template import loader
 from django_redis import get_redis_connection
-from mock import patch
+from mock import patch, ANY
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
@@ -6452,17 +6452,22 @@ class TwitterTest(TembaTest):
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            data = json.dumps(dict(event=dict(message_create=dict(message_data=dict(
+                text='Hello, world!',
+                quick_reply=dict(
+                    type='options',
+                    options=[dict(label='Yes'), dict(label='No')]
+                )),
+                target=dict(recipient_id='10002')),
+                type='message_create')
+            ))
+
             mock.assert_called_with('https://api.twitter.com/1.1/direct_messages/events/new.json',
                                     files=None,
-                                    data=json.dumps(dict(event=dict(message_create=dict(message_data=dict(
-                                        text='Hello, world!',
-                                        quick_reply=dict(
-                                            type='options',
-                                            options=[dict(label='Yes'), dict(label='No')]
-                                        )),
-                                        target=dict(recipient_id='10002')),
-                                        type='message_create')
-                                    )))
+                                    data=ANY)
+
+            args, kwargs = mock.call_args
+            six.assertCountEqual(self, data, kwargs.get('data'))
 
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
@@ -7117,7 +7122,7 @@ class JasminTest(TembaTest):
         def assertStatus(sms, dlvrd, err, assert_status):
             data['dlvrd'] = dlvrd
             data['err'] = err
-            response = self.client.post(reverse('handlers.jasmin_handler', args=['status', self.channel.uuid]), data)
+            response = self.client.post(reverse('courier.js', args=[self.channel.uuid, 'status']), data)
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
@@ -7136,7 +7141,7 @@ class JasminTest(TembaTest):
             'content': gsm7.encode("événement")[0],
             'id': 'external1'
         }
-        callback_url = reverse('handlers.jasmin_handler', args=['receive', self.channel.uuid])
+        callback_url = reverse('courier.js', args=[self.channel.uuid, 'receive'])
         response = self.client.post(callback_url, data)
 
         self.assertContains(response, "ACK/Jasmin")
@@ -9521,34 +9526,39 @@ class ViberPublicTest(TembaTest):
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            json_data = dict(
+                auth_token='auth_token',
+                receiver="FXLP/JstS7kDuoiUGihkgA==",
+                text="Hello, world!",
+                type='text',
+                tracking_data=msg.id,
+                keyboard=dict(
+                    Type="keyboard",
+                    DefaultHeight=True,
+                    Buttons=[
+                        {
+                            "Text": "Yes",
+                            "ActionBody": "Yes",
+                            "ActionType": "reply",
+                            "TextSize": "regular"
+                        },
+                        {
+                            "Text": "No",
+                            "ActionBody": "No",
+                            "ActionType": "reply",
+                            "TextSize": "regular"
+                        }
+                    ]
+                )
+            )
+
             mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
                                     headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
-                                    json=dict(
-                                        auth_token='auth_token',
-                                        receiver="FXLP/JstS7kDuoiUGihkgA==",
-                                        text="Hello, world!",
-                                        type='text',
-                                        tracking_data=msg.id,
-                                        keyboard=dict(
-                                            Type="keyboard",
-                                            DefaultHeight=True,
-                                            Buttons=[
-                                                {
-                                                    "Text": "Yes",
-                                                    "ActionBody": "Yes",
-                                                    "ActionType": "reply",
-                                                    "TextSize": "regular"
-                                                },
-                                                {
-                                                    "Text": "No",
-                                                    "ActionBody": "No",
-                                                    "ActionType": "reply",
-                                                    "TextSize": "regular"
-                                                }
-                                            ]
-                                        )
-                                    ),
+                                    json=ANY,
                                     timeout=5)
+
+            args, kwargs = mock.call_args
+            six.assertCountEqual(self, json_data, kwargs.get('json'))
 
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
@@ -9663,13 +9673,16 @@ class FcmTest(TembaTest):
                 })
 
                 mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
-                                             data=data,
+                                             data=ANY,
                                              headers={
                                                  'Content-Type': 'application/json',
                                                  'Authorization': 'key=123456789',
                                                  'User-agent': 'RapidPro'
                                              },
                                              timeout=5)
+
+                args, kwargs = mock.call_args
+                six.assertCountEqual(self, data, kwargs.get('data'))
 
                 self.clear_cache()
 
@@ -9719,13 +9732,16 @@ class FcmTest(TembaTest):
                 })
 
                 mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
-                                             data=data,
+                                             data=ANY,
                                              headers={
                                                  'Content-Type': 'application/json',
                                                  'Authorization': 'key=123456789',
                                                  'User-agent': 'RapidPro'
                                              },
                                              timeout=5)
+
+                args, kwargs = mock.call_args
+                six.assertCountEqual(self, data, kwargs.get('data'))
 
                 self.clear_cache()
 
@@ -9765,13 +9781,18 @@ class FcmTest(TembaTest):
             })
 
             mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
-                                         data=data,
+                                         data=ANY,
                                          headers={
                                              'Content-Type': 'application/json',
                                              'Authorization': 'key=123456789',
                                              'User-agent': 'RapidPro'
                                          },
                                          timeout=5)
+
+            # mock.assert_called_once_with only compares equality of arguments so it's not practical for use with
+            # complex arguments, which we need to check manually
+            args, kwargs = mock.call_args
+            six.assertCountEqual(self, data, kwargs.get('data'))
 
             self.clear_cache()
 

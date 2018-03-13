@@ -3024,7 +3024,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # don't really update URNs on test contacts
         if self.contact.is_test:
-            scheme, path, display = URN.to_parts(event['urn'])
+            scheme, path, query, display = URN.to_parts(event['urn'])
             ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
         else:
             self.contact.update_urns(user, urns)
@@ -4901,7 +4901,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     current_contact_values.append(self._get_contact_groups_display(run.contact))
 
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run.contact.get_field(cf.key.lower()), self.org)
+                        field_value = run.contact.get_field_value(cf.uuid)
                         current_contact_values.append(self.prepare_value(field_value))
 
                 # get this run's results by node UUID

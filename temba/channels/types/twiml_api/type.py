@@ -48,7 +48,7 @@ class TwimlAPIType(ChannelType):
         ),
         dict(
             label=_(""),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.twiml_api_handler' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
             description=_("Incoming messages for this channel will be sent to this endpoint."),
         )
     )

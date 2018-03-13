@@ -14,6 +14,7 @@ from temba.contacts.models import ContactField, ImportTask, Contact, ContactGrou
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
+from temba.values.models import Value
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -37,7 +38,7 @@ class CampaignTest(TembaTest):
         self.voice_flow = self.create_flow(name="IVR flow", flow_type='V')
 
         # create a contact field for our planting date
-        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date", value_type=Value.TYPE_DATETIME)
 
     def test_get_unique_name(self):
         campaign1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
@@ -226,7 +227,7 @@ class CampaignTest(TembaTest):
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
         self.assertIn('base', response.context['form'].fields)
-        self.assertEqual('This is my spanish @contact.planting_date', response.context['form'].fields['spa'].initial)
+        self.assertEqual('This is my spanish @(format_date(contact.planting_date))', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
 
         # our single message flow should have a dependency on planting_date
@@ -247,7 +248,7 @@ class CampaignTest(TembaTest):
         self.farmer1.set_field(self.user, 'planting_date', '1/10/2020')
 
         # get the resulting time (including minutes)
-        planting_date = self.farmer1.get_field('planting_date').datetime_value
+        planting_date = self.farmer1.get_field_value(self.planting_date.uuid)
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse('campaigns.campaign_create'))
@@ -475,9 +476,8 @@ class CampaignTest(TembaTest):
                          __urn__tel=self.farmer1.get_urn('tel').path)
 
         self.client.post(reverse('contacts.contact_update', args=[self.farmer1.id]), post_data)
-        planting_date = ContactField.objects.filter(key='planting_date').first()
         response = self.client.post(reverse('contacts.contact_update_fields', args=[self.farmer1.id]),
-                                    dict(contact_field=planting_date.id, field_value='4/8/2020'))
+                                    dict(contact_field=self.planting_date.id, field_value='4/8/2020'))
         self.assertRedirect(response, reverse('contacts.contact_read', args=[self.farmer1.uuid]))
 
         fires = EventFire.objects.all()
@@ -550,11 +550,11 @@ class CampaignTest(TembaTest):
         self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
         self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
 
-        planting = self.farmer1.get_field('planting_date').datetime_value
-        self.assertEqual("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+        planting = self.farmer1.get_field_string(self.planting_date.uuid)
+        self.assertIn("2020-08-10", planting)
 
-        planting = self.farmer2.get_field('planting_date').datetime_value
-        self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+        planting = self.farmer2.get_field_string(self.planting_date.uuid)
+        self.assertIn("2020-08-15", planting)
 
         # now update the campaign
         self.farmers = ContactGroup.user_groups.get(name='Farmers')
@@ -608,10 +608,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(12, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets are different (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field('planting_date').datetime_value.utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value(self.planting_date.uuid).utcoffset())
 
         # the number of hours between these two events should be 49 (two days 1 hour)
-        delta = fire.scheduled - self.farmer1.get_field('planting_date').datetime_value
+        delta = fire.scheduled - self.farmer1.get_field_value(self.planting_date.uuid)
         self.assertEqual(delta.days, 2)
         self.assertEqual(delta.seconds, 3600)
 
@@ -626,10 +626,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets changed (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field('planting_date').datetime_value.utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value(self.planting_date.uuid).utcoffset())
 
         # delta should be 47 hours exactly
-        delta = fire.scheduled - self.farmer1.get_field('planting_date').datetime_value
+        delta = fire.scheduled - self.farmer1.get_field_value(self.planting_date.uuid)
         self.assertEqual(delta.days, 1)
         self.assertEqual(delta.seconds, 82800)
 

@@ -104,7 +104,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         # create new TwiML app
         callback_domain = org.get_brand_domain()
         new_receive_url = "https://" + callback_domain + reverse('courier.t', args=[channel_uuid, 'receive'])
-        new_status_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        new_status_url = "https://" + callback_domain + reverse('courier.t', args=[channel_uuid, 'status'])
         new_voice_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
@@ -125,7 +125,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             if short_codes:
                 short_code = short_codes[0]
                 number_sid = short_code.sid
-                app_url = "https://" + callback_domain + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                app_url = "https://" + callback_domain + "%s" % reverse('courier.t', args=[channel_uuid, 'receive'])
                 client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE

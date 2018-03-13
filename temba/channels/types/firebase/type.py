@@ -43,12 +43,12 @@ class FirebaseCloudMessagingType(ChannelType):
     configuration_urls = (
         dict(
             label=_("Contact Register"),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.fcm_handler' 'register' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
             description=_("To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."),
         ),
         dict(
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.fcm_handler' 'receive' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'receive' %}",
             description=_("To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."),
         ),
     )

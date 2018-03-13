@@ -46,7 +46,7 @@ class PlivoType(ChannelType):
         auth_token = channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN]
 
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % auth_id
-        status_url = "https://%s%s" % (channel.callback_domain, reverse('handlers.plivo_handler', args=['status', channel.uuid]))
+        status_url = "https://%s%s" % (channel.callback_domain, reverse('courier.pl', args=[channel.uuid, 'status']))
 
         payload = {'src': channel.address.lstrip('+'),
                    'dst': msg.urn_path.lstrip('+'),

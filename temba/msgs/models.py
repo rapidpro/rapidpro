@@ -1572,7 +1572,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path, display = URN.to_parts(recipient)
+            scheme, path, query, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
         else:  # pragma: no cover

@@ -1067,29 +1067,29 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'fields', "Invalid contact field key: 'mailto' is a reserved word")
 
         # try updating a non-existent field
+        real_name = ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEqual(201, response.status_code)
-        self.assertIsNotNone(contact.get_field('real_name'))
-        self.assertEqual("Andy", contact.get_field_display("real_name"))
+        contact.refresh_from_db()
+        self.assertEqual("Andy", contact.get_field_value(real_name.uuid))
 
         # create field and try again
-        ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
-        contact = Contact.objects.get()
+        contact.refresh_from_db()
         self.assertContains(response, "Andy", status_code=201)
-        self.assertEqual("Andy", contact.get_field_display("real_name"))
+        self.assertEqual("Andy", contact.get_field_value(real_name.uuid))
 
         # update field via label (deprecated but allowed)
         response = self.postJSON(url, dict(phone='+250788123456', fields={"Real Name": "Andre"}))
-        contact = Contact.objects.get()
+        contact.refresh_from_db()
         self.assertContains(response, "Andre", status_code=201)
-        self.assertEqual("Andre", contact.get_field_display("real_name"))
+        self.assertEqual("Andre", contact.get_field_value(real_name.uuid))
 
         # try when contact field have same key and label
         state = ContactField.get_or_create(self.org, self.user, 'state', "state", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "IL"}))
         self.assertContains(response, "IL", status_code=201)
-        contact = Contact.objects.get()
+        contact.refresh_from_db()
         self.assertEqual("IL", contact.get_field_display("state"))
         self.assertEqual("Andre", contact.get_field_display("real_name"))
 

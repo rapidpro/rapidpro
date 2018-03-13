@@ -66,3 +66,6 @@ class TwimlAPITypeTest(TembaTest):
                 callback_domain=channel.callback_domain
             )
         )
+
+        response = self.client.get(reverse('channels.channel_configuration', args=[channel.uuid]))
+        self.assertContains(response, reverse('courier.tw', args=[channel.uuid, 'receive']))

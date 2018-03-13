@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import iso8601
 import itertools
 import json
 import logging
@@ -15,7 +16,7 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction, IntegrityError
+from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -33,7 +34,10 @@ from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
+from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
+from django.contrib.postgres.fields import JSONField
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +100,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path, display=None):
+    def from_parts(cls, scheme, path, query=None, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -106,10 +110,7 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        if display:
-            return '%s:%s#%s' % (scheme, path, display)
-        else:
-            return '%s:%s' % (scheme, path)
+        return six.text_type(ParsedURN(scheme, path, query=query, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -117,23 +118,14 @@ class URN(object):
         Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
         """
         try:
-            scheme, path = urn.split(':', 1)
-        except Exception:
+            parsed = parse_urn(urn)
+        except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if not scheme or scheme not in cls.VALID_SCHEMES:
-            raise ValueError("URN contains an invalid scheme component: '%s'" % scheme)
+        if parsed.scheme not in cls.VALID_SCHEMES:
+            raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        if not path:
-            raise ValueError("URN contains an invalid path component: '%s'" % path)
-
-        path_parts = path.split("#")
-        display = None
-        if len(path_parts) > 1:
-            path = path_parts[0]
-            display = path_parts[1]
-
-        return scheme, path, display
+        return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -141,7 +133,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path, display = cls.to_parts(urn)
+            scheme, path, query, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -201,7 +193,7 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path, display = cls.to_parts(urn)
+        scheme, path, query, display = cls.to_parts(urn)
 
         norm_path = six.text_type(path).strip()
 
@@ -222,7 +214,7 @@ class URN(object):
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path, display)
+        return cls.from_parts(scheme, norm_path, query, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -262,7 +254,7 @@ class URN(object):
 
     @classmethod
     def identity(cls, urn):
-        scheme, path, display = URN.to_parts(urn)
+        scheme, path, query, display = URN.to_parts(urn)
         return URN.from_parts(scheme, path)
 
     @classmethod
@@ -289,7 +281,7 @@ class URN(object):
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, screen_name)
+        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
 
     @classmethod
     def from_email(cls, path):
@@ -336,6 +328,14 @@ class ContactField(SmartModel):
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
+
+    DATETIME_KEY = 'datetime'
+    TEXT_KEY = 'text'
+    DECIMAL_KEY = 'decimal'
+    COUNTRY_KEY = 'country'
+    STATE_KEY = 'state'
+    DISTRICT_KEY = 'district'
+    WARD_KEY = 'ward'
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -464,6 +464,19 @@ class ContactField(SmartModel):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
+    def get_by_uuid(cls, org, uuid):
+        uuid = six.text_type(uuid)
+        field_attr = '_cf-%s' % uuid
+
+        if hasattr(org, field_attr):
+            return getattr(org, field_attr)
+
+        field = ContactField.objects.filter(org=org, is_active=True, uuid=uuid).first()
+        setattr(org, field_attr, field)
+
+        return field
+
+    @classmethod
     def get_location_field(cls, org, type):
         return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
@@ -494,6 +507,9 @@ class Contact(TembaModel):
 
     language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
                                 help_text=_("The preferred language for this contact"))
+
+    fields = JSONField(verbose_name=_("Fields"), null=True,
+                       help_text=_("The fields set for this contact, keyed by UUID"))
 
     simulation = False
 
@@ -644,6 +660,62 @@ class Contact(TembaModel):
 
         return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
+    def get_field_json(self, uuid):
+        """
+        Returns the full JSON dictionary for the passed in UUID (or None)
+        """
+        return self.fields.get(six.text_type(uuid)) if self.fields else None
+
+    def get_field_string(self, uuid):
+        """
+        Returns the stringified value for the field with the passed in UUID (or None)
+        """
+        json_value = self.get_field_json(uuid)
+        if json_value is None:
+            return None
+
+        field = ContactField.get_by_uuid(self.org, uuid)
+        if field is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return json_value.get(ContactField.TEXT_KEY)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return json_value.get(ContactField.DATETIME_KEY)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return json_value.get(ContactField.DECIMAL_KEY)
+        elif field.value_type == Value.TYPE_STATE:
+            return json_value.get(ContactField.STATE_KEY)
+        elif field.value_type == Value.TYPE_DISTRICT:
+            return json_value.get(ContactField.DISTRICT_KEY)
+        elif field.value_type == Value.TYPE_WARD:
+            return json_value.get(ContactField.WARD_KEY)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
+    def get_field_value(self, uuid):
+        """
+        Returns the real value (datetime, decimal, boundary, text) for the field with the passed in UUID (or None)
+        """
+        string_value = self.get_field_string(uuid)
+        if string_value is None:
+            return None
+
+        field = ContactField.get_by_uuid(self.org, uuid)
+        if field is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return string_value
+        elif field.value_type == Value.TYPE_DATETIME:
+            return iso8601.parse_date(string_value)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return Decimal(string_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return AdminBoundary.get_by_path(self.org, string_value)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
     def get_field(self, key):
         """
         Gets the (possibly cached) value of a contact field
@@ -727,10 +799,11 @@ class Contact(TembaModel):
         existing = None
         has_changed = False
 
+        # parse into the appropriate value types
         if value is None or value == '':
             # setting a blank value is equivalent to removing the value
-            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
-            has_changed = True
+            value = None
+
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -738,26 +811,94 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == Value.TYPE_WARD:
-                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                district_value = self.get_field(district_field.key)
-                if district_value:
-                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+            # for locations, if it has a '>' then it is explicit, look it up that way
+            if AdminBoundary.PATH_SEPARATOR in str_value:
+                loc_value = self.org.parse_location_path(str_value)
 
-            elif field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
-                if state_field:
-                    state_value = self.get_field(state_field.key)
-                    if state_value:
-                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+            # otherwise, try to parse it as a name at the appropriate level
             else:
-                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
+                if field.value_type == Value.TYPE_WARD:
+                    district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                    district_value = self.get_field_value(district_field.uuid)
+                    if district_value:
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
-            if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value[0]
-            else:
-                loc_value = None
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
+                    if state_field:
+                        state_value = self.get_field_value(state_field.uuid)
+                        if state_value:
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
+                elif field.value_type == Value.TYPE_STATE:
+                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+
+                if loc_value is not None and len(loc_value) > 0:
+                    loc_value = loc_value[0]
+                else:
+                    loc_value = None
+
+        field_uuid = six.text_type(field.uuid)
+        if self.fields is None:
+            self.fields = {}
+
+        # value being cleared, remove our key
+        if value is None:
+            if field_uuid in self.fields:
+                del self.fields[field_uuid]
+                has_changed = True
+
+        # otherwise, update our field in our fields dict
+        else:
+            # all fields have a text value
+            field_dict = {ContactField.TEXT_KEY: str_value}
+
+            # set all the other fields that have a non-zero value
+            if dt_value is not None:
+                field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
+
+            if dec_value is not None:
+                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value.normalize())
+
+            if loc_value:
+                if loc_value.level == AdminBoundary.LEVEL_STATE:
+                    field_dict[ContactField.STATE_KEY] = loc_value.path
+                elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+                    field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                elif loc_value.level == AdminBoundary.LEVEL_WARD:
+                    field_dict[ContactField.WARD_KEY] = loc_value.path
+                    field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(field_dict[ContactField.DISTRICT_KEY])
+
+            # update our field if it is different
+            if self.fields.get(field_uuid) != field_dict:
+                self.fields[field_uuid] = field_dict
+                has_changed = True
+
+        # if there was a change, update our JSONB on our contact
+        if has_changed:
+            self.modified_by = user
+            self.modified_on = timezone.now()
+
+            with connection.cursor() as cursor:
+                if value is None:
+                    # delete the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = fields - %s, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [field_uuid, self.modified_by.id, self.modified_on, self.id]))
+                else:
+                    # update the field
+                    (cursor.execute(
+                        "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                        [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
+
+        # legacy method of setting field
+        if value is None:
+            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
+            value = None
+            has_changed = True
+        else:
             category = loc_value.name if loc_value else None
 
             # find the existing value
@@ -794,13 +935,9 @@ class Contact(TembaModel):
         # cache this field value
         self.set_cached_field_value(key, existing)
 
-        if has_changed:
-            self.modified_by = user
-            self.save(update_fields=('modified_by', 'modified_on'))
-
-            # update any groups or campaigns for this contact if not importing
-            if not importing:
-                self.handle_update(field=field)
+        # update any groups or campaigns for this contact if not importing
+        if has_changed and not importing:
+            self.handle_update(field=field)
 
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
@@ -1729,7 +1866,7 @@ class Contact(TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields:
-            field_value = Contact.serialize_field_value(field, self.get_field(field.key), org=org)
+            field_value = self.get_field_value(field.uuid)
             context[field.key] = field_value if field_value is not None else ''
 
         return context
@@ -2113,7 +2250,7 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path, display = URN.to_parts(urn_as_string)
+        scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
@@ -2131,7 +2268,7 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         identity = URN.identity(urn_as_string)
-        (scheme, path, display) = URN.to_parts(urn_as_string)
+        (scheme, path, query, display) = URN.to_parts(urn_as_string)
 
         existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 
@@ -2219,13 +2356,10 @@ class ContactURN(models.Model):
         """
         Returns a full representation of this contact URN as a string
         """
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     def __str__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
-
-    def __unicode__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return self.urn
 
     class Meta:
         unique_together = ('identity', 'org')

@@ -166,17 +166,23 @@ if TESTING:
     TEMPLATES[0]['OPTIONS']['context_processors'] += ('temba.tests.add_testing_flag_to_context', )
 
 MIDDLEWARE_CLASSES = (
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.OrgHeaderMiddleware',
 )
+
+# security middleware configuration
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 ROOT_URLCONF = 'temba.urls'
 

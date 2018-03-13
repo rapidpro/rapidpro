@@ -1,6 +1,6 @@
 
 $(document).ready(function() {
-  prepareOmnibox("cu");
+  prepareOmnibox();
 });
 
 function omnibox(ele, types, options) {

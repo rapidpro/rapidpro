@@ -2,13 +2,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
-from six.moves.urllib.parse import parse_qs
 import requests
 import six
 
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
-
+from six.moves.urllib.parse import parse_qs
 from temba.channels.types.yo.views import ClaimView
 from temba.contacts.models import Contact, TEL_SCHEME
 from temba.msgs.models import SENT
@@ -57,6 +56,10 @@ class YoType(ChannelType):
         ),
     )
 
+    YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
+    YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
+    YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Kampala"]
@@ -80,7 +83,7 @@ class YoType(ChannelType):
         fatal = False
         events = []
 
-        for send_url in [YO_API_URL_1, YO_API_URL_2, YO_API_URL_3]:
+        for send_url in [YoType.YO_API_URL_1, YoType.YO_API_URL_2, YoType.YO_API_URL_3]:
             url = send_url + '?' + urlencode(params)
             log_url = send_url + '?' + urlencode(log_params)
 
