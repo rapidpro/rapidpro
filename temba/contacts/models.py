@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import iso8601
 import itertools
 import json
 import logging
@@ -36,6 +37,7 @@ from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
 from django.contrib.postgres.fields import JSONField
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -462,6 +464,19 @@ class ContactField(SmartModel):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
+    def get_by_uuid(cls, org, uuid):
+        uuid = six.text_type(uuid)
+        field_attr = '_cf-%s' % uuid
+
+        if hasattr(org, field_attr):
+            return getattr(org, field_attr)
+
+        field = ContactField.objects.filter(org=org, is_active=True, uuid=uuid).first()
+        setattr(org, field_attr, field)
+
+        return field
+
+    @classmethod
     def get_location_field(cls, org, type):
         return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
@@ -645,6 +660,62 @@ class Contact(TembaModel):
 
         return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
+    def get_field_json(self, uuid):
+        """
+        Returns the full JSON dictionary for the passed in UUID (or None)
+        """
+        return self.fields.get(six.text_type(uuid)) if self.fields else None
+
+    def get_field_string(self, uuid):
+        """
+        Returns the stringified value for the field with the passed in UUID (or None)
+        """
+        json_value = self.get_field_json(uuid)
+        if json_value is None:
+            return None
+
+        field = ContactField.get_by_uuid(self.org, uuid)
+        if field is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return json_value.get(ContactField.TEXT_KEY)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return json_value.get(ContactField.DATETIME_KEY)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return json_value.get(ContactField.DECIMAL_KEY)
+        elif field.value_type == Value.TYPE_STATE:
+            return json_value.get(ContactField.STATE_KEY)
+        elif field.value_type == Value.TYPE_DISTRICT:
+            return json_value.get(ContactField.DISTRICT_KEY)
+        elif field.value_type == Value.TYPE_WARD:
+            return json_value.get(ContactField.WARD_KEY)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
+    def get_field_value(self, uuid):
+        """
+        Returns the real value (datetime, decimal, boundary, text) for the field with the passed in UUID (or None)
+        """
+        string_value = self.get_field_string(uuid)
+        if string_value is None:
+            return None
+
+        field = ContactField.get_by_uuid(self.org, uuid)
+        if field is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return string_value
+        elif field.value_type == Value.TYPE_DATETIME:
+            return iso8601.parse_date(string_value)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return Decimal(string_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return AdminBoundary.get_by_path(self.org, string_value)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
     def get_field(self, key):
         """
         Gets the (possibly cached) value of a contact field
@@ -748,14 +819,14 @@ class Contact(TembaModel):
             else:
                 if field.value_type == Value.TYPE_WARD:
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                    district_value = self.get_field(district_field.key)
+                    district_value = self.get_field_value(district_field.uuid)
                     if district_value:
                         loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
                 elif field.value_type == Value.TYPE_DISTRICT:
                     state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                     if state_field:
-                        state_value = self.get_field(state_field.key)
+                        state_value = self.get_field_value(state_field.uuid)
                         if state_value:
                             loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
 
@@ -1795,7 +1866,7 @@ class Contact(TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields:
-            field_value = Contact.serialize_field_value(field, self.get_field(field.key), org=org)
+            field_value = self.get_field_value(field.uuid)
             context[field.key] = field_value if field_value is not None else ''
 
         return context

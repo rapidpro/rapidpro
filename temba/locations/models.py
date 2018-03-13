@@ -142,6 +142,18 @@ class AdminBoundary(MPTTModel, models.Model):
 
         return AdminBoundary.PADDED_PATH_SEPARATOR.join(parts[:-1])
 
+    @classmethod
+    def get_by_path(cls, org, path):
+        field_attr = '_ab-%s' % path
+
+        if hasattr(org, field_attr):
+            return getattr(org, field_attr)
+
+        field = AdminBoundary.objects.filter(path=path).first()
+        setattr(org, field_attr, field)
+
+        return field
+
     def __str__(self):
         return "%s" % self.name
 

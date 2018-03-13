@@ -2992,7 +2992,9 @@ class ActionPackedTest(FlowFileTest):
 
         self.update_action_json(self.flow, action)
         self.start_flow()
-        self.assertEqual(action['value'], self.contact.get_field('last_message').string_value)
+        last_message = ContactField.get_or_create(self.org, self.admin, 'last_message')
+        self.contact.refresh_from_db()
+        self.assertEqual(action['value'], self.contact.get_field_value(last_message.uuid))
 
     @also_in_flowserver
     def test_add_phone_number(self):
@@ -3652,7 +3654,8 @@ class ActionTest(TembaTest):
                      "fields and we want to enable that for them so that they can do what they want with the platform."
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(test.value, contact.get_field('last_message').string_value)
+        last_message = ContactField.get_or_create(self.org, self.admin, 'last_message')
+        self.assertEqual(test.value, contact.get_field_value(last_message.uuid))
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
