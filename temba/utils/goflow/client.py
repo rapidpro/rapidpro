@@ -110,7 +110,7 @@ class RequestBuilder(object):
         """
         self.request['events'].append({
             'type': "contact_changed",
-            'created_on': timezone.now().isoformat(),
+            'created_on': contact.modified_on.isoformat(),
             'contact': serialize_contact(contact)
         })
         return self
