@@ -1181,7 +1181,7 @@ class FlowCRUDL(SmartCRUDL):
                 lang = request.GET.get('lang', None)
                 if lang:
                     test_contact.language = lang
-                    test_contact.save()
+                    test_contact.save(update_fields=('language',))
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
@@ -1210,7 +1210,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # reset the name for our test contact too
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
-                test_contact.save()
+                test_contact.save(update_fields=('name',))
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():
