@@ -2958,7 +2958,7 @@ class ActionPackedTest(FlowFileTest):
         # update action to instead clear the gender field
         self.update_action_field(self.flow, gender_action_uuid, 'value', '')
         self.start_flow()
-        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_raw('gender'))
+        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_string('gender'))
 
         # test setting just the first name
         action = update_save_fields(self.get_action_json(self.flow, name_action_uuid), 'First Name', 'Frank')
@@ -2992,7 +2992,7 @@ class ActionPackedTest(FlowFileTest):
 
         self.update_action_json(self.flow, action)
         self.start_flow()
-        self.assertEqual(action['value'], self.contact.get_field('last_message').string_value)
+        self.assertEqual(action['value'], self.contact.get_field_value('last_message'))
 
     @also_in_flowserver
     def test_add_phone_number(self):
@@ -3594,14 +3594,14 @@ class ActionTest(TembaTest):
 
         # user should now have a nickname field with a value of batman
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual("batman", contact.get_field_raw('superhero_name'))
+        self.assertEqual("batman", contact.get_field_string('superhero_name'))
 
         # test clearing our value
         test = SaveToContactAction.from_json(self.org, test.as_json())
         test.value = ""
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(None, contact.get_field_raw('superhero_name'))
+        self.assertEqual(None, contact.get_field_string('superhero_name'))
 
         # test setting our name
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
@@ -3652,7 +3652,7 @@ class ActionTest(TembaTest):
                      "fields and we want to enable that for them so that they can do what they want with the platform."
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(test.value, contact.get_field('last_message').string_value)
+        self.assertEqual(test.value, contact.get_field_value('last_message'))
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
@@ -6129,9 +6129,9 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_raw('edd').startswith('2015-01-31T'))
-        self.assertEqual(mother.get_field_raw('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(mother.get_field_raw('chw_name'), self.contact.name)
+        self.assertTrue(mother.get_field_string('edd').startswith('2015-01-31T'))
+        self.assertEqual(mother.get_field_string('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual(mother.get_field_string('chw_name'), self.contact.name)
 
     def test_group_rule_first(self):
         rule_flow = self.get_flow('group_rule_first')
@@ -6162,8 +6162,8 @@ class FlowsTest(FlowFileTest):
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('2014-01-31T'))
-        self.assertEqual("+12065552020", mother.get_field_raw('chw'))
+        self.assertTrue(mother.get_field_string('expected_delivery_date').startswith('2014-01-31T'))
+        self.assertEqual("+12065552020", mother.get_field_string('chw'))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
         pain_flow = self.get_flow('pain_flow')
@@ -8912,7 +8912,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=142, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=140, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

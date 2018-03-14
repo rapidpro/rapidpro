@@ -51,18 +51,11 @@ def serialize_channel_ref(channel):
 
 
 def serialize_contact(contact):
-    from temba.contacts.models import Contact, URN
-    from temba.values.models import Value
+    from temba.contacts.models import URN
 
-    org_fields = {f.id: f for f in contact.org.contactfields.filter(is_active=True)}
-    values = Value.objects.filter(contact=contact, contact_field_id__in=org_fields.keys())
     field_values = {}
-    for v in values:
-        field = org_fields[v.contact_field_id]
-        field_values[field.key] = {
-            'value': Contact.serialize_field_value(field, v),
-            'created_on': v.created_on.isoformat()
-        }
+    for field in contact.org.cached_contact_fields.values():
+        field_values[field.key] = contact.get_field_string(field.key)
 
     # augment URN values with preferred channel UUID as a parameter
     urn_values = []

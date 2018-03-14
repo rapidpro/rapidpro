@@ -12,7 +12,9 @@ import regex
 import six
 import time
 import uuid
+import iso8601
 
+from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError, connection
@@ -462,6 +464,16 @@ class ContactField(SmartModel):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
+    def get_by_key(cls, org, key):
+        field = org.cached_contact_fields.get(key)
+        if field is None:
+            field = ContactField.objects.filter(org=org, is_active=True, key=key).first()
+            if field:
+                org.cached_contact_fields[key] = field
+
+        return field
+
+    @classmethod
     def get_location_field(cls, org, type):
         return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
@@ -645,36 +657,76 @@ class Contact(TembaModel):
 
         return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
-    def get_field(self, key):
-        """
-        Gets the (possibly cached) value of a contact field
-        """
-        key = key.lower()
-        cache_attr = '__field__%s' % key
-        if hasattr(self, cache_attr):
-            return getattr(self, cache_attr)
+    def get_field_json(self, key):
+        field = ContactField.get_by_key(self.org, key)
+        if field is None:
+            return None
 
-        value = Value.objects.filter(contact=self, contact_field__key__exact=key).select_related('contact_field').first()
-        self.set_cached_field_value(key, value)
-        return value
+        return self.fields.get(six.text_type(field.uuid)) if self.fields else None
 
-    def get_field_raw(self, key):
+    def get_field_string(self, key):
         """
-        Gets the string value (i.e. raw user input) of a contact field
+        Returns the stringified value for the field with the passed in key (or None)
         """
-        value = self.get_field(key)
-        return value.string_value if value else None
+        field = ContactField.get_by_key(self.org, key)
+        if field is None:
+            return None
+
+        json_value = self.get_field_json(key)
+        if json_value is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return json_value.get(ContactField.TEXT_KEY)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return json_value.get(ContactField.DATETIME_KEY)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return json_value.get(ContactField.DECIMAL_KEY)
+        elif field.value_type == Value.TYPE_STATE:
+            return json_value.get(ContactField.STATE_KEY)
+        elif field.value_type == Value.TYPE_DISTRICT:
+            return json_value.get(ContactField.DISTRICT_KEY)
+        elif field.value_type == Value.TYPE_WARD:
+            return json_value.get(ContactField.WARD_KEY)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
+    def get_field_value(self, key):
+        """
+        Returns the real value (datetime, decimal, boundary, text) for the field with the passed in key (or None)
+        """
+        field = ContactField.get_by_key(self.org, key)
+        if field is None:
+            return None
+
+        string_value = self.get_field_string(key)
+        if string_value is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return string_value
+        elif field.value_type == Value.TYPE_DATETIME:
+            return iso8601.parse_date(string_value)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return Decimal(string_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return AdminBoundary.get_by_path(self.org, string_value)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
 
     def get_field_display(self, key):
         """
         Gets either the field category if set, or the formatted field value
         """
-        value = self.get_field(key)
-        if value:
-            field = value.contact_field
-            return Contact.get_field_display_for_value(field, value, org=self.org)
-        else:
+        field = ContactField.get_by_key(self.org, key)
+        if field is None:
             return None
+
+        value = self.get_field_value(key)
+        if value is None:
+            return None
+
+        return Contact.get_field_display_for_value(field, value)
 
     @classmethod
     def get_field_display_for_value(cls, field, value, org=None):
@@ -684,16 +736,16 @@ class Contact(TembaModel):
         org = org or field.org
 
         if value is None:
-            return None
+            return ""
 
         if field.value_type == Value.TYPE_DATETIME:
-            return org.format_date(value.datetime_value)
+            return org.format_date(value)
         elif field.value_type == Value.TYPE_DECIMAL:
-            return format_decimal(value.decimal_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.name
+            return format_decimal(value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
+            return value.name
         else:
-            return value.string_value
+            return six.text_type(value)
 
     @classmethod
     def serialize_field_value(cls, field, value, org=None):
@@ -706,18 +758,13 @@ class Contact(TembaModel):
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return value.datetime_value.astimezone(org.timezone).isoformat() if value.datetime_value else None
+            return value.astimezone(org.timezone).isoformat()
         elif field.value_type == Value.TYPE_DECIMAL:
-            if value.decimal_value is None:
-                return None
-
-            as_int = value.decimal_value.to_integral_value()
-            is_int = value.decimal_value == as_int
-            return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.path
+            return six.text_type(value.normalize())
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return value.path
         else:
-            return value.string_value
+            return six.text_type(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
         from temba.values.models import Value
@@ -748,16 +795,16 @@ class Contact(TembaModel):
             else:
                 if field.value_type == Value.TYPE_WARD:
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                    district_value = self.get_field(district_field.key)
+                    district_value = self.get_field_value(district_field.key)
                     if district_value:
-                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
                 elif field.value_type == Value.TYPE_DISTRICT:
                     state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                     if state_field:
-                        state_value = self.get_field(state_field.key)
+                        state_value = self.get_field_value(state_field.key)
                         if state_value:
-                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
                 elif field.value_type == Value.TYPE_STATE:
                     loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
@@ -861,15 +908,9 @@ class Contact(TembaModel):
                                                 location_value=loc_value, category=category)
                 has_changed = True
 
-        # cache this field value
-        self.set_cached_field_value(key, existing)
-
         # update any groups or campaigns for this contact if not importing
         if has_changed and not importing:
             self.handle_update(field=field)
-
-    def set_cached_field_value(self, key, value):
-        setattr(self, '__field__%s' % key, value)
 
     def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
         """
@@ -1720,38 +1761,17 @@ class Contact(TembaModel):
         Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
         variable substitution.
         """
-        from temba.values.models import Value
-
         if not contacts:
             return
 
-        fields = org.cached_contact_fields
+        fields = org.cached_contact_fields.values()
         if for_show_only:
             fields = [f for f in fields if f.show_in_table]
-
-        # build id maps to avoid re-fetching contact objects
-        key_map = {f.id: f.key for f in fields}
 
         contact_map = dict()
         for contact in contacts:
             contact_map[contact.id] = contact
             setattr(contact, '__urns', list())  # initialize URN list cache (setattr avoids name mangling or __urns)
-
-        # cache all field values
-        values = Value.objects.filter(contact_id__in=contact_map.keys(),
-                                      contact_field_id__in=key_map.keys()).select_related('contact_field', 'location_value')
-        for value in values:
-            contact = contact_map[value.contact_id]
-            field_key = key_map[value.contact_field_id]
-            cache_attr = '__field__%s' % field_key
-            setattr(contact, cache_attr, value)
-
-        # set missing fields as None attributes to avoid cache fetches later
-        for contact in contacts:
-            for field in fields:
-                cache_attr = '__field__%s' % field.key
-                if not hasattr(contact, cache_attr):
-                    setattr(contact, cache_attr, None)
 
         # cache all URN values (a priority ordered list on each contact)
         urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by('contact', '-priority', 'pk')
@@ -1794,8 +1814,8 @@ class Contact(TembaModel):
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
         # add all active fields to our context
-        for field in org.cached_contact_fields:
-            field_value = Contact.serialize_field_value(field, self.get_field(field.key), org=org)
+        for field in org.cached_contact_fields.values():
+            field_value = self.get_field_string(field.key)
             context[field.key] = field_value if field_value is not None else ''
 
         return context
@@ -2816,7 +2836,7 @@ class ExportContactsTask(BaseExportTask):
                         else:
                             field_value = ''
                     else:
-                        value = contact.get_field(field['key'])
+                        value = contact.get_field_value(field['key'])
                         field_value = Contact.get_field_display_for_value(field['field'], value)
 
                     if field_value is None:

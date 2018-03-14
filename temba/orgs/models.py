@@ -14,7 +14,7 @@ import six
 import stripe
 import traceback
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -1535,9 +1535,13 @@ class Org(SmartModel):
     @cached_property
     def cached_contact_fields(self):
         from temba.contacts.models import ContactField
-        fields = ContactField.objects.filter(org=self, is_active=True)
-        for field in fields:
-            field.org = self
+
+        # build an ordered dictionary of key->contact field
+        fields = OrderedDict()
+        for cf in ContactField.objects.filter(org=self, is_active=True).order_by('key'):
+            cf.org = self
+            fields[cf.key] = cf
+
         return fields
 
     def clear_cached_groups(self):

@@ -787,7 +787,7 @@ class ContactCRUDL(SmartCRUDL):
             contact_fields = []
             fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
             for field in fields:
-                value = getattr(contact, '__field__%s' % field.key)
+                value = contact.get_field_value(field.key)
                 if value:
                     display = Contact.get_field_display_for_value(field, value)
                     contact_fields.append(dict(id=field.id, label=field.label, value=display, featured=field.show_in_table))

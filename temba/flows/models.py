@@ -4811,7 +4811,7 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
 
-        contact_fields = [cf for cf in self.org.cached_contact_fields if cf.id in contact_field_ids]
+        contact_fields = [cf for cf in self.org.cached_contact_fields.values() if cf.id in contact_field_ids]
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -4901,7 +4901,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     current_contact_values.append(self._get_contact_groups_display(run.contact))
 
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run.contact.get_field(cf.key.lower()), self.org)
+                        field_value = Contact.get_field_display_for_value(cf, run.contact.get_field_value(cf.key.lower()), self.org)
                         current_contact_values.append(self.prepare_value(field_value))
 
                 # get this run's results by node UUID
