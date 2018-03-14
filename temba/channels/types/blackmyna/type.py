@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import requests
@@ -29,6 +30,25 @@ class BlackmynaType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Blackmyna connection you'll need to notify Blackmyna of the following URLs.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Inbound URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'receive' %}",
+            description=_("This endpoint should be called by Blackmyna when new messages are received to your number.")
+        ),
+        dict(
+            label=_("DLR URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'status' %}",
+            description=_("This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"),
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

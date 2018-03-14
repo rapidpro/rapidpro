@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytz
 from django.urls import reverse
@@ -12,7 +13,7 @@ class ZenviaTypeTest(TembaTest):
         Channel.objects.all().delete()
 
         self.login(self.admin)
-        url = reverse('channels.claim_zenvia')
+        url = reverse('channels.types.zenvia.claim')
 
         # shouldn't be able to see the claim zenvia page if we aren't part of that group
         response = self.client.get(reverse('channels.channel_claim'))
@@ -30,8 +31,8 @@ class ZenviaTypeTest(TembaTest):
         response = self.client.get(url)
         post_data = response.context['form'].initial
 
-        post_data['account'] = 'rapidpro.gw'
-        post_data['code'] = 'h7GpAIEp85'
+        post_data['username'] = 'zvUsername'
+        post_data['password'] = 'zvPassword'
         post_data['shortcode'] = '28595'
 
         response = self.client.post(url, post_data)
@@ -39,12 +40,12 @@ class ZenviaTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('BR', channel.country)
-        self.assertEqual(post_data['account'], channel.config_json()['account'])
-        self.assertEqual(post_data['code'], channel.config_json()['code'])
+        self.assertEqual('zvUsername', channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual('zvPassword', channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual(post_data['shortcode'], channel.address)
         self.assertEqual('ZV', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

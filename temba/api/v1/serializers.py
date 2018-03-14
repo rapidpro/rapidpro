@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import phonenumbers
@@ -276,7 +277,7 @@ class ContactWriteSerializer(WriteSerializer):
             org_fields = self.context['contact_fields']
 
             for field_key, field_val in value.items():
-                if field_key in Contact.RESERVED_FIELDS:
+                if field_key in Contact.RESERVED_FIELD_KEYS:
                     raise serializers.ValidationError("Invalid contact field key: '%s' is a reserved word" % field_key)
                 for field in org_fields:
                     # TODO get users to stop writing fields via labels
@@ -371,7 +372,8 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance.name = name
                 changed.append('name')
         else:
-            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.parsed_urns, language=language)
+            self.instance = Contact.get_or_create_by_urns(self.org, self.user, name, urns=self.parsed_urns,
+                                                          language=language, force_urn_update=True)
 
         # Contact.get_or_create doesn't nullify language so do that here
         if 'language' in self.validated_data and language is None:
@@ -614,7 +616,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not flow_revision:
             raise serializers.ValidationError("Invalid revision: %s" % revision)
 
-        definition = json.loads(flow_revision.definition)
+        definition = flow_revision.definition
 
         # make sure we are operating off a current spec
         definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
@@ -745,7 +747,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     normalized = URN.normalize(urn, country)
                 except ValueError as e:  # pragma: needs cover
-                    raise serializers.ValidationError(e.message)
+                    raise serializers.ValidationError(six.text_type(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
@@ -798,7 +800,8 @@ class MsgCreateSerializer(WriteSerializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(channel.org, self.user, urns=[urn]))
+            contact, urn_obj = Contact.get_or_create(channel.org, urn, user=self.user)
+            contacts.append(contact)
 
         # add any contacts specified by uuids
         uuid_contacts = self.validated_data.get('contact', [])

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import pytz
@@ -463,7 +463,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': flow.entry_uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -632,7 +632,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
         ])
 
@@ -697,7 +697,7 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.get_path(), [
+        self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00', 'exit_uuid': color_prompt.exit_uuid},
             {'node_uuid': color_ruleset.uuid, 'arrived_on': '2015-08-25T11:11:30.088000+00:00', 'exit_uuid': orange_rule.uuid},
             {'node_uuid': color_reply.uuid, 'arrived_on': '2015-08-25T11:13:30.088000+00:00', 'exit_uuid': color_reply.exit_uuid},
@@ -708,7 +708,7 @@ class APITest(TembaTest):
         self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
 
         # check results
-        results = run.get_results()
+        results = run.results
         self.assertEqual(len(results), 1)
         self.assertEqual(results['color']['node_uuid'], color_ruleset.uuid)
         self.assertEqual(results['color']['name'], "color")
@@ -1062,9 +1062,9 @@ class APITest(TembaTest):
         artists.contacts.add(contact)
 
         # try updating with a reserved word field
-        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"mailto": "andy@example.com"}))
         self.assertEqual(400, response.status_code)
-        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'mailto' is a reserved word")
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
@@ -1405,13 +1405,13 @@ class APITest(TembaTest):
         surveyor_group = Group.objects.get(name='Surveyors')
 
         # login an admin as an admin
-        admin = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content)
+        admin = self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).json()
         self.assertEqual(1, len(admin))
         self.assertEqual('Temba', admin[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role=admin_group).first())
 
         # login an admin as a surveyor
-        surveyor = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content)
+        surveyor = self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).json()
         self.assertEqual(1, len(surveyor))
         self.assertEqual('Temba', surveyor[0]['name'])
         self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role=surveyor_group).first())
@@ -1430,11 +1430,11 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
 
         # our surveyor can't login with an admin role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
+        response = self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).json()
         self.assertEqual(0, len(response))
 
         # but they can with a surveyor role
-        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content)
+        response = self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).json()
         self.assertEqual(1, len(response))
 
         # and can fetch flows, contacts, and fields

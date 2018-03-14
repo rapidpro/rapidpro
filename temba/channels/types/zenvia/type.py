@@ -1,17 +1,13 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-import time
-import requests
 import six
 
-from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.zenvia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
-from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent, http_headers
-from ...models import Channel, ChannelType, SendException
+from temba.channels.models import ChannelType
 
 
 class ZenviaType(ChannelType):
@@ -32,45 +28,28 @@ class ZenviaType(ChannelType):
 
     attachment_support = False
 
+    configuration_blurb = _(
+        """
+        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Status URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.zv' channel.uuid 'status' %}",
+            description=_("To receive delivery and acknowledgement of sent messages, you need to set the status URL for your Zenvia account.")
+        ),
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.zv' channel.uuid 'receive' %}",
+            description=_("To receive incoming messages, you need to set the receive URL for your Zenvia account.")
+        ),
+    )
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ['America/Sao_Paulo']
 
-    def send(self, channel, msg, text):
-        # Zenvia accepts messages via a GET
-        # http://www.zenvia360.com.br/GatewayIntegration/msgSms.do?dispatch=send&account=temba&
-        # code=abc123&to=5511996458779&msg=my message content&id=123&callbackOption=1
-        payload = dict(dispatch='send',
-                       account=channel.config['account'],
-                       code=channel.config['code'],
-                       msg=text,
-                       to=msg.urn_path,
-                       id=msg.id,
-                       callbackOption=1)
-
-        zenvia_url = "http://www.zenvia360.com.br/GatewayIntegration/msgSms.do"
-        headers = http_headers(extra={'Content-Type': "text/html", 'Accept-Charset': 'ISO-8859-1'})
-
-        event = HttpEvent('POST', zenvia_url, urlencode(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.get(zenvia_url, params=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(u"Unable to send message: %s" % six.text_type(e),
-                                event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Got non-200 response from API: %d" % response.status_code,
-                                event=event, start=start)
-
-        response_code = int(response.text[:3])
-
-        if response_code != 0:
-            raise Exception("Got non-zero response from Zenvia: %s" % response.text)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
+    def send(self, channel, msg, text):  # pragma: no cover
+        raise Exception("Sending Zenvia messages is only possible via Courier")

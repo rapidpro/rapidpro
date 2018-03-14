@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals, print_function, division
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import subprocess
 from datetime import datetime
@@ -141,7 +141,7 @@ class SuperAutoscaler(Autoscaler):
         with open('/proc/meminfo', 'rb') as f:
             mem = f.read()
         mem_ratio = (
-            int(self.re_available.search(mem).group("available")) / int(self.re_total.search(mem).group("total"))
+            int(self.re_available.search(mem).group("available")) // int(self.re_total.search(mem).group("total"))
         )
         used_memory = 100 * (1 - mem_ratio)
         return used_memory

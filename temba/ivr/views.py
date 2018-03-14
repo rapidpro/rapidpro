@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import six
@@ -6,6 +7,7 @@ import six
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
+from django.utils.encoding import force_text
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog, ChannelType
@@ -38,7 +40,7 @@ class CallHandler(View):
         ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
         client = channel.get_ivr_client()
 
-        request_body = request.body
+        request_body = force_text(request.body)
         request_method = request.method
         request_path = request.get_full_path()
 

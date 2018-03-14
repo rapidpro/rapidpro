@@ -1,5 +1,11 @@
 -extends "smartmin/form.html"
 
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
 -block extra-style
   :css
     .form-horizontal input + .help-block,
@@ -14,3 +20,25 @@
       vertical-align: middle;
     }
 
+    #s2id_id_country {
+      width: 370px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });

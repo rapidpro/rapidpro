@@ -1,4 +1,5 @@
-from __future__ import absolute_import, print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import time
@@ -8,6 +9,7 @@ import jwt
 import requests
 import nexmo as nx
 import six
+from django.utils.encoding import force_bytes
 
 from temba.utils.gsm7 import is_gsm7
 from django.utils.http import urlencode
@@ -45,7 +47,8 @@ class NexmoClient(nx.Client):
         try:
             response = nx.Client.get_account_numbers(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 response = nx.Client.get_account_numbers(self, params=params)
             else:  # pragma: no cover
@@ -115,7 +118,8 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.buy_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 nx.Client.buy_number(self, params=params)
             else:  # pragma: needs cover
@@ -128,7 +132,8 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.update_number(self, params=params)
         except nx.ClientError as e:
-            if e.message.startswith('420') or e.message.startswith('429'):
+            message = six.text_type(e)
+            if message.startswith('420') or message.startswith('429'):
                 time.sleep(2)
                 nx.Client.update_number(self, params=params)
             else:  # pragma: needs cover
@@ -155,7 +160,7 @@ class NexmoClient(nx.Client):
 
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
-        return dict(self.headers, Authorization=b'Bearer ' + token)
+        return dict(self.headers, Authorization=b'Bearer ' + force_bytes(token))
 
 
 def __main__():  # pragma: no cover

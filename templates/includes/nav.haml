@@ -53,6 +53,12 @@
           .title
             -trans "orgs"
 
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    %li.nav-dashboard
+      %a.icon-nav-dashboard{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+        .title
+          -trans "dashboard"
+
   -if not request.user.is_anonymous
     %li.more
       %a.icon-menu-4{href:""}

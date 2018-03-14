@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import requests
@@ -50,7 +51,7 @@ class Command(BaseCommand):
                 lambda obj: regex.match(r'R%s.*_simplified.json' % (relation_id,), obj['path']), files['tree'])
             for relation_file in relation_files:
                 destination = os.path.join(destination_dir, relation_file['path'])
-                with open(destination, 'w') as fp:
+                with open(destination, 'wb') as fp:
                     response = requests.get('https://raw.githubusercontent.com/%s/master/geojson/%s' % (
                                             repo, relation_file['path']), headers=headers)
                     fp.write(response.content)

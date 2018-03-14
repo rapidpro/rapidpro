@@ -1,3 +1,179 @@
+v3.0.334
+----------
+ * Add response to external ID to courier serialized msg if we have response to
+ * More Py3 migration work
+ * Remove broadcasting to groups from Send Message dialog
+
+v3.0.332
+----------
+ * Do not delete RuleSets only disconnect them from flows
+
+v3.0.331
+----------
+ * Fix scoping for sim show/hide
+
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
+v3.0.329
+----------
+ * Fix negative cache ttl for topups
+
+v3.0.328
+----------
+ * Remove Vumi Type
+ * Remove custom autoscaler for Celery
+ * Implement Plivo without Plivo library
+
+v3.0.325
+----------
+ * Build dynamic groups in background thread
+ * Dynamic Channel changes, use uuids in URLs, allow custom views
+ * Allow WhatsApp channels to refresh contacts manually
+ * Allow brands to specifiy includes for the document head
+ * Fix external claim page, rename auth_urn for courier
+ * Change VB channel type to be a dynamic channel
+ * Remove unused templates
+
+v3.0.324
+----------
+ * Add ability to run select flows against a flowserver instance
+
+v3.0.323
+----------
+ * Move JioChat access creation to channel task
+ * Use 'list()' on python3 dict iterators
+ * Use analytics-python===1.2.9, python3 compatible
+ * Fix using PlayAction in simulator and add tests
+ * Fix HasEmailTest to strip surrounding punctuation
+ * ContainsPhraseTest shouldn't blow up if test string is empty
+ * Use 'six' library for urlparse, urlencode
+
+v3.0.322
+----------
+ * Unfreeze phonenumbers library so we always use latest
+ * Remove old Viber VI channel type
+ * Add config template for LN channel type
+ * Move configuration blurbs to channel types
+ * Move to use new custom model JSONAsTextField where appropriate
+
+v3.0.321
+----------
+ * Fix quick-reply button in flow editor
+
+v3.0.320
+----------
+ * Fix webhook rule as first step in run interpreting msg wrong
+ * Change mailto URN importing to use header 'mailto' and make 'email' always a field. Rename 'mailto' fields to 'email'.
+
+v3.0.319
+----------
+ * Add ArabiaCell channel type
+ * Tweaks to Mtarget channel type
+ * Pathfix for highcharts
+
+v3.0.318
+----------
+ * Add input to webhook payload
+
+v3.0.317
+----------
+ * Remove support for legacy webhook payload format
+ * Fix org-choose redirects for brands
+
+v3.0.316
+----------
+ * Remove stop endpoint for MT
+
+v3.0.315
+----------
+ * Inactive flows should not be listed on the API endpoint
+ * Add Mtarget channel type
+
+v3.0.314
+----------
+ * Add run dict to default webhook payload
+
+v3.0.313
+----------
+ * have URNs resolve to dicts instead of just the display
+ * order transfer credit options by name
+ * show dashboard link even if org is chosen
+
+v3.0.312
+----------
+ * include contact URN in webhook payload
+
+v3.0.311
+----------
+ * Allow exporting results of archived flows
+ * Update Twitter Activity channels to work with latest beta changes
+ * Increase maximum attachment URL length to 2048
+ * Tweak contact searching so that set/not-set conditions check the type specific column
+ * Migration to delete value decimal/datetime instances where string value is "None"
+ * Don't normalize nulls in @extra as "None"
+ * Clear timeouts for msgs which dont have credits assigned to them
+ * Simpler contact get_or_create method to lookup a contact by urn and channel
+ * Prevent updating name for existing contact when we receive a message
+ * Remove fuzzy matching for ContainsTest
+
+v3.0.310
+----------
+ * Reimplement clickatell as a Courier only channel against new API
+
+v3.0.309
+----------
+ * Use database trigger for inserting new recent run records
+ * Handle stop contact channel events
+ * Remove no longer used FlowPathRecentRun model
+
+v3.0.308
+----------
+'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
+ * Update date for webhook change on api docs
+ * Don't use flow steps for calculating test contact activity
+
+v3.0.307
+----------
+ * Stop using FlowPathRecentMessage
+
+v3.0.306
+----------
+ * Migration to convert recent messages to recent runs
+
+v3.0.305
+----------
+ * Add new model for tracking recent runs
+ * Add dynamic group optimization for new contacts
+
+v3.0.304
+----------
+ * Drop index on FlowStep.step_uuid as it's no longer needed
+
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
+v3.0.301
+----------
+ * Tweak process_message_task to not blow up if message doesn't exist
+ * Use FlowRun.message_ids for flow result exports
+
+v3.0.300
+----------
+ * Use config secret instead of secret field on Channel
+ * Add tests for datetime contact API field update
+
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
 v3.0.298
 ----------
  * Process contact queue until there's a pending message or empty

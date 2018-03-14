@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import regex
@@ -453,7 +454,7 @@ class TriggerCRUDL(SmartCRUDL):
             if self.get_object().schedule:
                 context['days'] = self.get_object().schedule.explode_bitmask()
             context['user_tz'] = get_current_timezone_name()
-            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() / 60)
+            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):
@@ -671,7 +672,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TriggerCRUDL.Schedule, self).get_context_data(**kwargs)
             context['user_tz'] = get_current_timezone_name()
-            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() / 60)
+            context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):

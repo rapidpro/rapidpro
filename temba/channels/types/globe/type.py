@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import time
@@ -31,6 +32,19 @@ class GlobeType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 160
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Notify URI"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.gl' channel.uuid 'receive' %}"
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()
