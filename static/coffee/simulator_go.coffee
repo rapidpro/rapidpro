@@ -12,7 +12,7 @@ getStartRequest = ->
     contact: {
       uuid: uuid(),
       name: contactName,
-      urns: []
+      urns: ["tel:+12065551212"]
     }
     flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name}
     triggered_on: new Date()
@@ -66,8 +66,10 @@ window.updateResults = (data) ->
   if data.log
     for log in data.log
       event = log.event
-      if event.type == "broadcast_created" or event.type == "msg_created"
+      if event.type == "broadcast_created"
         window.addMessage(event.text, "MT")
+      else if event.type == "msg_created"
+        window.addMessage(event.msg.text, "MT")
       else if event.type == "flow_triggered"
         window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
       else if event.type == "run_result_changed"

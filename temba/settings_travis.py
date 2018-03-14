@@ -5,6 +5,6 @@ from .settings import *  # noqa
 
 
 # -----------------------------------------------------------------------------------
-# Flowserver - on Travis we start a GoFlow instance at http://localhost:8080
+# Flowserver - on Travis we start a GoFlow instance at http://localhost:8800
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = 'http://localhost:8080'
+FLOW_SERVER_URL = 'http://localhost:8800'
