@@ -2992,6 +2992,7 @@ class ActionPackedTest(FlowFileTest):
 
         self.update_action_json(self.flow, action)
         self.start_flow()
+        self.contact.refresh_from_db()
         self.assertEqual(action['value'], self.contact.get_field_value('last_message'))
 
     @also_in_flowserver

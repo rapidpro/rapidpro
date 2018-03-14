@@ -15,6 +15,7 @@ from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, 
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest
+from temba.values.models import Value
 from .models import Campaign, CampaignEvent, EventFire
 
 
@@ -37,7 +38,7 @@ class CampaignTest(TembaTest):
         self.voice_flow = self.create_flow(name="IVR flow", flow_type='V')
 
         # create a contact field for our planting date
-        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date", value_type=Value.TYPE_DATETIME)
 
     def test_get_unique_name(self):
         campaign1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
@@ -226,7 +227,7 @@ class CampaignTest(TembaTest):
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
         self.assertIn('base', response.context['form'].fields)
-        self.assertEqual('This is my spanish @contact.planting_date', response.context['form'].fields['spa'].initial)
+        self.assertEqual('This is my spanish @(format_date(contact.planting_date))', response.context['form'].fields['spa'].initial)
         self.assertEqual('', response.context['form'].fields['ace'].initial)
 
         # our single message flow should have a dependency on planting_date

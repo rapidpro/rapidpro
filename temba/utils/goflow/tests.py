@@ -83,8 +83,8 @@ class ClientTest(TembaTest):
                     'timezone': 'UTC',
                     'urns': ['twitterid:123456785?channel=%s#bobby' % str(twitter.uuid), 'tel:+12345670987'],
                     'fields': {
-                        'gender': {'value': 'M', 'created_on': "2018-01-18T14:24:30+00:00"},
-                        'age': {'value': '36', 'created_on': "2018-01-18T14:24:30+00:00"}
+                        'gender': {'text': 'M'},
+                        'age': {'text': '36', 'decimal': '36'},
                     },
                     'groups': [
                         {'uuid': str(self.testers.uuid), 'name': "Testers"}

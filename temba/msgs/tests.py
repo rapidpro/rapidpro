@@ -1276,7 +1276,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
         self.assertEqual(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
         self.assertEqual(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
-        self.assertEqual(("Hello 37.45000000", []), substitute("Hello @(contact.temp)", dict()))
+        self.assertEqual(("Hello 37.45", []), substitute("Hello @(contact.temp)", dict()))
         self.assertEqual(("Hello 37", []), substitute("Hello @(INT(contact.temp))", dict()))
         self.assertEqual(("Hello 37.45", []), substitute("Hello @(FIXED(contact.temp))", dict()))
 
