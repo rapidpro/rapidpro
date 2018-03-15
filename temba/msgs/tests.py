@@ -2257,7 +2257,7 @@ class CeleryTaskTest(TembaTest):
         fullmsg = "Object %r unexpectedly not found in the database" % obj
         fullmsg += ": " + msg if msg else ""
         try:
-            type(obj).objects.using('direct').get(pk=obj.pk)
+            type(obj).objects.get(pk=obj.pk)
         except obj.DoesNotExist:
             self.fail(fullmsg)
 
