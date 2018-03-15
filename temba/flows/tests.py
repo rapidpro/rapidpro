@@ -2301,9 +2301,7 @@ class FlowTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
         group = self.create_group("players", [test_contact])
-        contact_field = ContactField.get_or_create(self.org, self.admin, 'custom', 'custom')
-        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
-                                                   string_value="hey")
+        test_contact.set_field(self.user, "custom", "hey")
 
         response = self.client.get(simulate_url)
         self.assertEqual(response.status_code, 302)
@@ -2313,8 +2311,9 @@ class FlowTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
 
+        test_contact.refresh_from_db()
         self.assertFalse(group in test_contact.all_groups.all())
-        self.assertFalse(test_contact.values.all())
+        self.assertFalse(test_contact.fields)
 
         self.assertEqual(len(json_dict.keys()), 5)
         self.assertEqual(len(json_dict['messages']), 3)
@@ -2323,8 +2322,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Test Contact has exited this flow", json_dict['messages'][2]['text'])
 
         group = self.create_group("fans", [test_contact])
-        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
-                                                   string_value="hey")
+        test_contact.set_field(self.user, "custom", "hey")
 
         post_data['new_message'] = "Ok, Thanks"
         post_data['has_refresh'] = False
@@ -2334,8 +2332,7 @@ class FlowTest(TembaTest):
         json_dict = response.json()
 
         self.assertTrue(group in test_contact.all_groups.all())
-        self.assertTrue(test_contact.values.all())
-        self.assertEqual(test_contact.values.get(string_value='hey'), contact_field_value)
+        self.assertEqual("hey", test_contact.get_field_value("custom"))
 
         self.assertEqual(len(json_dict.keys()), 5)
         self.assertIn('status', json_dict.keys())
