@@ -284,14 +284,13 @@ class Trigger(SmartModel):
 
             if not triggers:
                 #Now check if can use regex expression
-                triggers = all_referrer_triggers.filter(models.Q(referrer_id__contains="regex"))
-                from temba.flows.models import get_flow_user
+                tmp_triggers = all_referrer_triggers.filter(models.Q(referrer_id__contains="regex"))
                 import re
-                for trigger in triggers:
+                for trigger in tmp_triggers:
                     prog = re.compile(trigger.referrer_id.split('_')[1])
                     if re.match(prog,referrer_id):
-                        triggers = triggers.filter(models.Q(referrer_id__iexact=trigger.referrer_id))
-                        ############ Save last uncaught response from contact ###############
+                        triggers = tmp_triggers.filter(models.Q(referrer_id__iexact=trigger.referrer_id))
+                        ############ Save last referrer id response from contact ###############
                         contact.add_field_to_contact(
                               label=ContactField.REFERRER_LABEL,
                               field=ContactField.REFERRER_FIELD,
