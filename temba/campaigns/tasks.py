@@ -66,7 +66,7 @@ def update_event_fires(event_id):
     r = get_redis_connection()
     key = 'event_fires_event_%d' % event_id
 
-    with r.lock(key, timeout=300):
+    with r.lock(key, timeout=3):
         try:
 
             with transaction.atomic():
@@ -75,6 +75,8 @@ def update_event_fires(event_id):
                     EventFire.do_update_eventfires_for_event(event)
 
         except Exception as e:  # pragma: no cover
+            import traceback
+            traceback.print_exc()
 
             # requeue our task to try again in five minutes
             update_event_fires(event_id).delay(countdown=60 * 5)

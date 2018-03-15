@@ -15,7 +15,6 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
-from temba.values.models import Value
 
 
 @six.python_2_unicode_compatible
@@ -499,22 +498,27 @@ class EventFire(Model):
 
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
+            field_uuid = six.text_type(event.relative_to.uuid)
+            field_key = event.relative_to.key
 
-            contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
-            values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
-            values = values.select_related('contact').distinct('contact')
+            contacts = (
+                event.campaign.group.contacts
+                .filter(is_active=True, is_blocked=False)
+                .exclude(is_test=True)
+                .filter(fields__has_key=field_uuid)
+            )
 
             now = timezone.now()
             events = []
 
             org = event.campaign.org
-            for value in values:
-                formatted_date = org.format_date(value.datetime_value)
-                scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
+            for contact in contacts:
+                contact.org = org
+                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_string(field_key), now)
 
                 # and if we have a date, then schedule it
                 if scheduled:
-                    events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+                    events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
 
             # bulk create our event fires
             EventFire.objects.bulk_create(events)
@@ -532,24 +536,33 @@ class EventFire(Model):
             EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
 
             now = timezone.now()
-            from temba.values.models import Value
 
             org = contact_field.org
-            for event in CampaignEvent.objects.filter(relative_to=contact_field,
-                                                      campaign__is_active=True, campaign__is_archived=False, is_active=True):
+            events = (
+                CampaignEvent.objects
+                .filter(relative_to=contact_field, campaign__is_active=True,
+                        campaign__is_archived=False, is_active=True)
+                .prefetch_related('relative_to')
+            )
+            for event in events:
+                field_uuid = six.text_type(event.relative_to.uuid)
+                field_key = event.relative_to.key
 
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
-                values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=contact_field.key)
-                values = values.select_related('contact').distinct('contact')
+                contacts = (
+                    event.campaign.group.contacts
+                    .filter(is_active=True, is_blocked=False)
+                    .exclude(is_test=True)
+                    .filter(fields__has_key=field_uuid)
+                )
 
                 events = []
-                for value in values:
-                    formatted_date = org.format_date(value.datetime_value)
-                    scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
+                for contact in contacts:
+                    contact.org = org
+                    scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_string(field_key), now)
 
                     # and if we have a date, then schedule it
                     if scheduled:
-                        events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+                        events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
 
                 # bulk create our event fires
                 EventFire.objects.bulk_create(events)
@@ -581,9 +594,12 @@ class EventFire(Model):
         groups = [_.id for _ in contact.cached_user_groups]
 
         # get all events which are in one of these groups and on this field
-        for event in CampaignEvent.objects.filter(campaign__group__in=groups, relative_to__key=key,
-                                                  campaign__is_archived=False, is_active=True):
-
+        events = (
+            CampaignEvent.objects
+            .filter(campaign__group__in=groups, relative_to__key=key, campaign__is_archived=False, is_active=True)
+            .prefetch_related('relative_to')
+        )
+        for event in events:
             # remove any unfired events, they will get recreated below
             EventFire.objects.filter(event=event, contact=contact, fired=None).delete()
 
