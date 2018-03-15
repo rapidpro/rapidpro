@@ -5527,7 +5527,7 @@ class AddToGroupAction(Action):
                                 ActionLog.error(run, _("%s is a dynamic group which we can't add contacts to") % group.name)
                             else:  # pragma: needs cover
                                 ActionLog.error(run, _("%s is a dynamic group which we can't remove contacts from") % group.name)
-                        continue
+                        continue  # pragma: can't cover
 
                     group.org = run.org
                     group.update_contacts(user, [contact], add)
