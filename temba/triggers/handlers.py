@@ -19,6 +19,7 @@ class CatchAllHandler(MessageHandler):
 
     def handle(self, msg):
         ############ Save last uncaught response from contact ###############
+        contact = msg.contact
         contact.add_field_to_contact(
               label=ContactField.UNCAUGHT_LABEL,
               field=ContactField.UNCAUGHT_FIELD,
