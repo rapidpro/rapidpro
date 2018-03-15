@@ -7,6 +7,7 @@ import time
 import json
 from django.db import migrations, connection, transaction
 from django.db.models import Prefetch
+from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.utils import chunk_list
 
@@ -19,11 +20,12 @@ def strip_last_path(path):
     return ' > '.join(parts[:-1])
 
 
-def build_json_value(cf, value):
+def build_json_value(org, cf, value):
     json_value = {'text': value.string_value}
 
     if value.datetime_value is not None:
-        json_value['datetime'] = value.datetime_value.isoformat()
+        localized = timezone.localtime(value.datetime_value, org.timezone)
+        json_value['datetime'] = localized.isoformat()
 
     if value.decimal_value is not None:
         json_value['decimal'] = six.text_type(value.decimal_value.normalize())
@@ -46,7 +48,7 @@ def build_json_value(cf, value):
     return {six.text_type(cf.uuid): json_value}
 
 
-def backfill_contact_fields(Contact, ContactField, Value):
+def backfill_contact_fields(Org, Contact, ContactField, Value):
     r = get_redis_connection()
 
     max_id = r.get('cf_max_id')
@@ -70,12 +72,18 @@ def backfill_contact_fields(Contact, ContactField, Value):
     for cf in ContactField.objects.only('id', 'key', 'uuid', 'is_active'):
         cfs[cf.id] = cf
 
+    # we also preselect all orgs so we know their timezone
+    orgs = {}
+    for org in Org.objects.all():
+        orgs[org.id] = org
+
     contact_values = Value.objects.exclude(contact_field=None).prefetch_related('location_value')
+
+    start = time.time()
+    processed = 1
 
     # 100 contacts at a time, select a contact and all its values
     for batch in chunk_list(range(last_id, max_id + 1), 100):
-        start = time.time()
-
         # we batch 100 contacts at a time in a transaction to reduce number of writes
         with transaction.atomic():
             # select the contacts and all set contact fields
@@ -89,6 +97,12 @@ def backfill_contact_fields(Contact, ContactField, Value):
             # for each contact, build our expression to update all the appropriate fields
             for contact in contacts:
                 json_fields = []
+
+                org = orgs.get(contact.org_id)
+                if org is None:
+                    org = Org.objects.get(contact.org_id)
+                    orgs[org.id] = org
+
                 for value in contact.contact_values:
                     cf = cfs.get(value.contact_field_id)
 
@@ -102,7 +116,7 @@ def backfill_contact_fields(Contact, ContactField, Value):
                         continue
 
                     # otherwise, build up our JSON value
-                    json_fields.append(json.dumps(build_json_value(cf, value)))
+                    json_fields.append(json.dumps(build_json_value(org, cf, value)))
 
                 # write our fields in a single update for this contact
                 if json_fields:
@@ -113,24 +127,27 @@ def backfill_contact_fields(Contact, ContactField, Value):
                         cursor.execute(update_sql, update_sql_fields)
 
                 last_id = contact.id
+                processed += 1
 
         r.setex('cf_last_id', EXPIRATION, last_id)
-        chunk_rate = (time.time() - start) / float(100)
+        chunk_rate = (time.time() - start) / float(processed)
         remaining = (max_id - last_id) * chunk_rate
-        print("** %d / %d contacts migrated - ~ %.02d hours remaining" % (last_id, max_id, remaining / 3600))
+        print("** %d / %d contacts migrated - ~ %d mins remaining" % (last_id, max_id, remaining / 60))
 
 
 def apply_manual():
+    from temba.orgs.models import Org
     from temba.contacts.models import Contact, ContactField
     from temba.values.models import Value
-    backfill_contact_fields(Contact, ContactField, Value)
+    backfill_contact_fields(Org, Contact, ContactField, Value)
 
 
 def apply_as_migration(apps, schema_editor):
+    Org = apps.get_model('orgs', 'Org')
     Contact = apps.get_model('contacts', 'Contact')
     ContactField = apps.get_model('contacts', 'ContactField')
     Value = apps.get_model('values', 'Value')
-    backfill_contact_fields(Contact, ContactField, Value)
+    backfill_contact_fields(Org, Contact, ContactField, Value)
 
 
 def clear_migration(apps, schema_editor):
@@ -144,6 +161,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contacts', '0072_contact_fields'),
         ('values', '0013_remove_nones'),
+        ('orgs', '0039_auto_20180202_1234'),
     ]
 
     operations = [

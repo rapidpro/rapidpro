@@ -28,7 +28,7 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
@@ -474,7 +474,7 @@ MAX_HISTORY = 50
 
 
 @six.python_2_unicode_compatible
-class Contact(TembaModel):
+class Contact(RequireUpdateFieldsMixin, TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -784,7 +784,7 @@ class Contact(TembaModel):
 
             # set all the other fields that have a non-zero value
             if dt_value is not None:
-                field_dict[ContactField.DATETIME_KEY] = dt_value.isoformat()
+                field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
             if dec_value is not None:
                 field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value.normalize())

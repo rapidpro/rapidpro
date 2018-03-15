@@ -782,9 +782,7 @@ class ExpressionsTest(TembaTest):
     def setUp(self):
         super(ExpressionsTest, self).setUp()
 
-        contact = self.create_contact("Joe Blow", "123")
-        contact.language = u'eng'
-        contact.save()
+        contact = self.create_contact("Joe Blow", "123", language='eng')
 
         variables = dict()
         variables['contact'] = contact.build_expressions_context()

@@ -282,7 +282,7 @@ class WebHookTest(TembaTest):
                 'name': 'color',
                 'value': 'Mauve',
                 'created_on': matchers.ISODate(),
-                'input': 'Mauve'
+                'input': 'Mauve\nhttp://s3.com/text.jpg\nhttp://s3.com/text.mp4'
             }
         })
 

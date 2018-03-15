@@ -340,6 +340,14 @@ class Channel(TembaModel):
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
+    SIMULATOR_CHANNEL = {
+        'uuid': '440099cf-200c-4d45-a8e7-4a564f4a0e8b',
+        'name': "Simulator Channel",
+        'address': '+18005551212',
+        'schemes': ['tel'],
+        'roles': ['send']
+    }
+
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3)

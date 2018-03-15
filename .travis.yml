@@ -47,7 +47,7 @@ before_script:
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
   # setup a goflow server instance
-  - GOFLOW_VERSION=0.5.0
+  - GOFLOW_VERSION=0.6.1
   - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
   - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
 

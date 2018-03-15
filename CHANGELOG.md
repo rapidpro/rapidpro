@@ -1,5 +1,6 @@
-v3.0.337
+v3.0.338
 ----------
+ * Always serialize contact field datetime values in the org timezone
  * Add migration for population of the contact field json
 
 v3.0.336
