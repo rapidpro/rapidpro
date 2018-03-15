@@ -426,6 +426,11 @@ class ContactField(SmartModel):
                     field.label = label
                     changed = True
 
+                # if we are changing to a non-datetime from a datetime, make sure we aren't used in any events
+                if value_type != Value.TYPE_DATETIME and field.value_type == Value.TYPE_DATETIME:
+                    if field.campaigns.count() > 0:
+                        raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
+
                 # update our type if we were given one
                 if value_type and field.value_type != value_type:
                     field.value_type = value_type

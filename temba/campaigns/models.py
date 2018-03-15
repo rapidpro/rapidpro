@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import json
 import six
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
@@ -354,6 +354,10 @@ class CampaignEvent(TembaModel):
 
         # nothing to base off of, nothing to fire
         if not date_value:
+            return None
+
+        # note a datetime, we aren't set to something valid
+        if not isinstance(date_value, datetime):
             return None
 
         # field is no longer active? return

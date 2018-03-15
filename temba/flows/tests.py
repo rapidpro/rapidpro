@@ -6528,7 +6528,7 @@ class FlowsTest(FlowFileTest):
 
         # do a dry run once so that the groups and fields get created
         group = self.create_group("Campaign", [])
-        field = ContactField.get_or_create(self.org, self.admin, "campaign_date", "Campaign Date")
+        field = ContactField.get_or_create(self.org, self.admin, "campaign_date", "Campaign Date", value_type=Value.TYPE_DATETIME)
 
         # tests that a contact is properly updated when a child flow is called
         child = self.get_flow('child')
