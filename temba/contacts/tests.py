@@ -1018,7 +1018,7 @@ class ContactTest(TembaTest):
 
         # we don't let users undo releasing a contact... but if we have to do it for some reason
         self.joe.is_active = True
-        self.joe.save()
+        self.joe.save(update_fields=('is_active',))
 
         # check joe goes into the appropriate groups
         contact_counts = ContactGroup.get_system_group_counts(self.org)
@@ -1683,7 +1683,7 @@ class ContactTest(TembaTest):
 
             kurt = self.create_contact("Kurt", "123123")
             self.joe.created_on = timezone.now() - timedelta(days=1000)
-            self.joe.save()
+            self.joe.save(update_fields=('created_on',))
 
             self.create_campaign()
 
@@ -2187,14 +2187,14 @@ class ContactTest(TembaTest):
 
         # this is a bogus
         self.joe.language = 'zzz'
-        self.joe.save()
+        self.joe.save(update_fields=('language',))
         response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.admin)
 
         # should just show the language code instead of the language name
         self.assertContains(response, 'zzz')
 
         self.joe.language = 'fra'
-        self.joe.save()
+        self.joe.save(update_fields=('language',))
         response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.admin)
 
         # with a proper code, we should see the language
@@ -2548,7 +2548,7 @@ class ContactTest(TembaTest):
         # update our language to something not on the org
         self.joe.refresh_from_db()
         self.joe.language = 'fra'
-        self.joe.save()
+        self.joe.save(update_fields=('language',))
 
         # add some languages to our org, but not french
         self.client.post(reverse('orgs.org_languages'), dict(primary_lang='hat', languages='arc,spa'))
@@ -2639,10 +2639,10 @@ class ContactTest(TembaTest):
 
     def test_number_normalized(self):
         self.org.country = None
-        self.org.save()
+        self.org.save(update_fields=('country',))
 
         self.channel.country = 'GB'
-        self.channel.save()
+        self.channel.save(update_fields=('country',))
 
         self.login(self.admin)
 
@@ -2950,11 +2950,11 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
-        contact.save()
+        contact.save(update_fields=('uuid',))
 
         contact2 = self.create_contact(name='Kobe', number='+250788383396')
         contact2.uuid = 'uuid-4444'
-        contact2.save()
+        contact2.save(update_fields=('uuid',))
 
         self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
@@ -2984,11 +2984,11 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
-        contact.save()
+        contact.save(update_fields=('uuid',))
 
         contact2 = self.create_contact(name='Kobe', number='+250788383396')
         contact2.uuid = 'uuid-4444'
-        contact2.save()
+        contact2.save(update_fields=('uuid',))
 
         self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
@@ -3116,11 +3116,11 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
-        contact.save()
+        contact.save(update_fields=('uuid',))
 
         contact2 = self.create_contact(name='Kobe', number='+250788383396')
         contact2.uuid = 'uuid-4444'
-        contact2.save()
+        contact2.save(update_fields=('uuid',))
 
         self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
@@ -3184,11 +3184,11 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
-        contact.save()
+        contact.save(update_fields=('uuid',))
 
         contact2 = self.create_contact(name='Kobe', number='+250788383396')
         contact2.uuid = 'uuid-4444'
-        contact2.save()
+        contact2.save(update_fields=('uuid',))
 
         self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
@@ -3252,11 +3252,11 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
-        contact.save()
+        contact.save(update_fields=('uuid',))
 
         contact2 = self.create_contact(name='Kobe', number='+250788383396')
         contact2.uuid = 'uuid-4444'
-        contact2.save()
+        contact2.save(update_fields=('uuid',))
 
         self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
@@ -4072,7 +4072,7 @@ class ContactTest(TembaTest):
     def test_update_handling(self):
         bob = self.create_contact("Bob", "111222")
         bob.name = 'Bob Marley'
-        bob.save()
+        bob.save(update_fields=('name',))
 
         group = self.create_group("Customers", [])
 

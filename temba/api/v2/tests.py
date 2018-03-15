@@ -2290,7 +2290,7 @@ class APITest(TembaTest):
         # allow Frank to run the flow in French
         self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.frank.language = 'fra'
-        self.frank.save()
+        self.frank.save(update_fields=('language',))
 
         flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)

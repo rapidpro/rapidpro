@@ -281,7 +281,7 @@
               "uuid": "4c729279-b30f-471d-8995-cd1667117194", 
               "contacts": [], 
               "media": {}, 
-              "variables": [], 
+              "variables": [{"id": "+12065551212"}],
               "groups": [
                 {
                   "name": "Females", 

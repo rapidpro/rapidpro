@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list, goflow
+from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
 from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.goflow import get_client
@@ -1143,11 +1143,11 @@ class FlowCRUDL(SmartCRUDL):
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(asset_timestamp).asset_server(flow.org)
+                flow_request = client.request_builder(asset_timestamp).asset_server(flow.org, simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:
-                    flow_request.include_all(flow.org)
+                    flow_request.include_all(flow.org, simulator=True)
 
                 flow_request.request['events'] = json_dict.get('events')
 
@@ -1181,7 +1181,7 @@ class FlowCRUDL(SmartCRUDL):
                 lang = request.GET.get('lang', None)
                 if lang:
                     test_contact.language = lang
-                    test_contact.save()
+                    test_contact.save(update_fields=('language',))
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
@@ -1210,7 +1210,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # reset the name for our test contact too
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
-                test_contact.save()
+                test_contact.save(update_fields=('name',))
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():
@@ -1462,12 +1462,16 @@ class FlowCRUDL(SmartCRUDL):
                 return org.country
 
         resources = {
-            'channel': Resource(Channel.objects.filter(is_active=True).select_related('parent'), goflow.serialize_channel),
+            'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
             'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
             'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), goflow.serialize_flow),
             'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), goflow.serialize_group),
             'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
             'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
+        }
+
+        simulator_extras = {
+            'channel': [Channel.SIMULATOR_CHANNEL]
         }
 
         @classmethod
@@ -1491,20 +1495,28 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, *args, **kwargs):
             org = self.derive_org()
             uuid = kwargs.get('uuid')
+            simulator = str_to_bool(self.request.GET.get('simulator', 'false'))
 
-            resource = self.resources[kwargs['type']]
+            resource_type = kwargs['type']
+            resource = self.resources[resource_type]
             if uuid:
                 result = resource.get_item(org, uuid)
             else:
                 result = resource.get_root(org)
 
-            if isinstance(result, QuerySet):
+            if isinstance(result, (list, QuerySet)):
                 page_size = self.request.GET.get('page_size')
                 page_num = self.request.GET.get('page')
 
                 if page_size is None:
                     # the flow engine doesn't want results paged, so just return the entire set
-                    return JsonResponse([resource.serializer(o) for o in result], safe=False)
+                    serialized_items = [resource.serializer(o) for o in result]
+
+                    # add potential extra resources for the simulator
+                    if simulator:
+                        serialized_items += self.simulator_extras.get(resource_type, [])
+
+                    return JsonResponse(serialized_items, safe=False)
                 else:  # pragma: no cover
                     # TODO make this meet the needs of the new editor
                     paginator = Paginator(result, page_size)

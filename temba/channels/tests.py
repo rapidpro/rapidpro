@@ -6368,7 +6368,7 @@ class TwitterTest(TembaTest):
             self.clear_cache()
 
         self.joe.is_stopped = False
-        self.joe.save()
+        self.joe.save(update_fields=('is_stopped',))
         testers.update_contacts(self.user, [self.joe], add=True)
 
         with patch('requests.sessions.Session.post') as mock:
@@ -6391,7 +6391,7 @@ class TwitterTest(TembaTest):
             self.clear_cache()
 
         self.joe.is_stopped = False
-        self.joe.save()
+        self.joe.save(update_fields=('is_stopped',))
         testers.update_contacts(self.user, [self.joe], add=True)
 
         with patch('requests.sessions.Session.post') as mock:

@@ -41,7 +41,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
-from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
+from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
 from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
@@ -1034,7 +1035,7 @@ class Flow(TembaModel):
             value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value, msg.text)
+        ruleset.save_run_value(run, rule, value, six.text_type(msg))
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -2917,68 +2918,79 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for entry in run_log:
             # print("⚡ %s %s" % (entry.event['type'], json.dumps({k: v for k, v in six.iteritems(entry.event) if k != 'type'})))
 
-            if entry.event['type'] == 'broadcast_created':
-                msgs_to_send, run_messages = self.apply_broadcast_created(entry.event, msg_in)
+            apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
+            if apply_func:
+                msgs = apply_func(entry.event, msg_in)
 
-                all_msgs_to_send += msgs_to_send
-                all_run_messages += run_messages
-            else:
-                apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
-                if apply_func:
-                    apply_func(entry.event, msg_in)
+                # events can return a tuple of messages to send, and messages to add to the run
+                if msgs:
+                    all_msgs_to_send += msgs[0]
+                    all_run_messages += msgs[1]
 
         return all_msgs_to_send, all_run_messages
 
-    def apply_broadcast_created(self, event, msg):
+    def apply_broadcast_created(self, event, msg_in):
         """
         An outgoing broadcast being sent (not necessarily this contact)
         """
         urns = event.get('urns', [])
         contact_refs = event.get('contacts', [])
         group_refs = event.get('groups', [])
+        user = get_flow_user(self.org)
+        urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
+
+        text = {}
+        media = {}
+        quick_replies = {}
+        for lang, translation in six.iteritems(event['translations']):
+            text[lang] = translation.get('text', "")
+            attachments = self._resolve_attachments(translation.get('attachments', []))
+            quick_replies[lang] = translation.get('quick_replies', [])
+
+            # we currently only support one attachment per language
+            media[lang] = attachments[0] if attachments else None
+
+        # re-organize quick replies from dict of lists, to list of dicts
+        quick_replies = [dict(zip(quick_replies, t)) for t in zip(*quick_replies.values())]
+
+        broadcast = Broadcast.create(
+            self.org, user,
+            text,
+            recipients=itertools.chain(urns, contacts),
+            media=media,
+            quick_replies=quick_replies,
+            base_language=event['base_language']
+        )
+
+        # send in task
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id, with_expressions=False))
+
+    def apply_msg_created(self, event, msg_in):
+        """
+        An outgoing message being sent to the session contact
+        """
+        msg = event['msg']
+        urn = self.contact.urns.filter(identity=URN.identity(msg['urn'])).first()
+        channel = self.org.channels.filter(uuid=msg['channel']['uuid']).first()
         created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
-        # convert attachment URLs to absolute URLs
-        attachments = []
-        for attachment in event.get('attachments', []):
-            media_type, media_url = attachment.split(':', 1)
+        attachments = self._resolve_attachments(msg.get('attachments', []))
 
-            if not media_url.startswith('http://') and not media_url.startswith('https://'):
-                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
+        msg_out = Msg.create_outgoing(
+            self.org, user, urn,
+            text=msg['text'],
+            attachments=attachments,
+            quick_replies=msg.get('quick_replies', []),
+            channel=channel,
+            high_priority=self.session.responded,
+            created_on=created_on,
+            response_to=msg_in if msg_in and msg_in.id else None
+        )
 
-            attachments.append("%s:%s" % (media_type, media_url))
+        return [msg_out], [msg_out]
 
-        urns, contacts = self._resolve_urns_and_contacts(user, urns, contact_refs, group_refs)
-
-        msgs_to_send = []
-        run_messages = []
-
-        for recipient in itertools.chain(urns, contacts):
-            high_priority = (recipient == self.contact and self.session.responded)
-            channel = msg.channel if msg and msg.contact == recipient else None
-
-            try:
-                msg_out = Msg.create_outgoing(
-                    self.org, user, recipient,
-                    text=event['text'],
-                    attachments=attachments,
-                    quick_replies=event.get('quick_replies', []),
-                    channel=channel,
-                    high_priority=high_priority,
-                    created_on=created_on,
-                    response_to=msg if msg and msg.id else None
-                )
-                msgs_to_send.append(msg_out)
-                if msg_out.contact == self.contact:
-                    run_messages.append(msg_out)
-
-            except UnreachableException:  # pragma: no cover
-                continue
-
-        return msgs_to_send, run_messages
-
-    def apply_email_created(self, event, msg):
+    def apply_email_created(self, event, msg_in):
         """
         Email being sent out
         """
@@ -2992,7 +3004,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             quoted_addresses = ['"%s"' % elt for elt in addresses]
             ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(quoted_addresses)))
 
-    def apply_contact_property_changed(self, event, msg):
+    def apply_contact_property_changed(self, event, msg_in):
         """
         Name or language being updated
         """
@@ -3014,7 +3026,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated %s to '%s'") % (prop, value))
 
-    def apply_contact_urn_added(self, event, msg):
+    def apply_contact_urn_added(self, event, msg_in):
         """
         New URN being added to the contact
         """
@@ -3029,7 +3041,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:
             self.contact.update_urns(user, urns)
 
-    def apply_contact_field_changed(self, event, msg):
+    def apply_contact_field_changed(self, event, msg_in):
         """
         Properties of this contact being updated
         """
@@ -3042,24 +3054,24 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
 
-    def apply_run_result_changed(self, event, msg):
+    def apply_run_result_changed(self, event, msg_in):
         # flow results are actually saved in create_or_update_from_goflow
         if self.contact.is_test:
             ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['name'])),
                              created_on=iso8601.parse_date(event['created_on']))
 
-    def apply_input_labels_added(self, event, msg):
-        if not msg:  # pragma: no cover
+    def apply_input_labels_added(self, event, msg_in):
+        if not msg_in:  # pragma: no cover
             return
 
         for label_ref in event['labels']:
             label = Label.label_objects.get(org=self.org, uuid=label_ref['uuid'])
             if not self.contact.is_test:
-                label.toggle_label([msg], True)
+                label.toggle_label([msg_in], True)
             else:  # pragma: no cover
-                ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg_in.text))
 
-    def apply_contact_groups_added(self, event, msg):
+    def apply_contact_groups_added(self, event, msg_in):
         """
         This contact being added to one or more groups
         """
@@ -3072,7 +3084,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
-    def apply_contact_groups_removed(self, event, msg):
+    def apply_contact_groups_removed(self, event, msg_in):
         """
         This contact being removed from one or more groups
         """
@@ -3085,7 +3097,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
-    def apply_session_triggered(self, event, msg):
+    def apply_session_triggered(self, event, msg_in):
         """
         New sessions being started for other contacts
         """
@@ -3110,7 +3122,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("No such flow with UUID %s" % flow_ref['uuid'])
 
-    def apply_error(self, event, msg):
+    def apply_error(self, event, msg_in):
         """
         The flowserver recorded a non-fatal error event
         """
@@ -3120,8 +3132,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         error = event['text']
 
-        if error.startswith("invalid URN: "):
-            invalid_urn = error[14:-1]
+        if error.startswith("unable to add URN"):
+            urn_match = regex.search("'(.*:.*)'", error)
+            invalid_urn = urn_match.groups()[0] if urn_match else None
+
             try:
                 URN.to_parts(invalid_urn)
                 ActionLog.info(self, _("Contact not updated, invalid connection for contact (%s)") % invalid_urn)
@@ -3148,6 +3162,21 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 contacts.add(contact)
 
         return urns, contacts
+
+    def _resolve_attachments(self, relative_urls):
+        """
+        Convert attachment URLs to absolute URLs
+        """
+        attachments = []
+        for attachment in relative_urls:
+            media_type, media_url = attachment.split(':', 1)
+
+            if not media_url.startswith('http://') and not media_url.startswith('https://'):
+                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, media_url)
+
+            attachments.append("%s:%s" % (media_type, media_url))
+
+        return attachments
 
     @classmethod
     def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,

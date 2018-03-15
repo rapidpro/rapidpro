@@ -1033,7 +1033,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_stopped',
+        exclude = ('is_active', 'uuid', 'id', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
@@ -1065,7 +1065,9 @@ class ContactCRUDL(SmartCRUDL):
             return super(ContactCRUDL.Update, self).get_form()
 
         def save(self, obj):
-            super(ContactCRUDL.Update, self).save(obj)
+            fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
+            obj.save(update_fields=fields)
+            self.save_m2m()
 
             new_groups = self.form.cleaned_data.get('groups')
             if new_groups is not None:
@@ -1120,6 +1122,9 @@ class ContactCRUDL(SmartCRUDL):
             if field_id:
                 context['contact_field'] = org.contactfields.get(id=field_id)
             return context
+
+        def save(self, obj):
+            pass
 
         def post_save(self, obj):
             obj = super(ContactCRUDL.UpdateFields, self).post_save(obj)
