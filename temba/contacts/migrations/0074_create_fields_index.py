@@ -17,5 +17,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(INDEX_SQL)
+        migrations.RunSQL(INDEX_SQL, "")
     ]

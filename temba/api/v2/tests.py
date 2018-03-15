@@ -709,7 +709,7 @@ class APITest(TembaTest):
 
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration", value_type=Value.TYPE_DATETIME)
 
         # create our contact and set a registration date
         contact = self.create_contact("Joe", "+12065551515")
