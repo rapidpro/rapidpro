@@ -8,7 +8,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
-from .tasks import resolve_twitter_ids
 from ...models import Channel, ChannelType
 from ...views import UpdateTwitterForm
 
@@ -38,10 +37,6 @@ class TwitterActivityType(ChannelType):
 
     def is_available_to(self, user):
         return user.is_beta()
-
-    def setup_periodic_tasks(self, sender):
-        # automatically try to resolve any missing twitter ids every 15 minutes
-        sender.add_periodic_task(900, resolve_twitter_ids)
 
     def activate(self, channel):
         config = channel.config

@@ -15,7 +15,6 @@ from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
 from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
 from temba.utils.mage import MageClient
-from temba.temba_celery import app as celery_app
 from .models import Channel, Alert, ChannelLog, ChannelCount
 
 
@@ -26,18 +25,6 @@ class MageStreamAction(Enum):
     activate = 1
     refresh = 2
     deactivate = 3
-
-
-@celery_app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
-    try:
-        from .types import TYPES
-        for channel_type in TYPES.values():
-            channel_type.setup_periodic_tasks(sender)
-    except Exception:  # pragma: no cover
-        # we print this out because celery just silently swallows exceptions here
-        import traceback
-        traceback.print_exc()
 
 
 @task(track_started=True, name='sync_channel_gcm_task')
