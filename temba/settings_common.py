@@ -982,7 +982,7 @@ CELERYBEAT_SCHEDULE = {
         'task': 'resolve_twitter_ids_task',
         'schedule': timedelta(seconds=900)
     },
-    "refresh_jiochat_access_tokens": {
+    "refresh-jiochat-access-tokens": {
         'task': "refresh_jiochat_access_tokens",
         'schedule': timedelta(seconds=3600)
     }
