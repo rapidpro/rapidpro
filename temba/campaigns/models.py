@@ -350,7 +350,6 @@ class CampaignEvent(TembaModel):
         return offset
 
     def calculate_scheduled_fire_for_value(self, date_value, now):
-        date_value = self.campaign.org.parse_date(date_value)
         tz = self.campaign.org.timezone
 
         # nothing to base off of, nothing to fire
@@ -416,8 +415,7 @@ class CampaignEvent(TembaModel):
             self.flow.release()
 
     def calculate_scheduled_fire(self, contact):
-        date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
-        return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
+        return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
 
     def __str__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
@@ -436,18 +434,8 @@ class EventFire(Model):
     def is_firing_soon(self):
         return self.scheduled < timezone.now()
 
-    @classmethod
-    def parse_relative_to_date(cls, contact, key):
-        relative_date = contact.org.parse_date(contact.get_field_display(key))
-
-        # if we got a date, floor to the minute
-        if relative_date:
-            relative_date = relative_date.replace(second=0, microsecond=0)
-
-        return relative_date
-
     def get_relative_to_value(self):
-        return EventFire.parse_relative_to_date(self.contact, self.event.relative_to.key)
+        return self.contact.get_field_value(self.event.relative_to).replace(second=0, microsecond=0)
 
     def fire(self):
         """
@@ -498,8 +486,8 @@ class EventFire(Model):
 
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
-            field_uuid = six.text_type(event.relative_to.uuid)
-            field_key = event.relative_to.key
+            field = event.relative_to
+            field_uuid = six.text_type(field.uuid)
 
             contacts = (
                 event.campaign.group.contacts
@@ -514,7 +502,7 @@ class EventFire(Model):
             org = event.campaign.org
             for contact in contacts:
                 contact.org = org
-                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_string(field_key), now)
+                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
 
                 # and if we have a date, then schedule it
                 if scheduled:
@@ -545,8 +533,8 @@ class EventFire(Model):
                 .prefetch_related('relative_to')
             )
             for event in events:
-                field_uuid = six.text_type(event.relative_to.uuid)
-                field_key = event.relative_to.key
+                field = event.relative_to
+                field_uuid = six.text_type(field.uuid)
 
                 contacts = (
                     event.campaign.group.contacts
@@ -558,7 +546,7 @@ class EventFire(Model):
                 events = []
                 for contact in contacts:
                     contact.org = org
-                    scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_string(field_key), now)
+                    scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
 
                     # and if we have a date, then schedule it
                     if scheduled:

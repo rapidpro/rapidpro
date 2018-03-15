@@ -248,7 +248,7 @@ class CampaignTest(TembaTest):
         self.farmer1.set_field(self.user, 'planting_date', '1/10/2020')
 
         # get the resulting time (including minutes)
-        planting_date = self.farmer1.get_field_value('planting_date')
+        planting_date = self.farmer1.get_field_value_by_key('planting_date')
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse('campaigns.campaign_create'))
@@ -551,10 +551,10 @@ class CampaignTest(TembaTest):
         self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
         self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
 
-        planting = self.farmer1.get_field_value('planting_date')
+        planting = self.farmer1.get_field_value_by_key('planting_date')
         self.assertEqual("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
-        planting = self.farmer2.get_field_value('planting_date')
+        planting = self.farmer2.get_field_value_by_key('planting_date')
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
@@ -609,10 +609,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(12, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets are different (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value('planting_date').utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value_by_key('planting_date').utcoffset())
 
         # the number of hours between these two events should be 49 (two days 1 hour)
-        delta = fire.scheduled - self.farmer1.get_field_value('planting_date')
+        delta = fire.scheduled - self.farmer1.get_field_value_by_key('planting_date')
         self.assertEqual(delta.days, 2)
         self.assertEqual(delta.seconds, 3600)
 
@@ -627,10 +627,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets changed (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value('planting_date').utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value_by_key('planting_date').utcoffset())
 
         # delta should be 47 hours exactly
-        delta = fire.scheduled - self.farmer1.get_field_value('planting_date')
+        delta = fire.scheduled - self.farmer1.get_field_value_by_key('planting_date')
         self.assertEqual(delta.days, 1)
         self.assertEqual(delta.seconds, 82800)
 

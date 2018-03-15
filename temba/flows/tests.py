@@ -2332,7 +2332,7 @@ class FlowTest(TembaTest):
         json_dict = response.json()
 
         self.assertTrue(group in test_contact.all_groups.all())
-        self.assertEqual("hey", test_contact.get_field_value("custom"))
+        self.assertEqual("hey", test_contact.get_field_value_by_key("custom"))
 
         self.assertEqual(len(json_dict.keys()), 5)
         self.assertIn('status', json_dict.keys())
@@ -2949,13 +2949,13 @@ class ActionPackedTest(FlowFileTest):
         # boring field updates
         self.start_flow()
         self.contact.refresh_from_db()
-        self.assertEqual('Male', self.contact.get_field_display('gender'))
+        self.assertEqual('Male', self.contact.get_field_display_by_key('gender'))
         self.assertEqual('Trey Anastasio', self.contact.name)
 
         # update action to instead clear the gender field
         self.update_action_field(self.flow, gender_action_uuid, 'value', '')
         self.start_flow()
-        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_string('gender'))
+        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_string_by_key('gender'))
 
         # test setting just the first name
         action = update_save_fields(self.get_action_json(self.flow, name_action_uuid), 'First Name', 'Frank')
@@ -2990,7 +2990,7 @@ class ActionPackedTest(FlowFileTest):
         self.update_action_json(self.flow, action)
         self.start_flow()
         self.contact.refresh_from_db()
-        self.assertEqual(action['value'], self.contact.get_field_value('last_message'))
+        self.assertEqual(action['value'], self.contact.get_field_value_by_key('last_message'))
 
     @also_in_flowserver
     def test_add_phone_number(self):
@@ -3592,14 +3592,14 @@ class ActionTest(TembaTest):
 
         # user should now have a nickname field with a value of batman
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual("batman", contact.get_field_string('superhero_name'))
+        self.assertEqual("batman", contact.get_field_string_by_key('superhero_name'))
 
         # test clearing our value
         test = SaveToContactAction.from_json(self.org, test.as_json())
         test.value = ""
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(None, contact.get_field_string('superhero_name'))
+        self.assertEqual(None, contact.get_field_string_by_key('superhero_name'))
 
         # test setting our name
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
@@ -3650,7 +3650,7 @@ class ActionTest(TembaTest):
                      "fields and we want to enable that for them so that they can do what they want with the platform."
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(test.value, contact.get_field_value('last_message'))
+        self.assertEqual(test.value, contact.get_field_value_by_key('last_message'))
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
@@ -6128,9 +6128,9 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_string('edd').startswith('2015-01-31T'))
-        self.assertEqual(mother.get_field_string('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(mother.get_field_string('chw_name'), self.contact.name)
+        self.assertTrue(mother.get_field_string_by_key('edd').startswith('2015-01-31T'))
+        self.assertEqual(mother.get_field_string_by_key('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual(mother.get_field_string_by_key('chw_name'), self.contact.name)
 
     def test_group_rule_first(self):
         rule_flow = self.get_flow('group_rule_first')
@@ -6161,8 +6161,8 @@ class FlowsTest(FlowFileTest):
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_string('expected_delivery_date').startswith('2014-01-31T'))
-        self.assertEqual("+12065552020", mother.get_field_string('chw'))
+        self.assertTrue(mother.get_field_string_by_key('expected_delivery_date').startswith('2014-01-31T'))
+        self.assertEqual("+12065552020", mother.get_field_string_by_key('chw'))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
         pain_flow = self.get_flow('pain_flow')

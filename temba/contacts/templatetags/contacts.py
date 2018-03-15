@@ -46,7 +46,7 @@ MISSING_VALUE = '--'
 
 @register.filter
 def contact_field(contact, arg):
-    value = contact.get_field_display(arg.lower())
+    value = contact.get_field_display_by_key(arg.lower())
     return value or MISSING_VALUE
 
 

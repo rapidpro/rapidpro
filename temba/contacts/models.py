@@ -657,14 +657,58 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
-    def get_field_json(self, key):
+    def get_field_string(self, field):
+        """
+        Given the passed in contact field object, returns the value (as a string) for this contact or None.
+        """
+        json_value = self.fields.get(six.text_type(field.uuid)) if self.fields else None
+        if not json_value:
+            return
+        if field.value_type == Value.TYPE_TEXT:
+            return json_value.get(ContactField.TEXT_KEY)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return json_value.get(ContactField.DATETIME_KEY)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return json_value.get(ContactField.DECIMAL_KEY)
+        elif field.value_type == Value.TYPE_STATE:
+            return json_value.get(ContactField.STATE_KEY)
+        elif field.value_type == Value.TYPE_DISTRICT:
+            return json_value.get(ContactField.DISTRICT_KEY)
+        elif field.value_type == Value.TYPE_WARD:
+            return json_value.get(ContactField.WARD_KEY)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
+    def get_field_value(self, field):
+        """
+        Given the passed in contact field object, returns the value (as a string, datetime, location) for this contact or None.
+        """
+        string_value = self.get_field_string(field)
+        if string_value is None:
+            return None
+
+        if field.value_type == Value.TYPE_TEXT:
+            return string_value
+        elif field.value_type == Value.TYPE_DATETIME:
+            return iso8601.parse_date(string_value)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return Decimal(string_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return AdminBoundary.get_by_path(self.org, string_value)
+
+        raise Exception("unknown contact field value type: %s", field.value_type)
+
+    def get_field_json_by_key(self, key):
+        """
+        Returns the json blob (as a dict) for the field with the passed in key
+        """
         field = ContactField.get_by_key(self.org, key)
         if field is None:
             return None
 
         return self.fields.get(six.text_type(field.uuid)) if self.fields else None
 
-    def get_field_string(self, key):
+    def get_field_string_by_key(self, key):
         """
         Returns the stringified value for the field with the passed in key (or None)
         """
@@ -672,7 +716,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if field is None:
             return None
 
-        json_value = self.get_field_json(key)
+        json_value = self.get_field_json_by_key(key)
         if json_value is None:
             return None
 
@@ -691,7 +735,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         raise Exception("unknown contact field value type: %s", field.value_type)
 
-    def get_field_value(self, key):
+    def get_field_value_by_key(self, key):
         """
         Returns the real value (datetime, decimal, boundary, text) for the field with the passed in key (or None)
         """
@@ -699,7 +743,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if field is None:
             return None
 
-        string_value = self.get_field_string(key)
+        string_value = self.get_field_string_by_key(key)
         if string_value is None:
             return None
 
@@ -714,7 +758,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         raise Exception("unknown contact field value type: %s", field.value_type)
 
-    def get_field_display(self, key):
+    def get_field_display_by_key(self, key):
         """
         Gets either the field category if set, or the formatted field value
         """
@@ -722,7 +766,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if field is None:
             return None
 
-        value = self.get_field_value(key)
+        value = self.get_field_value_by_key(key)
         if value is None:
             return None
 
@@ -795,14 +839,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             else:
                 if field.value_type == Value.TYPE_WARD:
                     district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                    district_value = self.get_field_value(district_field.key)
+                    district_value = self.get_field_value_by_key(district_field.key)
                     if district_value:
                         loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
                 elif field.value_type == Value.TYPE_DISTRICT:
                     state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                     if state_field:
-                        state_value = self.get_field_value(state_field.key)
+                        state_value = self.get_field_value_by_key(state_field.key)
                         if state_value:
                             loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
@@ -1815,7 +1859,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields.values():
-            field_value = self.get_field_string(field.key)
+            field_value = self.get_field_string(field)
             context[field.key] = field_value if field_value is not None else ''
 
         return context
@@ -2836,7 +2880,7 @@ class ExportContactsTask(BaseExportTask):
                         else:
                             field_value = ''
                     else:
-                        value = contact.get_field_value(field['key'])
+                        value = contact.get_field_value_by_key(field['key'])
                         field_value = Contact.get_field_display_for_value(field['field'], value)
 
                     if field_value is None:
