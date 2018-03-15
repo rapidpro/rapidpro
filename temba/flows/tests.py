@@ -8299,7 +8299,7 @@ class ExitTest(FlowFileTest):
         self.farmers = self.create_group("Farmers", [self.contact])
 
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date", value_type=Value.TYPE_DATETIME)
         event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, planting_date,
                                                 offset=1, unit='W', flow=second_flow, delivery_hour='13')
 
