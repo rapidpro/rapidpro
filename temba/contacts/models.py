@@ -692,7 +692,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def get_field_value(self, field):
         """
-        Given the passed in contact field object, returns the value (as a string, datetime, location) for this contact or None.
+        Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
+        for this contact or None.
         """
         string_value = self.get_field_string(field)
         if string_value is None:
@@ -706,8 +707,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return Decimal(string_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
             return AdminBoundary.get_by_path(self.org, string_value)
-
-        raise ValueError("unknown contact field value type: %s", field.value_type)
 
     @classmethod
     def display_value_for_field(cls, field, value, org=None):
