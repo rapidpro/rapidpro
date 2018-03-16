@@ -1064,7 +1064,7 @@ class Org(SmartModel):
         """
         # while technically we could resolve a full boundary path without a country, our policy is that
         # if you don't have a country set then you don't have locations
-        return AdminBoundary.objects.filter(path__iexact=location_string).first() if self.country_id and isinstance(location_string, six.string_types) else None
+        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, six.string_types) else None
 
     def parse_location(self, location_string, level, parent=None):
         """
