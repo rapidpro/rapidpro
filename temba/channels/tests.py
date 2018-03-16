@@ -59,7 +59,7 @@ from xml.etree import ElementTree as ET
 
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelSession, CHANNEL_EVENT
 from .models import DART_MEDIA_ENDPOINT, HUB9_ENDPOINT
-from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
+from .tasks import check_channels_task, squash_channelcounts, refresh_all_jiochat_access_tokens
 
 
 class ChannelTest(TembaTest):
@@ -8505,12 +8505,12 @@ class JiochatTest(TembaTest):
                                               'secret': Channel.generate_secret(32)},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-    def test_refresh_jiochat_access_tokens_task(self):
+    def test_refresh_all_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(400, '{ "error":"Failed" }')
 
             self.assertFalse(ChannelLog.objects.all())
-            refresh_jiochat_access_tokens()
+            refresh_all_jiochat_access_tokens()
 
             self.assertEqual(ChannelLog.objects.all().count(), 1)
             self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
@@ -8523,7 +8523,7 @@ class JiochatTest(TembaTest):
             mock.reset_mock()
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
-            refresh_jiochat_access_tokens()
+            refresh_all_jiochat_access_tokens()
 
             self.assertEqual(ChannelLog.objects.all().count(), 2)
             self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)

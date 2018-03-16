@@ -983,7 +983,7 @@ CELERYBEAT_SCHEDULE = {
         'schedule': timedelta(seconds=900)
     },
     "refresh-jiochat-access-tokens": {
-        'task': "refresh_jiochat_access_tokens",
+        'task': 'refresh_jiochat_access_tokens',
         'schedule': timedelta(seconds=3600)
     }
 }

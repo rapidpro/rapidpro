@@ -43,7 +43,7 @@ from temba.utils.jiochat import JiochatClient
 from temba.utils.text import decode_base64
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
-from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
+from .tasks import fb_channel_subscribe, refresh_all_jiochat_access_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -2064,7 +2064,7 @@ class JioChatHandler(BaseChannelHandler):
             verified, echostr = client.verify_request(request, channel.config[Channel.CONFIG_SECRET])
 
             if verified:
-                refresh_jiochat_access_tokens.delay(channel.id)
+                refresh_all_jiochat_access_tokens.delay(channel.id)
                 return HttpResponse(echostr)
 
         return JsonResponse(dict(error="Unknown request"), status=400)

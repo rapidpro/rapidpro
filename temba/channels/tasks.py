@@ -96,8 +96,8 @@ def send_alert_task(alert_id, resolved):
     alert.send_email(resolved)
 
 
-@task(track_started=True, name='refresh_jiochat_access_tokens')
-def refresh_jiochat_access_tokens(channel_id=None):
+@task(track_started=True, name='refresh_all_jiochat_access_tokens')
+def refresh_all_jiochat_access_tokens(channel_id=None):
     Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
 
 
