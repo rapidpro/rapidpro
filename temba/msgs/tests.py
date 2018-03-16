@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
-from django.db import transaction
+from django.db import transaction, connection
 from django.contrib.auth.models import User
 from django.test import override_settings
 from mock import patch
@@ -2257,6 +2257,8 @@ class CeleryTaskTest(TembaTest):
         fullmsg = "Object %r unexpectedly not found in the database" % obj
         fullmsg += ": " + msg if msg else ""
         try:
+            # close the current connection to the database, so we force it to open a new connection
+            connection.close()
             type(obj).objects.get(pk=obj.pk)
         except obj.DoesNotExist:
             self.fail(fullmsg)
