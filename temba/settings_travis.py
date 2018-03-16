@@ -22,3 +22,8 @@ DATABASES = {
         'OPTIONS': {}
     }
 }
+
+# Use a fast hasher to speed up tests.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+]
