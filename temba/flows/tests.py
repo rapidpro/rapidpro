@@ -4685,7 +4685,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(run.exit_type)
         self.assertIsNone(run.exited_on)
         self.assertTrue(run.responded)
-        six.assertCountEqual(self, run.results, {
+        self.assertEqual(run.results, {
             'color': {
                 'category': "Red",
                 'node_uuid': str(rule_set1.uuid),
@@ -4709,7 +4709,7 @@ class FlowsTest(FlowFileTest):
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
 
         run.refresh_from_db()
-        six.assertCountEqual(self, run.results, {
+        self.assertEqual(run.results, {
             'color': {
                 'category': "Red",
                 'node_uuid': str(rule_set1.uuid),
