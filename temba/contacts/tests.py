@@ -3846,6 +3846,16 @@ class ContactTest(TembaTest):
             }
         )
 
+        # change our state to an invalid field value type
+        ContactField.objects.filter(key='state').update(value_type='Z')
+        bad_field = ContactField.objects.get(key='state')
+
+        with self.assertRaises(ValueError):
+            self.joe.get_field_string(bad_field)
+
+        with self.assertRaises(ValueError):
+            self.joe.get_field_value(bad_field)
+
     def test_fields(self):
         # set a field on joe
         self.joe.set_field(self.user, 'abc_1234', 'Joe', label="Name")
@@ -4390,6 +4400,7 @@ class ContactFieldTest(TembaTest):
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
         self.assertEqual(contact_field(self.joe, 'First'), 'Starter')
+        self.assertEqual(contact_field(self.joe, 'Not there'), '--')
 
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))

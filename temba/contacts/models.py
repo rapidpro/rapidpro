@@ -688,7 +688,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type == Value.TYPE_WARD:
             return json_value.get(ContactField.WARD_KEY)
 
-        raise Exception("unknown contact field value type: %s", field.value_type)
+        raise ValueError("unknown contact field value type: %s", field.value_type)
 
     def get_field_value(self, field):
         """
@@ -707,7 +707,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
             return AdminBoundary.get_by_path(self.org, string_value)
 
-        raise Exception("unknown contact field value type: %s", field.value_type)
+        raise ValueError("unknown contact field value type: %s", field.value_type)
 
     @classmethod
     def display_value_for_field(cls, field, value, org=None):
