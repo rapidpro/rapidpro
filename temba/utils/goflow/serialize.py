@@ -50,7 +50,7 @@ def serialize_contact(contact):
 
     field_values = {}
     for field in contact.org.cached_contact_fields.values():
-        field_values[field.key] = contact.get_field_json_by_key(field.key)
+        field_values[field.key] = contact.get_field_json(field)
 
     # augment URN values with preferred channel UUID as a parameter
     urn_values = []

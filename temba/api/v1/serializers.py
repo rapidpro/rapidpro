@@ -205,8 +205,8 @@ class ContactReadSerializer(ReadSerializer):
             return fields
 
         for contact_field in self.context['contact_fields']:
-            value = obj.get_field_value_by_key(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
+            value = obj.get_field_value(contact_field)
+            fields[contact_field.key] = Contact.serialized_value_for_field(contact_field, value)
         return fields
 
     def get_tel(self, obj):

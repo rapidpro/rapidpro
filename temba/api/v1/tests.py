@@ -1068,31 +1068,31 @@ class APITest(TembaTest):
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
+        real_name = ContactField.get_by_key(self.org, 'real_name')
         contact.refresh_from_db()
         self.assertEqual(201, response.status_code)
-        self.assertIsNotNone(contact.get_field_value_by_key('real_name'))
-        self.assertEqual("Andy", contact.get_field_display_by_key("real_name"))
+        self.assertEqual("Andy", contact.get_field_value(real_name))
 
         # create field and try again
         ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         contact.refresh_from_db()
         self.assertContains(response, "Andy", status_code=201)
-        self.assertEqual("Andy", contact.get_field_display_by_key("real_name"))
+        self.assertEqual("Andy", contact.get_field_value(real_name))
 
         # update field via label (deprecated but allowed)
         response = self.postJSON(url, dict(phone='+250788123456', fields={"Real Name": "Andre"}))
         contact.refresh_from_db()
         self.assertContains(response, "Andre", status_code=201)
-        self.assertEqual("Andre", contact.get_field_display_by_key("real_name"))
+        self.assertEqual("Andre", contact.get_field_value(real_name))
 
         # try when contact field have same key and label
         state = ContactField.get_or_create(self.org, self.user, 'state', "state", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "IL"}))
         self.assertContains(response, "IL", status_code=201)
         contact.refresh_from_db()
-        self.assertEqual("IL", contact.get_field_display_by_key("state"))
-        self.assertEqual("Andre", contact.get_field_display_by_key("real_name"))
+        self.assertEqual("IL", contact.get_field_value(state))
+        self.assertEqual("Andre", contact.get_field_value(real_name))
 
         # try when contact field is not active
         state.is_active = False
@@ -1100,7 +1100,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "VA"}))
         contact.refresh_from_db()
         self.assertEqual(response.status_code, 201)
-        self.assertEqual("VA", contact.get_field_value_by_key("state"))   # unchanged
+        self.assertEqual("VA", contact.get_field_value(state))   # unchanged
 
         drdre = Contact.objects.get()
 

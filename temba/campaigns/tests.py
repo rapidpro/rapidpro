@@ -248,7 +248,7 @@ class CampaignTest(TembaTest):
         self.farmer1.set_field(self.user, 'planting_date', '1/10/2020')
 
         # get the resulting time (including minutes)
-        planting_date = self.farmer1.get_field_value_by_key('planting_date')
+        planting_date = self.farmer1.get_field_value(self.planting_date)
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse('campaigns.campaign_create'))
@@ -476,7 +476,6 @@ class CampaignTest(TembaTest):
                          __urn__tel=self.farmer1.get_urn('tel').path)
 
         self.client.post(reverse('contacts.contact_update', args=[self.farmer1.id]), post_data)
-        planting_date = ContactField.objects.filter(key='planting_date').first()
         response = self.client.post(reverse('contacts.contact_update_fields', args=[self.farmer1.id]),
                                     dict(contact_field=planting_date.id, field_value='4/8/2020'))
         self.assertRedirect(response, reverse('contacts.contact_read', args=[self.farmer1.uuid]))
@@ -551,10 +550,10 @@ class CampaignTest(TembaTest):
         self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
         self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
 
-        planting = self.farmer1.get_field_value_by_key('planting_date')
+        planting = self.farmer1.get_field_value(self.planting_date)
         self.assertEqual("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
-        planting = self.farmer2.get_field_value_by_key('planting_date')
+        planting = self.farmer2.get_field_value(self.planting_date)
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
@@ -601,6 +600,10 @@ class CampaignTest(TembaTest):
         self.farmer1.set_field(self.user, 'planting_date', "03-11-2029 12:30:00")
         EventFire.update_campaign_events(campaign)
 
+        # try changing our field type to something non-date, should throw
+        with self.assertRaises(ValueError):
+            ContactField.get_or_create(self.org, self.admin, 'planting_date', value_type=Value.TYPE_TEXT)
+
         # we should be scheduled to go off on the 5th at 12:30:10 Eastern
         fire = EventFire.objects.get()
         self.assertEqual(5, fire.scheduled.day)
@@ -609,10 +612,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(12, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets are different (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value_by_key('planting_date').utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value(self.planting_date).utcoffset())
 
         # the number of hours between these two events should be 49 (two days 1 hour)
-        delta = fire.scheduled - self.farmer1.get_field_value_by_key('planting_date')
+        delta = fire.scheduled - self.farmer1.get_field_value(self.planting_date)
         self.assertEqual(delta.days, 2)
         self.assertEqual(delta.seconds, 3600)
 
@@ -627,10 +630,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, fire.scheduled.astimezone(eastern).hour)
 
         # assert our offsets changed (we crossed DST)
-        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value_by_key('planting_date').utcoffset())
+        self.assertNotEqual(fire.scheduled.utcoffset(), self.farmer1.get_field_value(self.planting_date).utcoffset())
 
         # delta should be 47 hours exactly
-        delta = fire.scheduled - self.farmer1.get_field_value_by_key('planting_date')
+        delta = fire.scheduled - self.farmer1.get_field_value(self.planting_date)
         self.assertEqual(delta.days, 1)
         self.assertEqual(delta.seconds, 82800)
 
