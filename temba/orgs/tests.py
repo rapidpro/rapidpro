@@ -3222,6 +3222,16 @@ class StripeCreditsTest(TembaTest):
 
 class ParsingTest(TembaTest):
 
+    def test_parse_location_path(self):
+
+        self.country = AdminBoundary.create(osm_id='192787', name='Nigeria', level=0)
+        lagos = AdminBoundary.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        self.org.country = self.country
+
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos'), lagos)
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos '), lagos)
+        self.assertEqual(self.org.parse_location_path(' Nigeria > Lagos '), lagos)
+
     def test_parse_decimal(self):
         self.assertEqual(self.org.parse_decimal("Not num"), None)
         self.assertEqual(self.org.parse_decimal("00.123"), Decimal("0.123"))
