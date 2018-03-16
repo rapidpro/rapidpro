@@ -50,7 +50,8 @@
     %script{type:'text/javascript', src:"{{ STATIC_URL }}js/temba-ui-bootstrap-tpls.js"}
 
   :javascript
-    window.flowId = {{ object.pk }};
+    window.orgId = {{object.org.id}};
+    window.flowId = {{object.id}};
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
@@ -63,6 +64,7 @@
     window.mediaURL = '{{media_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
     window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
+    window.contactName = '{{user.get_full_name}}';
 
     $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations
@@ -138,6 +140,8 @@
     %script{src:"{{ STATIC_URL }}coffee/flows/controllers.coffee", type:'text/coffeescript'}
     %script{src:"{{ STATIC_URL }}coffee/flows/directives.coffee", type:'text/coffeescript'}
     %script{src:"{{ STATIC_URL }}coffee/simulator.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/simulator_py.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/simulator_go.coffee", type:'text/coffeescript'}
 
 
   :javascript
@@ -232,6 +236,8 @@
         .translated
           %span.pct{ng-show:'flow.base_language != language.iso_code'}
             [[flow._pctTranslated]]% translated
+
+    #simulator
 
     #status.hide
       #error

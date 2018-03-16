@@ -38,7 +38,7 @@ class TwilioMessagingServiceType(ChannelType):
     configuration_urls = (
         dict(
             label=_("Request URL"),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.twiml_api_handler' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'courier.tms' channel.uuid 'receive' %}",
             description=_("This endpoint should be called by Twilio when new messages are received by your Messaging Service."),
         ),
     )

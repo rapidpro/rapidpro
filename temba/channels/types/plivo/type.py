@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 import time
-import plivo
+import requests
 import six
 
 from django.urls import reverse
@@ -13,7 +13,7 @@ from temba.channels.models import ChannelType, SendException, Channel
 from temba.channels.types.plivo.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED
-from temba.utils.http import HttpEvent
+from temba.utils.http import HttpEvent, http_headers
 
 
 class PlivoType(ChannelType):
@@ -37,16 +37,16 @@ class PlivoType(ChannelType):
 
     def deactivate(self, channel):
         config = channel.config
-        client = plivo.RestAPI(config[Channel.CONFIG_PLIVO_AUTH_ID],
-                               config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        client.delete_application(params=dict(app_id=config[Channel.CONFIG_PLIVO_APP_ID]))
+        requests.delete("https://api.plivo.com/v1/Account/%s/Application/%s/" % (config[Channel.CONFIG_PLIVO_AUTH_ID], config[Channel.CONFIG_PLIVO_APP_ID]),
+                        auth=(config[Channel.CONFIG_PLIVO_AUTH_ID], config[Channel.CONFIG_PLIVO_AUTH_TOKEN]),
+                        headers=http_headers(extra={'Content-Type': "application/json"}))
 
     def send(self, channel, msg, text):
-        # url used for logs and exceptions
-        url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
+        auth_id = channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
+        auth_token = channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN]
 
-        client = plivo.RestAPI(channel.config[Channel.CONFIG_PLIVO_AUTH_ID], channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        status_url = "https://%s%s" % (channel.callback_domain, reverse('handlers.plivo_handler', args=['status', channel.uuid]))
+        url = 'https://api.plivo.com/v1/Account/%s/Message/' % auth_id
+        status_url = "https://%s%s" % (channel.callback_domain, reverse('courier.pl', args=[channel.uuid, 'status']))
 
         payload = {'src': channel.address.lstrip('+'),
                    'dst': msg.urn_path.lstrip('+'),
@@ -55,21 +55,22 @@ class PlivoType(ChannelType):
                    'method': 'POST'}
 
         event = HttpEvent('POST', url, json.dumps(payload))
+        headers = http_headers(extra={'Content-Type': "application/json"})
 
         start = time.time()
 
         try:
             # TODO: Grab real request and response here
-            plivo_response_status, plivo_response = client.send_message(params=payload)
-            event.status_code = plivo_response_status
-            event.response_body = plivo_response
+            response = requests.post(url, json=payload, headers=headers, auth=(auth_id, auth_token))
+            event.status_code = response.status_code
+            event.response_body = response.json()
 
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:  # pragma: no cover
-            raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
+        if response.status_code not in [200, 201, 202]:  # pragma: no cover
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 
-        external_id = plivo_response['message_uuid'][0]
+        external_id = response.json()['message_uuid'][0]
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)

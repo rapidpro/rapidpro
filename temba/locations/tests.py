@@ -22,6 +22,13 @@ class LocationTest(TembaTest):
         self.org.country = None
         self.org.save()
 
+        # try stripping path on our country, will fail
+        with self.assertRaises(Exception):
+            AdminBoundary.strip_last_path("Rwanda")
+
+        # normal strip
+        self.assertEqual(AdminBoundary.strip_last_path("Rwanda > Kigali City"), "Rwanda")
+
         # get the aliases for our user org
         response = self.client.get(reverse('locations.adminboundary_alias'))
 

@@ -156,8 +156,7 @@ class APITest(TembaTest):
 
         response = self.client.get(reverse('api.v2.fields') + '.json', content_type="application/json",
                                    HTTP_X_FORWARDED_HTTPS='https')
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
+        self.assertContains(response, "Server Error. Site administrators have been notified.", status_code=500)
 
     def test_serializer_fields(self):
         group = self.create_group("Customers")
@@ -2291,7 +2290,7 @@ class APITest(TembaTest):
         # allow Frank to run the flow in French
         self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.frank.language = 'fra'
-        self.frank.save()
+        self.frank.save(update_fields=('language',))
 
         flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)

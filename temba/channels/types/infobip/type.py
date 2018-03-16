@@ -8,6 +8,7 @@ import six
 import time
 
 from django.urls import reverse
+from django.utils.encoding import force_bytes
 from django.utils.translation import ugettext_lazy as _
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
@@ -65,9 +66,9 @@ class InfobipType(ChannelType):
     def send(self, channel, msg, text):
         url = "https://api.infobip.com/sms/1/text/advanced"
 
-        username = channel.config['username']
-        password = channel.config['password']
-        encoded_auth = base64.b64encode(username + ":" + password)
+        username = force_bytes(channel.config['username'])
+        password = force_bytes(channel.config['password'])
+        encoded_auth = base64.b64encode(username + b":" + password)
 
         headers = http_headers(extra={
             'Content-Type': 'application/json',

@@ -13,6 +13,7 @@ from uuid import uuid4
 from datetime import timedelta
 from decimal import Decimal
 
+from django.utils.encoding import force_text
 from mock import patch
 from openpyxl import load_workbook
 
@@ -33,7 +34,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
-from temba.utils.goflow import FlowServerException
+from temba.utils.goflow import FlowServerException, get_client, serialize_contact
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
@@ -456,14 +457,14 @@ class FlowTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
 
-        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        activity = self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).json()
         self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
         self.assertFalse(activity['is_starting'])
 
         # check activity with IVR test call
         IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
-        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        activity = self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).json()
         self.assertEqual(2, activity['visited'][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity['activity'][color_ruleset.uuid])
 
@@ -718,7 +719,7 @@ class FlowTest(TembaTest):
 
         # contact name with an illegal character
         self.contact3.name = "Nor\02bert"
-        self.contact3.save()
+        self.contact3.save(update_fields=('name',))
 
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
@@ -1852,14 +1853,14 @@ class FlowTest(TembaTest):
 
     def test_location_entry_test(self):
 
-        self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)
-        kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
-        lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
-        ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=kano)
-        bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=kano)
-        apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=lagos)
-        bichiward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=bichi)
-        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=ajingi)
+        self.country = AdminBoundary.create(osm_id='192787', name='Nigeria', level=0)
+        kano = AdminBoundary.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        lagos = AdminBoundary.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        ajingi = AdminBoundary.create(osm_id='3710308', name='Ajingi', level=2, parent=kano)
+        bichi = AdminBoundary.create(osm_id='3710307', name='Bichi', level=2, parent=kano)
+        apapa = AdminBoundary.create(osm_id='3718187', name='Apapa', level=2, parent=lagos)
+        bichiward = AdminBoundary.create(osm_id='3710377', name='Bichi', level=3, parent=bichi)
+        AdminBoundary.create(osm_id='3710378', name='Ajingi', level=3, parent=ajingi)
         sms = self.create_msg(contact=self.contact, text="awesome text")
         self.sms = sms
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -1908,7 +1909,7 @@ class FlowTest(TembaTest):
         self.assertEqual(ward_tuple[1], bichiward)
 
         # misconfigured flows should not match if wards not unique
-        AdminBoundary.objects.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
+        AdminBoundary.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
         ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
         self.assertEqual(ward_tuple[1], None)
 
@@ -2307,7 +2308,7 @@ class FlowTest(TembaTest):
         response = self.client.get(simulate_url)
         self.assertEqual(response.status_code, 302)
 
-        post_data = {'has_refresh': True}
+        post_data = {'has_refresh': True, 'version': '1'}
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -2497,14 +2498,14 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertEqual(1, len(response.context['object_list']))
         # no create links
-        self.assertFalse(flow_create_url in response.content)
-        self.assertFalse(flowlabel_create_url in response.content)
+        self.assertNotContains(response, flow_create_url)
+        self.assertNotContains(response, flowlabel_create_url)
         # verify the action buttons we have
-        self.assertNotIn('object-btn-unlabel', response.content)
-        self.assertNotIn('object-btn-restore', response.content)
-        self.assertNotIn('object-btn-archive', response.content)
-        self.assertNotIn('object-btn-label', response.content)
-        self.assertIn('object-btn-export', response.content)
+        self.assertNotContains(response, 'object-btn-unlabel')
+        self.assertNotContains(response, 'object-btn-restore')
+        self.assertNotContains(response, 'object-btn-archive')
+        self.assertNotContains(response, 'object-btn-label')
+        self.assertContains(response, 'object-btn-export')
 
         # can not label
         post_data = dict()
@@ -2832,7 +2833,7 @@ class ActionPackedTest(FlowFileTest):
         group = ContactGroup.user_groups.filter(name=group_name).first()
         group.update_contacts(self.admin, [self.contact], False)
         self.contact.name += ' '
-        self.contact.save()
+        self.contact.save(update_fields=('name',))
         self.start_flow()
         self.assertInUserGroups(self.contact, [group_name])
 
@@ -2974,7 +2975,7 @@ class ActionPackedTest(FlowFileTest):
 
         # first name works starting with a single word
         self.contact.name = 'Percy'
-        self.contact.save()
+        self.contact.save(update_fields=('name',))
         self.update_action_field(self.flow, name_action_uuid, 'value', ' Cole')
         self.start_flow()
         self.contact.refresh_from_db()
@@ -3329,7 +3330,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
+        six.assertCountEqual(self, list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])
@@ -3456,7 +3457,7 @@ class ActionTest(TembaTest):
         # try with a test contact and a group
         test_contact = Contact.get_test_contact(self.user)
         test_contact.name = "Mr Test"
-        test_contact.save()
+        test_contact.save(update_fields=('name',))
         test_contact.set_field(self.user, 'state', "IN", label="State")
 
         self.other_group.update_contacts(self.user, [self.contact2], True)
@@ -3636,7 +3637,7 @@ class ActionTest(TembaTest):
         # first name works with a single word
         run.contact = contact
         contact.name = "Percy"
-        contact.save()
+        contact.save(update_fields=('name',))
 
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
         test.value = " Cole"
@@ -3807,7 +3808,7 @@ class ActionTest(TembaTest):
 
         # having the group name containing a space doesn't change anything
         self.contact.name += " "
-        self.contact.save()
+        self.contact.save(update_fields=('name',))
         run.contact = self.contact
 
         self.execute_action(action, run, msg)
@@ -4497,7 +4498,37 @@ class WebhookTest(TembaTest):
 
 class SimulationTest(FlowFileTest):
 
+    @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_simulation(self):
+        flow = self.get_flow('favorites')
+
+        client = get_client()
+
+        payload = client.request_builder(int(time.time() * 1000000)).request
+
+        # add a manual trigger
+        payload['trigger'] = {
+            'type': 'manual',
+            'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'contact': serialize_contact(self.contact),
+            'triggered_on': timezone.now().isoformat()
+        }
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
+
+        # create a new payload based on the session we get back
+        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        payload['session'] = response.json()['session']
+        self.add_message(payload, 'blue')
+
+        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json").json()
+        replies = self.get_replies(response)
+        self.assertEqual(1, len(replies))
+        self.assertEqual('Good choice, I like Blue too! What is your favorite beer?', replies[0])
+
+    def test_simulation_legacy(self):
         flow = self.get_flow('pick_a_number')
 
         # remove our channels
@@ -4508,9 +4539,7 @@ class SimulationTest(FlowFileTest):
         self.admin.last_name = "Haggerty"
         self.admin.save()
 
-        post_data = dict()
-        post_data['has_refresh'] = True
-
+        post_data = dict(has_refresh=True, version="1")
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
@@ -4542,7 +4571,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="derp")
+        post_data = dict(has_refresh=True, new_message="derp", version="1")
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4568,7 +4597,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="__interrupt__")
+        post_data = dict(has_refresh=True, new_message='__interrupt__', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4591,7 +4620,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4608,7 +4637,7 @@ class SimulationTest(FlowFileTest):
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
-        post_data = dict(has_refresh=True, new_message="4")
+        post_data = dict(has_refresh=True, new_message='4', version='1')
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
@@ -4663,7 +4692,7 @@ class FlowsTest(FlowFileTest):
                 'name': "Color",
                 'value': "red",
                 'created_on': matchers.ISODate(),
-                'input': "I like red"
+                'input': "I like red\nhttp://example.com/test.jpg"
             }
         })
 
@@ -4687,7 +4716,7 @@ class FlowsTest(FlowFileTest):
                 'name': "Color",
                 'value': "red",
                 'created_on': matchers.ISODate(),
-                'input': "I like red"
+                'input': "I like red\nhttp://example.com/test.jpg"
             },
             'beer': {
                 'category': "Primus",
@@ -5045,7 +5074,7 @@ class FlowsTest(FlowFileTest):
 
             # fetch counts endpoint, should have 2 color results (one is a test contact)
             response = self.client.get(reverse('flows.flow_category_counts', args=[favorites.uuid]))
-            counts = json.loads(response.content)['counts']
+            counts = response.json()['counts']
             self.assertEqual("Color", counts[0]['name'])
             self.assertEqual(2, counts[0]['total'])
 
@@ -5075,7 +5104,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(1, len(response.context['runs']))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+            next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', force_text(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
@@ -5897,7 +5926,7 @@ class FlowsTest(FlowFileTest):
 
         # update our name to rowan so we match the name rule
         self.contact.name = "Rowan"
-        self.contact.save()
+        self.contact.save(update_fields=('name',))
 
         # but remove ourselves from the group so we enter the loop
         group_a.contacts.remove(self.contact)
@@ -6071,7 +6100,7 @@ class FlowsTest(FlowFileTest):
     def test_substitution(self):
         flow = self.get_flow('substitution')
         self.contact.name = "Ben Haggerty"
-        self.contact.save()
+        self.contact.save(update_fields=('name',))
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
@@ -6373,7 +6402,7 @@ class FlowsTest(FlowFileTest):
 
         # but set our contact's language explicitly should keep us at english
         self.contact.language = 'eng'
-        self.contact.save()
+        self.contact.save(update_fields=('language',))
         self.assertEqual('Hello friend! What is your favorite color?',
                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
 
@@ -6578,7 +6607,7 @@ class FlowsTest(FlowFileTest):
         subflow_ruleset = RuleSet.objects.get(flow=parent, ruleset_type='subflow')
         subflow_reply = ActionSet.objects.get(flow=parent, y=386, x=341)
 
-        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "001122")], restart_participants=True)
+        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "+12347778888")], restart_participants=True)
 
         msg = Msg.objects.filter(contact=self.contact).first()
         self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
@@ -6877,7 +6906,7 @@ class FlowsTest(FlowFileTest):
         # now set our contact's preferred language to klingon
         FlowRun.objects.all().delete()
         self.contact.language = 'tlh'
-        self.contact.save()
+        self.contact.save(update_fields=('language',))
 
         self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
         self.assertEqual("Katishklick Shnik Red Errrrrrrrklop", self.send_message(favorites, "RED"))
@@ -6929,12 +6958,12 @@ class FlowsTest(FlowFileTest):
         # test that simulation takes language into account
         self.login(self.admin)
         simulate_url = reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").json()
         self.assertEqual('What is your favorite color?', response['messages'][1]['text'])
 
         # now lets toggle the UI to Klingon and try the same thing
         simulate_url = "%s?lang=tlh" % reverse('flows.flow_simulate', args=[favorites.pk])
-        response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
+        response = self.client.post(simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json").json()
         self.assertEqual('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
@@ -6973,7 +7002,7 @@ class FlowsTest(FlowFileTest):
         # disconnect action from interrupt state
         ruleset = flow.rule_sets.first()
         rules = ruleset.get_rules()
-        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
+        interrupt_rule = next(rule for rule in rules if isinstance(rule.test, InterruptTest))
         interrupt_rule.destination = None
         interrupt_rule.destination_type = None
         ruleset.set_rules(rules)
@@ -8884,7 +8913,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=147, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=142, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
@@ -9074,15 +9103,15 @@ class FlowServerTest(TembaTest):
         # with some extra
         run4, = flow.start([], [self.contact], restart_participants=True, extra={'foo': "bar"})
 
-        self.assertTrue(run4.session.output['runs'][0]['extra'], {'foo': "bar"})
+        self.assertTrue(run4.session.output['trigger']['params'], {'foo': "bar"})
 
         # with an initial message
         msg = self.create_msg(direction='I', text="Hello", contact=self.contact)
         run5, = flow.start([], [self.contact], restart_participants=True, start_msg=msg)
         run5_output = run5.session.output['runs'][0]
 
-        self.assertTrue(run5_output['path'][0]['events'][2]['type'], "msg_received")
-        self.assertTrue(run5_output['path'][0]['events'][2]['text'], "Hello")
+        self.assertTrue(run5_output['path'][0]['events'][0]['type'], "msg_received")
+        self.assertTrue(run5_output['path'][0]['events'][0]['msg']['text'], "Hello")
 
         # when flowserver returns an error
         with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:
@@ -9159,6 +9188,40 @@ class AssetServerTest(TembaTest):
         response = self.client.get('/flow/assets/%d/1234/flow/%s/' % (self.org.id, str(flow2.uuid)))
         resp_json = response.json()
         self.assertEqual(resp_json['uuid'], str(flow2.uuid))
+
+    def test_channels(self):
+        self.login(self.admin)
+
+        # get all channels
+        response = self.client.get('/flow/assets/%d/1234/channel/' % self.org.id)
+        self.assertEqual(response.json(), [
+            {
+                'name': 'Test Channel',
+                'schemes': ['tel'],
+                'uuid': str(self.channel.uuid),
+                'roles': ['send', 'receive'],
+                'address': '+250785551212'
+            }
+        ])
+
+        # specifying simulator mode, adds the fake simulator channel
+        response = self.client.get('/flow/assets/%d/1234/channel/?simulator=1' % self.org.id)
+        self.assertEqual(response.json(), [
+            {
+                'uuid': str(self.channel.uuid),
+                'name': 'Test Channel',
+                'address': '+250785551212',
+                'schemes': ['tel'],
+                'roles': ['send', 'receive']
+            },
+            {
+                'uuid': '440099cf-200c-4d45-a8e7-4a564f4a0e8b',
+                'name': "Simulator Channel",
+                'address': '+18005551212',
+                'schemes': ['tel'],
+                'roles': ['send']
+            }
+        ])
 
     def test_location_hierarchy(self):
         self.login(self.admin)

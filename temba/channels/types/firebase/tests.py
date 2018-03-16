@@ -43,3 +43,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
             channel.config,
             {'FCM_KEY': 'abcde12345', 'FCM_TITLE': 'FCM Channel', 'FCM_NOTIFICATION': True}
         )
+
+        response = self.client.get(reverse('channels.channel_configuration', args=[channel.uuid]))
+        self.assertContains(response, reverse('courier.fcm', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.fcm', args=[channel.uuid, 'register']))

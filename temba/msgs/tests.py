@@ -343,7 +343,7 @@ class MsgTest(TembaTest):
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
-        contact.save()
+        contact.save(update_fields=('is_blocked',))
         ignored_msg = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
@@ -749,7 +749,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
 
         msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
                                msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
@@ -1126,22 +1126,22 @@ class BroadcastTest(TembaTest):
         # test missing senders
         post_data = dict(text="message content")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("At least one recipient is required", response.content)
+        self.assertContains(response, "At least one recipient is required")
 
         # Test AJAX sender
         post_data = dict(text="message content", omnibox='')
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("At least one recipient is required", response.content)
+        self.assertContains(response, "At least one recipient is required", status_code=400)
         self.assertEqual('application/json', response._headers.get('content-type')[1])
 
         post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         # send using our omnibox
         post_data = dict(text="this is a test message", omnibox="c-%s,g-%s,n-911" % (self.kevin.pk, self.joe_and_frank.pk), _format="json")
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         # add flow steps
         flow = self.get_flow('favorites')
@@ -1152,13 +1152,13 @@ class BroadcastTest(TembaTest):
         # no error if we are sending from a flow node
         post_data = dict(text="message content", omnibox='', step_node=step_uuid)
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
 
         response = self.client.post(send_url, post_data)
         self.assertRedirect(response, reverse('msgs.msg_inbox'))
 
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
         broadcast = Broadcast.objects.order_by('-id').first()
         self.assertEqual(broadcast.text, {'base': "message content"})
         self.assertEqual(broadcast.groups.count(), 0)
@@ -1170,7 +1170,7 @@ class BroadcastTest(TembaTest):
         flow.start([], [self.joe, test_contact], restart_participants=True)
 
         response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
-        self.assertIn("success", response.content)
+        self.assertContains(response, "success")
         broadcast = Broadcast.objects.order_by('-id').first()
         self.assertEqual(broadcast.text, {'base': "message content"})
         self.assertEqual(broadcast.groups.count(), 0)
@@ -1305,39 +1305,39 @@ class BroadcastTest(TembaTest):
 
         # unicode tests
         self.joe.name = u"شاملیدل عمومی"
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
 
         self.assertEqual((u"شاملیدل", []), substitute("@(first_word(contact))", dict()))
         self.assertEqual((u"عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = '1234567890123456'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # phone number
         self.joe.name = '123456789012'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
 
         # triplets
         self.joe.name = '123456'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # soc security
         self.joe.name = '123456789'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '12345'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '123'
-        self.joe.save()
+        self.joe.save(update_fields=('name',))
         self.assertEqual(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
 
     def test_expressions_context(self):
@@ -1345,7 +1345,6 @@ class BroadcastTest(TembaTest):
 
         self.joe.send("keyword remainder-remainder", self.admin)
         self.joe.set_field(self.user, 'superhero_name', 'batman')
-        self.joe.save()
 
         msg = Msg.objects.get()
         context = msg.build_expressions_context()
@@ -2016,15 +2015,9 @@ class BroadcastLanguageTest(TembaTest):
     def setUp(self):
         super(BroadcastLanguageTest, self).setUp()
 
-        self.francois = self.create_contact('Francois', '+12065551213')
-        self.francois.language = 'fra'
-        self.francois.save()
-
+        self.francois = self.create_contact('Francois', '+12065551213', language='fra')
         self.greg = self.create_contact('Greg', '+12065551212')
-
-        self.wilbert = self.create_contact('Wilbert', '+12065551214')
-        self.wilbert.language = 'fra'
-        self.wilbert.save()
+        self.wilbert = self.create_contact('Wilbert', '+12065551214', language='fra')
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages

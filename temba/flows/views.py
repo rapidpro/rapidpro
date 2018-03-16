@@ -5,6 +5,7 @@ import json
 import logging
 import regex
 import six
+import time
 import traceback
 
 from random import randint
@@ -19,6 +20,7 @@ from django.db.models import Count, Min, Max, Sum, QuerySet
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -38,9 +40,10 @@ from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list, goflow
+from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
 from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
@@ -1128,6 +1131,41 @@ class FlowCRUDL(SmartCRUDL):
             except Exception as e:  # pragma: needs cover
                 return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
+            if json_dict.get("version", None) == "1":
+                return self.handle_legacy(request, json_dict)
+            else:
+
+                # handle via the new engine
+                client = get_client()
+
+                # simulating never caches
+                asset_timestamp = int(time.time() * 1000000)
+                flow = self.get_object(self.get_queryset())
+
+                # we control the pointers to ourselves and environment ignoring what the client might send
+                flow_request = client.request_builder(asset_timestamp).asset_server(flow.org, simulator=True)
+
+                # when testing, we need to include all of our assets
+                if settings.TESTING:
+                    flow_request.include_all(flow.org, simulator=True)
+
+                flow_request.request['events'] = json_dict.get('events')
+
+                # check if we are triggering a new session
+                if 'trigger' in json_dict:
+                    flow_request.request['trigger'] = json_dict.get('trigger')
+                    output = client.start(flow_request.request)
+                    return JsonResponse(output.as_json())
+
+                # otherwise we are resuming
+                else:
+                    session = json_dict.get('session')
+                    flow_request.request['events'] = json_dict.get('events')
+                    output = flow_request.resume(session)
+                    return JsonResponse(output.as_json())
+
+        def handle_legacy(self, request, json_dict):
+
             Contact.set_simulation(True)
             user = self.request.user
             test_contact = Contact.get_test_contact(user)
@@ -1143,7 +1181,7 @@ class FlowCRUDL(SmartCRUDL):
                 lang = request.GET.get('lang', None)
                 if lang:
                     test_contact.language = lang
-                    test_contact.save()
+                    test_contact.save(update_fields=('language',))
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
@@ -1172,7 +1210,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # reset the name for our test contact too
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
-                test_contact.save()
+                test_contact.save(update_fields=('name',))
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():
@@ -1220,7 +1258,7 @@ class FlowCRUDL(SmartCRUDL):
                                             status=PENDING)
                 except Exception as e:  # pragma: needs cover
 
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     return JsonResponse(dict(status="error", description="Error creating message: %s" % str(e)),
                                         status=400)
 
@@ -1286,7 +1324,7 @@ class FlowCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('flows.flow_json', args=[self.get_object().pk]))
 
             # try to parse our body
-            json_string = request.body
+            json_string = force_text(request.body)
 
             # if the last modified on this flow is more than a day ago, log that this flow as updated
             if self.get_object().saved_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
@@ -1432,6 +1470,10 @@ class FlowCRUDL(SmartCRUDL):
             'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
         }
 
+        simulator_extras = {
+            'channel': [Channel.SIMULATOR_CHANNEL]
+        }
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'^%s/%s/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>\w+)/((?P<uuid>[a-z0-9-]{36})/)?$' % (path, action)
@@ -1453,20 +1495,28 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, *args, **kwargs):
             org = self.derive_org()
             uuid = kwargs.get('uuid')
+            simulator = str_to_bool(self.request.GET.get('simulator', 'false'))
 
-            resource = self.resources[kwargs['type']]
+            resource_type = kwargs['type']
+            resource = self.resources[resource_type]
             if uuid:
                 result = resource.get_item(org, uuid)
             else:
                 result = resource.get_root(org)
 
-            if isinstance(result, QuerySet):
+            if isinstance(result, (list, QuerySet)):
                 page_size = self.request.GET.get('page_size')
                 page_num = self.request.GET.get('page')
 
                 if page_size is None:
                     # the flow engine doesn't want results paged, so just return the entire set
-                    return JsonResponse([resource.serializer(o) for o in result], safe=False)
+                    serialized_items = [resource.serializer(o) for o in result]
+
+                    # add potential extra resources for the simulator
+                    if simulator:
+                        serialized_items += self.simulator_extras.get(resource_type, [])
+
+                    return JsonResponse(serialized_items, safe=False)
                 else:  # pragma: no cover
                     # TODO make this meet the needs of the new editor
                     paginator = Paginator(result, page_size)

@@ -920,6 +920,11 @@ class OrgTest(TembaTest):
 
         self.assertEqual(topup.get_price_display(), "$1.00")
 
+        # ttl should never be negative even if expired
+        topup.expires_on = timezone.now() - timedelta(days=1)
+        topup.save(update_fields=['expires_on'])
+        self.assertEqual(10, self.org.get_topup_ttl(topup))
+
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
@@ -1761,11 +1766,13 @@ class OrgTest(TembaTest):
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
             plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
-            self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+            response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
+
+            self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
 
@@ -2287,7 +2294,7 @@ class OrgCRUDLTest(TembaTest):
 
         # Check the message datetime
         created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
-        self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
+        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip('0'))
 
         # change the org timezone to "Africa/Nairobi"
         self.org.timezone = pytz.timezone('Africa/Nairobi')
@@ -2297,7 +2304,7 @@ class OrgCRUDLTest(TembaTest):
 
         # checkout the message should have the datetime changed by timezone
         created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
-        self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
+        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip('0'))
 
     def test_urn_schemes(self):
         # remove existing channels
@@ -3214,6 +3221,16 @@ class StripeCreditsTest(TembaTest):
 
 
 class ParsingTest(TembaTest):
+
+    def test_parse_location_path(self):
+
+        self.country = AdminBoundary.create(osm_id='192787', name='Nigeria', level=0)
+        lagos = AdminBoundary.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        self.org.country = self.country
+
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos'), lagos)
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos '), lagos)
+        self.assertEqual(self.org.parse_location_path(' Nigeria > Lagos '), lagos)
 
     def test_parse_decimal(self):
         self.assertEqual(self.org.parse_decimal("Not num"), None)

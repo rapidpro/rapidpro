@@ -9,6 +9,7 @@ import pycountry
 import pytz
 import six
 import time
+import os
 
 from celery.app.task import Task
 from decimal import Decimal
@@ -423,20 +424,20 @@ class CacheTest(TembaTest):
         r.set('bar', 20)
 
         incrby_existing('foo', 3, r)  # positive delta
-        self.assertEqual(r.get('foo'), '13')
+        self.assertEqual(r.get('foo'), b'13')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('foo', -1, r)  # negative delta
-        self.assertEqual(r.get('foo'), '12')
+        self.assertEqual(r.get('foo'), b'12')
         self.assertTrue(r.ttl('foo') > 0)
 
         r.setex('foo', 100, 0)
         incrby_existing('foo', 5, r)  # zero val key
-        self.assertEqual(r.get('foo'), '5')
+        self.assertEqual(r.get('foo'), b'5')
         self.assertTrue(r.ttl('foo') > 0)
 
         incrby_existing('bar', 5, r)  # persistent key
-        self.assertEqual(r.get('bar'), '25')
+        self.assertEqual(r.get('bar'), b'25')
         self.assertTrue(r.ttl('bar') < 0)
 
         incrby_existing('xxx', -2, r)  # non-existent key
@@ -781,9 +782,7 @@ class ExpressionsTest(TembaTest):
     def setUp(self):
         super(ExpressionsTest, self).setUp()
 
-        contact = self.create_contact("Joe Blow", "123")
-        contact.language = u'eng'
-        contact.save()
+        contact = self.create_contact("Joe Blow", "123", language='eng')
 
         variables = dict()
         variables['contact'] = contact.build_expressions_context()
@@ -1170,18 +1169,34 @@ class ExportTest(TembaTest):
         # ok, let's check the result now
         temp_file, file_ext = exporter.save_file()
 
-        with open(temp_file.name, 'rb') as csvfile:
-            import csv
-            reader = csv.reader(csvfile)
+        if six.PY2:
+            csvfile = open(temp_file.name, 'rb')
+        else:
+            csvfile = open(temp_file.name, 'rt')
 
-            for idx, row in enumerate(reader):
-                if idx == 0:
-                    self.assertEqual(cols, row)
-                else:
-                    self.assertEqual(values, row)
+        import csv
+        reader = csv.reader(csvfile)
 
-            # should only be three rows
-            self.assertEqual(2, idx)
+        column_row = next(reader, [])
+        self.assertListEqual(cols, column_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        values_row = next(reader, [])
+        self.assertListEqual(values, values_row)
+
+        # should only be three rows
+        empty_row = next(reader, None)
+        self.assertIsNone(empty_row)
+
+        # remove temporary file on PY3
+        if six.PY3:  # pragma: no cover
+            if hasattr(temp_file, 'delete'):
+                if temp_file.delete is False:
+                    os.unlink(temp_file.name)
+            else:
+                os.unlink(temp_file.name)
 
     @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
@@ -1228,6 +1243,9 @@ class ExportTest(TembaTest):
 
         self.assertEqual(200 + 2, len(list(sheet2.rows)))
         self.assertEqual(32, len(list(sheet2.columns)))
+
+        if six.PY3:
+            os.unlink(temp_file.name)
 
 
 class CurrencyTest(TembaTest):

@@ -85,7 +85,7 @@ def update_nexmo_config(Org):
                 print("Migrations successfully updated nexmo config for Org %d" % org.pk)
 
             except Exception as e:
-                print("Migrations failed to update nexmo config for org %d with error %s" % (org.pk, e.message))
+                print("Migrations failed to update nexmo config for org %d with error %s" % (org.pk, six.text_type(e)))
                 failed_orgs.add(org.pk)
 
         print("Migrations finished updating nexmo config UPDATED: %d orgs , FAILED: %d orgs" % (len(updated_orgs), len(failed_orgs)))

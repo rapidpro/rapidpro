@@ -18,9 +18,11 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from django.utils.encoding import force_bytes, force_text
 from future.moves.html.parser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -128,16 +130,16 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         self.surveyor = self.create_user("Surveyor")
 
         # setup admin boundaries for Rwanda
-        self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
-        self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
-        self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
-        self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.objects.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
-        self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+        self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
+        self.state1 = AdminBoundary.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
         self.country.update_path()
 
@@ -354,6 +356,35 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def create_field(self, key, label, value_type=Value.TYPE_TEXT):
         return ContactField.objects.create(org=self.org, key=key, label=label, value_type=value_type,
                                            created_by=self.admin, modified_by=self.admin)
+
+    def add_message(self, payload, text):
+        """
+        Add a message to the payload for the flow server using the default contact
+        """
+        payload['events'] = [{
+            'type': 'msg_received',
+            'msg': {
+                'text': text,
+                'uuid': six.text_type(uuid4()),
+                'urn': 'tel:+12065551212',
+                'created_on': timezone.now().isoformat(),
+            },
+            'created_on': timezone.now().isoformat(),
+            'contact': payload['session']['contact']
+        }]
+
+    def get_replies(self, response):
+        """
+        Gets any replies in a response from the flow server as a list of strings
+        """
+        replies = []
+        for log in response['log']:
+            if 'event' in log:
+                if log['event']['type'] == 'broadcast_created':
+                    replies.append(log['event']['text'])
+                elif log['event']['type'] == 'msg_created':
+                    replies.append(log['event']['msg']['text'])
+        return replies
 
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
@@ -760,14 +791,16 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 class MockResponse(object):
 
     def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
-        self.text = text
-        self.content = text
-        self.body = text
+        self.text = force_text(text)
+        self.content = force_bytes(text)
+        self.body = force_text(text)
         self.status_code = status_code
         self.headers = headers if headers else {}
         self.url = url
         self.ok = True
         self.cookies = dict()
+        self.streaming = False
+        self.charset = 'utf-8'
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))
@@ -797,3 +830,36 @@ class AnonymousOrg(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
         self.org.save(update_fields=('is_anon',))
+
+
+class MigrationTest(TembaTest):
+    app = None
+    migrate_from = None
+    migrate_to = None
+
+    def setUp(self):
+        assert self.migrate_from and self.migrate_to, \
+            "TestCase '{}' must define migrate_from and migrate_to properties".format(type(self).__name__)
+
+        # set up our temba test
+        super(MigrationTest, self).setUp()
+
+        self.migrate_from = [(self.app, self.migrate_from)]
+        self.migrate_to = [(self.app, self.migrate_to)]
+        executor = MigrationExecutor(connection)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+
+        # Reverse to the original migration
+        executor.migrate(self.migrate_from)
+
+        self.setUpBeforeMigration(old_apps)
+
+        # Run the migration to test
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()  # reload.
+        executor.migrate(self.migrate_to)
+
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def setUpBeforeMigration(self, apps):
+        pass

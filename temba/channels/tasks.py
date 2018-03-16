@@ -34,10 +34,10 @@ def setup_periodic_tasks(sender, **kwargs):
         from .types import TYPES
         for channel_type in TYPES.values():
             channel_type.setup_periodic_tasks(sender)
-    except Exception as e:  # pragma: no cover
+    except Exception:  # pragma: no cover
         # we print this out because celery just silently swallows exceptions here
         import traceback
-        traceback.print_exc(e)
+        traceback.print_exc()
 
 
 @task(track_started=True, name='sync_channel_gcm_task')

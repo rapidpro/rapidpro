@@ -1,3 +1,57 @@
+v3.0.339
+----------
+ * Remove leading and trailing spaces on location string before boundaries path query
+ * Require use of update_fields with Contact.save()
+ * Event time of contact_changed is when contact was modified
+ * Use latest goflow release
+ * Make special channel accessible during simulator use
+
+v3.0.338
+----------
+ * Always serialize contact field datetime values in the org timezone
+ * Add migration for population of the contact field json
+
+v3.0.336
+----------
+ * Update middlewares to Django defaults for security
+ * Add JSON fields to Contact, set in set_field
+ * backfill any null location paths, make not null, update import to set path, set other levels on fields when setting location
+
+v3.0.335
+----------
+ * Allow groups when scheduling flows or triggers
+ * Fix configuration page URLs and use courier URLs
+ * Replace contact.channel in goflow serialization with a channel query param in each contact URN
+ * Serialize contact.group_uuids as groups with name and UUID
+
+v3.0.334
+----------
+ * Add response to external ID to courier serialized msg if we have response to
+ * More Py3 migration work
+ * Remove broadcasting to groups from Send Message dialog
+
+v3.0.332
+----------
+ * Do not delete RuleSets only disconnect them from flows
+
+v3.0.331
+----------
+ * Fix scoping for sim show/hide
+
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
+v3.0.329
+----------
+ * Fix negative cache ttl for topups
+
+v3.0.328
+----------
+ * Remove Vumi Type
+ * Remove custom autoscaler for Celery
+ * Implement Plivo without Plivo library
+
 v3.0.325
 ----------
  * Build dynamic groups in background thread

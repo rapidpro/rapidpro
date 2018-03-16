@@ -12,6 +12,7 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from django.utils.encoding import force_text
 from mock import patch, MagicMock
 from platform import python_version
 from temba.channels.models import Channel, ChannelLog, ChannelSession
@@ -328,7 +329,7 @@ class IVRTests(FlowFileTest):
     def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid='12345')))
-        mock_jwt.return_value = 'Encoded data'
+        mock_jwt.return_value = b'Encoded data'
 
         # connect Nexmo
         self.org.connect_nexmo('123', '456', self.admin)
@@ -764,7 +765,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelSession.IN_PROGRESS, call.status)
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Enter your phone number followed by the pound sign.")
-                        in json.loads(response.content))
+                        in response.json())
 
         # we have an input to collect the digits
         self.assertContains(response, '"action": "input",')
@@ -772,7 +773,7 @@ class IVRTests(FlowFileTest):
         # make sure we set submitOnHash to true nexmo
         self.assertContains(response, '"submitOnHash": true,')
 
-        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (self.channel.callback_domain, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (self.channel.callback_domain, callback_url))
 
     @patch('jwt.encode')
     @patch('requests.put')
@@ -781,7 +782,7 @@ class IVRTests(FlowFileTest):
     def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid='12345'))))
-        mock_jwt.return_value = "Encoded data"
+        mock_jwt.return_value = b"Encoded data"
 
         request = MagicMock()
         request.body = json.dumps(dict(call_id='12345'))
@@ -860,7 +861,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
         callback_url = response_json[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Hi there! This is my voice flow.") in response_json)
@@ -868,7 +869,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
         callback_url = response_json[2]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True,
@@ -877,7 +878,7 @@ class IVRTests(FlowFileTest):
 
         # press 1
         response = self.client.post(callback_url, content_type='application/json', data=json.dumps(dict(dtmf='1')))
-        response_json = json.loads(response.content)
+        response_json = response.json()
         callback_url = response_json[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Thanks, returning to the parent flow now.")
@@ -886,7 +887,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(dtmf='')))
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         self.assertTrue(dict(action='talk', bargeIn=False,
                              text="In the child flow you picked Red. I think that is a fine choice.")
@@ -1249,8 +1250,7 @@ class IVRTests(FlowFileTest):
 
         # no channel found for call handle
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict())
-        self.assertEqual(400, response.status_code)
-        self.assertEqual('No channel found', response.content)
+        self.assertContains(response, 'No channel found', status_code=400)
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -1266,7 +1266,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', response.content).group(1)
+        redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', force_text(response.content)).group(1)
 
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)
@@ -1297,7 +1297,7 @@ class IVRTests(FlowFileTest):
                                     json.dumps(post_data), content_type="application/json")
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*"eventUrl": \["(.*)"\].*', response.content).group(1)
+        redirect_url = re.match(r'.*"eventUrl": \["(.*)"\].*', force_text(response.content)).group(1)
 
         # get just the path and hit it
         response = self.client.post("%s?%s" % (urlparse(redirect_url).path, urlparse(redirect_url).query),
@@ -1365,7 +1365,7 @@ class IVRTests(FlowFileTest):
         self.assertTrue(dict(action='talk',
                              bargeIn=True,
                              text='Would you like me to call you? Press one for yes, two for no, or three for maybe.')
-                        in json.loads(response.content))
+                        in response.json())
 
         call = IVRCall.objects.get()
         self.assertIsNotNone(call)
@@ -1451,8 +1451,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(404, response.status_code)
-        self.assertEqual('Channel not found for number: 250785551212', response.content)
+        self.assertContains(response, 'Channel not found for number: 250785551212', status_code=404)
 
         # no call object created
         self.assertFalse(IVRCall.objects.all())
@@ -1479,7 +1478,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(json.loads(response.content), [dict(action='talk', bargeIn=False, text='')])
+        self.assertEqual(response.json(), [dict(action='talk', bargeIn=False, text='')])
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 

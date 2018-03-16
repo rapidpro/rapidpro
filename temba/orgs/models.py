@@ -743,7 +743,7 @@ class Org(SmartModel):
         from temba.airtime.models import AirtimeTransfer
         response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token,
                                                                 action='check_wallet')
-        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+        parsed_response = AirtimeTransfer.parse_transferto_response(response.text)
         account_currency = parsed_response.get('currency', '')
         config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
         self.config = config
@@ -1058,6 +1058,14 @@ class Org(SmartModel):
 
         return boundary
 
+    def parse_location_path(self, location_string):
+        """
+        Parses a location path into a single location, returning None if not found
+        """
+        # while technically we could resolve a full boundary path without a country, our policy is that
+        # if you don't have a country set then you don't have locations
+        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, six.string_types) else None
+
     def parse_location(self, location_string, level, parent=None):
         """
         Attempts to parse the passed in location string at the passed in level. This does various tokenizing
@@ -1069,11 +1077,20 @@ class Org(SmartModel):
         if not self.country_id or not isinstance(location_string, six.string_types):
             return []
 
-        # now look up the boundary by full name
-        boundary = self.find_boundary_by_name(location_string, level, parent)
+        boundary = None
 
+        # try it as a path first if it looks possible
+        if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
+            boundary = self.parse_location_path(location_string)
+            if boundary:
+                boundary = [boundary]
+
+        # try to look up it by full name
         if not boundary:
-            # try removing punctuation and try that
+            boundary = self.find_boundary_by_name(location_string, level, parent)
+
+        # try removing punctuation and try that
+        if not boundary:
             bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
@@ -1409,8 +1426,9 @@ class Org(SmartModel):
         either ORG_CREDITS_CACHE_TTL or time remaining on the expiration
         """
         if not topup:
-            return 0
-        return min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds())))
+            return 10
+
+        return max(10, min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds()))))
 
     def _calculate_active_topup(self):
         """
@@ -1677,8 +1695,8 @@ class Org(SmartModel):
 
                 try:
                     subscription = customer.cancel_subscription(at_period_end=True)
-                except Exception as e:
-                    traceback.print_exc(e)
+                except Exception:
+                    traceback.print_exc()
                     raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
             else:
                 raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
@@ -1691,9 +1709,9 @@ class Org(SmartModel):
 
                     analytics.track(user.username, 'temba.plan_upgraded', dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception as e:
+                except Exception:
                     # can't load it, oh well, we'll try to create one dynamically below
-                    traceback.print_exc(e)
+                    traceback.print_exc()
                     customer = None
 
             # if we don't have a customer, go create one
@@ -1708,8 +1726,8 @@ class Org(SmartModel):
 
                     analytics.track(user.username, 'temba.plan_upgraded', dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception as e:
-                    traceback.print_exc(e)
+                except Exception:
+                    traceback.print_exc()
                     raise ValidationError(_("Sorry, we were unable to charge your card, please try again later or contact us."))
 
         # update our org

@@ -8,6 +8,8 @@ from collections import Counter
 
 import regex
 import sys
+import base64
+from django.utils.encoding import force_text
 
 from django.utils.text import slugify
 
@@ -109,7 +111,7 @@ def decode_base64(original):
 
     decoded = original
     try:
-        decoded = stripped.decode('base64', 'strict').decode('utf-8', 'ignore')
+        decoded = force_text(base64.standard_b64decode(stripped), errors='ignore')
         count = Counter(decoded)
         letters = sum(count[letter] for letter in string.ascii_letters)
         if float(letters) / len(decoded) < 0.5:
