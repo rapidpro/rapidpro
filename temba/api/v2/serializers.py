@@ -370,8 +370,7 @@ class ContactReadSerializer(ReadSerializer):
 
         fields = {}
         for contact_field in self.context['contact_fields']:
-            value = obj.get_field_value(contact_field)
-            fields[contact_field.key] = Contact.serialized_value_for_field(contact_field, value, org=self.context['org'])
+            fields[contact_field.key] = obj.get_field_serialized(contact_field)
         return fields
 
     def get_blocked(self, obj):

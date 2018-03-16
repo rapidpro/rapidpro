@@ -3453,7 +3453,7 @@ class ContactTest(TembaTest):
         self.assertEqual(contact1.get_field_string(job_and_projects), 'coach')  # renamed from 'Professional Status'
         self.assertEqual(contact1.get_field_string(postal_code), '600.35')
         self.assertEqual(contact1.get_field_string(joined), '2014-12-31T00:00:00+02:00')  # persisted value is localized to org
-        self.assertEqual(Contact.display_value_for_field(joined, contact1.get_field_value(joined)), '31-12-2014 00:00')  # display value is also localized
+        self.assertEqual(contact1.get_field_display(joined), '31-12-2014 00:00')  # display value is also localized
 
         self.assertTrue(ContactField.objects.filter(org=self.org, label="Job and Projects"))
         self.assertTrue(ContactField.objects.filter(org=self.org, label="Location"))
@@ -3908,42 +3908,37 @@ class ContactTest(TembaTest):
         state_field = ContactField.get_or_create(self.org, self.admin, 'state', "State", None, Value.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
+
+        # none value instances
+        self.assertEqual(joe.get_field_serialized(weight_field), None)
+        self.assertEqual(joe.get_field_display(weight_field), "")
+        self.assertEqual(joe.get_field_serialized(registration_field), None)
+        self.assertEqual(joe.get_field_display(registration_field), "")
+
         joe.set_field(self.user, 'registration_date', "2014-12-31T01:04:00Z")
         joe.set_field(self.user, 'weight', "75.888888")
         joe.set_field(self.user, 'color', "green")
         joe.set_field(self.user, 'state', "kigali city")
 
-        # none value instances
-        self.assertEqual(Contact.serialized_value_for_field(weight_field, None), None)
-        self.assertEqual(Contact.display_value_for_field(weight_field, None), "")
-        self.assertEqual(Contact.serialized_value_for_field(registration_field, None), None)
-        self.assertEqual(Contact.display_value_for_field(registration_field, None), "")
+        self.assertEqual(joe.get_field_serialized(registration_field), '2014-12-31T03:04:00+02:00')
 
-        value = joe.get_field_value(registration_field)
-        self.assertEqual(Contact.serialized_value_for_field(registration_field, value), '2014-12-31T03:04:00+02:00')
-
-        value = joe.get_field_value(weight_field)
-        self.assertEqual(Contact.serialized_value_for_field(weight_field, value), '75.888888')
-        self.assertEqual(Contact.display_value_for_field(weight_field, value), '75.888888')
+        self.assertEqual(joe.get_field_serialized(weight_field), '75.888888')
+        self.assertEqual(joe.get_field_display(weight_field), '75.888888')
 
         joe.set_field(self.user, 'weight', "0")
-        value = joe.get_field_value(weight_field)
-        self.assertEqual(Contact.serialized_value_for_field(weight_field, value), "0")
-        self.assertEqual(Contact.display_value_for_field(weight_field, value), "0")
+        self.assertEqual(joe.get_field_serialized(weight_field), "0")
+        self.assertEqual(joe.get_field_display(weight_field), "0")
 
         # passing something non-numeric to a decimal field
         joe.set_field(self.user, 'weight', "xxx")
-        value = joe.get_field_value(weight_field)
-        self.assertEqual(Contact.serialized_value_for_field(weight_field, value), None)
-        self.assertEqual(Contact.display_value_for_field(weight_field, value), "")
+        self.assertEqual(joe.get_field_serialized(weight_field), None)
+        self.assertEqual(joe.get_field_display(weight_field), "")
 
-        value = joe.get_field_value(state_field)
-        self.assertEqual(Contact.serialized_value_for_field(state_field, value), 'Rwanda > Kigali City')
-        self.assertEqual(Contact.display_value_for_field(state_field, value), 'Kigali City')
+        self.assertEqual(joe.get_field_serialized(state_field), 'Rwanda > Kigali City')
+        self.assertEqual(joe.get_field_display(state_field), 'Kigali City')
 
-        value = joe.get_field_value(color_field)
-        self.assertEqual(Contact.serialized_value_for_field(color_field, value), 'green')
-        self.assertEqual(Contact.display_value_for_field(color_field, value), 'green')
+        self.assertEqual(joe.get_field_serialized(color_field), 'green')
+        self.assertEqual(joe.get_field_display(color_field), 'green')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
@@ -3964,20 +3959,17 @@ class ContactTest(TembaTest):
         state_field = ContactField.get_or_create(self.org, self.admin, 'state', 'State', None, Value.TYPE_STATE)
 
         joe.set_field(self.user, 'state', 'Kigali city')
-        value = joe.get_field_value(state_field)
-        self.assertEqual("Kigali City", joe.display_value_for_field(state_field, value))
-        self.assertEqual("Rwanda > Kigali City", joe.serialized_value_for_field(state_field, value))
+        self.assertEqual("Kigali City", joe.get_field_display(state_field))
+        self.assertEqual("Rwanda > Kigali City", joe.get_field_serialized(state_field))
 
         # test that we don't normalize non-location fields
         joe.set_field(self.user, 'not_state', 'kigali city')
-        value = joe.get_field_value(not_state_field)
-        self.assertEqual("kigali city", joe.display_value_for_field(not_state_field, value))
-        self.assertEqual("kigali city", joe.serialized_value_for_field(not_state_field, value))
+        self.assertEqual("kigali city", joe.get_field_display(not_state_field))
+        self.assertEqual("kigali city", joe.get_field_serialized(not_state_field))
 
         joe.set_field(self.user, 'district', 'Remera')
-        value = joe.get_field_value(district_field)
-        self.assertEqual("Remera", joe.display_value_for_field(not_state_field, value))
-        self.assertEqual("Remera", joe.serialized_value_for_field(not_state_field, value))
+        self.assertEqual("Remera", joe.get_field_display(district_field))
+        self.assertEqual("Rwanda > Kigali City > Remera", joe.get_field_serialized(district_field))
 
     def test_set_location_ward_fields(self):
 

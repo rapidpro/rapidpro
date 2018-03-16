@@ -789,7 +789,7 @@ class ContactCRUDL(SmartCRUDL):
             for field in fields:
                 value = contact.get_field_value(field)
                 if value:
-                    display = Contact.display_value_for_field(field, value)
+                    display = contact.get_field_display(field)
                     contact_fields.append(dict(id=field.id, label=field.label, value=display, featured=field.show_in_table))
 
             # stuff in the contact's language in the fields as well
@@ -1145,7 +1145,7 @@ class ContactCRUDL(SmartCRUDL):
                 contact_field = ContactField.objects.filter(id=field_id).first()
                 context['contact_field'] = contact_field
                 if contact_field:
-                    context['value'] = Contact.display_value_for_field(contact_field, self.get_object().get_field_value(contact_field))
+                    context['value'] = self.get_object().get_field_display(contact_field)
             return context
 
     class Block(OrgPermsMixin, SmartUpdateView):

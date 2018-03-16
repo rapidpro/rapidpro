@@ -4932,7 +4932,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     current_contact_values.append(self._get_contact_groups_display(run.contact))
 
                     for cf in contact_fields:
-                        field_value = Contact.display_value_for_field(cf, run.contact.get_field_value(cf), self.org)
+                        field_value = run.contact.get_field_display(cf)
                         current_contact_values.append(self.prepare_value(field_value))
 
                 # get this run's results by node UUID

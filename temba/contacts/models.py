@@ -708,18 +708,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
             return AdminBoundary.get_by_path(self.org, string_value)
 
-    @classmethod
-    def display_value_for_field(cls, field, value, org=None):
+    def get_field_display(self, field):
         """
-        Utility method to determine best display value for the passed in field, value pair.
+        Returns the display value for the passed in field, or empty string if None
         """
-        org = org or field.org
-
+        value = self.get_field_value(field)
         if value is None:
             return ""
 
         if field.value_type == Value.TYPE_DATETIME:
-            return org.format_date(value)
+            return self.org.format_date(value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
@@ -727,18 +725,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return six.text_type(value)
 
-    @classmethod
-    def serialized_value_for_field(cls, field, value, org=None):
+    def get_field_serialized(self, field):
         """
-        Utility method to give the serialized value for the passed in field, value pair.
+        Returns the serialized value for the passed in field, or None if it has no value
         """
-        org = org or field.org
-
+        value = self.get_field_value(field)
         if value is None:
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return value.astimezone(org.timezone).isoformat()
+            return value.astimezone(self.org.timezone).isoformat()
         elif field.value_type == Value.TYPE_DECIMAL:
             return six.text_type(value.normalize())
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
@@ -2816,8 +2812,7 @@ class ExportContactsTask(BaseExportTask):
                         else:
                             field_value = ''
                     else:
-                        value = contact.get_field_value(field['field'])
-                        field_value = Contact.display_value_for_field(field['field'], value)
+                        field_value = contact.get_field_display(field['field'])
 
                     if field_value is None:
                         field_value = ''
