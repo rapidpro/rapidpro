@@ -667,7 +667,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return self.fields.get(six.text_type(field.uuid)) if self.fields else None
 
-    def get_field_string(self, field):
+    def get_field_serialized(self, field):
         """
         Given the passed in contact field object, returns the value (as a string) for this contact or None.
         """
@@ -695,7 +695,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
         for this contact or None.
         """
-        string_value = self.get_field_string(field)
+        string_value = self.get_field_serialized(field)
         if string_value is None:
             return None
 
@@ -722,23 +722,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return format_decimal(value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
             return value.name
-        else:
-            return six.text_type(value)
-
-    def get_field_serialized(self, field):
-        """
-        Returns the serialized value for the passed in field, or None if it has no value
-        """
-        value = self.get_field_value(field)
-        if value is None:
-            return None
-
-        if field.value_type == Value.TYPE_DATETIME:
-            return value.astimezone(self.org.timezone).isoformat()
-        elif field.value_type == Value.TYPE_DECIMAL:
-            return six.text_type(value.normalize())
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
-            return value.path
         else:
             return six.text_type(value)
 
@@ -1791,7 +1774,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # add all active fields to our context
         for field in org.cached_contact_fields.values():
-            field_value = self.get_field_string(field)
+            field_value = self.get_field_serialized(field)
             context[field.key] = field_value if field_value is not None else ''
 
         return context

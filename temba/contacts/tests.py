@@ -2477,7 +2477,7 @@ class ContactTest(TembaTest):
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
         self.assertEqual(self.joe.get_urn_display(scheme=TEL_SCHEME), "0783 835 665")
-        self.assertIsNone(self.joe.get_field_string(ContactField.get_by_key(self.org, 'state')))  # raw user input as location wasn't matched
+        self.assertIsNone(self.joe.get_field_serialized(ContactField.get_by_key(self.org, 'state')))  # raw user input as location wasn't matched
         self.assertIsNone(Contact.from_urn(self.org, "tel:+250781111111"))  # original tel is nobody now
 
         # update joe, change his number back
@@ -3421,12 +3421,12 @@ class ContactTest(TembaTest):
         email = ContactField.get_by_key(self.org, 'email')
 
         contact1 = Contact.objects.all().order_by('name')[0]
-        self.assertEqual(contact1.get_field_string(location), 'Rwanda')  # renamed from 'Country'
-        self.assertEqual(contact1.get_field_string(location), 'Rwanda')  # renamed from 'Country'
+        self.assertEqual(contact1.get_field_serialized(location), 'Rwanda')  # renamed from 'Country'
+        self.assertEqual(contact1.get_field_serialized(location), 'Rwanda')  # renamed from 'Country'
 
-        self.assertEqual(contact1.get_field_string(ride_or_drive), 'Moto')  # the existing field was looked up by label
-        self.assertEqual(contact1.get_field_string(wears), 'Bứnto')  # existing field was looked up by label & stripped
-        self.assertEqual(contact1.get_field_string(email), 'eric@example.com')
+        self.assertEqual(contact1.get_field_serialized(ride_or_drive), 'Moto')  # the existing field was looked up by label
+        self.assertEqual(contact1.get_field_serialized(wears), 'Bứnto')  # existing field was looked up by label & stripped
+        self.assertEqual(contact1.get_field_serialized(email), 'eric@example.com')
 
         self.assertEqual(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
         self.assertEqual(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
@@ -3450,9 +3450,9 @@ class ContactTest(TembaTest):
         joined = ContactField.get_by_key(self.org, 'joined')
 
         self.assertIsNone(district)
-        self.assertEqual(contact1.get_field_string(job_and_projects), 'coach')  # renamed from 'Professional Status'
-        self.assertEqual(contact1.get_field_string(postal_code), '600.35')
-        self.assertEqual(contact1.get_field_string(joined), '2014-12-31T00:00:00+02:00')  # persisted value is localized to org
+        self.assertEqual(contact1.get_field_serialized(job_and_projects), 'coach')  # renamed from 'Professional Status'
+        self.assertEqual(contact1.get_field_serialized(postal_code), '600.35')
+        self.assertEqual(contact1.get_field_serialized(joined), '2014-12-31T00:00:00+02:00')  # persisted value is localized to org
         self.assertEqual(contact1.get_field_display(joined), '31-12-2014 00:00')  # display value is also localized
 
         self.assertTrue(ContactField.objects.filter(org=self.org, label="Job and Projects"))
@@ -3565,7 +3565,7 @@ class ContactTest(TembaTest):
 
         contact1 = Contact.objects.all().order_by('name')[0]
         start_date = ContactField.get_by_key(self.org, 'startdate')
-        self.assertEqual(contact1.get_field_string(start_date), '2014-12-31T10:00:00+02:00')
+        self.assertEqual(contact1.get_field_serialized(start_date), '2014-12-31T10:00:00+02:00')
 
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)
@@ -3601,8 +3601,8 @@ class ContactTest(TembaTest):
         planting_date = ContactField.get_by_key(self.org, 'planting_date')
         team = ContactField.get_by_key(self.org, 'team')
         contact1 = Contact.objects.filter(name='John Blow').first()
-        self.assertEqual(contact1.get_field_string(planting_date), '2020-12-31T10:00:00+02:00')
-        self.assertEqual(contact1.get_field_string(team), 'Ballers')
+        self.assertEqual(contact1.get_field_serialized(planting_date), '2020-12-31T10:00:00+02:00')
+        self.assertEqual(contact1.get_field_serialized(team), 'Ballers')
 
         event_fire = EventFire.objects.filter(event=self.message_event, contact=contact1,
                                               event__campaign__group__in=[ballers]).first()
@@ -3851,7 +3851,7 @@ class ContactTest(TembaTest):
         bad_field = ContactField.objects.get(key='state')
 
         with self.assertRaises(ValueError):
-            self.joe.get_field_string(bad_field)
+            self.joe.get_field_serialized(bad_field)
 
         with self.assertRaises(ValueError):
             self.joe.get_field_value(bad_field)
@@ -3860,21 +3860,21 @@ class ContactTest(TembaTest):
         # set a field on joe
         self.joe.set_field(self.user, 'abc_1234', 'Joe', label="Name")
         abc = ContactField.get_by_key(self.org, 'abc_1234')
-        self.assertEqual('Joe', self.joe.get_field_string(abc))
+        self.assertEqual('Joe', self.joe.get_field_serialized(abc))
 
         self.joe.set_field(self.user, 'abc_1234', None)
-        self.assertEqual(None, self.joe.get_field_string(abc))
+        self.assertEqual(None, self.joe.get_field_serialized(abc))
 
         # try storing an integer, should get turned into a string
         self.joe.set_field(self.user, 'abc_1234', 1)
-        self.assertEqual('1', self.joe.get_field_string(abc))
+        self.assertEqual('1', self.joe.get_field_serialized(abc))
 
         # we should have a field with the key
         ContactField.objects.get(key='abc_1234', label="Name", org=self.joe.org)
 
         # setting with a different label should update it
         self.joe.set_field(self.user, 'abc_1234', 'Joe', label="First Name")
-        self.assertEqual('Joe', self.joe.get_field_string(abc))
+        self.assertEqual('Joe', self.joe.get_field_serialized(abc))
         ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
         modified_on = self.joe.modified_on
@@ -3986,7 +3986,7 @@ class ContactTest(TembaTest):
         jemila.set_field(user1, 'state', 'kano')
         jemila.set_field(user1, 'district', 'bichi')
         jemila.set_field(user1, 'ward', 'bichi')
-        self.assertEqual(jemila.get_field_string(ward), 'Rwanda > Kano > Bichi > Bichi')
+        self.assertEqual(jemila.get_field_serialized(ward), 'Rwanda > Kano > Bichi > Bichi')
 
     def test_expressions_context(self):
         self.joe.urns.filter(scheme='twitter').delete()
