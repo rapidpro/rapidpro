@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='airtimetransfer',
             name='channel',
-            field=models.ForeignKey(blank=True, help_text=b'The channel that this airtime is relating to', null=True, on_delete=django.db.models.deletion.CASCADE, to='channels.Channel'),
+            field=models.ForeignKey(blank=True, help_text='The channel that this airtime is relating to', null=True, on_delete=django.db.models.deletion.CASCADE, to='channels.Channel'),
         ),
     ]

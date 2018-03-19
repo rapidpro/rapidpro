@@ -2161,7 +2161,7 @@ class OrgCRUDL(SmartCRUDL):
                     try:
                         from temba.airtime.models import AirtimeTransfer
                         response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token, action='ping')
-                        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+                        parsed_response = AirtimeTransfer.parse_transferto_response(force_text(response.content))
 
                         error_code = int(parsed_response.get('error_code', None))
                         info_txt = parsed_response.get('info_txt', None)

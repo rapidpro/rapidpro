@@ -978,6 +978,14 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "resolve-twitter-ids-task": {
+        'task': 'resolve_twitter_ids_task',
+        'schedule': timedelta(seconds=900)
+    },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600)
+    }
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True

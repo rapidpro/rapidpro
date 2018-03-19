@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='airtimetransfer',
             name='contact',
-            field=models.ForeignKey(help_text=b'The contact that this airtime is sent to', on_delete=django.db.models.deletion.CASCADE, to='contacts.Contact'),
+            field=models.ForeignKey(help_text='The contact that this airtime is sent to', on_delete=django.db.models.deletion.CASCADE, to='contacts.Contact'),
         ),
         migrations.AddField(
             model_name='airtimetransfer',

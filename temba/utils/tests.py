@@ -1692,7 +1692,12 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
-        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
+
+        if six.PY2:
+            # approved by Nic Pottier :)
+            assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
+        else:
+            assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
@@ -1700,7 +1705,11 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
+        if six.PY2:
+            # approved by Nic Pottier :)
+            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
+        else:
+            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '12b01ad0-db44-462d-81e6-dc0995c13a79')
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

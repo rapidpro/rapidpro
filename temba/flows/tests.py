@@ -2205,7 +2205,7 @@ class FlowTest(TembaTest):
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
         response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
-        self.assertEqual(response.context['form'].fields['keyword_triggers'].initial, "it,everything,changes")
+        self.assertEqual(response.context['form'].fields['keyword_triggers'].initial, "it,changes,everything")
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
         trigger = Trigger.objects.get(keyword="everything", flow=flow3)

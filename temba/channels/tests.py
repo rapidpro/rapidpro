@@ -59,7 +59,7 @@ from xml.etree import ElementTree as ET
 
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelSession, CHANNEL_EVENT
 from .models import DART_MEDIA_ENDPOINT, HUB9_ENDPOINT
-from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
+from .tasks import check_channels_task, squash_channelcounts, refresh_all_jiochat_access_tokens
 
 
 class ChannelTest(TembaTest):
@@ -8505,12 +8505,12 @@ class JiochatTest(TembaTest):
                                               'secret': Channel.generate_secret(32)},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-    def test_refresh_jiochat_access_tokens_task(self):
+    def test_refresh_all_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(400, '{ "error":"Failed" }')
 
             self.assertFalse(ChannelLog.objects.all())
-            refresh_jiochat_access_tokens()
+            refresh_all_jiochat_access_tokens()
 
             self.assertEqual(ChannelLog.objects.all().count(), 1)
             self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
@@ -8523,7 +8523,7 @@ class JiochatTest(TembaTest):
             mock.reset_mock()
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
-            refresh_jiochat_access_tokens()
+            refresh_all_jiochat_access_tokens()
 
             self.assertEqual(ChannelLog.objects.all().count(), 2)
             self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
@@ -9183,27 +9183,18 @@ class ViberPublicTest(TembaTest):
 
     def test_receive_on_anon(self):
         with AnonymousOrg(self.org):
-            data = {
-                "event": "message",
-                "timestamp": 1481142112807,
-                "message_token": 4987381189870374000,
-                "sender": {
-                    "id": "xy5/5y6O81+/kbWHpLhBoA==",
-                    "name": "ET3",
-                },
-                "message": {
-                    "text": "incoming msg",
-                    "type": "text",
-                    "tracking_data": "3055"
-                }
-            }
+            data = (
+                '{"event": "message", "timestamp": 1481142112807, "message_token": 4987381189870374000,'
+                '"sender": {"id": "xy5/5y6O81+/kbWHpLhBoA==", "name": "ET3"},'
+                '"message": {"text": "incoming msg", "type": "text", "tracking_data": "3055"}}'
+            )
 
-            response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
-                                        HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+            response = self.client.post(self.callback_url, data, content_type="application/json",
+                                        HTTP_X_VIBER_CONTENT_SIGNATURE='306010d0aa063243bee8dd52fa00fa5583b4861e64f37087a71a41831bab992d')
             self.assertEqual(response.status_code, 200)
 
             msg = Msg.objects.get()
-            self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+            self.assertContains(response, "Msg Accepted: %d" % msg.id)
 
             self.assertEqual(msg.contact.get_urn(VIBER_SCHEME).path, "xy5/5y6O81+/kbWHpLhBoA==")
             self.assertEqual(msg.contact.name, None)
@@ -9219,20 +9210,11 @@ class ViberPublicTest(TembaTest):
         response = self.client.post(reverse('handlers.viber_public_handler', args=['00000000-0000-0000-0000-000000000000']))
         self.assertEqual(response.status_code, 200)
 
-        data = {
-            "event": "message",
-            "timestamp": 1481142112807,
-            "message_token": 4987381189870374000,
-            "sender": {
-                "id": "xy5/5y6O81+/kbWHpLhBoA==",
-                "name": "ET3",
-            },
-            "message": {
-                "text": "incoming msg",
-                "type": "text",
-                "tracking_data": "3055"
-            }
-        }
+        data = (
+            '{"event": "message", "timestamp": 1481142112807, "message_token": 4987381189870374000,'
+            '"sender": {"id": "xy5/5y6O81+/kbWHpLhBoA==", "name": "ET3"},'
+            '"message": {"text": "incoming msg", "type": "text", "tracking_data": "3055"}}'
+        )
 
         # try a GET
         response = self.client.get(self.callback_url)
@@ -9253,12 +9235,12 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # ok, valid post
-        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
-                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        response = self.client.post(self.callback_url, data, content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='306010d0aa063243bee8dd52fa00fa5583b4861e64f37087a71a41831bab992d')
         self.assertEqual(response.status_code, 200)
 
         msg = Msg.objects.get()
-        self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+        self.assertContains(response, "Msg Accepted: %d" % msg.id)
 
         self.assertEqual(msg.contact.get_urn(VIBER_SCHEME).path, "xy5/5y6O81+/kbWHpLhBoA==")
         self.assertEqual(msg.contact.name, "ET3")
@@ -9273,8 +9255,8 @@ class ViberPublicTest(TembaTest):
         contact = msg.contact
         contact.name = "ET4"
         contact.save(update_fields=['name'])
-        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
-                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        response = self.client.post(self.callback_url, data, content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='306010d0aa063243bee8dd52fa00fa5583b4861e64f37087a71a41831bab992d')
         self.assertEqual(response.status_code, 200)
 
         # refresh our contact, name shouldn't have changed

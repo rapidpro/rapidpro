@@ -1306,30 +1306,29 @@ class ManageFieldsForm(forms.Form):
         super(ManageFieldsForm, self).__init__(*args, **kwargs)
 
     def clean(self):
-        used_labels = []
-        for key in self.cleaned_data:
-            if key.startswith('field_'):
-                idx = key[6:]
-                field = self.cleaned_data[key]
-                label = self.cleaned_data["label_%s" % idx]
+        used_labels = set()
+        for key in sorted(key for key in self.cleaned_data.keys() if key.startswith('field_')):
+            idx = key[6:]
+            field = self.cleaned_data[key]
+            label = self.cleaned_data["label_%s" % idx]
 
-                if label:
-                    if not ContactField.is_valid_label(label):
-                        raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
+            if label:
+                if not ContactField.is_valid_label(label):
+                    raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
-                    if label.lower() in used_labels:
-                        raise forms.ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
+                if label.lower() in used_labels:
+                    raise forms.ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
 
-                    elif not ContactField.is_valid_key(ContactField.make_key(label)):
-                        raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
-                    used_labels.append(label.lower())
-                else:
-                    # don't allow fields that are dependencies for flows be removed
-                    if field != '__new_field':
-                        from temba.flows.models import Flow
-                        flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
-                        if flow:
-                            raise forms.ValidationError(_('The field "%s" cannot be removed while it is still used in the flow "%s"' % (field.label, flow.name)))
+                elif not ContactField.is_valid_key(ContactField.make_key(label)):
+                    raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
+                used_labels.add(label.lower())
+            else:
+                # don't allow fields that are dependencies for flows be removed
+                if field != '__new_field':
+                    from temba.flows.models import Flow
+                    flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
+                    if flow:
+                        raise forms.ValidationError(_('The field "%s" cannot be removed while it is still used in the flow "%s"' % (field.label, flow.name)))
 
         return self.cleaned_data
 

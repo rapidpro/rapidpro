@@ -166,7 +166,7 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        if six.PY2:
+        if six.PY2:  # pragma: no cover
             self.file = NamedTemporaryFile(delete=True, suffix='.xlsx', mode='wb+')
         else:  # pragma: no cover
             self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
@@ -174,7 +174,7 @@ class TableExporter(object):
         # if this is a csv file, create our csv writer and write our header
         if self.is_csv:
             self.writer = csv.writer(self.file, quoting=csv.QUOTE_ALL)
-            if six.PY2:
+            if six.PY2:  # pragma: no cover
                 self.writer.writerow([s.encode('utf-8') for s in columns])
             else:  # pragma: no cover
                 self.writer.writerow(columns)
@@ -200,7 +200,7 @@ class TableExporter(object):
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
         if self.is_csv:
-            if six.PY2:
+            if six.PY2:  # pragma: no cover
                 self.writer.writerow([s.encode('utf-8') for s in values])
             else:  # pragma: no cover
                 self.writer.writerow(values)

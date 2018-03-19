@@ -44,7 +44,8 @@ python-magic
 xlutils
 
 ########################## misc ##########################
-antlr4-python2-runtime
+antlr4-python2-runtime; python_version < "3.0"
+antlr4-python3-runtime; python_version >= "3.0"
 celery[redis]
 colorama
 enum34
@@ -64,6 +65,7 @@ redis
 requests
 stop-words
 unidecode
+pysocks; python_version >= "3.0"
 
 ########################## testing ##########################
 coverage
