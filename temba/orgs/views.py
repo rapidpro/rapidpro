@@ -24,7 +24,7 @@ from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, DjangoUnicodeDecodeError
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
@@ -476,7 +476,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
-                json_data = json.loads(force_text(data))
+                try:
+                    json_data = json.loads(force_text(data))
+                except (DjangoUnicodeDecodeError, ValueError):
+                    raise ValidationError('This file is not a valid Flow definition file.')
+
                 if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
                     raise ValidationError('This file is no longer valid. Please export a new version and try again.')
 
