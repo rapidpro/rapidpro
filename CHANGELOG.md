@@ -1,3 +1,8 @@
+v3.0.341
+----------
+ * Add if not exists to index creation for fields
+ * Last of Py3 compatibility changes
+
 v3.0.340
 ----------
  * Use fields JSON field on Contact instead of Value table for all reading.
