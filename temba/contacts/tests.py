@@ -3739,6 +3739,19 @@ class ContactTest(TembaTest):
             }
         )
 
+        # numeric field values that could turn into shite due to normalization
+        self.joe.set_field(self.user, 'dog', "2300")
+        self.joe.refresh_from_db()
+        self.assertEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {
+                    "text": "2300",
+                    "decimal": "2300"
+                }
+            }
+        )
+
         # datetime instead
         self.joe.set_field(self.user, 'dog', "2018-03-05T02:31:00.000Z")
         self.joe.refresh_from_db()

@@ -594,8 +594,8 @@ class CampaignTest(TembaTest):
 
         # create our campaign and event
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
-                                        offset=2, unit='D', flow=self.reminder_flow)
+        event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
+                                                offset=2, unit='D', flow=self.reminder_flow)
 
         # set the time to something pre-dst (fall back on November 4th at 2am to 1am)
         self.farmer1.set_field(self.user, 'planting_date', "03-11-2029 12:30:00")
@@ -637,6 +637,12 @@ class CampaignTest(TembaTest):
         delta = fire.scheduled - self.farmer1.get_field_value(self.planting_date)
         self.assertEqual(delta.days, 1)
         self.assertEqual(delta.seconds, 82800)
+
+        # release our campaign event
+        event.release()
+
+        # should be able to change our field type now
+        ContactField.get_or_create(self.org, self.admin, 'planting_date', value_type=Value.TYPE_TEXT)
 
     def test_scheduling(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
