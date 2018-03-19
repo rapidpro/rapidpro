@@ -1,3 +1,8 @@
+v3.0.342
+----------
+ * Fix for decimal values in JSON fields attribute
+ * Fix for not being able to change contact field types if campaign event inactive
+
 v3.0.341
 ----------
  * Add if not exists to index creation for fields
