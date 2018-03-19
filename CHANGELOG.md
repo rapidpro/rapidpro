@@ -1,3 +1,10 @@
+v3.0.340
+----------
+ * Use fields JSON field on Contact instead of Value table for all reading.
+ * Force campaign events to be based off of DateTime fields
+ * Migration to change all contact fields used in campaign events to DateTime
+ * Migration to add GIN index on Contact.fields
+
 v3.0.339
 ----------
  * Remove leading and trailing spaces on location string before boundaries path query
