@@ -2668,7 +2668,7 @@ class BulkExportTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
+        self.assertFormError(response, 'form', 'import_file', 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
         TopUp.objects.create(org=self.org, price=1, credits=10000,
@@ -2683,17 +2683,30 @@ class BulkExportTest(TembaTest):
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEqual(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
+        self.assertFormError(
+            response, 'form', 'import_file', 'This file is no longer valid. Please export a new version and try again.'
+        )
 
         # simulate an unexpected exception during import
         with patch('temba.triggers.models.Trigger.import_triggers') as validate:
             validate.side_effect = Exception('Unexpected Error')
             post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
             response = self.client.post(reverse('orgs.org_import'), post_data)
-            self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
+            self.assertFormError(response, 'form', 'import_file', 'Sorry, your import file is invalid.')
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
+
+        # test import using data that is not parsable
+        junk_binary_data = six.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
+        post_data = dict(import_file=junk_binary_data)
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
+
+        junk_json_data = six.BytesIO(b'{"key": "data')
+        post_data = dict(import_file=junk_json_data)
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
 
     def test_import_campaign_with_translations(self):
         self.import_file('campaign_import_with_translations')
