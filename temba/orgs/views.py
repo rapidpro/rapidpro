@@ -472,17 +472,17 @@ class OrgCRUDL(SmartCRUDL):
 
                 # make sure they are in the proper tier
                 if not self.org.is_import_flows_tier():
-                    raise ValidationError("Sorry, import is a premium feature")
+                    raise ValidationError(_("Sorry, import is a premium feature"))
 
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
                 try:
                     json_data = json.loads(force_text(data))
                 except (DjangoUnicodeDecodeError, ValueError):
-                    raise ValidationError('This file is not a valid Flow definition file.')
+                    raise ValidationError(_('This file is not a valid flow definition file.'))
 
                 if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
-                    raise ValidationError('This file is no longer valid. Please export a new version and try again.')
+                    raise ValidationError(_('This file is no longer valid. Please export a new version and try again.'))
 
                 return data
 
