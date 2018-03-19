@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     INDEX_SQL = """
-        CREATE INDEX CONCURRENTLY contacts_fields_idx ON contacts_contact USING GIN(fields);
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS contacts_fields_idx ON contacts_contact USING GIN(fields);
     """
 
     dependencies = [
