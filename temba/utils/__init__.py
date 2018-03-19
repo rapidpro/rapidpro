@@ -49,6 +49,8 @@ def format_decimal(val):
     elif val == 0:
         return '0'
 
+    # convert our decimal to a value without exponent
+    val = val.quantize(Decimal(1)) if val == val.to_integral() else val.normalize()
     val = six.text_type(val)
 
     if '.' in val:

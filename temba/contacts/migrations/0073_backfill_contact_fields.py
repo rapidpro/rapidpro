@@ -9,7 +9,7 @@ from django.db import migrations, connection, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from django_redis import get_redis_connection
-from temba.utils import chunk_list
+from temba.utils import chunk_list, format_decimal
 
 # our migration keys expire after 7 days
 EXPIRATION = 3600 * 24 * 7
@@ -28,7 +28,7 @@ def build_json_value(org, cf, value):
         json_value['datetime'] = localized.isoformat()
 
     if value.decimal_value is not None:
-        json_value['decimal'] = six.text_type(value.decimal_value.normalize())
+        json_value['decimal'] = format_decimal(value.decimal_value)
 
     if value.location_value is not None:
         loc = value.location_value

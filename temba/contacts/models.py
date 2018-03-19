@@ -429,7 +429,7 @@ class ContactField(SmartModel):
                 # update our type if we were given one
                 if value_type and field.value_type != value_type:
                     # no changing away from datetime if we have campaign events
-                    if field.value_type == Value.TYPE_DATETIME and field.campaigns.count() > 0:
+                    if field.value_type == Value.TYPE_DATETIME and field.campaigns.filter(is_active=True).count() > 0:
                         raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
 
                     field.value_type = value_type
@@ -680,7 +680,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type == Value.TYPE_DATETIME:
             return json_value.get(ContactField.DATETIME_KEY)
         elif field.value_type == Value.TYPE_DECIMAL:
-            return json_value.get(ContactField.DECIMAL_KEY)
+            dec_value = json_value.get(ContactField.DECIMAL_KEY)
+            return format_decimal(Decimal(dec_value)) if dec_value is not None else None
         elif field.value_type == Value.TYPE_STATE:
             return json_value.get(ContactField.STATE_KEY)
         elif field.value_type == Value.TYPE_DISTRICT:
@@ -793,7 +794,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
             if dec_value is not None:
-                field_dict[ContactField.DECIMAL_KEY] = six.text_type(dec_value.normalize())
+                field_dict[ContactField.DECIMAL_KEY] = format_decimal(dec_value)
 
             if loc_value:
                 if loc_value.level == AdminBoundary.LEVEL_STATE:
