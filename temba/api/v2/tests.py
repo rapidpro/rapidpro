@@ -709,7 +709,7 @@ class APITest(TembaTest):
 
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration", value_type=Value.TYPE_DATETIME)
 
         # create our contact and set a registration date
         contact = self.create_contact("Joe", "+12065551515")
@@ -1040,7 +1040,7 @@ class APITest(TembaTest):
         hans = self.create_contact("Hans", "0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -1156,10 +1156,11 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['urns'], ['twitter:jean', 'tel:+250783333333'])
 
         # URNs will be normalized
+        nickname = ContactField.get_by_key(self.org, 'nickname')
         jean = Contact.objects.filter(name="Jean", language='fra').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
-        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+        self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # create with invalid fields
         response = self.postJSON(url, None, {
@@ -1184,7 +1185,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
-        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+        self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {
@@ -1201,7 +1202,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.language, "eng")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {'tel:+250784444444'})
         self.assertEqual(set(jean.user_groups.all()), set())
-        self.assertEqual(jean.get_field('nickname').string_value, "John")
+        self.assertEqual(jean.get_field_value(nickname), "John")
 
         # update by URN (which should be normalized)
         response = self.postJSON(url, 'urn=%s' % quote_plus("tel:+250-78-4444444"), {'name': "Jean III"})
