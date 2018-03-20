@@ -1913,14 +1913,15 @@ class MageHandler(BaseChannelHandler):
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
 
         elif action == 'follow_notification':
-            try:
-                channel_id = int(request.POST.get('channel_id', ''))
-                contact_urn_id = int(request.POST.get('contact_urn_id', ''))
-            except ValueError:  # pragma: needs cover
-                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
+            pass
+            #try:
+            #    channel_id = int(request.POST.get('channel_id', ''))
+            #    contact_urn_id = int(request.POST.get('contact_urn_id', ''))
+            #except ValueError:  # pragma: needs cover
+            #    return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
-                                                                           queue='handler'))
+            #on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+            #                                                               queue='handler'))
 
         elif action == 'stop_contact':
             contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
