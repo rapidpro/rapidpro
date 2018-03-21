@@ -63,8 +63,8 @@ window.showModal = (title, body) ->
 
 window.updateResults = (data) ->
 
-  if data.log
-    for event in data.log
+  if data.events
+    for event in data.events
       if event.type == "broadcast_created"
         window.addMessage(event.text, "MT")
       else if event.type == "msg_created"
