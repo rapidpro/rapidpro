@@ -464,7 +464,11 @@ class APITest(TembaTest):
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
         self.assertEqual(run.path, [
-            {'node_uuid': flow.entry_uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': flow.entry_uuid,
+                'arrived_on': '2015-08-25T11:09:30.088000+00:00'
+            }
         ])
 
         # check flow stats

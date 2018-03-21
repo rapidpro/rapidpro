@@ -1929,7 +1929,8 @@ class Flow(TembaModel):
                         next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact, is_test_contact=simulation, trigger_send=False, continue_parent=False)
+                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                                                                     is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                     else:
