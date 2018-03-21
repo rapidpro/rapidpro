@@ -455,6 +455,42 @@ class Command(BaseCommand):
                         'modified_on': self.random_date(created_on, self.db_ends_on),
                     }
 
+                    c['fields_as_json'] = {}
+
+                    if c['gender'] is not None:
+                        c['fields_as_json'][six.text_type(org.cache['fields']['gender'].uuid)] = {
+                            'text': six.text_type(c['gender'])
+                        }
+                    if c['age'] is not None:
+                        c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
+                            'text': six.text_type(c['age']),
+                            'decimal': six.text_type(c['age'])
+                        }
+                    if c['joined'] is not None:
+                        c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
+                            'text': c['joined'].strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                            'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
+                        }
+
+                    if location:
+                        c['fields_as_json'].update({
+                            six.text_type(org.cache['fields']['ward'].uuid): {
+                                'text': six.text_type(c['ward'].path.split(' > ')[-1]),
+                                'ward': c['ward'].path,
+                                'district': c['district'].path,
+                                'state': c['state'].path
+                            },
+                            six.text_type(org.cache['fields']['district'].uuid): {
+                                'text': six.text_type(c['district'].path.split(' > ')[-1]),
+                                'district': c['district'].path,
+                                'state': c['state'].path
+                            },
+                            six.text_type(org.cache['fields']['state'].uuid): {
+                                'text': six.text_type(c['state'].path.split(' > ')[-1]),
+                                'state': c['state'].path
+                            }
+                        })
+
                     # work out which system groups this contact belongs to
                     if c['is_active']:
                         if not c['is_blocked'] and not c['is_stopped']:
@@ -495,7 +531,7 @@ class Command(BaseCommand):
                                   is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
                                   is_active=c['is_active'],
                                   created_by=c['user'], created_on=c['created_on'],
-                                  modified_by=c['user'], modified_on=c['modified_on'])
+                                  modified_by=c['user'], modified_on=c['modified_on'], fields=c['fields_as_json'])
         Contact.objects.bulk_create([c['object'] for c in batch])
 
         # now that contacts have pks, bulk create the actual URN, value and group membership objects

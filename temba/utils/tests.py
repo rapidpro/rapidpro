@@ -1714,6 +1714,9 @@ class MakeTestDBTest(SimpleTestCase):
         else:
             self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '12b01ad0-db44-462d-81e6-dc0995c13a79')
 
+        # check if contact fields are serialized
+        self.assertIsNotNone(Contact.objects.filter(is_test=False).first().fields)
+
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
             call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
