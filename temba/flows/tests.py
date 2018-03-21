@@ -4497,6 +4497,33 @@ class WebhookTest(TembaTest):
 
 class SimulationTest(FlowFileTest):
 
+    def add_message(self, payload, text):
+        """
+        Add a message to the payload for the flow server using the default contact
+        """
+        payload['events'] = [{
+            'type': 'msg_received',
+            'created_on': timezone.now().isoformat(),
+            'msg': {
+                'text': text,
+                'uuid': six.text_type(uuid4()),
+                'urn': 'tel:+12065551212',
+                'created_on': timezone.now().isoformat(),
+            }
+        }]
+
+    def get_replies(self, response):
+        """
+        Gets any replies in a response from the flow server as a list of strings
+        """
+        replies = []
+        for event in response.get('events', []):
+            if event['type'] == 'broadcast_created':
+                replies.append(event['text'])
+            elif event['type'] == 'msg_created':
+                replies.append(event['msg']['text'])
+        return replies
+
     @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_simulation(self):
         flow = self.get_flow('favorites')
@@ -9112,8 +9139,8 @@ class FlowServerTest(TembaTest):
         run5, = flow.start([], [self.contact], restart_participants=True, start_msg=msg)
         run5_output = run5.session.output['runs'][0]
 
-        self.assertTrue(run5_output['path'][0]['events'][0]['type'], "msg_received")
-        self.assertTrue(run5_output['path'][0]['events'][0]['msg']['text'], "Hello")
+        self.assertTrue(run5_output['events'][0]['type'], "msg_received")
+        self.assertTrue(run5_output['events'][0]['msg']['text'], "Hello")
 
         # when flowserver returns an error
         with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:

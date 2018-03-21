@@ -357,35 +357,6 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         return ContactField.objects.create(org=self.org, key=key, label=label, value_type=value_type,
                                            created_by=self.admin, modified_by=self.admin)
 
-    def add_message(self, payload, text):
-        """
-        Add a message to the payload for the flow server using the default contact
-        """
-        payload['events'] = [{
-            'type': 'msg_received',
-            'msg': {
-                'text': text,
-                'uuid': six.text_type(uuid4()),
-                'urn': 'tel:+12065551212',
-                'created_on': timezone.now().isoformat(),
-            },
-            'created_on': timezone.now().isoformat(),
-            'contact': payload['session']['contact']
-        }]
-
-    def get_replies(self, response):
-        """
-        Gets any replies in a response from the flow server as a list of strings
-        """
-        replies = []
-        for log in response['log']:
-            if 'event' in log:
-                if log['event']['type'] == 'broadcast_created':
-                    replies.append(log['event']['text'])
-                elif log['event']['type'] == 'msg_created':
-                    replies.append(log['event']['msg']['text'])
-        return replies
-
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
             kwargs['org'] = self.org
