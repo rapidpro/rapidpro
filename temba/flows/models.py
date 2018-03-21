@@ -1882,7 +1882,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel'):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel', 'contact_urn'):
                     msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
@@ -3366,7 +3366,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             step.messages.add(msg)
 
             # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-            if msg.broadcast:
+            if msg.broadcast_id:
                 step.broadcasts.add(msg.broadcast)
 
             # incoming non-IVR messages won't have a type yet so update that

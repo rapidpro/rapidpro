@@ -8339,7 +8339,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=318, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=308, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
