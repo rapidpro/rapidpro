@@ -444,11 +444,13 @@ class FlowTest(TembaTest):
         # check the path for contact 1
         self.assertEqual(contact1_run.path, [
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(color_prompt.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(color_prompt.exit_uuid)
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(color_ruleset.uuid),
                 'arrived_on': matchers.ISODate()
             }
@@ -457,6 +459,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': contact1_msg.created_on.isoformat(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(contact1_msg.uuid),
                     'text': "What is your favorite color?",
@@ -536,16 +539,19 @@ class FlowTest(TembaTest):
 
         self.assertEqual(contact1_run.path, [
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(color_prompt.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(color_prompt.exit_uuid)
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(color_ruleset.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(orange_rule.uuid)
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(color_reply.uuid),
                 'arrived_on': matchers.ISODate(),
             }
@@ -554,6 +560,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': contact1_msg.created_on.isoformat(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(contact1_msg.uuid),
                     'text': "What is your favorite color?",
@@ -564,6 +571,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_received',
                 'created_on': incoming.created_on.isoformat(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(incoming.uuid),
                     'text': "orange",
@@ -574,6 +582,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': reply.created_on.isoformat(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(reply.uuid),
                     'text': "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
@@ -4786,21 +4795,25 @@ class FlowsTest(FlowFileTest):
         })
         self.assertEqual(run.path, [
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(action_set1.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(action_set1.exit_uuid)
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(rule_set1.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(red_rule['uuid'])
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(action_set3.uuid),
                 'arrived_on': matchers.ISODate(),
                 'exit_uuid': str(action_set3.exit_uuid)
             },
             {
+                'uuid': matchers.UUID4String(),
                 'node_uuid': str(rule_set2.uuid),
                 'arrived_on': matchers.ISODate()
             }
@@ -4809,6 +4822,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(msg1.uuid),
                     'text': 'What is your favorite color?',
@@ -4819,6 +4833,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_received',
                 'created_on': matchers.ISODate(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': str(msg2.uuid),
                     'text': 'I like red',
@@ -4830,6 +4845,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': matchers.UUID4String(),
                     'text': 'Good choice, I like Red too! What is your favorite beer?',

@@ -2022,7 +2022,11 @@ class Flow(TembaModel):
             path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
 
         # create new step
-        path.append({FlowRun.PATH_NODE_UUID: node.uuid, FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()})
+        path.append({
+            FlowRun.PATH_STEP_UUID: str(uuid4()),
+            FlowRun.PATH_NODE_UUID: node.uuid,
+            FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()
+        })
 
         # trim path to ensure it can't grow indefinitely
         if len(path) > FlowRun.PATH_MAX_STEPS:
@@ -2741,6 +2745,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     RESULT_INPUT = 'input'
     RESULT_CREATED_ON = 'created_on'
 
+    PATH_STEP_UUID = 'uuid'
     PATH_NODE_UUID = 'node_uuid'
     PATH_ARRIVED_ON = 'arrived_on'
     PATH_EXIT_UUID = 'exit_uuid'
@@ -2848,6 +2853,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         path = []
         for s in run_output['path']:
             step = {
+                FlowRun.PATH_STEP_UUID: s['uuid'],
                 FlowRun.PATH_NODE_UUID: s['node_uuid'],
                 FlowRun.PATH_ARRIVED_ON: s['arrived_on']
             }
@@ -3345,8 +3351,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.message_ids.append(msg.id)
             self.events.append({
                 'type': 'msg_received' if msg.direction == INCOMING else 'msg_created',
-                'msg': goflow.serialize_message(msg),
-                'created_on': msg.created_on.isoformat()
+                'created_on': msg.created_on.isoformat(),
+                'step_uuid': str(uuid4()),
+                'msg': goflow.serialize_message(msg)
             })
 
             existing_msg_uuids.add(str(msg.uuid))

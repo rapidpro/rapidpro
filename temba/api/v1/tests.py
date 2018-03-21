@@ -633,12 +633,17 @@ class APITest(TembaTest):
         self.assertEqual(run.is_active, True)
         self.assertEqual(run.is_completed(), False)
         self.assertEqual(run.path, [
-            {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': color_prompt.uuid,
+                'arrived_on': '2015-08-25T11:09:30.088000+00:00'
+            }
         ])
         self.assertEqual(run.events, [
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
+                'step_uuid': matchers.UUID4String(),
                 'msg': {
                     'uuid': matchers.UUID4String(),
                     'text': 'What is your favorite color?'
@@ -708,10 +713,29 @@ class APITest(TembaTest):
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
         self.assertEqual(run.path, [
-            {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00', 'exit_uuid': color_prompt.exit_uuid},
-            {'node_uuid': color_ruleset.uuid, 'arrived_on': '2015-08-25T11:11:30.088000+00:00', 'exit_uuid': orange_rule.uuid},
-            {'node_uuid': color_reply.uuid, 'arrived_on': '2015-08-25T11:13:30.088000+00:00', 'exit_uuid': color_reply.exit_uuid},
-            {'node_uuid': new_node['uuid'], 'arrived_on': '2015-08-25T11:15:30.088000+00:00'}
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': color_prompt.uuid,
+                'arrived_on': '2015-08-25T11:09:30.088000+00:00',
+                'exit_uuid': color_prompt.exit_uuid
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': color_ruleset.uuid,
+                'arrived_on': '2015-08-25T11:11:30.088000+00:00',
+                'exit_uuid': orange_rule.uuid
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': color_reply.uuid,
+                'arrived_on': '2015-08-25T11:13:30.088000+00:00',
+                'exit_uuid': color_reply.exit_uuid
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': new_node['uuid'],
+                'arrived_on': '2015-08-25T11:15:30.088000+00:00'
+            }
         ])
 
         # joe should have an urn now
