@@ -1859,7 +1859,8 @@ class Flow(TembaModel):
 
         # if we have more than one run, update the others to the same expiration
         if len(run_map) > 1:
-            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on, modified_on=timezone.now())
+            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on,
+                                                                       modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1901,7 +1902,7 @@ class Flow(TembaModel):
             if entry_rules:
                 entry_rules.flow = self
 
-        msgs = []
+        msgs_to_send = []
         optimize_sending_action = len(broadcasts) > 0
 
         for run in runs:
@@ -1909,7 +1910,8 @@ class Flow(TembaModel):
 
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
-            run_msgs = message_map.get(contact.id, [])
+            run_msgs = [start_msg] if start_msg else []
+            run_msgs += message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
             try:
@@ -1925,11 +1927,14 @@ class Flow(TembaModel):
                                                     entry_actions.destination,
                                                     entry_actions.destination_type)
 
-                        next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
+                        next_step = self.add_step(run, destination, previous_step=step,
+                                                  exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                     is_test_contact=simulation, trigger_send=False, continue_parent=False)
+                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg,
+                                                                     started_flows_by_contact,
+                                                                     is_test_contact=simulation, trigger_send=False,
+                                                                     continue_parent=False)
                         run_msgs += step_msgs
 
                     else:
@@ -1946,18 +1951,18 @@ class Flow(TembaModel):
                     elif not entry_rules.is_pause():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg,
+                                                                     started_flows_by_contact, trigger_send=False,
+                                                                     continue_parent=False)
                         run_msgs += step_msgs
 
-                if start_msg:
-                    run.add_messages([start_msg], step=step)
-
                 # set the msgs that were sent by this run so that any caller can deal with them
-                run.start_msgs = run_msgs
+                run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
 
                 # add these messages as ones that are ready to send
                 for msg in run_msgs:
-                    msgs.append(msg)
+                    if msg.direction == OUTGOING:
+                        msgs_to_send.append(msg)
 
             except Exception:
                 logger.error('Failed starting flow %d for contact %d' % (self.id, contact.id), exc_info=1, extra={'stack': True})
@@ -1966,19 +1971,19 @@ class Flow(TembaModel):
                 run.set_interrupted()
 
                 # mark our messages as failed
-                Msg.objects.filter(id__in=[m.id for m in run_msgs]).update(status=FAILED)
+                Msg.objects.filter(id__in=[m.id for m in run_msgs if m.direction == OUTGOING]).update(status=FAILED)
 
                 # remove our msgs from our parent's concerns
                 run.start_msgs = []
 
         # trigger our messages to be sent
-        if msgs and not parent_run:
+        if msgs_to_send and not parent_run:
             # then send them off
-            msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            msgs_to_send.sort(key=lambda message: (message.contact_id, message.created_on))
+            Msg.objects.filter(id__in=[m.id for m in msgs_to_send]).update(status=PENDING)
 
             # trigger a sync
-            self.org.trigger_send(msgs)
+            self.org.trigger_send(msgs_to_send)
 
         # if we have a flow start, check whether we are complete
         if flow_start:
@@ -2012,28 +2017,25 @@ class Flow(TembaModel):
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
                                        step_uuid=node.uuid, arrived_on=arrived_on)
 
-        # for each message, associate it with this step and set the label on it
-        run.add_messages(msgs, step=step)
-
-        path = run.path
-
         # complete previous step
-        if path and exit_uuid:
-            path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
+        if run.path and exit_uuid:
+            run.path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
 
         # create new step
-        path.append({
+        run.path.append({
             FlowRun.PATH_STEP_UUID: str(uuid4()),
             FlowRun.PATH_NODE_UUID: node.uuid,
             FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()
         })
 
-        # trim path to ensure it can't grow indefinitely
-        if len(path) > FlowRun.PATH_MAX_STEPS:
-            path = path[len(path) - FlowRun.PATH_MAX_STEPS:]
+        # for each message, associate it with this step and set the label on it
+        run.add_messages(msgs, step=step)
 
-        run.path = path
-        run.current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
+        # trim path to ensure it can't grow indefinitely
+        if len(run.path) > FlowRun.PATH_MAX_STEPS:
+            run.path = run.path[len(run.path) - FlowRun.PATH_MAX_STEPS:]
+
+        run.current_node_uuid = run.path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=('path', 'current_node_uuid'))
 
         return step
@@ -3328,12 +3330,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
-    def add_messages(self, msgs, step=None):
+    def add_messages(self, msgs, step):
         """
         Associates the given messages with this run
         """
         if self.message_ids is None:
             self.message_ids = []
+
+        # find the path step these messages belong to
+        path_step = self.path[-1]
+
+        # whilst we still have step objects, we can use them to check we're adding messages to the correct step
+        if path_step['node_uuid'] != step.step_uuid:  # pragma: no cover
+            raise ValueError("Trying to add messages to a step which doesn't exist in the run path")
 
         existing_msg_uuids = {e['msg']['uuid'] for e in self.events if e['type'] in ('msg_received', 'msg_created')}
 
@@ -3352,7 +3361,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.events.append({
                 'type': 'msg_received' if msg.direction == INCOMING else 'msg_created',
                 'created_on': msg.created_on.isoformat(),
-                'step_uuid': str(uuid4()),
+                'step_uuid': path_step['uuid'],
                 'msg': goflow.serialize_message(msg)
             })
 

@@ -459,7 +459,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': contact1_msg.created_on.isoformat(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': contact1_run.path[0]['uuid'],
                 'msg': {
                     'uuid': str(contact1_msg.uuid),
                     'text': "What is your favorite color?",
@@ -560,7 +560,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': contact1_msg.created_on.isoformat(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': contact1_run.path[0]['uuid'],
                 'msg': {
                     'uuid': str(contact1_msg.uuid),
                     'text': "What is your favorite color?",
@@ -571,7 +571,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_received',
                 'created_on': incoming.created_on.isoformat(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': contact1_run.path[1]['uuid'],
                 'msg': {
                     'uuid': str(incoming.uuid),
                     'text': "orange",
@@ -582,7 +582,7 @@ class FlowTest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': reply.created_on.isoformat(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': contact1_run.path[2]['uuid'],
                 'msg': {
                     'uuid': str(reply.uuid),
                     'text': "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
@@ -4822,7 +4822,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': run.path[0]['uuid'],
                 'msg': {
                     'uuid': str(msg1.uuid),
                     'text': 'What is your favorite color?',
@@ -4833,7 +4833,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_received',
                 'created_on': matchers.ISODate(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': run.path[1]['uuid'],
                 'msg': {
                     'uuid': str(msg2.uuid),
                     'text': 'I like red',
@@ -4845,7 +4845,7 @@ class FlowsTest(FlowFileTest):
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': run.path[2]['uuid'],
                 'msg': {
                     'uuid': matchers.UUID4String(),
                     'text': 'Good choice, I like Red too! What is your favorite beer?',
@@ -4943,11 +4943,11 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat()), payload['run'])
 
             # make sure things don't sneak into our path format unintentionally
-            # first item in the path should have node, arrived, and exit
-            self.assertEqual(set(payload['path'][0].keys()), {'node_uuid', 'arrived_on', 'exit_uuid'})
+            # first item in the path should have uuid, node, arrived, and exit
+            self.assertEqual(set(payload['path'][0].keys()), {'uuid', 'node_uuid', 'arrived_on', 'exit_uuid'})
 
             # last item has the same, but no exit
-            self.assertEqual(set(payload['path'][-1].keys()), {'node_uuid', 'arrived_on'})
+            self.assertEqual(set(payload['path'][-1].keys()), {'uuid', 'node_uuid', 'arrived_on'})
 
             for key, value in six.iteritems(results):
                 result = payload['results'].get(key)
@@ -8339,7 +8339,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=308, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=318, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created

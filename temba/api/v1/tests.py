@@ -643,7 +643,7 @@ class APITest(TembaTest):
             {
                 'type': 'msg_created',
                 'created_on': matchers.ISODate(),
-                'step_uuid': matchers.UUID4String(),
+                'step_uuid': run.path[0]['uuid'],
                 'msg': {
                     'uuid': matchers.UUID4String(),
                     'text': 'What is your favorite color?'
