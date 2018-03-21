@@ -276,14 +276,14 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session['runs']:
-            run_log = [event for event in output.log if event.step_uuid and step_to_run[event.step_uuid] == run['uuid']]
+            run_events = [e for e in output.events if e['step_uuid'] and step_to_run[e['step_uuid']] == run['uuid']]
 
             wait = output.session['wait'] if run['status'] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
             run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
 
-            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, wait, run_input)
+            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, wait, run_input)
             runs.append(run)
             msgs_to_send += msgs
 
@@ -2820,7 +2820,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, wait, msg_in):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_events, wait, msg_in):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2867,7 +2867,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing.save(update_fields=('path', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
-            msgs_to_send, run_messages = run.apply_events(run_log, msg_in)
+            msgs_to_send, run_messages = run.apply_events(run_events, msg_in)
 
         else:
             # use our now for created_on/modified_on as this needs to be as close as possible to database time for API
@@ -2897,7 +2897,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
                 ActionLog.create(run, log_text, created_on=created_on)
 
-            msgs_to_send, run_messages = run.apply_events(run_log, msg_in)
+            msgs_to_send, run_messages = run.apply_events(run_events, msg_in)
 
         # attach any messages to this run
         if not run.message_ids:
@@ -2911,16 +2911,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return run, msgs_to_send
 
-    def apply_events(self, run_log, msg_in=None):
+    def apply_events(self, events, msg_in=None):
         all_msgs_to_send = []
         all_run_messages = []
 
-        for entry in run_log:
-            # print("⚡ %s %s" % (entry.event['type'], json.dumps({k: v for k, v in six.iteritems(entry.event) if k != 'type'})))
+        for event in events:
+            # print("⚡ %s %s" % (event['type'], json.dumps({k: v for k, v in six.iteritems(event) if k != 'type'})))
 
-            apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
+            apply_func = getattr(self, 'apply_%s' % event['type'], None)
             if apply_func:
-                msgs = apply_func(entry.event, msg_in)
+                msgs = apply_func(event, msg_in)
 
                 # events can return a tuple of messages to send, and messages to add to the run
                 if msgs:
