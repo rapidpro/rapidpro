@@ -443,8 +443,27 @@ class FlowTest(TembaTest):
 
         # check the path for contact 1
         self.assertEqual(contact1_run.path, [
-            {'node_uuid': str(color_prompt.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(color_prompt.exit_uuid)},
-            {'node_uuid': str(color_ruleset.uuid), 'arrived_on': matchers.ISODate()}
+            {
+                'node_uuid': str(color_prompt.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(color_prompt.exit_uuid)
+            },
+            {
+                'node_uuid': str(color_ruleset.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact1_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contact1_msg.created_on.isoformat(),
+                'msg': {
+                    'uuid': str(contact1_msg.uuid),
+                    'text': "What is your favorite color?",
+                    'urn': 'tel:+250788382382',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            }
         ])
 
         # test our message context
@@ -516,9 +535,52 @@ class FlowTest(TembaTest):
         self.assertFalse(Flow.find_and_handle(extra)[0])
 
         self.assertEqual(contact1_run.path, [
-            {'node_uuid': str(color_prompt.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(color_prompt.exit_uuid)},
-            {'node_uuid': str(color_ruleset.uuid), 'arrived_on': matchers.ISODate(), 'exit_uuid': str(orange_rule.uuid)},
-            {'node_uuid': str(color_reply.uuid), 'arrived_on': matchers.ISODate()}
+            {
+                'node_uuid': str(color_prompt.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(color_prompt.exit_uuid)
+            },
+            {
+                'node_uuid': str(color_ruleset.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(orange_rule.uuid)
+            },
+            {
+                'node_uuid': str(color_reply.uuid),
+                'arrived_on': matchers.ISODate(),
+            }
+        ])
+        self.assertEqual(contact1_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contact1_msg.created_on.isoformat(),
+                'msg': {
+                    'uuid': str(contact1_msg.uuid),
+                    'text': "What is your favorite color?",
+                    'urn': 'tel:+250788382382',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            },
+            {
+                'type': 'msg_received',
+                'created_on': incoming.created_on.isoformat(),
+                'msg': {
+                    'uuid': str(incoming.uuid),
+                    'text': "orange",
+                    'urn': 'tel:+250788382382',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            },
+            {
+                'type': 'msg_created',
+                'created_on': reply.created_on.isoformat(),
+                'msg': {
+                    'uuid': str(reply.uuid),
+                    'text': "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
+                    'urn': 'tel:+250788382382',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            }
         ])
 
         # we should also have a result for this RuleSet
@@ -4678,8 +4740,9 @@ class FlowsTest(FlowFileTest):
     @also_in_flowserver
     def test_simple(self):
         favorites = self.get_flow('favorites')
-        action_set1 = favorites.action_sets.order_by('y').first()
-        rule_set1 = favorites.rule_sets.order_by('y').first()
+        action_set1, action_set3, action_set3 = favorites.action_sets.order_by('y')[:3]
+        rule_set1, rule_set2 = favorites.rule_sets.order_by('y')[:2]
+        red_rule = rule_set1.rules[0]
 
         run, = favorites.start([], [self.contact])
 
@@ -4721,6 +4784,60 @@ class FlowsTest(FlowFileTest):
                 'input': "I like red\nhttp://example.com/test.jpg"
             }
         })
+        self.assertEqual(run.path, [
+            {
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid)
+            },
+            {
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(red_rule['uuid'])
+            },
+            {
+                'node_uuid': str(action_set3.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set3.exit_uuid)
+            },
+            {
+                'node_uuid': str(rule_set2.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': matchers.ISODate(),
+                'msg': {
+                    'uuid': str(msg1.uuid),
+                    'text': 'What is your favorite color?',
+                    'urn': 'tel:+12065552020',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            },
+            {
+                'type': 'msg_received',
+                'created_on': matchers.ISODate(),
+                'msg': {
+                    'uuid': str(msg2.uuid),
+                    'text': 'I like red',
+                    'attachments': ['image/jpeg:http://example.com/test.jpg'],
+                    'urn': 'tel:+12065552020',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            },
+            {
+                'type': 'msg_created',
+                'created_on': matchers.ISODate(),
+                'msg': {
+                    'uuid': matchers.UUID4String(),
+                    'text': 'Good choice, I like Red too! What is your favorite beer?',
+                    'urn': 'tel:+12065552020',
+                    'channel': {'uuid': str(self.channel.uuid), 'name': 'Test Channel'}
+                }
+            }
+        ])
 
         cat_counts = list(FlowCategoryCount.objects.order_by('id'))
         self.assertEqual(len(cat_counts), 1)
@@ -4811,10 +4928,10 @@ class FlowsTest(FlowFileTest):
 
             # make sure things don't sneak into our path format unintentionally
             # first item in the path should have node, arrived, and exit
-            self.assertEqual(3, len(payload['path'][0]))
+            self.assertEqual(set(payload['path'][0].keys()), {'node_uuid', 'arrived_on', 'exit_uuid'})
 
             # last item has the same, but no exit
-            self.assertEqual(2, len(payload['path'][-1]))
+            self.assertEqual(set(payload['path'][-1].keys()), {'node_uuid', 'arrived_on'})
 
             for key, value in six.iteritems(results):
                 result = payload['results'].get(key)

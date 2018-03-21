@@ -1986,10 +1986,10 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=None, exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
-        if msgs is None:
-            msgs = []
-
+    def add_step(self, run, node, msgs=(), exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
+        """
+        Adds a new step to the given run
+        """
         if not arrived_on:
             arrived_on = timezone.now()
 
@@ -2800,6 +2800,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     path = JSONAsTextField(null=True, default=list,
                            help_text=_("The path taken during this flow run in JSON format"))
 
+    events = JSONAsTextField(null=True, default=list,
+                             help_text=_("The events recorded on this run in JSON format"))
+
     message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
                              help_text=_("The IDs of messages associated with this run"))
 
@@ -2853,8 +2856,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             path.append(step)
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
+        # for now we only store message events
+        events = [e for e in run_output['events'] if e['type'] in ('msg_received', 'msg_created')]
+
         if existing:
             existing.path = path
+            existing.events = events
             existing.current_node_uuid = current_node_uuid
             existing.results = results
             existing.expires_on = expires_on
@@ -2864,7 +2871,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing.exit_type = exit_type
             existing.responded |= bool(msg_in)
             existing.is_active = is_active
-            existing.save(update_fields=('path', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
+            existing.save(update_fields=('path', 'events', 'current_node_uuid', 'results', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'responded', 'is_active'))
             run = existing
 
             msgs_to_send, run_messages = run.apply_events(run_events, msg_in)
@@ -2883,6 +2890,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                                      flow=flow, contact=contact,
                                      parent=parent,
                                      path=path,
+                                     events=events,
                                      current_node_uuid=current_node_uuid,
                                      results=results,
                                      session=session,
@@ -2985,7 +2993,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             channel=channel,
             high_priority=self.session.responded,
             created_on=created_on,
-            response_to=msg_in if msg_in and msg_in.id else None
+            response_to=msg_in if msg_in and msg_in.id else None,
+            uuid=msg['uuid']
         )
 
         return [msg_out], [msg_out]
@@ -3320,16 +3329,28 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.message_ids is None:
             self.message_ids = []
 
+        existing_msg_uuids = {e['msg']['uuid'] for e in self.events if e['type'] in ('msg_received', 'msg_created')}
+
         needs_update = False
 
         for msg in msgs:
-            # no-op for no msg or mock msgs
-            if not msg or not msg.id:
+            # don't include pseudo msgs
+            if not msg.id:
                 continue
 
-            if msg.id not in self.message_ids:
-                self.message_ids.append(msg.id)
-                needs_update = True
+            # or messages which have already been attached to this run
+            if msg.uuid in existing_msg_uuids:
+                continue
+
+            self.message_ids.append(msg.id)
+            self.events.append({
+                'type': 'msg_received' if msg.direction == INCOMING else 'msg_created',
+                'msg': goflow.serialize_message(msg),
+                'created_on': msg.created_on.isoformat()
+            })
+
+            existing_msg_uuids.add(str(msg.uuid))
+            needs_update = True
 
             if step:
                 step.messages.add(msg)
@@ -3347,10 +3368,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if msg.direction == INCOMING:
                 if not self.responded:
                     self.responded = True
-                    needs_update = True
 
         if needs_update:
-            self.save(update_fields=('responded', 'message_ids'))
+            self.save(update_fields=('responded', 'message_ids', 'events'))
 
     def get_message_ids(self):
         """

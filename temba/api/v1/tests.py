@@ -22,7 +22,7 @@ from temba.flows.models import FlowLabel, FlowRun, RuleSet, ActionSet, Flow
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg
+from temba.tests import TembaTest, AnonymousOrg, matchers
 from temba.utils.dates import datetime_to_json_date
 from temba.values.models import Value
 from temba.api.models import APIToken
@@ -634,6 +634,16 @@ class APITest(TembaTest):
         self.assertEqual(run.is_completed(), False)
         self.assertEqual(run.path, [
             {'node_uuid': color_prompt.uuid, 'arrived_on': '2015-08-25T11:09:30.088000+00:00'}
+        ])
+        self.assertEqual(run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': matchers.ISODate(),
+                'msg': {
+                    'uuid': matchers.UUID4String(),
+                    'text': 'What is your favorite color?'
+                }
+            }
         ])
 
         # outgoing message for reply
