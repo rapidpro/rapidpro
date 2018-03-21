@@ -3349,7 +3349,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 continue
 
             # or messages which have already been attached to this run
-            if msg.uuid in existing_msg_uuids:
+            if str(msg.uuid) in existing_msg_uuids:
                 continue
 
             self.message_ids.append(msg.id)
@@ -3363,12 +3363,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing_msg_uuids.add(str(msg.uuid))
             needs_update = True
 
-            if step:
-                step.messages.add(msg)
+            step.messages.add(msg)
 
-                # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-                if msg.broadcast:
-                    step.broadcasts.add(msg.broadcast)
+            # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
+            if msg.broadcast:
+                step.broadcasts.add(msg.broadcast)
 
             # incoming non-IVR messages won't have a type yet so update that
             if not msg.msg_type or msg.msg_type == INBOX:
