@@ -32,7 +32,7 @@ from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
-from temba.utils.dates import ms_to_datetime, datetime_to_str, datetime_to_ms
+from temba.utils.dates import ms_to_datetime, datetime_to_ms
 from temba.values.models import Value
 
 
@@ -468,7 +468,7 @@ class Command(BaseCommand):
                         }
                     if c['joined'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
-                            'text': datetime_to_str(c['joined']),
+                            'text': org.format_date(c['joined'], show_time=False),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
@@ -557,7 +557,7 @@ class Command(BaseCommand):
                                           string_value=str(c['age']), decimal_value=c['age']))
             if c['joined']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                          string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
+                                          string_value=org.format_date(c['joined'], show_time=False), datetime_value=c['joined']))
             if c['ward']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
                                           string_value=c['ward'].name, location_value=c['ward']))
