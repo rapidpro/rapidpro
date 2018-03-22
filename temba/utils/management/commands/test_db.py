@@ -468,7 +468,7 @@ class Command(BaseCommand):
                         }
                     if c['joined'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
-                            'text': c['joined'].strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                            'text': datetime_to_str(c['joined']),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
