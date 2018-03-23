@@ -9,7 +9,6 @@ import requests
 import six
 import time
 import traceback
-import uuid
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -38,6 +37,7 @@ from temba.utils.http import http_headers
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
+from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -667,7 +667,7 @@ class Msg(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    uuid = models.UUIDField(null=True, default=uuid.uuid4,
+    uuid = models.UUIDField(null=True, default=uuid4,
                             help_text=_("The UUID for this message"))
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
@@ -1412,7 +1412,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
-                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None, uuid=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1527,7 +1527,8 @@ class Msg(models.Model):
                     quick_replies[counter] = value
             metadata = dict(quick_replies=quick_replies)
 
-        msg_args = dict(contact=contact,
+        msg_args = dict(uuid=uuid or uuid4(),
+                        contact=contact,
                         contact_urn=contact_urn,
                         org=org,
                         channel=channel,

@@ -15,6 +15,7 @@ import uuid
 import iso8601
 
 from decimal import Decimal
+from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError, connection
@@ -37,7 +38,6 @@ from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
-from django.contrib.postgres.fields import JSONField
 
 logger = logging.getLogger(__name__)
 
