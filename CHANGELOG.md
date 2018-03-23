@@ -1,3 +1,7 @@
+v3.0.344
+----------
+ * Hotfix
+
 v3.0.343
 ----------
  * Use real JSONField for FlowRun.events
