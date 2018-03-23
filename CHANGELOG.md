@@ -1,9 +1,5 @@
 v3.0.344
 ----------
- * Hotfix
-
-v3.0.343
-----------
  * Use real JSONField for FlowRun.events
  * Add FlowRun.events and start populating with msg events for new runs
  * Serialize Contact.fields in test_db
