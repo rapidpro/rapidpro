@@ -148,7 +148,7 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
 
         # figure out estimated time remaining
         num_remaining = ((max_run_id - highpoint) // 4) if partition is not None else (max_run_id - highpoint)
-        time_remaining = num_remaining / updated_per_sec
+        time_remaining = (num_remaining / updated_per_sec) if updated_per_sec > 0 else 0
         finishes = timezone.now() + timedelta(seconds=time_remaining)
         status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes)
 

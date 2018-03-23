@@ -14,8 +14,8 @@ DECLARE
   _old_is_active BOOL;
   _old_path TEXT;
   _new_path TEXT;
-  _old_path_json JSON;
-  _new_path_json JSON;
+  _old_path_json JSONB;
+  _new_path_json JSONB;
   _old_path_len INT;
   _new_path_len INT;
 BEGIN
@@ -49,13 +49,13 @@ BEGIN
     IF _old_path IS NULL THEN _old_path := '[]'; END IF;
     IF _new_path IS NULL THEN _new_path := '[]'; END IF;
 
-    _old_path_json := _old_path::json;
-    _new_path_json := _new_path::json;
-    _old_path_len := json_array_length(_old_path_json);
-    _new_path_len := json_array_length(_new_path_json);
+    _old_path_json := _old_path::jsonb;
+    _new_path_json := _new_path::jsonb;
+    _old_path_len := jsonb_array_length(_old_path_json);
+    _new_path_len := jsonb_array_length(_new_path_json);
 
     -- if there are no changes that effect path/node counts, bail
-    IF TG_OP = 'UPDATE' AND _old_path_len = _new_path_len AND _old_path_json->(_old_path_len-1)->>'exit_uuid' = _new_path_json->(_new_path_len-1)->>'exit_uuid' THEN
+    IF TG_OP = 'UPDATE' AND _old_path_len = _new_path_len AND _old_path_json->(_old_path_len-1) ? 'exit_uuid' = _new_path_json->(_new_path_len-1) ? 'exit_uuid' THEN
       RETURN NULL;
     END IF;
 
@@ -101,7 +101,7 @@ BEGIN
 
     -- parse path as JSON
     _old_path_json := _old_path::json;
-    _old_path_len := json_array_length(_old_path_json);
+    _old_path_len := jsonb_array_length(_old_path_json);
 
     -- decrement node count at last node in this path if this was an active run
     IF _old_is_active THEN
