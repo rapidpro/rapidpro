@@ -30,7 +30,7 @@ def serialize_message(msg):
     }
 
     if msg.contact_urn_id:
-        serialized['urn'] = msg.contact_urn.urn
+        serialized['urn'] = msg.contact_urn.identity
     if msg.channel_id:
         serialized['channel'] = {'uuid': str(msg.channel.uuid), 'name': msg.channel.name}
     if msg.attachments:
@@ -46,12 +46,18 @@ def fill_path_and_events(run):
     steps = list(run.steps.all())
     steps = steps[len(steps) - len(run.path):]
 
-    for s, step in steps:
-        # generate a unique step UUID for this step
+    for s, step in enumerate(steps):
         path_step = run.path[s]
+
+        # sanity check that we have the right path step
+        if path_step['node_uuid'] != step.step_uuid:
+            raise ValueError("Step mismatch on run #%d: Path step has node %s, step object has node %s" % (run.id, path_step['node_uuid'], step.step_uuid))
+
+        # generate a unique step UUID for this step
         path_step[PATH_STEP_UUID] = str(uuid4())
 
-        for msg in step.messages.all():
+        # generate message events for this step
+        for msg in sorted(list(step.messages.all()), key=lambda m: m.created_on):
             run.events.append({
                 'type': 'msg_received' if msg.direction == 'I' else 'msg_created',
                 'created_on': msg.created_on.isoformat(),
@@ -107,10 +113,10 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
     start = time.time()
 
     # we want to prefetch step messages with each flow run
-    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('id', 'run'))
+    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('id', 'run').order_by('id'))
     steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.only('id'))
     steps_messages_channel_prefetch = Prefetch('steps__messages__channel', queryset=Channel.objects.only('id', 'name', 'uuid'))
-    steps_messages_urn_prefetch = Prefetch('steps__messages__contact_urn', queryset=ContactURN.objects.only('id', 'urn'))
+    steps_messages_urn_prefetch = Prefetch('steps__messages__contact_urn', queryset=ContactURN.objects.only('id', 'identity'))
 
     for run_id_batch in chunk_list(range(highpoint, max_run_id + 1), 1000):
         with transaction.atomic():
@@ -166,8 +172,8 @@ def apply_as_migration(apps, schema_editor):
     FlowRun = apps.get_model('flows', 'FlowRun')
     FlowStep = apps.get_model('flows', 'FlowStep')
     Msg = apps.get_model('msgs', 'Msg')
-    Channel = apps.get_model('msgs', 'Channel')
-    ContactURN = apps.get_model('msgs', 'ContactURN')
+    Channel = apps.get_model('channels', 'Channel')
+    ContactURN = apps.get_model('contacts', 'ContactURN')
     backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN)
 
 
@@ -184,7 +190,7 @@ def clear_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0148_flowrun_events'),
+        ('flows', '0149_update_path_trigger'),
     ]
 
     operations = [
