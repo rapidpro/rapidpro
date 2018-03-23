@@ -6,16 +6,6 @@ from django.db import migrations
 
 SQL = """
 ----------------------------------------------------------------------
--- Inserts a new flowpathrecentrun
-----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_insert_flowpathrecentrun(_from_uuid UUID, _to_uuid UUID, _run_id INTEGER, _visited_on TIMESTAMPTZ) RETURNS VOID AS $$
-  BEGIN
-    INSERT INTO flows_flowpathrecentrun("from_uuid", "to_uuid", "run_id", "visited_on")
-      VALUES(_from_uuid, _to_uuid, _run_id, _visited_on);
-  END;
-$$ LANGUAGE plpgsql;
-
-----------------------------------------------------------------------
 -- Handles changes relating to a flow run's path
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_flowrun_path_change() RETURNS TRIGGER AS $$
@@ -39,6 +29,9 @@ BEGIN
   -- restrict changes to runs
   IF TG_OP = 'UPDATE' THEN
     IF NEW.is_active AND NOT OLD.is_active THEN RAISE EXCEPTION 'Cannot re-activate an inactive flow run'; END IF;
+
+    -- TODO re-enable after migration to populate run events
+    -- IF NOT OLD.is_active AND NEW.path != OLD.path THEN RAISE EXCEPTION 'Cannot modify path on an inactive flow run'; END IF;
   END IF;
 
   IF TG_OP = 'UPDATE' OR TG_OP = 'DELETE' THEN
