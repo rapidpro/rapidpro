@@ -3362,7 +3362,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.events.append({
                 'type': 'msg_received' if msg.direction == INCOMING else 'msg_created',
                 'created_on': msg.created_on.isoformat(),
-                'step_uuid': path_step['uuid'],
+                'step_uuid': path_step.get('uuid'),
                 'msg': goflow.serialize_message(msg)
             })
 
