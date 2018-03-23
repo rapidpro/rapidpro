@@ -228,10 +228,11 @@ class WebHookEvent(SmartModel):
 
         post_data = {
             'contact': contact_dict,
-            'flow': dict(name=flow.name, uuid=flow.uuid),
+            'flow': dict(name=flow.name, uuid=flow.uuid, revision_id=flow.metadata.get(flow.REVISION)),
             'path': run.path,
             'results': run.results,
-            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
+            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat()),
+            'org': dict(name=org.name, id=org.id)
         }
 
         if msg and msg.id > 0:

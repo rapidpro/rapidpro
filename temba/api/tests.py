@@ -269,7 +269,7 @@ class WebHookTest(TembaTest):
 
         self.assertEqual(data['channel'], {'uuid': str(self.channel.uuid), 'name': self.channel.name})
         self.assertEqual(data['contact'], {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))})
-        self.assertEqual(data['flow'], {'uuid': str(flow.uuid), 'name': flow.name})
+        self.assertEqual(data['flow'], {'uuid': str(flow.uuid), 'name': flow.name, 'revision_id': 12})
         self.assertEqual(data['input'], {
             'urn': 'tel:+250788123123',
             'text': "Mauve",
