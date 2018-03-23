@@ -1192,9 +1192,9 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.admin, 'gender', 'Male')
         self.joe.set_field(self.admin, 'age', 18)
         self.joe.set_field(self.admin, 'joined', '01-03-2018')
-        self.joe.set_field(self.admin, 'ward', 'Dangora')
-        self.joe.set_field(self.admin, 'district', 'Kiru')
-        self.joe.set_field(self.admin, 'state', 'Kano')
+        self.joe.set_field(self.admin, 'ward', 'Rwanda > Eastern Province > Rwamagana > Bukure')
+        self.joe.set_field(self.admin, 'district', 'Rwanda > Eastern Province > Rwamagana')
+        self.joe.set_field(self.admin, 'state', 'Rwanda > Eastern Province')
 
         self.assertTrue(evaluate_query(self.org, 'name = "joe Blow"', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'name ~ "joe"', contact_json=self.joe.as_json()))
@@ -1213,6 +1213,25 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'joined >= 01-03-2018', contact_json=self.joe.as_json()))
         self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'ward = "rwanda > eastern Province > rwamagana > bUKuRE"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_json()))
+
+        # TODO: test multiple urns with the same scheme
+        self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'tel has 278', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_json()))
+
+        with AnonymousOrg(self.org):
+            self.assertTrue(evaluate_query(self.org, 'name ~ "joe"', contact_json=self.joe.as_json()))
+            self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_json()))
+            self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_json()))
+
+            # do not evaluate URN queries if org is anonymous
+            self.assertFalse(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_json()))
 
     def test_contact_search_parsing(self):
         # implicit condition on name

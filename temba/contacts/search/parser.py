@@ -83,7 +83,7 @@ class ContactQuery(object):
     def evaluate(self, org, contact_json):
         prop_map = self.get_prop_map(org)
 
-        return self.root.evaluate(contact_json, prop_map)
+        return self.root.evaluate(org, contact_json, prop_map)
 
     def get_prop_map(self, org):
         """
@@ -158,7 +158,7 @@ class QueryNode(object):
     def as_text(self):  # pragma: no cover
         pass
 
-    def evaluate(self, contact_json, prop_map):  # pragma: no cover
+    def evaluate(self, org, contact_json, prop_map):  # pragma: no cover
         pass
 
 
@@ -338,14 +338,12 @@ class Condition(QueryNode):
 
         return '%s %s %s' % (self.prop, self.comparator, value)
 
-    def evaluate(self, contact_json, prop_map):
+    def evaluate(self, org, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
             field_uuid = six.text_type(field.uuid)
             contact_fields = contact_json.get('fields')
-
-            assert field_uuid in contact_fields
 
             if field.value_type == Value.TYPE_DECIMAL:
 
@@ -362,21 +360,23 @@ class Condition(QueryNode):
                     return contact_value < query_value
                 elif self.comparator == '<=':
                     return contact_value <= query_value
-                else:
+                else:  # pragma: no cover
                     raise ValueError('Unknown decimal comparator: %s' % (self.comparator,))
+
             elif field.value_type == Value.TYPE_TEXT:
                 query_value = self.value.upper()
                 contact_value = contact_fields.get(field_uuid).get('text').upper()
 
                 if self.comparator == '=':
                     return contact_value == query_value
-                else:
+                else:  # pragma: no cover
                     raise ValueError('Unknown text comparator: %s' % (self.comparator,))
+
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
                 contact_value = str_to_datetime(contact_fields.get(field_uuid).get('datetime'), field.org.timezone)
 
-                if not query_value:
+                if not query_value:  # pragma: no cover
                     raise SearchException(_("Unable to parse the date %s") % self.value)
 
                 utc_range = date_to_utc_range(query_value.date(), field.org)
@@ -391,22 +391,30 @@ class Condition(QueryNode):
                     return contact_value < utc_range[0]
                 elif self.comparator == '<=':
                     return contact_value < utc_range[1]
-                else:
+                else:  # pragma: no cover
                     raise ValueError('Unknown datetime comparator: %s' % (self.comparator,))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
                 query_value = self.value.upper()
-                contact_value = contact_fields.get(field_uuid).get('text').upper()  # TODO: read proper value type
+                if field.value_type == Value.TYPE_WARD:
+                    contact_value = contact_fields.get(field_uuid).get('ward').upper()
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    contact_value = contact_fields.get(field_uuid).get('district').upper()
+                elif field.value_type == Value.TYPE_STATE:
+                    contact_value = contact_fields.get(field_uuid).get('state').upper()
+                else:  # pragma: no cover
+                    raise ValueError('Unknown location type: %s' % (field.value_type, ))
 
                 if self.comparator == '=':
                     return contact_value == query_value
                 elif self.comparator == '~':
                     return query_value in contact_value
-                else:
+                else:  # pragma: no cover
                     raise ValueError('Unknown location comparator: %s' % (self.comparator,))
 
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
+
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
             contact_value = contact_json.get('name').upper()
             query_value = self.value.upper()
@@ -415,11 +423,30 @@ class Condition(QueryNode):
                 return contact_value == query_value
             elif self.comparator == '~':
                 return query_value in contact_value
-            else:
+            else:  # pragma: no cover
                 raise ValueError('Unknown attribute comparator: %s' % (self.comparator,))
+
         elif prop_type == ContactQuery.PROP_SCHEME:
-            raise NotImplemented('URN evaluator not implemented')
-        else:
+            if org.is_anon:
+                return False
+            else:
+                for urn in contact_json.get('urns'):
+                    if urn.get('scheme') == field:
+                        contact_value = urn.get('path').upper()
+                        query_value = self.value.upper()
+
+                        if self.comparator == '=':
+                            if contact_value == query_value:
+                                return True
+                        elif self.comparator == '~':
+                            if query_value in contact_value:
+                                return True
+                        else:  # pragma: no cover
+                            raise ValueError('Unknown urn scheme comparator: %s' % (self.comparator,))
+
+                return False
+
+        else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
     def __eq__(self, other):
