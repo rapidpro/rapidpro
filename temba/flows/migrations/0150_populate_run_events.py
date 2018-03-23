@@ -24,11 +24,10 @@ PATH_MAX_STEPS = 100
 
 
 def serialize_message(msg):
-    serialized = {
-        'uuid': str(msg.uuid),
-        'text': msg.text,
-    }
+    serialized = {'text': msg.text}
 
+    if msg.uuid:
+        serialized['uuid'] = str(msg.uuid)
     if msg.contact_urn_id:
         serialized['urn'] = msg.contact_urn.identity
     if msg.channel_id:
