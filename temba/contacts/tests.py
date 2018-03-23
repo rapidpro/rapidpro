@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_phonenumber
+from temba.contacts.search import is_phonenumber, evaluate_query
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -1180,6 +1180,39 @@ class ContactTest(TembaTest):
             self.assertEqual(self.joe.get_field_value(nick), 'Joey')
             self.assertIsNone(self.frank.get_field_value(nick))
             self.assertIsNone(self.billy.get_field_value(nick))
+
+    def test_contact_search_evaluation(self):
+        ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'joined', "Joined On", value_type=Value.TYPE_DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'ward', "Ward", value_type=Value.TYPE_WARD)
+        ContactField.get_or_create(self.org, self.admin, 'district', "District", value_type=Value.TYPE_DISTRICT)
+        ContactField.get_or_create(self.org, self.admin, 'state', "State", value_type=Value.TYPE_STATE)
+
+        self.joe.set_field(self.admin, 'gender', 'Male')
+        self.joe.set_field(self.admin, 'age', 18)
+        self.joe.set_field(self.admin, 'joined', '01-03-2018')
+        self.joe.set_field(self.admin, 'ward', 'Dangora')
+        self.joe.set_field(self.admin, 'district', 'Kiru')
+        self.joe.set_field(self.admin, 'state', 'Kano')
+
+        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'name ~ "joe"', contact_json=self.joe.as_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'gender = Female', contact_json=self.joe.as_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'age = 18', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'age > 20', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'age <= 17', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'age < 20', contact_json=self.joe.as_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined > 01-04-2018', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined >= 01-03-2018', contact_json=self.joe.as_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_json()))
 
     def test_contact_search_parsing(self):
         # implicit condition on name

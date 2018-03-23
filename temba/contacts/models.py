@@ -564,6 +564,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urns.append(dict(scheme=urn.scheme, path=urn.path, priority=urn.priority))
             obj['urns'] = urns
 
+        obj['fields'] = self.fields
+
         return obj
 
     def groups_as_text(self):
