@@ -1,3 +1,10 @@
+v3.0.343
+----------
+ * Use real JSONField for FlowRun.events
+ * Add FlowRun.events and start populating with msg events for new runs
+ * Serialize Contact.fields in test_db
+ * Update to latest goflow release
+
 v3.0.342
 ----------
  * Fix for decimal values in JSON fields attribute
