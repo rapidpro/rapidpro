@@ -1,3 +1,8 @@
+v3.0.345
+----------
+ * Migration to backfill run.events and add step uuids to run.path
+ * Do the right thing when we are presented with NaN decimals
+
 v3.0.344
 ----------
  * Use real JSONField for FlowRun.events
