@@ -9,18 +9,17 @@ import pytz
 import re
 import six
 import time
-from uuid import uuid4
+
 from datetime import timedelta
 from decimal import Decimal
-
 from django.utils.encoding import force_text
 from mock import patch
 from openpyxl import load_workbook
-
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
+from uuid import uuid4
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, WebHookResult, Resthook
@@ -31,7 +30,7 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers
+from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers, MigrationTest
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException, get_client, serialize_contact
@@ -9416,3 +9415,93 @@ class AssetServerTest(TembaTest):
                 }
             ],
         })
+
+
+class BackfillRunEventsTest(MigrationTest):
+    migrate_from = '0149_update_path_trigger'
+    migrate_to = '0150_populate_run_events'
+    app = 'flows'
+
+    def setUpBeforeMigration(self, apps):
+        self.contact1 = self.create_contact("Joe", number='+250783835555')
+        self.contact2 = self.create_contact("Frank", number='+250783836666')
+        self.flow = self.get_flow('favorites')
+
+        contact1_run, contact2_run = self.flow.start([], [self.contact1, self.contact2])
+
+        def remove_step_uuid(path_step):
+            return {k: v for k, v in six.iteritems(path_step) if k != 'uuid'}
+
+        # make run #1 look like it was created before we started saving step uuids and msg events
+        contact1_run.path = [remove_step_uuid(s) for s in contact1_run.path]
+        contact1_run.events = []
+        contact1_run.save(update_fields=('path', 'events'))
+
+        squash_flowruncounts()
+        squash_flowpathcounts()
+
+    def test_events_created(self):
+        action_set1, action_set3, action_set3 = self.flow.action_sets.order_by('y')[:3]
+        rule_set1, rule_set2 = self.flow.rule_sets.order_by('y')[:2]
+
+        contact1_run, contact2_run = FlowRun.objects.order_by('contact__id')
+        contact1_msgs = Msg.objects.filter(contact=self.contact1).order_by('id')
+        contact2_msgs = Msg.objects.filter(contact=self.contact2).order_by('id')
+
+        self.assertEqual(contact1_run.path, [
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact1_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contact1_msgs[0].created_on.isoformat(),
+                'msg': {
+                    'uuid': str(contact1_msgs[0].uuid),
+                    'channel': {'uuid': self.channel.uuid, 'name': 'Test Channel'},
+                    'text': 'What is your favorite color?',
+                    'urn': 'tel:+250783835555',
+                },
+                'step_uuid': contact1_run.path[0]['uuid']
+            }
+        ])
+
+        self.assertEqual(contact2_run.path, [
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact2_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contact2_msgs[0].created_on.isoformat(),
+                'msg': {
+                    'uuid': str(contact2_msgs[0].uuid),
+                    'channel': {'uuid': self.channel.uuid, 'name': 'Test Channel'},
+                    'text': 'What is your favorite color?',
+                    'urn': 'tel:+250783836666',
+                },
+                'step_uuid': contact2_run.path[0]['uuid']
+            }
+        ])
+
+        # check that modifying paths didn't create extra counts
+        self.assertEqual(FlowPathCount.objects.count(), 1)
+        self.assertEqual(FlowNodeCount.objects.count(), 2)
