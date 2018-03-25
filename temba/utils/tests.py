@@ -111,6 +111,7 @@ class InitTest(TembaTest):
         self.assertEqual('-12300', format_decimal(Decimal('-123E+2')))
         self.assertEqual('-12350', format_decimal(Decimal('-123.5E+2')))
         self.assertEqual('-1.235', format_decimal(Decimal('-123.5E-2')))
+        self.assertEqual('', format_decimal(Decimal('NaN')))
 
     def test_slugify_with(self):
         self.assertEqual('foo_bar', slugify_with('foo bar'))
