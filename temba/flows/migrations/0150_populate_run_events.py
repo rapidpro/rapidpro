@@ -40,30 +40,43 @@ def serialize_message(msg):
 
 
 def fill_path_and_events(run):
+    # we can re-use exit_uuids calculated in previous migration for actionsets which always have the same exit_uuid
+    exit_uuids = {s[PATH_NODE_UUID]: s.get(PATH_EXIT_UUID) for s in run.path}
+
+    run.path = []
     run.events = []
+    seen_msgs = set()
 
-    # run path might be trimmed and only include last 100 steps
-    steps = list(run.steps.all())
-    steps = steps[len(steps) - len(run.path):]
+    for step in run.steps.all():
+        path_step = {
+            PATH_STEP_UUID: str(uuid4()),
+            PATH_NODE_UUID: step.step_uuid,
+            PATH_ARRIVED_ON: step.arrived_on.isoformat(),
+        }
+        if step.step_type == 'R':
+            exit_uuid = step.rule_uuid
+        else:
+            exit_uuid = exit_uuids.get(step.step_uuid)
 
-    for s, step in enumerate(steps):
-        path_step = run.path[s]
+        if exit_uuid:
+            path_step[PATH_EXIT_UUID] = exit_uuid
 
-        # sanity check that we have the right path step
-        if path_step['node_uuid'] != step.step_uuid:
-            raise ValueError("Step mismatch on run #%d: Path step has node %s, step object has node %s" % (run.id, path_step['node_uuid'], step.step_uuid))
-
-        # generate a unique step UUID for this step
-        path_step[PATH_STEP_UUID] = str(uuid4())
+        run.path.append(path_step)
 
         # generate message events for this step
         for msg in sorted(list(step.messages.all()), key=lambda m: m.created_on):
-            run.events.append({
-                'type': 'msg_received' if msg.direction == 'I' else 'msg_created',
-                'created_on': msg.created_on.isoformat(),
-                'step_uuid': path_step[PATH_STEP_UUID],
-                'msg': serialize_message(msg)
-            })
+            if msg not in seen_msgs:
+                seen_msgs.add(msg)
+                run.events.append({
+                    'type': 'msg_received' if msg.direction == 'I' else 'msg_created',
+                    'created_on': msg.created_on.isoformat(),
+                    'step_uuid': path_step[PATH_STEP_UUID],
+                    'msg': serialize_message(msg)
+                })
+
+        # trim path if necessary
+        if len(run.path) > PATH_MAX_STEPS:
+            run.path = run.path[len(run.path) - PATH_MAX_STEPS:]
 
     run.save(update_fields=('events', 'path'))
 
@@ -113,12 +126,12 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
     start = time.time()
 
     # we want to prefetch step messages with each flow run
-    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('id', 'run').order_by('id'))
-    steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.only('id'))
+    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('id'))
+    steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.defer('metadata'))
     steps_messages_channel_prefetch = Prefetch('steps__messages__channel', queryset=Channel.objects.only('id', 'name', 'uuid'))
     steps_messages_urn_prefetch = Prefetch('steps__messages__contact_urn', queryset=ContactURN.objects.only('id', 'identity'))
 
-    for run_id_batch in chunk_list(range(highpoint, max_run_id + 1), 1000):
+    for run_id_batch in chunk_list(range(highpoint, max_run_id + 1), 4000):
         with transaction.atomic():
             if partition is not None:
                 run_id_batch = [r_id for r_id in run_id_batch if ((r_id + partition) % 4 == 0)]
@@ -126,6 +139,7 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
             batch = (
                 FlowRun.objects
                 .filter(id__in=run_id_batch).order_by('id')
+                .defer('results', 'fields')
                 .prefetch_related(
                     steps_prefetch,
                     steps_messages_prefetch,
@@ -143,7 +157,7 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
                 else:
                     cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
 
-        num_updated += len(batch)
+        num_updated += len(run_id_batch)
         updated_per_sec = num_updated / (time.time() - start)
 
         # figure out estimated time remaining
