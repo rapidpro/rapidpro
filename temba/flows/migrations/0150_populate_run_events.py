@@ -126,7 +126,7 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
 
     # we want to prefetch step messages with each flow run
     steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('id'))
-    steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.only('id'))
+    steps_messages_prefetch = Prefetch('steps__messages', queryset=Msg.objects.defer('metadata'))
     steps_messages_channel_prefetch = Prefetch('steps__messages__channel', queryset=Channel.objects.only('id', 'name', 'uuid'))
     steps_messages_urn_prefetch = Prefetch('steps__messages__contact_urn', queryset=ContactURN.objects.only('id', 'identity'))
 
