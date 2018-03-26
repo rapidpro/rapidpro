@@ -277,18 +277,28 @@ class FlowCRUDL(SmartCRUDL):
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
 
             flow_type = forms.ChoiceField(label=_('Run flow over'),
-                                          help_text=_('Send messages, place phone calls, or submit Surveyor runs'),
+                                          help_text=_('Choose the method for your flow'),
                                           choices=((Flow.FLOW, 'Messaging'),
                                                    (Flow.USSD, 'USSD Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
                                                    (Flow.SURVEY, 'Surveyor')))
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, user, branding, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
                 org_languages = self.user.get_org().languages.all().order_by('orgs', 'name')
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
+
+                flow_types = branding.get('flow_types', [Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD])
+
+                # prune our choices by brand config
+                choices = []
+                for flow_choice in self.fields['flow_type'].choices:
+                    if flow_choice[0] in flow_types:
+                        choices.append(flow_choice)
+                self.fields['flow_type'].choices = choices
+
                 self.fields['base_language'] = forms.ChoiceField(label=_('Language'),
                                                                  initial=self.user.get_org().primary_language,
                                                                  choices=language_choices)
@@ -314,6 +324,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super(FlowCRUDL.Create, self).get_form_kwargs()
             kwargs['user'] = self.request.user
+            kwargs['branding'] = self.request.branding
             return kwargs
 
         def get_context_data(self, **kwargs):

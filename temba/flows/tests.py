@@ -2144,15 +2144,19 @@ class FlowTest(TembaTest):
         self.assertTrue(response.context['has_flows'])
         self.assertIn('flow_type', response.context['form'].fields)
 
-        # add call channel
-        twilio = Channel.create(self.org, self.user, None, 'T', "Twilio", "0785553434", role="C",
-                                secret="56789", gcm_id="456")
-
+        # our default brand has all choice types
         response = self.client.get(reverse('flows.flow_create'))
-        self.assertTrue(response.context['has_flows'])
-        self.assertIn('flow_type', response.context['form'].fields)  # shown because of call channel
+        choices = [(Flow.FLOW, 'Messaging'), (Flow.USSD, 'USSD Messaging'), (Flow.VOICE, 'Phone Call'),
+                   (Flow.SURVEY, 'Surveyor')]
+        self.assertEqual(choices, response.context['form'].fields['flow_type'].choices)
 
-        twilio.delete()
+        # now configure our deployment to ignore USSD
+        branding = copy.deepcopy(settings.BRANDING)
+        branding['rapidpro.io']['flow_types'] = [Flow.FLOW, Flow.VOICE, Flow.SURVEY]
+        choices = [(Flow.FLOW, 'Messaging'), (Flow.VOICE, 'Phone Call'), (Flow.SURVEY, 'Surveyor')]
+        with override_settings(BRANDING=branding):
+            response = self.client.get(reverse('flows.flow_create'))
+            self.assertEqual(choices, response.context['form'].fields['flow_type'].choices)
 
         # create a new regular flow
         response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F'), follow=True)
