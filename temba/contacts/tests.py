@@ -1214,8 +1214,10 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'ward = "rwanda > eastern Province > rwamagana > bUKuRE"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'state ~ "stern"', contact_json=self.joe.as_json()))
 
         # TODO: test multiple urns with the same scheme
         self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_json()))
