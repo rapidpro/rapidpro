@@ -517,6 +517,148 @@ class IsSetCondition(Condition):
             where_not_set = Q(**{prop_obj: ""}) | Q(**{prop_obj: None})
             return ~where_not_set if is_set else where_not_set
 
+    def evaluate(self, org, contact_json, prop_map):
+        prop_type, field = prop_map[self.prop]
+
+        if self.comparator.lower() in self.IS_SET_LOOKUPS:
+            is_set = True
+        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
+            is_set = False
+        else:  # pragma: no cover
+            raise SearchException(_("Invalid operator for empty string comparison"))
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            field_uuid = six.text_type(field.uuid)
+            contact_fields = contact_json.get('fields')
+
+            contact_field = contact_fields.get(field_uuid)
+
+            # contact field does not exist
+            if contact_field is None:
+                if is_set:
+                    return False
+                else:
+                    return True
+            else:
+                if field.value_type == Value.TYPE_DECIMAL:
+                    try:
+                        contact_value = self._parse_decimal(contact_field.get('decimal'))
+                    except SearchException:
+                        contact_value = None
+
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_TEXT:
+                    contact_value = contact_fields.get(field_uuid).get('text')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:  # pragma: can't cover
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:  # pragma: can't cover
+                            return True
+
+                elif field.value_type == Value.TYPE_DATETIME:
+                    contact_value = str_to_datetime(contact_fields.get(field_uuid).get('datetime'), field.org.timezone)
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_WARD:
+                    contact_value = contact_fields.get(field_uuid).get('ward')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    contact_value = contact_fields.get(field_uuid).get('district')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_STATE:
+                    contact_value = contact_fields.get(field_uuid).get('state')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                else:  # pragma: no cover
+                    raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
+
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            contact_value = contact_json.get('name')
+
+            if contact_value in (None, ''):
+                if is_set:
+                    return False
+                else:
+                    return True
+            else:
+                if is_set:
+                    return True
+                else:
+                    return False
+
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                return False
+            else:
+                urn_exists = next((urn for urn in contact_json.get('urns') if urn.get('scheme') == field), None)
+
+                if not urn_exists:
+                    if is_set:
+                        return False
+                    else:
+                        return True
+                else:
+                    if is_set:
+                        return True
+                    else:
+                        return False
+
+        else:  # pragma: no cover
+            raise ValueError("Unrecognized contact field type '%s'" % prop_type)
+
 
 @six.python_2_unicode_compatible
 class BoolCombination(QueryNode):
@@ -589,6 +731,9 @@ class BoolCombination(QueryNode):
 
     def as_query(self, org, prop_map, base_set):
         return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
+
+    def evaluate(self, org, contact_json, prop_map):
+        return reduce(self.op, [child.evaluate(org, contact_json, prop_map) for child in self.children])
 
     def as_text(self):
         op = ' OR ' if self.op == self.OR else ' AND '
