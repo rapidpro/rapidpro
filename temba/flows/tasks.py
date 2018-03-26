@@ -108,7 +108,7 @@ def start_msg_flow_batch_task():
 
     try:
         # instantiate all the objects we need that were serialized as JSON
-        flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
+        flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True, is_archived=False).first()
         if not flow:  # pragma: needs cover
             return
 
