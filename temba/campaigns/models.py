@@ -435,7 +435,8 @@ class EventFire(Model):
         return self.scheduled < timezone.now()
 
     def get_relative_to_value(self):
-        return self.contact.get_field_value(self.event.relative_to).replace(second=0, microsecond=0)
+        value = self.contact.get_field_value(self.event.relative_to)
+        return value.replace(second=0, microsecond=0) if value else None
 
     def fire(self):
         """
