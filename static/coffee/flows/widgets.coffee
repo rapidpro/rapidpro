@@ -493,6 +493,8 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
     if options.types == 'g'
       placeholder = gettext("Enter one or more contact groups")
+    else if options.types == 'c'
+      placeholder = gettext("Recipients, enter contacts")
     else
       placeholder = gettext("Recipients, enter contacts or groups")
 
