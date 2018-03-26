@@ -1,3 +1,11 @@
+v3.0.346
+----------
+ * Don't start archived flows
+ * Don't show stale dates on campaign events
+ * Allow brands to configure flow types
+ * Remove group search from send to others action
+ * Fixes for test contact activity
+
 v3.0.345
 ----------
  * Migration to backfill run.events and add step uuids to run.path
