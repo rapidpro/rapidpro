@@ -1303,9 +1303,11 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.billy.as_json()))
         self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_json()))
 
-        # TODO: test multiple urns with the same scheme
+        # add another tel URN
+        self.joe.update_urns(self.admin, urns=['tel:+250781111999', 'tel:+250781111111', 'twitter:blow80'])
+
         self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_json()))
-        self.assertTrue(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_json()))
+        self.assertTrue(evaluate_query(self.org, 'tel = +250781111999', contact_json=self.joe.as_json()))
         self.assertFalse(evaluate_query(self.org, 'tel has 278', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_json()))
         self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_json()))
