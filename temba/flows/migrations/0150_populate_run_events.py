@@ -138,7 +138,7 @@ def backfill_flowrun_events(FlowRun, FlowStep, Msg, Channel, ContactURN):
             batch = (
                 FlowRun.objects
                 .filter(id__in=run_id_batch).order_by('id')
-                .only('id', 'path', 'events')
+                .defer('results', 'fields')
                 .prefetch_related(
                     steps_prefetch,
                     steps_messages_prefetch,
