@@ -4636,9 +4636,21 @@ class SimulationTest(FlowFileTest):
         self.admin.save()
 
         post_data = dict(has_refresh=True, version="1")
+
+        # simulate from two different users
+        self.login(self.editor)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
+
+        # check the activity, we should only see simulation for ourselves
+        simulation = response.json()
+        for count in six.itervalues(simulation['activity']):
+            self.assertEqual(1, count)
+        for count in six.itervalues(simulation['visited']):
+            self.assertEqual(1, count)
 
         self.assertEqual(len(json_dict.keys()), 6)
         self.assertEqual(len(json_dict['messages']), 2)
@@ -4647,6 +4659,11 @@ class SimulationTest(FlowFileTest):
 
         post_data['new_message'] = "3"
         post_data['has_refresh'] = False
+
+        # previous steps without exits shouldn't blow up simulation stats
+        run = FlowRun.objects.filter(contact=Contact.get_test_contact(self.admin)).first()
+        del run.path[0]['exit_uuid']
+        run.save(update_fields=('path',))
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEqual(200, response.status_code)
@@ -5803,7 +5820,7 @@ class FlowsTest(FlowFileTest):
         })
 
         # but hammer should have created some simulation activity
-        (active, visited) = flow.get_activity(simulation=True)
+        (active, visited) = flow.get_activity(hammer)
         self.assertEqual(active, {})
         self.assertEqual(visited, {
             '%s:%s' % (color_question.exit_uuid, color.uuid): 1,

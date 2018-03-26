@@ -1285,7 +1285,7 @@ class FlowCRUDL(SmartCRUDL):
                 for msg in messages_and_logs:
                     messages_json.append(msg.simulator_json())
 
-            (active, visited) = flow.get_activity(simulation=True)
+            (active, visited) = flow.get_activity(test_contact)
             response = dict(messages=messages_json, activity=active, visited=visited)
 
             # if we are at a ruleset, include it's details

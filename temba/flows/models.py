@@ -1241,38 +1241,38 @@ class Flow(TembaModel):
 
         return r.lock(lock_key, lock_ttl)
 
-    def get_node_counts(self, simulation):
+    def get_node_counts(self, contact=None):
         """
         Gets the number of contacts at each node in the flow. For simulator mode this manual counts steps by test
         contacts as these are not pre-calculated.
         """
-        if not simulation:
+        if not contact:
             return FlowNodeCount.get_totals(self)
 
-        # count unique values of current_node_uuid for active runs for test contacts
+        # count unique values of current_node_uuid for active runs for given contact
         totals = (
-            self.runs.filter(contact__is_test=True, is_active=True)
+            self.runs.filter(contact=contact, is_active=True)
             .values('current_node_uuid')
             .annotate(total=Count('current_node_uuid'))
         )
 
         return {six.text_type(t['current_node_uuid']): t['total'] for t in totals if t['total']}
 
-    def get_segment_counts(self, simulation):
+    def get_segment_counts(self, contact=None):
         """
         Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
         contacts as these are not pre-calculated.
         """
-        if not simulation:
+        if not contact:
             return FlowPathCount.get_totals(self)
 
-        simulator_runs = self.runs.filter(contact__is_test=True)
+        simulator_runs = self.runs.filter(contact=contact)
         path_counts = defaultdict(int)
 
         for run in simulator_runs:
             prev_step = None
             for step in run.path:
-                if prev_step:
+                if prev_step and 'exit_uuid' in prev_step:
                     exit_uuid = prev_step['exit_uuid']
                     node_uuid = step['node_uuid']
                     path_counts['%s:%s' % (exit_uuid, node_uuid)] += 1
@@ -1281,12 +1281,12 @@ class Flow(TembaModel):
 
         return path_counts
 
-    def get_activity(self, simulation=False):
+    def get_activity(self, contact=None):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        return self.get_node_counts(simulation), self.get_segment_counts(simulation)
+        return self.get_node_counts(contact), self.get_segment_counts(contact)
 
     def is_starting(self):
         """
