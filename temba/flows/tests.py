@@ -9467,11 +9467,15 @@ class BackfillRunEventsTest(MigrationTest):
         contact3_run.save(update_fields=('path', 'events'))
         contact3_run.steps.all().delete()
 
-        # make flow bilingual
+        # make flow bilingual and add attachments
         flow_json = self.flow.as_json()
         flow_json['action_sets'][0]['actions'][0]['msg'] = {
             'base': 'What is your favorite color?',
             'spa': 'Que es tu color favorito?',
+        }
+        flow_json['action_sets'][0]['actions'][0]['media'] = {
+            'base': 'image/jpeg:https://example.com/eng.jpg',
+            'spa': 'image/jpeg:https://example.com/spa.jpg',
         }
         self.flow.update(flow_json)
 
@@ -9585,6 +9589,7 @@ class BackfillRunEventsTest(MigrationTest):
                 'created_on': contacts4and5_broadcast.created_on.isoformat(),
                 'msg': {
                     'text': 'What is your favorite color?',
+                    'attachments': ['image/jpeg:https://example.com/eng.jpg'],
                 },
                 'step_uuid': contact4_run.path[0]['uuid']
             }
@@ -9597,6 +9602,7 @@ class BackfillRunEventsTest(MigrationTest):
                 'created_on': contacts4and5_broadcast.created_on.isoformat(),
                 'msg': {
                     'text': 'Que es tu color favorito?',
+                    'attachments': ['image/jpeg:https://example.com/spa.jpg'],
                 },
                 'step_uuid': contact5_run.path[0]['uuid']
             }
