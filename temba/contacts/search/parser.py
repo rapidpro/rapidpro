@@ -412,19 +412,8 @@ class Condition(QueryNode):
                 else:  # pragma: no cover
                     raise ValueError('Unknown location comparator: %s' % (self.comparator,))
 
-            else:  # pragma: no cover
+            else:
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
-
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            contact_value = six.text_type(contact_json.get(field)).upper()
-            query_value = six.text_type(self.value).upper()
-
-            if self.comparator == '=':
-                return contact_value == query_value
-            elif self.comparator == '~':
-                return query_value in contact_value
-            else:  # pragma: no cover
-                raise ValueError('Unknown attribute comparator: %s' % (self.comparator,))
 
         elif prop_type == ContactQuery.PROP_SCHEME:
             for urn in contact_json.get('urns'):
@@ -443,7 +432,7 @@ class Condition(QueryNode):
 
             return False
 
-        else:  # pragma: no cover
+        else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
     def __eq__(self, other):
@@ -622,20 +611,6 @@ class IsSetCondition(Condition):
                 else:  # pragma: no cover
                     raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            contact_value = contact_json.get(field)
-
-            if contact_value in (None, ''):
-                if is_set:
-                    return False
-                else:
-                    return True
-            else:
-                if is_set:
-                    return True
-                else:
-                    return False
-
         elif prop_type == ContactQuery.PROP_SCHEME:
             urn_exists = next((urn for urn in contact_json.get('urns') if urn.get('scheme') == field), None)
 
@@ -650,7 +625,7 @@ class IsSetCondition(Condition):
                 else:
                     return False
 
-        else:  # pragma: no cover
+        else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
 

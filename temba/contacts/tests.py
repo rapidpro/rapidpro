@@ -1202,8 +1202,8 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.admin, 'district', 'Rwanda > Eastern Province > Rwamagana')
         self.joe.set_field(self.admin, 'state', 'Rwanda > Eastern Province')
 
-        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name ~ "joe"', contact_json=self.joe.as_search_json()))
+        # evaluator can't be used with Contact attributes (name, id)
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json())
 
         self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'gender = Female', contact_json=self.joe.as_search_json()))
@@ -1281,20 +1281,7 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json()))
 
         # ATTR is set
-        self.assertTrue(evaluate_query(self.org, 'name != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'name = ""', contact_json=self.joe.as_search_json()))
-
-        # billy does not have any URNs
-        self.billy.name = None
-        self.billy.save(update_fields=('name', ))
-        self.billy.refresh_from_db()
-
-        self.assertFalse(evaluate_query(self.org, 'name != ""', contact_json=self.billy.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name = ""', contact_json=self.billy.as_search_json()))
-
-        self.billy.name = 'Billy Nophone'
-        self.billy.save(update_fields=('name',))
-        self.billy.refresh_from_db()
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json())
 
         # URN is set
         self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
@@ -1313,14 +1300,13 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow" AND age < 19', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'name = "joe Blow" AND age > 19', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow" AND tel = +250781111111', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow" OR age > 19', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name = "joe Blow" AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND age < 19', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 OR age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json()))
 
         with AnonymousOrg(self.org):
-            self.assertTrue(evaluate_query(self.org, 'name ~ "joe"', contact_json=self.joe.as_search_json()))
             self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
             self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json()))
 
@@ -1328,11 +1314,10 @@ class ContactTest(TembaTest):
             self.assertFalse(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_search_json()))
             self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
 
-            self.assertFalse(evaluate_query(self.org, 'name = "joe Blow" AND tel = +250781111111', contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
 
             # this will be parsed as search for contact id
-            self.assertTrue(evaluate_query(self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json()))
-            self.assertFalse(evaluate_query(self.org, six.text_type(0), contact_json=self.joe.as_search_json()))
+            self.assertRaises(ValueError, evaluate_query, self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json())
 
     def test_contact_search_parsing(self):
         # implicit condition on name
