@@ -9446,9 +9446,12 @@ class BackfillRunEventsTest(MigrationTest):
     def setUpBeforeMigration(self, apps):
         self.contact1 = self.create_contact("Joe", number='+250783835555')
         self.contact2 = self.create_contact("Frank", number='+250783836666')
+        self.contact3 = self.create_contact("Jimmy", number='+250783837777')
+        self.contact4 = self.create_contact("Rex", number='+250783838888')
+        self.contact5 = self.create_contact("Phil", number='+250783839999', language='spa')
         self.flow = self.get_flow('favorites')
 
-        contact1_run, contact2_run = self.flow.start([], [self.contact1, self.contact2])
+        contact1_run, contact2_run, contact3_run = self.flow.start([], [self.contact1, self.contact2, self.contact3])
 
         def remove_step_uuid(path_step):
             return {k: v for k, v in six.iteritems(path_step) if k != 'uuid'}
@@ -9458,6 +9461,31 @@ class BackfillRunEventsTest(MigrationTest):
         contact1_run.events = []
         contact1_run.save(update_fields=('path', 'events'))
 
+        # make run #3 look like that and delete it's steps like we used to when flows were deleted
+        contact3_run.path = [remove_step_uuid(s) for s in contact1_run.path]
+        contact3_run.events = []
+        contact3_run.save(update_fields=('path', 'events'))
+        contact3_run.steps.all().delete()
+
+        # make flow bilingual and add attachments
+        flow_json = self.flow.as_json()
+        flow_json['action_sets'][0]['actions'][0]['msg'] = {
+            'base': 'What is your favorite color?',
+            'spa': 'Que es tu color favorito?',
+        }
+        flow_json['action_sets'][0]['actions'][0]['media'] = {
+            'base': 'image/jpeg:https://example.com/eng.jpg',
+            'spa': 'image/jpeg:https://example.com/spa.jpg',
+        }
+        self.flow.update(flow_json)
+
+        # start two more contacts and purge the initial braodcast
+        contact4_run, contact5_run = self.flow.start([], [self.contact4, self.contact5])
+        broadcast = Broadcast.objects.order_by('id').last()
+        broadcast.msgs.all().delete()
+        broadcast.purged = True
+        broadcast.save(update_fields=('purged',))
+
         squash_flowruncounts()
         squash_flowpathcounts()
 
@@ -9465,9 +9493,11 @@ class BackfillRunEventsTest(MigrationTest):
         action_set1, action_set3, action_set3 = self.flow.action_sets.order_by('y')[:3]
         rule_set1, rule_set2 = self.flow.rule_sets.order_by('y')[:2]
 
-        contact1_run, contact2_run = FlowRun.objects.order_by('contact__id')
+        contact1_run, contact2_run, contact3_run, contact4_run, contact5_run = FlowRun.objects.order_by('contact__id')
         contact1_msgs = Msg.objects.filter(contact=self.contact1).order_by('id')
         contact2_msgs = Msg.objects.filter(contact=self.contact2).order_by('id')
+
+        contacts4and5_broadcast = Broadcast.objects.order_by('id').last()
 
         self.assertEqual(contact1_run.path, [
             {
@@ -9520,6 +9550,61 @@ class BackfillRunEventsTest(MigrationTest):
                     'urn': 'tel:+250783836666',
                 },
                 'step_uuid': contact2_run.path[0]['uuid']
+            }
+        ])
+
+        # contact #3 should have step uuids in their path, but no events because we nuked the steps
+        self.assertEqual(contact3_run.path, [
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact3_run.events, [])
+
+        # contact #4 should have step uuids in their path, and an event constructed from a purged broadcast
+        self.assertEqual(contact4_run.path, [
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact4_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contacts4and5_broadcast.created_on.isoformat(),
+                'msg': {
+                    'text': 'What is your favorite color?',
+                    'attachments': ['image/jpeg:https://example.com/eng.jpg'],
+                },
+                'step_uuid': contact4_run.path[0]['uuid']
+            }
+        ])
+
+        # contact #5's should be the spanish translation
+        self.assertEqual(contact5_run.events, [
+            {
+                'type': 'msg_created',
+                'created_on': contacts4and5_broadcast.created_on.isoformat(),
+                'msg': {
+                    'text': 'Que es tu color favorito?',
+                    'attachments': ['image/jpeg:https://example.com/spa.jpg'],
+                },
+                'step_uuid': contact5_run.path[0]['uuid']
             }
         ])
 
