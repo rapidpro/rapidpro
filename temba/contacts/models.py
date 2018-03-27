@@ -564,6 +564,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urns.append(dict(scheme=urn.scheme, path=urn.path, priority=urn.priority))
             obj['urns'] = urns
 
+        return obj
+
+    def as_search_json(self):
+        obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
+
+        if self.org.is_anon:
+            obj['urns'] = []
+        else:
+            obj['urns'] = [dict(scheme=urn.scheme, path=urn.path, priority=urn.priority) for urn in self.urns.all()]
+
         obj['fields'] = self.fields
 
         return obj

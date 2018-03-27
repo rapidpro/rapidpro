@@ -83,7 +83,7 @@ class ContactQuery(object):
     def evaluate(self, org, contact_json):
         prop_map = self.get_prop_map(org)
 
-        return self.root.evaluate(org, contact_json, prop_map)
+        return self.root.evaluate(contact_json, prop_map)
 
     def get_prop_map(self, org):
         """
@@ -158,7 +158,7 @@ class QueryNode(object):
     def as_text(self):  # pragma: no cover
         pass
 
-    def evaluate(self, org, contact_json, prop_map):  # pragma: no cover
+    def evaluate(self, contact_json, prop_map):  # pragma: no cover
         pass
 
 
@@ -338,7 +338,7 @@ class Condition(QueryNode):
 
         return '%s %s %s' % (self.prop, self.comparator, value)
 
-    def evaluate(self, org, contact_json, prop_map):
+    def evaluate(self, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -416,8 +416,8 @@ class Condition(QueryNode):
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            contact_value = contact_json.get('name').upper()
-            query_value = self.value.upper()
+            contact_value = six.text_type(contact_json.get(field)).upper()
+            query_value = six.text_type(self.value).upper()
 
             if self.comparator == '=':
                 return contact_value == query_value
@@ -427,24 +427,21 @@ class Condition(QueryNode):
                 raise ValueError('Unknown attribute comparator: %s' % (self.comparator,))
 
         elif prop_type == ContactQuery.PROP_SCHEME:
-            if org.is_anon:
-                return False
-            else:
-                for urn in contact_json.get('urns'):
-                    if urn.get('scheme') == field:
-                        contact_value = urn.get('path').upper()
-                        query_value = self.value.upper()
+            for urn in contact_json.get('urns'):
+                if urn.get('scheme') == field:
+                    contact_value = urn.get('path').upper()
+                    query_value = self.value.upper()
 
-                        if self.comparator == '=':
-                            if contact_value == query_value:
-                                return True
-                        elif self.comparator == '~':
-                            if query_value in contact_value:
-                                return True
-                        else:  # pragma: no cover
-                            raise ValueError('Unknown urn scheme comparator: %s' % (self.comparator,))
+                    if self.comparator == '=':
+                        if contact_value == query_value:
+                            return True
+                    elif self.comparator == '~':
+                        if query_value in contact_value:
+                            return True
+                    else:  # pragma: no cover
+                        raise ValueError('Unknown urn scheme comparator: %s' % (self.comparator,))
 
-                return False
+            return False
 
         else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
@@ -517,7 +514,7 @@ class IsSetCondition(Condition):
             where_not_set = Q(**{prop_obj: ""}) | Q(**{prop_obj: None})
             return ~where_not_set if is_set else where_not_set
 
-    def evaluate(self, org, contact_json, prop_map):
+    def evaluate(self, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if self.comparator.lower() in self.IS_SET_LOOKUPS:
@@ -626,7 +623,7 @@ class IsSetCondition(Condition):
                     raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            contact_value = contact_json.get('name')
+            contact_value = contact_json.get(field)
 
             if contact_value in (None, ''):
                 if is_set:
@@ -640,21 +637,18 @@ class IsSetCondition(Condition):
                     return False
 
         elif prop_type == ContactQuery.PROP_SCHEME:
-            if org.is_anon:
-                return False
-            else:
-                urn_exists = next((urn for urn in contact_json.get('urns') if urn.get('scheme') == field), None)
+            urn_exists = next((urn for urn in contact_json.get('urns') if urn.get('scheme') == field), None)
 
-                if not urn_exists:
-                    if is_set:
-                        return False
-                    else:
-                        return True
+            if not urn_exists:
+                if is_set:
+                    return False
                 else:
-                    if is_set:
-                        return True
-                    else:
-                        return False
+                    return True
+            else:
+                if is_set:
+                    return True
+                else:
+                    return False
 
         else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
@@ -732,8 +726,8 @@ class BoolCombination(QueryNode):
     def as_query(self, org, prop_map, base_set):
         return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
 
-    def evaluate(self, org, contact_json, prop_map):
-        return reduce(self.op, [child.evaluate(org, contact_json, prop_map) for child in self.children])
+    def evaluate(self, contact_json, prop_map):
+        return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
 
     def as_text(self):
         op = ' OR ' if self.op == self.OR else ' AND '
@@ -918,9 +912,10 @@ def parse_query(text, optimize=True, as_anon=False):
     return query.optimized() if optimize else query
 
 
-def evaluate_query(org, text, optimize=True, as_anon=False, contact_json=dict):
+def evaluate_query(org, text, contact_json=dict):
+    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
 
-    return parse_query(text, optimize=True, as_anon=False).evaluate(org, contact_json)
+    return parsed.evaluate(org, contact_json)
 
 
 def contact_search(org, text, base_queryset, base_set):
