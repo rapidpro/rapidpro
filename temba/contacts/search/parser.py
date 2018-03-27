@@ -412,7 +412,7 @@ class Condition(QueryNode):
                 else:  # pragma: no cover
                     raise ValueError('Unknown location comparator: %s' % (self.comparator,))
 
-            else:
+            else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
         elif prop_type == ContactQuery.PROP_SCHEME:
