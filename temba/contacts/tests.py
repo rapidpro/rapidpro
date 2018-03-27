@@ -3907,6 +3907,18 @@ class ContactTest(TembaTest):
             }
         )
 
+        # numeric field values that could be NaN, we don't support that
+        self.joe.set_field(self.user, 'dog', "NaN")
+        self.joe.refresh_from_db()
+        self.assertEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {
+                    "text": "NaN",
+                }
+            }
+        )
+
         # datetime instead
         self.joe.set_field(self.user, 'dog', "2018-03-05T02:31:00.000Z")
         self.joe.refresh_from_db()

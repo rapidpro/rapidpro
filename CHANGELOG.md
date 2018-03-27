@@ -1,3 +1,23 @@
+v3.0.346
+----------
+ * Don't start archived flows
+ * Don't show stale dates on campaign events
+ * Allow brands to configure flow types
+ * Remove group search from send to others action
+ * Fixes for test contact activity
+
+v3.0.345
+----------
+ * Migration to backfill run.events and add step uuids to run.path
+ * Do the right thing when we are presented with NaN decimals
+
+v3.0.344
+----------
+ * Use real JSONField for FlowRun.events
+ * Add FlowRun.events and start populating with msg events for new runs
+ * Serialize Contact.fields in test_db
+ * Update to latest goflow release
+
 v3.0.342
 ----------
  * Fix for decimal values in JSON fields attribute
