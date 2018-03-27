@@ -9446,9 +9446,10 @@ class BackfillRunEventsTest(MigrationTest):
     def setUpBeforeMigration(self, apps):
         self.contact1 = self.create_contact("Joe", number='+250783835555')
         self.contact2 = self.create_contact("Frank", number='+250783836666')
+        self.contact3 = self.create_contact("Jimmy", number='+250783837777')
         self.flow = self.get_flow('favorites')
 
-        contact1_run, contact2_run = self.flow.start([], [self.contact1, self.contact2])
+        contact1_run, contact2_run, contact3_run = self.flow.start([], [self.contact1, self.contact2, self.contact3])
 
         def remove_step_uuid(path_step):
             return {k: v for k, v in six.iteritems(path_step) if k != 'uuid'}
@@ -9458,6 +9459,12 @@ class BackfillRunEventsTest(MigrationTest):
         contact1_run.events = []
         contact1_run.save(update_fields=('path', 'events'))
 
+        # make run #3 look like that and delete it's steps like we used to when flows were deleted
+        contact3_run.path = [remove_step_uuid(s) for s in contact1_run.path]
+        contact3_run.events = []
+        contact3_run.save(update_fields=('path', 'events'))
+        contact3_run.steps.all().delete()
+
         squash_flowruncounts()
         squash_flowpathcounts()
 
@@ -9465,7 +9472,7 @@ class BackfillRunEventsTest(MigrationTest):
         action_set1, action_set3, action_set3 = self.flow.action_sets.order_by('y')[:3]
         rule_set1, rule_set2 = self.flow.rule_sets.order_by('y')[:2]
 
-        contact1_run, contact2_run = FlowRun.objects.order_by('contact__id')
+        contact1_run, contact2_run, contact3_run = FlowRun.objects.order_by('contact__id')
         contact1_msgs = Msg.objects.filter(contact=self.contact1).order_by('id')
         contact2_msgs = Msg.objects.filter(contact=self.contact2).order_by('id')
 
@@ -9522,6 +9529,22 @@ class BackfillRunEventsTest(MigrationTest):
                 'step_uuid': contact2_run.path[0]['uuid']
             }
         ])
+
+        # contact #3 should have step uuids in their path, but no events because we nuked the steps
+        self.assertEqual(contact3_run.path, [
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set1.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate()
+            }
+        ])
+        self.assertEqual(contact3_run.events, [])
 
         # check that modifying paths didn't create extra counts
         self.assertEqual(FlowPathCount.objects.count(), 1)
