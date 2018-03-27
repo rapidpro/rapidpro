@@ -1331,8 +1331,8 @@ class ContactTest(TembaTest):
             self.assertFalse(evaluate_query(self.org, 'name = "joe Blow" AND tel = +250781111111', contact_json=self.joe.as_search_json()))
 
             # this will be parsed as search for contact id
-            self.assertTrue(evaluate_query(self.org, self.joe.pk, contact_json=self.joe.as_search_json()))
-            self.assertFalse(evaluate_query(self.org, 0, contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, six.text_type(0), contact_json=self.joe.as_search_json()))
 
     def test_contact_search_parsing(self):
         # implicit condition on name
