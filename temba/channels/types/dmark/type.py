@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import six
 
@@ -27,6 +28,19 @@ class DMarkType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 459
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.dk' channel.uuid 'receive' %}",
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iso8601
 import json
@@ -28,7 +28,7 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from uuid import uuid4
-from urllib import quote_plus
+from six.moves.urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
 from .serializers import format_datetime
@@ -73,7 +73,6 @@ class APITest(TembaTest):
             url += '.json'
             if query:
                 url += ('?' + query)
-
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
         # this will fail if our response isn't valid json
@@ -157,8 +156,7 @@ class APITest(TembaTest):
 
         response = self.client.get(reverse('api.v2.fields') + '.json', content_type="application/json",
                                    HTTP_X_FORWARDED_HTTPS='https')
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
+        self.assertContains(response, "Server Error. Site administrators have been notified.", status_code=500)
 
     def test_serializer_fields(self):
         group = self.create_group("Customers")
@@ -387,7 +385,7 @@ class APITest(TembaTest):
         # fetch as HTML
         response = self.fetchHTML(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form'].fields.keys(), ['username', 'password', 'role', 'loc'])
+        self.assertEqual(list(response.context['form'].fields.keys()), ['username', 'password', 'role', 'loc'])
 
         admins = Group.objects.get(name='Administrators')
         surveyors = Group.objects.get(name='Surveyors')
@@ -1815,6 +1813,11 @@ class APITest(TembaTest):
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
+        # a group which is being re-evaluated
+        unready = self.create_group("Big Group", query="isdeveloper=NO")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=('status',))
+
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
@@ -1826,8 +1829,27 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertEqual(resp_json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = \"YES\"", 'count': 0},
-            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
+            {
+                'uuid': unready.uuid,
+                'name': "Big Group",
+                'query': 'isdeveloper = "NO"',
+                'status': 'evaluating',
+                'count': 0
+            },
+            {
+                'uuid': developers.uuid,
+                'name': "Developers",
+                'query': "isdeveloper = \"YES\"",
+                'status': 'ready',
+                'count': 0
+            },
+            {
+                'uuid': customers.uuid,
+                'name': "Customers",
+                'query': None,
+                'status': 'ready',
+                'count': 1
+            },
         ])
 
         # filter by UUID
@@ -1851,7 +1873,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         reporters = ContactGroup.user_groups.get(name="Reporters")
-        self.assertEqual(response.json(), {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
+        self.assertEqual(response.json(), {
+            'uuid': reporters.uuid,
+            'name': "Reporters",
+            'query': None,
+            'status': 'ready',
+            'count': 0
+        })
 
         # try to create another group with same name
         response = self.postJSON(url, None, {'name': "reporters"})
@@ -2341,7 +2369,7 @@ class APITest(TembaTest):
                     'value': "blue",
                     'category': "Blue",
                     'node': color_ruleset.uuid,
-                    'time': format_datetime(iso8601.parse_date(joe_run1.get_results()['color']['created_on']))
+                    'time': format_datetime(iso8601.parse_date(joe_run1.results['color']['created_on']))
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
@@ -2636,14 +2664,14 @@ class APITest(TembaTest):
 
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
-                                             data=json.dumps(dict(event='new mother',
-                                                                  values=dict(name="Greg"),
-                                                                  steps=dict(uuid='abcde'))),
+                                             data=dict(event='new mother',
+                                                       values=dict(name="Greg"),
+                                                       steps=dict(uuid='abcde')),
                                              created_by=self.admin, modified_by=self.admin)
         event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
-                                             data=json.dumps(dict(event='new father',
-                                                                  values=dict(name="Yo"),
-                                                                  steps=dict(uuid='12345'))),
+                                             data=dict(event='new father',
+                                                       values=dict(name="Yo"),
+                                                       steps=dict(uuid='12345')),
                                              created_by=self.admin, modified_by=self.admin)
 
         # no filtering
@@ -2672,9 +2700,9 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(str(uuid4()),
-                                                       dict(base="Hi @extra.first_name @extra.last_name, "
-                                                                 "what's your favorite color?")).as_json()])
+        first_action.actions = [ReplyAction(str(uuid4()),
+                                            dict(base="Hi @extra.first_name @extra.last_name, "
+                                                      "what's your favorite color?")).as_json()]
         first_action.save()
 
         # try to create an empty flow start
@@ -2690,7 +2718,7 @@ class APITest(TembaTest):
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
         self.assertTrue(start1.restart_participants)
-        self.assertIsNone(start1.extra)
+        self.assertEqual(start1.extra, {})
 
         # check our first msg
         msg = Msg.objects.get(direction='O', contact=self.joe)

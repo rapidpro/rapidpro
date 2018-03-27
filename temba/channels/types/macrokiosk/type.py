@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import time
@@ -31,6 +32,25 @@ class MacrokioskType(ChannelType):
     max_length = 1600
 
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Inbound URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'receive' %}",
+            description=_("This endpoint should be called by MACROKIOSK when new messages are received to your number."),
+        ),
+        dict(
+            label=_("DLR URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'status' %}",
+            description=_("This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"),
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

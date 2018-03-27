@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import requests
@@ -33,6 +34,20 @@ class SMSCentralType(ChannelType):
     max_tps = 1
 
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Inbound URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.sc' channel.uuid 'receive' %}",
+            description=_("This endpoint should be called by SMSCentral when new messages are received to your number.")
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

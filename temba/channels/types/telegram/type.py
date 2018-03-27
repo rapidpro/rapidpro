@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import requests
 import telegram
@@ -37,12 +38,12 @@ class TelegramType(ChannelType):
     free_sending = True
 
     def activate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         bot = telegram.Bot(config['auth_token'])
         bot.set_webhook("https://" + channel.callback_domain + reverse('courier.tg', args=[channel.uuid]))
 
     def deactivate(self, channel):
-        config = channel.config_json()
+        config = channel.config
         bot = telegram.Bot(config['auth_token'])
         bot.delete_webhook()
 

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -21,7 +22,7 @@ class FacebookTypeTest(TembaTest):
     @patch('requests.get')
     @patch('requests.post')
     def test_claim(self, mock_post, mock_get):
-        url = reverse('channels.claim_facebook')
+        url = reverse('channels.types.facebook.claim')
 
         self.login(self.admin)
 
@@ -49,12 +50,12 @@ class FacebookTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address='10')
-        self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
-        self.assertEqual(channel.config_json()[Channel.CONFIG_PAGE_NAME], 'Temba')
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], token)
+        self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], 'Temba')
         self.assertEqual(channel.address, '10')
 
         # should be on our configuration page displaying our secret
-        self.assertContains(response, channel.config_json()[Channel.CONFIG_SECRET])
+        self.assertContains(response, channel.config[Channel.CONFIG_SECRET])
 
         # test validating our secret
         handler_url = reverse('courier.fb', args=['invalid'])
@@ -68,7 +69,7 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # test actual token
-        payload['hub.verify_token'] = channel.config_json()[Channel.CONFIG_SECRET]
+        payload['hub.verify_token'] = channel.config[Channel.CONFIG_SECRET]
 
         # try with unsuccessful callback to subscribe (this fails silently)
         mock_post.return_value = MockResponse(400, json.dumps({'success': True}))

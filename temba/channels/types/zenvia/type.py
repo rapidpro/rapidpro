@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import six
 
@@ -26,6 +27,25 @@ class ZenviaType(ChannelType):
     max_length = 150
 
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Status URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.zv' channel.uuid 'status' %}",
+            description=_("To receive delivery and acknowledgement of sent messages, you need to set the status URL for your Zenvia account.")
+        ),
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.zv' channel.uuid 'receive' %}",
+            description=_("To receive incoming messages, you need to set the receive URL for your Zenvia account.")
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

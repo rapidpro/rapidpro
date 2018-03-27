@@ -1,3 +1,78 @@
+v3.0.334
+----------
+ * Add response to external ID to courier serialized msg if we have response to
+ * More Py3 migration work
+ * Remove broadcasting to groups from Send Message dialog
+
+v3.0.332
+----------
+ * Do not delete RuleSets only disconnect them from flows
+
+v3.0.331
+----------
+ * Fix scoping for sim show/hide
+
+v3.0.330
+----------
+ * Allow toggling of new engine on demand with /v2 command in simulator
+
+v3.0.329
+----------
+ * Fix negative cache ttl for topups
+
+v3.0.328
+----------
+ * Remove Vumi Type
+ * Remove custom autoscaler for Celery
+ * Implement Plivo without Plivo library
+
+v3.0.325
+----------
+ * Build dynamic groups in background thread
+ * Dynamic Channel changes, use uuids in URLs, allow custom views
+ * Allow WhatsApp channels to refresh contacts manually
+ * Allow brands to specifiy includes for the document head
+ * Fix external claim page, rename auth_urn for courier
+ * Change VB channel type to be a dynamic channel
+ * Remove unused templates
+
+v3.0.324
+----------
+ * Add ability to run select flows against a flowserver instance
+
+v3.0.323
+----------
+ * Move JioChat access creation to channel task
+ * Use 'list()' on python3 dict iterators
+ * Use analytics-python===1.2.9, python3 compatible
+ * Fix using PlayAction in simulator and add tests
+ * Fix HasEmailTest to strip surrounding punctuation
+ * ContainsPhraseTest shouldn't blow up if test string is empty
+ * Use 'six' library for urlparse, urlencode
+
+v3.0.322
+----------
+ * Unfreeze phonenumbers library so we always use latest
+ * Remove old Viber VI channel type
+ * Add config template for LN channel type
+ * Move configuration blurbs to channel types
+ * Move to use new custom model JSONAsTextField where appropriate
+
+v3.0.321
+----------
+ * Fix quick-reply button in flow editor
+
+v3.0.320
+----------
+ * Fix webhook rule as first step in run interpreting msg wrong
+ * Change mailto URN importing to use header 'mailto' and make 'email' always a field. Rename 'mailto' fields to 'email'.
+
+v3.0.319
+----------
+ * Add ArabiaCell channel type
+ * Tweaks to Mtarget channel type
+ * Pathfix for highcharts
+
 v3.0.318
 ----------
  * Add input to webhook payload

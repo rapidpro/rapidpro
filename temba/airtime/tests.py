@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.core.urlresolvers import reverse
 from mock import patch
@@ -42,19 +43,18 @@ class AirtimeEventTest(TembaTest):
             model_obj_response = self.airtime.response
 
             response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', action='ping')
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
 
             self.assertEqual(mock_post.call_count, 1)
             self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
-            self.assertTrue('action' in mock_args.keys())
-            self.assertTrue('login' in mock_args.keys())
-            self.assertTrue('key' in mock_args.keys())
-            self.assertTrue('md5' in mock_args.keys())
+            self.assertIn('action', mock_args.keys())
+            self.assertIn('login', mock_args.keys())
+            self.assertIn('key', mock_args.keys())
+            self.assertIn('md5', mock_args.keys())
 
-            self.assertTrue('ping' in mock_args.values())
-            self.assertTrue('login_acc' in mock_args.values())
+            self.assertIn('ping', mock_args.values())
+            self.assertIn('login_acc', mock_args.values())
 
             self.airtime.refresh_from_db()
             # model not changed since not passed in args
@@ -64,18 +64,17 @@ class AirtimeEventTest(TembaTest):
 
             response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', airtime_obj=self.airtime,
                                                                     action='ping')
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
             self.assertEqual(mock_post.call_count, 1)
             self.assertEqual('https://airtime.transferto.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
             mock_args = mock_post.call_args_list[0][0][1]
-            self.assertTrue('action' in mock_args.keys())
-            self.assertTrue('login' in mock_args.keys())
-            self.assertTrue('key' in mock_args.keys())
-            self.assertTrue('md5' in mock_args.keys())
+            self.assertIn('action', mock_args.keys())
+            self.assertIn('login', mock_args.keys())
+            self.assertIn('key', mock_args.keys())
+            self.assertIn('md5', mock_args.keys())
 
-            self.assertTrue('ping' in mock_args.values())
-            self.assertTrue('login_acc' in mock_args.values())
+            self.assertIn('ping', mock_args.values())
+            self.assertIn('login_acc', mock_args.values())
 
             self.airtime.refresh_from_db()
             # model changed since it is passed in args
@@ -89,8 +88,7 @@ class AirtimeEventTest(TembaTest):
 
         with self.settings(SEND_AIRTIME=True):
             response = self.airtime.get_transferto_response(action='command')
-            self.assertEqual(200, response.status_code)
-            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertContains(response, "foo=allo\r\nbar=1,2,3\r\n")
 
             mock_post_transferto.assert_called_once_with('mylogin', 'api_token', airtime_obj=self.airtime,
                                                          action='command')

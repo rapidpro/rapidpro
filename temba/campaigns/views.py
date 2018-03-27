@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -44,7 +45,7 @@ class CampaignActionMixin(SmartListView):
 
 
 class UpdateCampaignForm(forms.ModelForm):
-    group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
+    group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.none(),
                                    required=True, label="Group",
                                    help_text="Which group this campaign operates on")
 
@@ -54,7 +55,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
         super(UpdateCampaignForm, self).__init__(*args, **kwargs)
         self.fields['group'].initial = self.instance.group
-        self.fields['group'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['group'].queryset = ContactGroup.get_user_groups(self.user.get_org(), ready_only=False)
 
     class Meta:
         model = Campaign
@@ -128,12 +129,9 @@ class CampaignCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         class CampaignForm(forms.ModelForm):
             def __init__(self, user, *args, **kwargs):
-                self.user = user
                 super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
 
-                group = self.fields['group']
-                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org()).order_by('name')
-                group.user = user
+                self.fields['group'].queryset = ContactGroup.get_user_groups(user.get_org()).order_by('name')
 
             class Meta:
                 model = Campaign

@@ -1,15 +1,18 @@
-from __future__ import absolute_import, print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import hashlib
 import hmac
 import json
 import requests
-import urllib
+
+from six.moves.urllib.parse import quote_plus
 
 from django.conf import settings
 from django.db.models import Model
 from django.utils.http import urlencode
+from django.utils.encoding import force_bytes, force_text
 from twython import Twython
 from twython import TwythonAuthError
 from twython import TwythonError
@@ -28,7 +31,7 @@ class TembaTwython(Twython):  # pragma: no cover
     @classmethod
     def from_channel(cls, channel):
         # could be passed a ChannelStruct or a Channel model instance
-        config = channel.config_json() if isinstance(channel, Model) else channel.config
+        config = channel.config if isinstance(channel, Model) else channel.config
 
         # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
         if 'api_key' in config:
@@ -155,7 +158,7 @@ class TembaTwython(Twython):  # pragma: no cover
         Registers a new webhook URL for the given application context.
         Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
         """
-        set_webhook_url = 'https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json?url=%s' % (env_name, urllib.quote_plus(url))
+        set_webhook_url = 'https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json?url=%s' % (env_name, quote_plus(url))
         return self.post(set_webhook_url)
 
     def subscribe_to_webhook(self, env_name):
@@ -167,5 +170,5 @@ class TembaTwython(Twython):  # pragma: no cover
 
 
 def generate_twitter_signature(content, consumer_secret):
-    token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
-    return 'sha256=' + base64.standard_b64encode(token)
+    token = hmac.new(force_bytes(consumer_secret.encode('ascii')), msg=force_bytes(content), digestmod=hashlib.sha256).digest()
+    return 'sha256=' + force_text(base64.standard_b64encode(token))

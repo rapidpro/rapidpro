@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import requests
@@ -31,6 +32,20 @@ class ShaqodoonType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery
+        URL for incoming messages to {{ channel.address }}.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_(""),
+            url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

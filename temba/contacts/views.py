@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import regex
@@ -98,8 +99,13 @@ class ContactGroupForm(forms.ModelForm):
     def clean_query(self):
         try:
             parsed_query = parse_query(text=self.cleaned_data['query'], as_anon=self.org.is_anon)
+            cleaned_query = parsed_query.as_text()
+
+            if self.instance and self.instance.status != ContactGroup.STATUS_READY and cleaned_query != self.instance.query:
+                raise forms.ValidationError(_('You cannot update the query of a group that is evaluating.'))
+
             if parsed_query.can_be_dynamic_group():
-                return parsed_query.as_text()
+                return cleaned_query
             else:
                 raise forms.ValidationError(
                     _('You cannot create a dynamic group based on "name" or "id".')
@@ -184,13 +190,22 @@ class ContactListView(OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        groups = list(ContactGroup.user_groups.filter(org=org).select_related('org').order_by(Upper('name')))
+        groups = (
+            ContactGroup.get_user_groups(org, ready_only=False)
+            .select_related('org')
+            .order_by(Upper('name'))
+        )
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
         for g in groups:
             rendered.append({
-                'pk': g.id, 'uuid': g.uuid, 'label': g.name, 'count': group_counts[g], 'is_dynamic': g.is_dynamic
+                'pk': g.id,
+                'uuid': g.uuid,
+                'label': g.name,
+                'count': group_counts[g],
+                'is_dynamic': g.is_dynamic,
+                'is_ready': g.status == ContactGroup.STATUS_READY
             })
 
         return rendered
@@ -290,7 +305,7 @@ class ContactForm(forms.ModelForm):
 
                 last_urn = urn
 
-        self.fields = OrderedDict(self.fields.items() + extra_fields)
+        self.fields = OrderedDict(list(self.fields.items()) + extra_fields)
 
     def clean(self):
         country = self.org.get_country_code()
@@ -442,7 +457,7 @@ class ContactCRUDL(SmartCRUDL):
                             raise forms.ValidationError(_("%s should be used once") % field_label)
 
                         existing_key = existing_contact_fields_map.get(field_label, None)
-                        if existing_key and existing_key in Contact.RESERVED_FIELDS:
+                        if existing_key and existing_key in Contact.RESERVED_FIELD_KEYS:
                             raise forms.ValidationError(_("'%s' contact field has '%s' key which is reserved name. "
                                                           "Column cannot be imported") % (value, existing_key))
 
@@ -509,7 +524,7 @@ class ContactCRUDL(SmartCRUDL):
                     (type_field_name, type_field)
                 ]
 
-                self.form.fields = OrderedDict(self.form.fields.items() + fields)
+                self.form.fields = OrderedDict(list(self.form.fields.items()) + fields)
 
                 column_controls.append(dict(header=header,
                                             include_field=include_field_name,
@@ -1225,9 +1240,15 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs['user'] = self.request.user
             return kwargs
 
+        def form_valid(self, form):
+            self.prev_query = self.get_object().query
+
+            return super(ContactGroupCRUDL.Update, self).form_valid(form)
+
         def post_save(self, obj):
             obj = super(ContactGroupCRUDL.Update, self).post_save(obj)
-            if obj.query:
+
+            if obj.query and obj.query != self.prev_query:
                 obj.update_query(obj.query)
             return obj
 
@@ -1399,7 +1420,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 
-            form.fields = OrderedDict(form.fields.items() + added_fields)
+            form.fields = OrderedDict(list(form.fields.items()) + added_fields)
 
             return form
 

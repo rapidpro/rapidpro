@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import pytz
@@ -118,12 +119,12 @@ class ScheduleTest(TembaTest):
         # test missing recipients
         post_data = dict(text="message content", omnibox="", sender=self.channel.pk, _format="json", schedule=True)
         response = self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True)
-        self.assertIn("At least one recipient is required", response.content)
+        self.assertContains(response, "At least one recipient is required")
 
         # missing message
         post_data = dict(text="", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
         response = self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True)
-        self.assertIn("This field is required", response.content)
+        self.assertContains(response, "This field is required")
 
         # finally create our message
         post_data = dict(text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, schedule=True)

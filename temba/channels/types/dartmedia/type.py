@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import requests
@@ -35,6 +36,38 @@ class DartMediaType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 160
     attachment_support = False
+
+    show_public_addresses = True
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Dart Media connection you'll need to provide them with the following details.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Received URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.da' channel.uuid 'receive' %}",
+            description=_(
+                """
+                This endpoint should be called by Dart Media when new messages are received to your number.
+                You can set the receive URL on your Dart Media account by contacting your sales agent.
+                """
+            )
+        ),
+        dict(
+            label=_("Delivered URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.da' channel.uuid 'delivered' %}",
+            description=_(
+                """
+                This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports)
+                You can set the delivery callback URL on your Dart Media account by contacting your sales agent.
+                """
+            )
+        ),
+
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

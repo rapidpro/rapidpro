@@ -1,4 +1,5 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
 import json
@@ -87,7 +88,7 @@ class DictStruct(object):
 
     def __getattr__(self, item):
         if item not in self._values:
-            raise Exception("%s does not have a %s field" % (self._classname, item))
+            raise AttributeError("%s does not have a %s field" % (self._classname, item))
 
         return self._values[item]
 
@@ -97,7 +98,7 @@ class DictStruct(object):
             return object.__setattr__(self, item, value)
 
         if item not in self._values:
-            raise Exception("%s does not have a %s field" % (self._classname, item))
+            raise AttributeError("%s does not have a %s field" % (self._classname, item))
 
         self._values[item] = value
 
