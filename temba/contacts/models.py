@@ -1274,7 +1274,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if uuid and not urns and not language and not name:
             contact = Contact.objects.filter(uuid=uuid).first()
             if not contact:
-                return None
+                raise SmartImportRowError("No contact found with uuid: %s" % uuid)
 
         else:
             # create new contact or fetch existing one
