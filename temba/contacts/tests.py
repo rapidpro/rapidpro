@@ -3405,27 +3405,15 @@ class ContactTest(TembaTest):
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
             # import contact with uuid column to group the contacts
             self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
-                                     dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
+                                     dict(records=2, errors=1, creates=0, updates=2,
+                                          error_messages=[{"error": "No contact found with uuid: uuid-3333", "line": 3}]))
 
-            # one lock for the create
-            self.assertEqual(mock_lock.call_count, 1)
+            # no locks
+            self.assertEqual(mock_lock.call_count, 0)
 
         self.assertEqual(1, Contact.objects.filter(name='Bob').count())
         self.assertEqual(1, Contact.objects.filter(name='Kobe').count())
         self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
-
-        with AnonymousOrg(self.org):
-            with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-                # import contact with uuid column to group the contacts for anon org
-                self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
-                                         dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
-
-                # one lock for the create
-                self.assertEqual(mock_lock.call_count, 1)
-
-            self.assertEqual(1, Contact.objects.filter(name='Bob').count())
-            self.assertEqual(1, Contact.objects.filter(name='Kobe').count())
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
