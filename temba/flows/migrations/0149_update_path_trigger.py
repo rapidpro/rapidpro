@@ -57,7 +57,7 @@ BEGIN
     -- if there are no changes that effect path/node counts, bail
     IF TG_OP = 'UPDATE'
         AND _old_path_len = _new_path_len
-        AND _old_path_json->(_old_path_len-1) ? 'exit_uuid' = _new_path_json->(_new_path_len-1) ? 'exit_uuid'
+        AND COALESCE(_old_path_json->(_old_path_len-1)->>'exit_uuid', '') = COALESCE(_new_path_json->(_new_path_len-1)->>'exit_uuid', '')
         AND NEW.is_active = OLD.is_active
     THEN
       RETURN NULL;
