@@ -9503,6 +9503,9 @@ class BackfillRunEventsTest(MigrationTest):
         squash_flowruncounts()
         squash_flowpathcounts()
 
+        self.num_flow_path_counts = FlowPathCount.objects.count()
+        self.num_flow_node_counts = FlowNodeCount.objects.count()
+
     def test_events_created(self):
         action_set1, action_set3, action_set3 = self.flow1.action_sets.order_by('y')[:3]
         rule_set1, rule_set2 = self.flow1.rule_sets.order_by('y')[:2]
@@ -9639,5 +9642,5 @@ class BackfillRunEventsTest(MigrationTest):
         self.assertEqual(contact7_run.path[0]['exit_uuid'], contact7_run.path[0]['exit_uuid'])
 
         # check that modifying paths didn't create extra counts
-        self.assertEqual(FlowPathCount.objects.count(), 2)
-        self.assertEqual(FlowNodeCount.objects.count(), 4)
+        self.assertEqual(FlowPathCount.objects.count(), self.num_flow_path_counts)
+        self.assertEqual(FlowNodeCount.objects.count(), self.num_flow_node_counts)
