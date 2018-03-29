@@ -1195,6 +1195,9 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'state', "State", value_type=Value.TYPE_STATE)
         ContactField.get_or_create(self.org, self.admin, 'empty_state', "Empty State", value_type=Value.TYPE_STATE)
 
+        # test contact without any field data
+        self.assertFalse(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+
         self.joe.set_field(self.admin, 'gender', 'Male')
         self.joe.set_field(self.admin, 'age', 18)
         self.joe.set_field(self.admin, 'joined', '01-03-2018')

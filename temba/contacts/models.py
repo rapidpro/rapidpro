@@ -574,7 +574,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             obj['urns'] = [dict(scheme=urn.scheme, path=urn.path, priority=urn.priority) for urn in self.urns.all()]
 
-        obj['fields'] = self.fields
+        obj['fields'] = self.fields if self.fields else {}
 
         return obj
 

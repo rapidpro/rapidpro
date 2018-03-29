@@ -345,6 +345,9 @@ class Condition(QueryNode):
             field_uuid = six.text_type(field.uuid)
             contact_fields = contact_json.get('fields')
 
+            if field_uuid not in contact_fields:
+                return False
+
             if field.value_type == Value.TYPE_DECIMAL:
 
                 query_value = self._parse_decimal(self.value)
