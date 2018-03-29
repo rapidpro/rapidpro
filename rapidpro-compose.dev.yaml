@@ -1,7 +1,7 @@
 version: '2'
 services:
   rapidpro:
-    image: rapidpro/rapidpro:v3.0.318
+    image: rapidpro/rapidpro:v3.0.334
     depends_on:
       - redis
       - postgresql
@@ -23,7 +23,7 @@ services:
       - ./static/brands/pulse:/rapidpro/static/brands/pulse
       - ./pulse_settings.py:/rapidpro/temba/settings.py
   celery:
-    image: rapidpro/rapidpro:v3.0.318
+    image: rapidpro/rapidpro:v3.0.334
     depends_on:
       - rapidpro
     links:
