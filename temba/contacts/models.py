@@ -1270,9 +1270,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if language is not None and _get_language_name_iso6393(language) is None:
             raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
 
-        # create new contact or fetch existing one
-        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language,
-                                                force_urn_update=True)
+        # if this is just a UUID import, look up the contact directly
+        if uuid and not urns and not language and not name:
+            contact = Contact.objects.filter(uuid=uuid).first()
+            if not contact:
+                return None
+
+        else:
+            # create new contact or fetch existing one
+            contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language,
+                                                    force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
@@ -1297,7 +1304,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             contact_field_keys_updated.add(key)
 
         # to handle dynamic groups and campaign events updates
-        contact.handle_update_contact(field_keys=contact_field_keys_updated)
+        if contact_field_keys_updated:
+            contact.handle_update_contact(field_keys=contact_field_keys_updated)
 
         return contact
 
