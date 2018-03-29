@@ -1196,7 +1196,7 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'empty_state', "Empty State", value_type=Value.TYPE_STATE)
 
         # test contact without any field data
-        self.assertFalse(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
 
         self.joe.set_field(self.admin, 'gender', 'Male')
         self.joe.set_field(self.admin, 'age', 18)
@@ -1206,124 +1206,122 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.admin, 'state', 'Rwanda > Eastern Province')
 
         # evaluator can't be used with Contact attributes (name, id)
-        self.assertRaises(ValueError, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json)
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json())
 
-        self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'gender = Female', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'gender = Female', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'age = 18', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'age > 20', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'age <= 17', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'age < 20', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'age = 18', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age > 20', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age <= 17', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'age < 20', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'joined > 01-04-2018', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'joined >= 01-03-2018', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined > 01-04-2018', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined >= 01-03-2018', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json()))
 
         # setting value to a non number, removes Contact.fields 'decimal' value, field still exists but it's not set
         self.joe.set_field(self.admin, 'empty_age', 'asd')
-        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_gender != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_gender = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_gender != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_gender = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json()))
 
         # setting value to a non datetime, removes Contact.fields 'datetime' value, field still exists but it's not set
         self.joe.set_field(self.admin, 'empty_joined', 'asd')
-        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json()))
 
         # setting value to a non ward, removes Contact.fields 'ward' value, field still exists but it's not set
         self.joe.set_field(self.admin, 'empty_ward', 'asd')
-        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json()))
 
         # setting value to a non district, removes Contact.fields 'district' value, field still exists but it's not set
         self.joe.set_field(self.admin, 'empty_district', 'asd')
-        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json()))
 
         # setting value to a non state, removes Contact.fields 'state' value, field still exists but it's not set
         self.joe.set_field(self.admin, 'empty_state', 'asd')
-        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json()))
 
         # ATTR is set
-        self.assertRaises(ValueError, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json)
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json())
 
         # URN is set
-        self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'twitter = ""', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'twitter = ""', contact_json=self.joe.as_search_json()))
 
-        self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.billy.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_search_json))
+        self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.billy.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_search_json()))
 
         # add another tel URN
         self.joe.update_urns(self.admin, urns=['tel:+250781111999', 'tel:+250781111111', 'twitter:blow80'])
 
-        self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'tel = +250781111999', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'tel has 278', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'tel = +250781111999', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'tel has 278', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json()))
 
-        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND age < 19', contact_json=self.joe.as_search_json))
-        self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND age > 19', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 OR age > 19', contact_json=self.joe.as_search_json))
-        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND age < 19', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 OR age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json()))
 
         with AnonymousOrg(self.org):
-            # delete cached property, fix AnonymousOrg ContextManager
-            delattr(self.joe, 'as_search_json')
 
-            self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json))
-            self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json))
+            self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json()))
 
             # do not evaluate URN queries if org is anonymous
-            self.assertFalse(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_search_json))
-            self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json))
+            self.assertFalse(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
 
-            self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json))
+            self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
 
             # this will be parsed as search for contact id
-            self.assertRaises(ValueError, evaluate_query, self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json)
+            self.assertRaises(ValueError, evaluate_query, self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json())
 
     def test_contact_search_parsing(self):
         # implicit condition on name
@@ -1625,7 +1623,7 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(35):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         six.assertCountEqual(
@@ -4428,7 +4426,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(19):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
         six.assertCountEqual(
