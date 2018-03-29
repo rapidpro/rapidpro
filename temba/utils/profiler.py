@@ -5,7 +5,6 @@ import logging
 import six
 import django
 import textwrap
-import time
 import traceback
 
 from django.db.backends.utils import CursorWrapper
@@ -119,22 +118,3 @@ class QueryTracker(object):  # pragma: no cover
 
     def __str__(self):
         return self.__class__
-
-
-def time_monitor(threshold):
-    """
-    Method decorator to time a method call and log an error if time exceeds the given threshold in milliseconds.
-    """
-    def _time_monitor(func):
-        def wrapper(*args, **kwargs):
-            start = time.time()
-
-            result = func(*args, **kwargs)
-
-            time_taken = int(1000 * (time.time() - start))
-            if time_taken > threshold:
-                logger.error('Call to %s took %d milliseconds.' % (func.__name__, time_taken), extra={'stack': True})
-
-            return result
-        return wrapper
-    return _time_monitor
