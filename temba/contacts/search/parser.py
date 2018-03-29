@@ -72,10 +72,10 @@ class ContactQuery(object):
     def optimized(self):
         return ContactQuery(self.root.simplify().split_by_prop())
 
-    def as_query(self, org, base_set):
+    def as_query(self, org):
         prop_map = self.get_prop_map(org)
 
-        return self.root.as_query(org, prop_map, base_set)
+        return self.root.as_query(org, prop_map)
 
     def as_text(self):
         return self.root.as_text()
@@ -124,13 +124,6 @@ class ContactQuery(object):
 
         return not(prop_names.intersection(props_not_allowed))
 
-    def has_is_not_set_condition(self):
-        return 'NOTSET' in set(self.root.get_prop_comparators())
-
-    def has_urn_condition(self):
-        urn_search = set(self.root.get_prop_names()).intersection(self.SEARCHABLE_SCHEMES)
-        return bool(urn_search)
-
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -152,7 +145,7 @@ class QueryNode(object):
     def split_by_prop(self):
         return self
 
-    def as_query(self, org, prop_map, base_set):  # pragma: no cover
+    def as_query(self, org, prop_map):  # pragma: no cover
         pass
 
     def as_text(self):  # pragma: no cover
@@ -196,19 +189,16 @@ class Condition(QueryNode):
     def get_prop_names(self):
         return [self.prop]
 
-    def get_prop_comparators(self):
-        return [self.comparator]
-
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            return self._build_value_query(prop_obj, base_set)
+            return self._build_value_query(prop_obj)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return Q(id=-1)
             else:
-                return self._build_urn_query(org, prop_obj, base_set)
+                return self._build_urn_query(org, prop_obj)
         else:
             return self._build_attr_query(prop_obj)
 
@@ -219,23 +209,17 @@ class Condition(QueryNode):
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
-    def _build_urn_query(self, org, scheme, base_set):
+    def _build_urn_query(self, org, scheme):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException(_("Can't query contact URNs with %s") % self.comparator)
 
         urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
 
-        if base_set:
-            urns = urns.filter(contact__in=base_set)
-
         return Q(id__in=urns.values('contact_id'))
 
-    def _build_value_query(self, field, base_set):
+    def _build_value_query(self, field):
         value_contacts = self.get_base_value_query().filter(**self.build_value_query_params(field))
-
-        if base_set:
-            value_contacts = value_contacts.filter(contact__in=base_set)
 
         return Q(id__in=value_contacts)
 
@@ -457,10 +441,7 @@ class IsSetCondition(Condition):
     def __init__(self, prop, comparator):
         super(IsSetCondition, self).__init__(prop, comparator, "")
 
-    def get_prop_comparators(self):
-        return ['SET' if self.comparator.lower() in self.IS_SET_LOOKUPS else 'NOTSET']
-
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if self.comparator.lower() in self.IS_SET_LOOKUPS:
@@ -484,10 +465,6 @@ class IsSetCondition(Condition):
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % prop_obj.value_type)
 
-            # optimize for the single membership test case
-            if base_set:
-                values_query = values_query.filter(contact__in=base_set)
-
             return Q(id__in=values_query) if is_set else ~Q(id__in=values_query)
 
         elif prop_type == ContactQuery.PROP_SCHEME:
@@ -495,10 +472,6 @@ class IsSetCondition(Condition):
                 return Q(id=-1)
             else:
                 urns_query = ContactURN.objects.filter(org=org, scheme=prop_obj).values('contact_id')
-
-                # optimize for the single membership test case
-                if base_set:
-                    urns_query = urns_query.filter(contact__in=base_set)
 
                 return Q(id__in=urns_query) if is_set else ~Q(id__in=urns_query)
         else:
@@ -650,12 +623,6 @@ class BoolCombination(QueryNode):
             names += child.get_prop_names()
         return names
 
-    def get_prop_comparators(self):
-        comparators = []
-        for child in self.children:
-            comparators += child.get_prop_comparators()
-        return comparators
-
     def simplify(self):
         """
         The expression `x OR y OR z` will be parsed as `OR(OR(x, y), z)` but because the logical operators AND/OR are
@@ -701,8 +668,8 @@ class BoolCombination(QueryNode):
 
         return BoolCombination(self.op, *new_children)
 
-    def as_query(self, org, prop_map, base_set):
-        return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
+    def as_query(self, org, prop_map):
+        return reduce(self.op, [child.as_query(org, prop_map) for child in self.children])
 
     def evaluate(self, contact_json, prop_map):
         return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
@@ -739,7 +706,7 @@ class SinglePropCombination(BoolCombination):
 
         super(SinglePropCombination, self).__init__(op, *children)
 
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -749,7 +716,7 @@ class SinglePropCombination(BoolCombination):
             all_equality = all([child.comparator == '=' for child in self.children])
             if self.op == BoolCombination.OR and all_equality and prop_obj.value_type != Value.TYPE_DATETIME:
                 in_condition = Condition(self.prop, '=', [c.value for c in self.children])
-                return in_condition.as_query(org, prop_map, base_set)
+                return in_condition.as_query(org, prop_map)
 
             # otherwise just combine the Value sub-queries into a single one
             value_queries = []
@@ -760,12 +727,9 @@ class SinglePropCombination(BoolCombination):
             value_query = reduce(self.op, value_queries)
             value_contacts = Condition.get_base_value_query().filter(value_query).values('contact_id')
 
-            if base_set:
-                value_contacts = value_contacts.filter(contact__in=base_set)
-
             return Q(id__in=value_contacts)
 
-        return super(SinglePropCombination, self).as_query(org, prop_map, base_set)
+        return super(SinglePropCombination, self).as_query(org, prop_map)
 
     def __eq__(self, other):
         return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
@@ -896,15 +860,12 @@ def evaluate_query(org, text, contact_json=dict):
     return parsed.evaluate(org, contact_json)
 
 
-def contact_search(org, text, base_queryset, base_set):
+def contact_search(org, text, base_queryset):
     """
     Performs the given contact query on the given base queryset
     """
     parsed = parse_query(text, as_anon=org.is_anon)
-    query = parsed.as_query(org, base_set)
-
-    if base_set:
-        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
+    query = parsed.as_query(org)
 
     return base_queryset.filter(org=org).filter(query), parsed
 

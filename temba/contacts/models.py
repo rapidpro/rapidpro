@@ -1178,7 +1178,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_group=None, base_set=None):
+    def search(cls, org, query, base_group=None):
         """
         Performs a search of contacts within a group (system or user)
         """
@@ -1187,7 +1187,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not base_group:
             base_group = org.cached_all_contacts_group
 
-        return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
+        return contact_search(org, query, base_group.contacts.all())
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -2569,7 +2569,7 @@ class ContactGroup(TembaModel):
         self.status = ContactGroup.STATUS_READY
         self.save(update_fields=('status',))
 
-    def _get_dynamic_members(self, base_set=None, is_new=False):
+    def _get_dynamic_members(self):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
@@ -2579,16 +2579,9 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+            qs, parsed = Contact.search(self.org, self.query)
 
-            # if a contact has just been created than apply special contact search rules
-            if is_new:
-                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
-                    return qs, parsed
-                else:
-                    return Contact.objects.none(), None
-            else:
-                return qs, parsed
+            return qs, parsed
         except SearchException:  # pragma: no cover
             return Contact.objects.none(), None
 
