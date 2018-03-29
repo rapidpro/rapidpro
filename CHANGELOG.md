@@ -1,3 +1,7 @@
+v3.0.347
+----------
+ * Add modified_on index for elasticsearch
+
 v3.0.346
 ----------
  * Don't start archived flows
