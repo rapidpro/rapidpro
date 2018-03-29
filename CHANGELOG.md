@@ -1,3 +1,8 @@
+v3.0.348
+----------
+ * Fix off by one error in calculating best channel based on prefixes
+ * Reevaluate dynamic groups using local contact fields instead of SQL
+
 v3.0.347
 ----------
  * Add modified_on index for elasticsearch
