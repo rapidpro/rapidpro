@@ -22,6 +22,7 @@ from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.functional import cached_property
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -34,7 +35,6 @@ from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
@@ -566,6 +566,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return obj
 
+    @cached_property
     def as_search_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
 
@@ -1962,6 +1963,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
         """
+        # clear cached property
+        try:
+            delattr(self, 'as_search_json')
+        except AttributeError:
+            pass
+
         affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
 
         if for_field:
@@ -2595,14 +2602,16 @@ class ContactGroup(TembaModel):
         except SearchException:  # pragma: no cover
             return Contact.objects.none(), None
 
-    @time_monitor(threshold=10000)
     def _check_dynamic_membership(self, contact, is_new=False):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
+        from .search import evaluate_query
 
-        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
-        return qs.exists()
+        if contact.is_blocked or contact.is_stopped or contact.is_test:
+            return False
+        else:
+            return evaluate_query(self.org, self.query, contact_json=contact.as_search_json)
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
