@@ -84,7 +84,7 @@ def exit_uuid_for_step(step, prev_used, action_set_objs, cache):
 
     exit_uuid = cache.hget(CACHE_KEY_ACTIONSET_EXITS, step.step_uuid)
     if exit_uuid:
-        return exit_uuid
+        return str(exit_uuid)
 
     exit_uuid = str(uuid4())
     cache.hset(CACHE_KEY_ACTIONSET_EXITS, step.step_uuid, exit_uuid)
