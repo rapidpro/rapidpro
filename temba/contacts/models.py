@@ -571,7 +571,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if self.org.is_anon:
             obj['urns'] = []
         else:
-            obj['urns'] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.get_urns()]
+            obj['urns'] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
 
         obj['fields'] = self.fields if self.fields else {}
 
