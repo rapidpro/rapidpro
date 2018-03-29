@@ -34,7 +34,6 @@ from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import time_monitor
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.values.models import Value
@@ -566,6 +565,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return obj
 
+    def as_search_json(self):
+        obj = dict()
+
+        if self.org.is_anon:
+            obj['urns'] = []
+        else:
+            obj['urns'] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
+
+        obj['fields'] = self.fields if self.fields else {}
+
+        return obj
+
     def groups_as_text(self):
         groups = self.user_groups.all().order_by('name')
         groups_name_list = [group.name for group in groups]
@@ -883,7 +894,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if field or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field, is_new=is_new)
+            dynamic_group_change = self.reevaluate_dynamic_groups(field)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -1167,7 +1178,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_group=None, base_set=None):
+    def search(cls, org, query, base_group=None):
         """
         Performs a search of contacts within a group (system or user)
         """
@@ -1176,7 +1187,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not base_group:
             base_group = org.cached_all_contacts_group
 
-        return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
+        return contact_search(org, query, base_group.contacts.all())
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -1945,24 +1956,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None, is_new=False):
+    def reevaluate_dynamic_groups(self, for_field=None):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
         """
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
+        from .search import evaluate_query
 
+        # blocked, stopped or test contacts can't be in dynamic groups
+        if self.is_blocked or self.is_stopped or self.is_test:
+            return False
+
+        # cache contact search json
+        contact_search_json = self.as_search_json()
+        user = get_anonymous_user()
+
+        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
         if for_field:
             affected_dynamic_groups = affected_dynamic_groups.filter(query_fields=for_field)
 
-        group_change = False
-        for group in affected_dynamic_groups:
-            group.org = self.org
-            changed = group.reevaluate_contacts([self], is_new=is_new)
-            if changed:
-                group_change = True
+        changed = False
 
-        return group_change
+        for dynamic_group in affected_dynamic_groups:
+            dynamic_group.org = self.org
+
+            should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
+
+            changed_set = dynamic_group._update_contacts(user, [self], add=should_add)
+
+            if changed_set and not changed:
+                changed = True
+
+        return changed
 
     def clear_all_groups(self, user):
         """
@@ -2445,22 +2470,6 @@ class ContactGroup(TembaModel):
 
         return self._update_contacts(user, contacts, add)
 
-    def reevaluate_contacts(self, contacts, is_new=False):
-        """
-        Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
-        """
-        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can't re-evaluate contacts against system or static groups")
-
-        user = get_anonymous_user()
-        changed = set()
-        for contact in contacts:
-            qualifies = self._check_dynamic_membership(contact, is_new=is_new)
-            changed = self._update_contacts(user, [contact], qualifies)
-            if changed:
-                changed.add(contact)
-        return changed
-
     def remove_contacts(self, user, contacts):
         """
         Forces removal of contacts from this group regardless of whether it is static or dynamic
@@ -2560,7 +2569,7 @@ class ContactGroup(TembaModel):
         self.status = ContactGroup.STATUS_READY
         self.save(update_fields=('status',))
 
-    def _get_dynamic_members(self, base_set=None, is_new=False):
+    def _get_dynamic_members(self):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
@@ -2570,27 +2579,11 @@ class ContactGroup(TembaModel):
             raise ValueError("Can only be called on dynamic groups")
 
         try:
-            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+            qs, parsed = Contact.search(self.org, self.query)
 
-            # if a contact has just been created than apply special contact search rules
-            if is_new:
-                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
-                    return qs, parsed
-                else:
-                    return Contact.objects.none(), None
-            else:
-                return qs, parsed
+            return qs, parsed
         except SearchException:  # pragma: no cover
             return Contact.objects.none(), None
-
-    @time_monitor(threshold=10000)
-    def _check_dynamic_membership(self, contact, is_new=False):
-        """
-        For dynamic groups, determines whether the given contact belongs in the group
-        """
-
-        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
-        return qs.exists()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):

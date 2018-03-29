@@ -8,7 +8,6 @@ import json
 import pycountry
 import pytz
 import six
-import time
 import os
 
 from celery.app.task import Task
@@ -45,7 +44,6 @@ from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from .http import http_headers
 from .nexmo import NCCOException, NCCOResponse
-from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
@@ -1653,20 +1651,6 @@ class MiddlewareTest(TembaTest):
         UserSettings.objects.filter(user=self.admin).update(language='fr')
 
         self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
-
-
-class ProfilerTest(TembaTest):
-    @time_monitor(threshold=50)
-    def foo(self, bar):
-        time.sleep(bar / 1000.0)
-
-    @patch('logging.Logger.error')
-    def test_time_monitor(self, mock_error):
-        self.foo(1)
-        self.assertEqual(len(mock_error.mock_calls), 0)
-
-        self.foo(51)
-        self.assertEqual(len(mock_error.mock_calls), 1)
 
 
 class MakeTestDBTest(SimpleTestCase):

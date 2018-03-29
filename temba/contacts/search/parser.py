@@ -72,13 +72,18 @@ class ContactQuery(object):
     def optimized(self):
         return ContactQuery(self.root.simplify().split_by_prop())
 
-    def as_query(self, org, base_set):
+    def as_query(self, org):
         prop_map = self.get_prop_map(org)
 
-        return self.root.as_query(org, prop_map, base_set)
+        return self.root.as_query(org, prop_map)
 
     def as_text(self):
         return self.root.as_text()
+
+    def evaluate(self, org, contact_json):
+        prop_map = self.get_prop_map(org)
+
+        return self.root.evaluate(contact_json, prop_map)
 
     def get_prop_map(self, org):
         """
@@ -119,13 +124,6 @@ class ContactQuery(object):
 
         return not(prop_names.intersection(props_not_allowed))
 
-    def has_is_not_set_condition(self):
-        return 'NOTSET' in set(self.root.get_prop_comparators())
-
-    def has_urn_condition(self):
-        urn_search = set(self.root.get_prop_names()).intersection(self.SEARCHABLE_SCHEMES)
-        return bool(urn_search)
-
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -147,10 +145,13 @@ class QueryNode(object):
     def split_by_prop(self):
         return self
 
-    def as_query(self, org, prop_map, base_set):  # pragma: no cover
+    def as_query(self, org, prop_map):  # pragma: no cover
         pass
 
     def as_text(self):  # pragma: no cover
+        pass
+
+    def evaluate(self, contact_json, prop_map):  # pragma: no cover
         pass
 
 
@@ -188,19 +189,16 @@ class Condition(QueryNode):
     def get_prop_names(self):
         return [self.prop]
 
-    def get_prop_comparators(self):
-        return [self.comparator]
-
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            return self._build_value_query(prop_obj, base_set)
+            return self._build_value_query(prop_obj)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return Q(id=-1)
             else:
-                return self._build_urn_query(org, prop_obj, base_set)
+                return self._build_urn_query(org, prop_obj)
         else:
             return self._build_attr_query(prop_obj)
 
@@ -211,23 +209,17 @@ class Condition(QueryNode):
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
-    def _build_urn_query(self, org, scheme, base_set):
+    def _build_urn_query(self, org, scheme):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException(_("Can't query contact URNs with %s") % self.comparator)
 
         urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
 
-        if base_set:
-            urns = urns.filter(contact__in=base_set)
-
         return Q(id__in=urns.values('contact_id'))
 
-    def _build_value_query(self, field, base_set):
+    def _build_value_query(self, field):
         value_contacts = self.get_base_value_query().filter(**self.build_value_query_params(field))
-
-        if base_set:
-            value_contacts = value_contacts.filter(contact__in=base_set)
 
         return Q(id__in=value_contacts)
 
@@ -330,6 +322,106 @@ class Condition(QueryNode):
 
         return '%s %s %s' % (self.prop, self.comparator, value)
 
+    def evaluate(self, contact_json, prop_map):
+        prop_type, field = prop_map[self.prop]
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            field_uuid = six.text_type(field.uuid)
+            contact_fields = contact_json.get('fields')
+
+            if field_uuid not in contact_fields:
+                return False
+
+            if field.value_type == Value.TYPE_DECIMAL:
+
+                query_value = self._parse_decimal(self.value)
+                contact_value = self._parse_decimal(contact_fields.get(field_uuid).get('decimal'))
+
+                if self.comparator == '=':
+                    return contact_value == query_value
+                elif self.comparator == '>':
+                    return contact_value > query_value
+                elif self.comparator == '>=':
+                    return contact_value >= query_value
+                elif self.comparator == '<':
+                    return contact_value < query_value
+                elif self.comparator == '<=':
+                    return contact_value <= query_value
+                else:  # pragma: no cover
+                    raise ValueError('Unknown decimal comparator: %s' % (self.comparator,))
+
+            elif field.value_type == Value.TYPE_TEXT:
+                query_value = self.value.upper()
+                contact_value = contact_fields.get(field_uuid).get('text').upper()
+
+                if self.comparator == '=':
+                    return contact_value == query_value
+                else:  # pragma: no cover
+                    raise ValueError('Unknown text comparator: %s' % (self.comparator,))
+
+            elif field.value_type == Value.TYPE_DATETIME:
+                query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
+                contact_value = str_to_datetime(contact_fields.get(field_uuid).get('datetime'), field.org.timezone)
+
+                if not query_value:  # pragma: no cover
+                    raise SearchException(_("Unable to parse the date %s") % self.value)
+
+                utc_range = date_to_utc_range(query_value.date(), field.org)
+
+                if self.comparator == '=':
+                    return contact_value >= utc_range[0] and contact_value < utc_range[1]
+                elif self.comparator == '>':
+                    return contact_value >= utc_range[1]
+                elif self.comparator == '>=':
+                    return contact_value >= utc_range[0]
+                elif self.comparator == '<':
+                    return contact_value < utc_range[0]
+                elif self.comparator == '<=':
+                    return contact_value < utc_range[1]
+                else:  # pragma: no cover
+                    raise ValueError('Unknown datetime comparator: %s' % (self.comparator,))
+
+            elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+                query_value = self.value.upper()
+                if field.value_type == Value.TYPE_WARD:
+                    contact_value = contact_fields.get(field_uuid).get('ward').upper().split(' > ')[-1]
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    contact_value = contact_fields.get(field_uuid).get('district').upper().split(' > ')[-1]
+                elif field.value_type == Value.TYPE_STATE:
+                    contact_value = contact_fields.get(field_uuid).get('state').upper().split(' > ')[-1]
+                else:  # pragma: no cover
+                    raise ValueError('Unknown location type: %s' % (field.value_type, ))
+
+                if self.comparator == '=':
+                    return contact_value == query_value
+                elif self.comparator == '~':
+                    return query_value in contact_value
+                else:  # pragma: no cover
+                    raise ValueError('Unknown location comparator: %s' % (self.comparator,))
+
+            else:  # pragma: no cover
+                raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
+
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            for urn in contact_json.get('urns'):
+                if urn.get('scheme') == field:
+                    contact_value = urn.get('path').upper()
+                    query_value = self.value.upper()
+
+                    if self.comparator == '=':
+                        if contact_value == query_value:
+                            return True
+                    elif self.comparator == '~':
+                        if query_value in contact_value:
+                            return True
+                    else:  # pragma: no cover
+                        raise ValueError('Unknown urn scheme comparator: %s' % (self.comparator,))
+
+            return False
+
+        else:
+            raise ValueError("Unrecognized contact field type '%s'" % prop_type)
+
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
 
@@ -349,10 +441,7 @@ class IsSetCondition(Condition):
     def __init__(self, prop, comparator):
         super(IsSetCondition, self).__init__(prop, comparator, "")
 
-    def get_prop_comparators(self):
-        return ['SET' if self.comparator.lower() in self.IS_SET_LOOKUPS else 'NOTSET']
-
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if self.comparator.lower() in self.IS_SET_LOOKUPS:
@@ -376,10 +465,6 @@ class IsSetCondition(Condition):
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % prop_obj.value_type)
 
-            # optimize for the single membership test case
-            if base_set:
-                values_query = values_query.filter(contact__in=base_set)
-
             return Q(id__in=values_query) if is_set else ~Q(id__in=values_query)
 
         elif prop_type == ContactQuery.PROP_SCHEME:
@@ -388,15 +473,136 @@ class IsSetCondition(Condition):
             else:
                 urns_query = ContactURN.objects.filter(org=org, scheme=prop_obj).values('contact_id')
 
-                # optimize for the single membership test case
-                if base_set:
-                    urns_query = urns_query.filter(contact__in=base_set)
-
                 return Q(id__in=urns_query) if is_set else ~Q(id__in=urns_query)
         else:
             # for attributes, being not-set can mean a NULL value or empty string value
             where_not_set = Q(**{prop_obj: ""}) | Q(**{prop_obj: None})
             return ~where_not_set if is_set else where_not_set
+
+    def evaluate(self, contact_json, prop_map):
+        prop_type, field = prop_map[self.prop]
+
+        if self.comparator.lower() in self.IS_SET_LOOKUPS:
+            is_set = True
+        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
+            is_set = False
+        else:  # pragma: no cover
+            raise SearchException(_("Invalid operator for empty string comparison"))
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            field_uuid = six.text_type(field.uuid)
+            contact_fields = contact_json.get('fields')
+
+            contact_field = contact_fields.get(field_uuid)
+
+            # contact field does not exist
+            if contact_field is None:
+                if is_set:
+                    return False
+                else:
+                    return True
+            else:
+                if field.value_type == Value.TYPE_DECIMAL:
+                    try:
+                        contact_value = self._parse_decimal(contact_field.get('decimal'))
+                    except SearchException:
+                        contact_value = None
+
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_TEXT:
+                    contact_value = contact_fields.get(field_uuid).get('text')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:  # pragma: can't cover
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:  # pragma: can't cover
+                            return True
+
+                elif field.value_type == Value.TYPE_DATETIME:
+                    contact_value = str_to_datetime(contact_fields.get(field_uuid).get('datetime'), field.org.timezone)
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_WARD:
+                    contact_value = contact_fields.get(field_uuid).get('ward')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    contact_value = contact_fields.get(field_uuid).get('district')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                elif field.value_type == Value.TYPE_STATE:
+                    contact_value = contact_fields.get(field_uuid).get('state')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:
+                            return True
+
+                else:  # pragma: no cover
+                    raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
+
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            urn_exists = next((urn for urn in contact_json.get('urns') if urn.get('scheme') == field), None)
+
+            if not urn_exists:
+                if is_set:
+                    return False
+                else:
+                    return True
+            else:
+                if is_set:
+                    return True
+                else:
+                    return False
+
+        else:
+            raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
 
 @six.python_2_unicode_compatible
@@ -416,12 +622,6 @@ class BoolCombination(QueryNode):
         for child in self.children:
             names += child.get_prop_names()
         return names
-
-    def get_prop_comparators(self):
-        comparators = []
-        for child in self.children:
-            comparators += child.get_prop_comparators()
-        return comparators
 
     def simplify(self):
         """
@@ -468,8 +668,11 @@ class BoolCombination(QueryNode):
 
         return BoolCombination(self.op, *new_children)
 
-    def as_query(self, org, prop_map, base_set):
-        return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
+    def as_query(self, org, prop_map):
+        return reduce(self.op, [child.as_query(org, prop_map) for child in self.children])
+
+    def evaluate(self, contact_json, prop_map):
+        return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
 
     def as_text(self):
         op = ' OR ' if self.op == self.OR else ' AND '
@@ -503,7 +706,7 @@ class SinglePropCombination(BoolCombination):
 
         super(SinglePropCombination, self).__init__(op, *children)
 
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -513,7 +716,7 @@ class SinglePropCombination(BoolCombination):
             all_equality = all([child.comparator == '=' for child in self.children])
             if self.op == BoolCombination.OR and all_equality and prop_obj.value_type != Value.TYPE_DATETIME:
                 in_condition = Condition(self.prop, '=', [c.value for c in self.children])
-                return in_condition.as_query(org, prop_map, base_set)
+                return in_condition.as_query(org, prop_map)
 
             # otherwise just combine the Value sub-queries into a single one
             value_queries = []
@@ -524,12 +727,9 @@ class SinglePropCombination(BoolCombination):
             value_query = reduce(self.op, value_queries)
             value_contacts = Condition.get_base_value_query().filter(value_query).values('contact_id')
 
-            if base_set:
-                value_contacts = value_contacts.filter(contact__in=base_set)
-
             return Q(id__in=value_contacts)
 
-        return super(SinglePropCombination, self).as_query(org, prop_map, base_set)
+        return super(SinglePropCombination, self).as_query(org, prop_map)
 
     def __eq__(self, other):
         return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
@@ -654,15 +854,18 @@ def parse_query(text, optimize=True, as_anon=False):
     return query.optimized() if optimize else query
 
 
-def contact_search(org, text, base_queryset, base_set):
+def evaluate_query(org, text, contact_json=dict):
+    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
+
+    return parsed.evaluate(org, contact_json)
+
+
+def contact_search(org, text, base_queryset):
     """
     Performs the given contact query on the given base queryset
     """
     parsed = parse_query(text, as_anon=org.is_anon)
-    query = parsed.as_query(org, base_set)
-
-    if base_set:
-        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
+    query = parsed.as_query(org)
 
     return base_queryset.filter(org=org).filter(query), parsed
 
