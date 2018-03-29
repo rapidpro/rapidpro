@@ -500,7 +500,7 @@ class Org(SmartModel):
                             channel_prefixes = [sender.address.strip('+')]
 
                         for chan_prefix in channel_prefixes:
-                            for idx in range(prefix, len(chan_prefix)):
+                            for idx in range(prefix, len(chan_prefix) + 1):
                                 if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
                                     prefix = idx
                                     channel = sender
