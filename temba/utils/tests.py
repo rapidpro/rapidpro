@@ -205,7 +205,7 @@ class DatesTest(TembaTest):
             self.assertIsNone(str_to_datetime('03-12-99999', tz))  # year out of range
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 3, 4, 5, 6)),
-                             str_to_datetime('2013-02-01', tz, dayfirst=True))  # iso
+                             str_to_datetime(' 2013-02-01 ', tz, dayfirst=True))  # iso
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 3, 4, 5, 6)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True))  # day first
@@ -226,6 +226,10 @@ class DatesTest(TembaTest):
             # no single digit months in iso date
             self.assertEqual(None,
                              str_to_datetime('1999-2-1', tz, dayfirst=False))
+
+            # iso date must stand alone
+            self.assertEqual(None,
+                             str_to_datetime('not 1999-02-01', tz, dayfirst=False))
 
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
