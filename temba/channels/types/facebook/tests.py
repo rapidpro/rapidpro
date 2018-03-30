@@ -98,7 +98,7 @@ class FacebookTypeTest(TembaTest):
         mock_delete.return_value = MockResponse(200, json.dumps({'success': True}))
         self.channel.release()
 
-        mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
+        mock_delete.assert_called_once_with('https://graph.facebook.com/v2.12/me/subscribed_apps',
                                             params={'access_token': '09876543'})
 
     @override_settings(IS_PROD=True)
@@ -110,7 +110,7 @@ class FacebookTypeTest(TembaTest):
 
         trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, self.channel)
 
-        mock_post.assert_called_once_with('https://graph.facebook.com/v2.6/12345/thread_settings', json={
+        mock_post.assert_called_once_with('https://graph.facebook.com/v2.12/12345/thread_settings', json={
             'setting_type': 'call_to_actions',
             'thread_state': 'new_thread',
             'call_to_actions': [{"payload": "get_started"}]
@@ -119,7 +119,7 @@ class FacebookTypeTest(TembaTest):
 
         trigger.archive(self.admin)
 
-        mock_post.assert_called_once_with('https://graph.facebook.com/v2.6/12345/thread_settings', json={
+        mock_post.assert_called_once_with('https://graph.facebook.com/v2.12/12345/thread_settings', json={
             'setting_type': 'call_to_actions',
             'thread_state': 'new_thread',
             'call_to_actions': []
@@ -128,7 +128,7 @@ class FacebookTypeTest(TembaTest):
 
         trigger.restore(self.admin)
 
-        mock_post.assert_called_once_with('https://graph.facebook.com/v2.6/12345/thread_settings', json={
+        mock_post.assert_called_once_with('https://graph.facebook.com/v2.12/12345/thread_settings', json={
             'setting_type': 'call_to_actions',
             'thread_state': 'new_thread',
             'call_to_actions': [{"payload": "get_started"}]

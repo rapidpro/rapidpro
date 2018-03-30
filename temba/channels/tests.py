@@ -7759,7 +7759,7 @@ class FacebookWhitelistTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "ok": "true" }')
             response = self.client.post(whitelist_url, dict(whitelisted_domain='https://foo.bar'))
 
-            mock.assert_called_once_with('https://graph.facebook.com/v2.6/me/thread_settings?access_token=auth',
+            mock.assert_called_once_with('https://graph.facebook.com/v2.12/me/thread_settings?access_token=auth',
                                          json=dict(setting_type='domain_whitelisting',
                                                    whitelisted_domains=['https://foo.bar'],
                                                    domain_action_type='add'))
