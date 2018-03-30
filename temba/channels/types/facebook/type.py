@@ -38,7 +38,7 @@ class FacebookType(ChannelType):
 
     def deactivate(self, channel):
         config = channel.config
-        requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps', params={
+        requests.delete('https://graph.facebook.com/v2.12/me/subscribed_apps', params={
             'access_token': config[Channel.CONFIG_AUTH_TOKEN]
         })
 
@@ -145,7 +145,7 @@ class FacebookType(ChannelType):
     @staticmethod
     def _set_call_to_action(channel, payload):
         # register for get_started events
-        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % channel.address
+        url = 'https://graph.facebook.com/v2.12/%s/thread_settings' % channel.address
         body = {'setting_type': 'call_to_actions', 'thread_state': 'new_thread', 'call_to_actions': []}
 
         # if we have a payload, set it, otherwise, clear it
