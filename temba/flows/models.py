@@ -3452,6 +3452,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 # if we are routing back to the parent before a msg was sent, we need a placeholder
                 if not msg:
                     msg = Msg()
+                    msg.id = 0
                     msg.text = ''
                     msg.org = run.org
                     msg.contact = run.contact
