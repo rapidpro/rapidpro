@@ -19,7 +19,7 @@ FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.(\d{
 # patterns for date and time formats supported for human-entered data
 DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
 MM_DD_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-YYYY_MM_DD = regex.compile(r'\b([0-9]{4})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b')
+ISO_YYYY_MM_DD = regex.compile(r'\b([0-9]{4})[-.\\/_ ]([0-9]{2})[-.\\/_ ]([0-9]{2})\b')
 HH_MM_SS = regex.compile(r'\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b')
 
 
@@ -81,7 +81,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     current_year = datetime.datetime.now().year
 
     # is this an iso date?
-    parsed = _date_from_formats(date_str, current_year, YYYY_MM_DD, 3, 2, 1)
+    parsed = _date_from_formats(date_str, current_year, ISO_YYYY_MM_DD, 3, 2, 1)
 
     # no? then try org specific formats
     if not parsed:

@@ -223,6 +223,10 @@ class DatesTest(TembaTest):
             self.assertEqual(None,
                              str_to_datetime('99-02-01', tz, dayfirst=False))
 
+            # no single digit months in iso date
+            self.assertEqual(None,
+                             str_to_datetime('1999-2-1', tz, dayfirst=False))
+
             self.assertEqual(tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
                              str_to_datetime('01-02-2013 07:08', tz, dayfirst=True))  # hour and minute provided
 
