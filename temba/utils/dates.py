@@ -15,11 +15,12 @@ MAX_UTC_OFFSET = 14 * 60 * 60
 
 # pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
 FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$')
+ISO_YYYY_MM_DD = regex.compile(r'^([0-9]{4})-([0-9]{2})-([0-9]{2})$')
 
 # patterns for date and time formats supported for human-entered data
 DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
 MM_DD_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-ISO_YYYY_MM_DD = regex.compile(r'\b([0-9]{4})[-.\\/_ ]([0-9]{2})[-.\\/_ ]([0-9]{2})\b')
+YYYY_MM_DD = regex.compile(r'\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b')
 HH_MM_SS = regex.compile(r'\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b')
 
 
