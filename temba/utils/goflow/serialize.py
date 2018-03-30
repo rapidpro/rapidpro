@@ -88,7 +88,7 @@ def serialize_environment(org):
 
 
 def serialize_field(field):
-    return {'key': field.key, 'label': field.label, 'value_type': VALUE_TYPE_NAMES[field.value_type]}
+    return {'key': field.key, 'name': field.label, 'value_type': VALUE_TYPE_NAMES[field.value_type]}
 
 
 def serialize_group(group):
