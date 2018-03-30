@@ -1988,7 +1988,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for dynamic_group in affected_dynamic_groups:
             dynamic_group.org = self.org
 
-            should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
+            try:
+                should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
+            except Exception as e:
+                should_add = False
+                logger.exception("Error evaluating query", exc_info=e)
 
             changed_set = dynamic_group._update_contacts(user, [self], add=should_add)
 
