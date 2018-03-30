@@ -70,7 +70,7 @@ class FacebookType(ChannelType):
         else:
             payload['recipient'] = dict(id=msg.urn_path)
 
-        url = "https://graph.facebook.com/v2.5/me/messages"
+        url = "https://graph.facebook.com/v2.12/me/messages"
         params = {'access_token': channel.config[Channel.CONFIG_AUTH_TOKEN]}
         headers = {'Content-Type': 'application/json'}
         start = time.time()
