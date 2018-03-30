@@ -1,3 +1,7 @@
+v3.0.351
+----------
+ * Support plain ISO dates (not just datetimes)
+
 v3.0.350
 ----------
  * Swallow exceptions encountered when parsing, don't add to group
