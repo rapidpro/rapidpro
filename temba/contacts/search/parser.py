@@ -384,11 +384,14 @@ class Condition(QueryNode):
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
                 query_value = self.value.upper()
                 if field.value_type == Value.TYPE_WARD:
-                    contact_value = contact_fields.get(field_uuid).get('ward').upper().split(' > ')[-1]
+                    contact_value = contact_fields.get(field_uuid).get('ward')
+                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
                 elif field.value_type == Value.TYPE_DISTRICT:
-                    contact_value = contact_fields.get(field_uuid).get('district').upper().split(' > ')[-1]
+                    contact_value = contact_fields.get(field_uuid).get('district')
+                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
                 elif field.value_type == Value.TYPE_STATE:
-                    contact_value = contact_fields.get(field_uuid).get('state').upper().split(' > ')[-1]
+                    contact_value = contact_fields.get(field_uuid).get('state')
+                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
                 else:  # pragma: no cover
                     raise ValueError('Unknown location type: %s' % (field.value_type, ))
 
