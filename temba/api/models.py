@@ -367,6 +367,13 @@ class WebHookEvent(SmartModel):
                     status=msg.status,
                     direction=msg.direction)
 
+        step = msg.steps.all().first()
+
+        if step:
+            flow = step.run.flow
+            data['flow'] = flow.uuid
+            data['revision'] = flow.revisions.order_by('revision').last().revision
+
         hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()
