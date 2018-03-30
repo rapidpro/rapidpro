@@ -1,3 +1,8 @@
+v3.0.350
+----------
+ * Swallow exceptions encountered when parsing, don't add to group
+ * Set placeholder msg.id = 0
+
 v3.0.349
 ----------
  * Deal with null state values in contact search evaluation
