@@ -1,3 +1,12 @@
+v3.0.352
+----------
+ * Merge pull request #1796 from nyaruka/update-fb
+ * update whitelist url
+ * arr, more test updates
+ * update tests
+ * update send URL as well
+ * update to facebook graph api v2.12
+
 v3.0.351
 ----------
  * Support plain ISO dates (not just datetimes)
