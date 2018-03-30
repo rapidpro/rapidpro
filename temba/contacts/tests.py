@@ -1620,10 +1620,11 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
         ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
         ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
+        ContactGroup.create_dynamic(self.org, self.admin, 'Age field is invalid', 'age < "age"')
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(37):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         six.assertCountEqual(
