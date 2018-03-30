@@ -1,3 +1,7 @@
+v3.0.349
+----------
+ * Deal with null state values in contact search evaluation
+
 v3.0.348
 ----------
  * Fix off by one error in calculating best channel based on prefixes
