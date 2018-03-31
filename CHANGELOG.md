@@ -1,3 +1,7 @@
+v3.0.353
+----------
+ * Evaluate contact field with no value as False
+
 v3.0.352
 ----------
  * Update to Facebook graph api v2.12
