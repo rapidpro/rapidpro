@@ -1,3 +1,8 @@
+v3.0.356
+----------
+ * Do not log MageHandler calls
+ * Serialize contact field label as name instead
+
 v3.0.355
 ----------
  * Use force_text on uuids read from redis
