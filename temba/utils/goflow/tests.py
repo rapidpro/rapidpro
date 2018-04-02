@@ -19,12 +19,12 @@ class SerializationTest(TembaTest):
 
         self.assertEqual(serialize_field(gender), {
             'key': "gender",
-            'label': "Gender",
+            'name': "Gender",
             'value_type': "text"
         })
         self.assertEqual(serialize_field(age), {
             'key': "age",
-            'label': "Age",
+            'name': "Age",
             'value_type': "numeric"
         })
 
