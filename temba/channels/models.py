@@ -3,28 +3,26 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 import logging
+import time
+from abc import ABCMeta
+from datetime import timedelta
+from enum import Enum
+from xml.sax.saxutils import escape
+
 import phonenumbers
 import six
-import time
-from six.moves.urllib.parse import urlparse
-
-from abc import ABCMeta
-
-from django.template import Engine
-from enum import Enum
-from datetime import timedelta
-from django.template import Context
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.template import Context
+from django.template import Engine
 from django.template import TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -34,16 +32,17 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
+from six.moves.urllib.parse import urlparse
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
+from twilio import twiml, TwilioRestException
+
+from temba.orgs.models import Org, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.nexmo import NCCOResponse
+from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
+from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
-from twilio import twiml, TwilioRestException
-from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
 
@@ -595,26 +594,6 @@ class Channel(TembaModel):
             code = random_string(length)
         return code
 
-    @classmethod
-    def determine_encoding(cls, text, replace=False):
-        """
-        Determines what type of encoding should be used for the passed in SMS text.
-        """
-        # if this is plain gsm7, then we are good to go
-        if is_gsm7(text):
-            return Encoding.GSM7, text
-
-        # if this doesn't look like GSM7 try to replace characters that are close enough
-        if replace:
-            replaced = replace_non_gsm7_accents(text)
-
-            # great, this is now GSM7, let's send that
-            if is_gsm7(replaced):
-                return Encoding.REPLACED, replaced
-
-        # otherwise, this is unicode
-        return Encoding.UNICODE, text
-
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
 
@@ -1093,12 +1072,6 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
 
-            # Sending data to Chatbase API
-            if hasattr(msg, 'is_org_connected_to_chatbase'):
-                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
-                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
-                                      CHATBASE_TYPE_AGENT)
-
     @classmethod
     def get_pending_messages(cls, org):
         """
@@ -1245,18 +1218,6 @@ class Channel(TembaModel):
         if channel:
             # track success, errors and failures
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
-
-    @classmethod
-    def build_twilio_callback_url(cls, domain, channel_type, channel_uuid, sms_id):
-        if channel_type == 'T':
-            url = reverse('courier.t', args=[channel_uuid, 'status'])
-        elif channel_type == 'TMS':
-            url = reverse('courier.tms', args=[channel_uuid, 'status'])
-        elif channel_type == 'TW':
-            url = reverse('courier.tw', args=[channel_uuid, 'status'])
-
-        url = "https://" + domain + url + "?action=callback&id=%d" % sms_id
-        return url
 
     def __str__(self):  # pragma: no cover
         if self.name:
