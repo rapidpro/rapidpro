@@ -1,20 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import time
-import regex
-
-from time import sleep
-
-from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelType, Channel, SendException
-from temba.channels.views import UpdateNexmoForm
+from temba.channels.models import ChannelType
 from temba.channels.types.nexmo.views import ClaimView
+from temba.channels.views import UpdateNexmoForm
 from temba.contacts.models import TEL_SCHEME
-from temba.msgs.models import SENT
-from temba.utils.nexmo import NexmoClient
 from temba.utils.timezones import timezone_to_country_code
 
 
@@ -71,30 +63,3 @@ class NexmoType(ChannelType):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
         return countrycode in NEXMO_RECOMMENDED_COUNTRIES
-
-    def send(self, channel, msg, text):
-
-        config = channel.config
-
-        client = NexmoClient(config[Channel.CONFIG_NEXMO_API_KEY], config[Channel.CONFIG_NEXMO_API_SECRET],
-                             config[Channel.CONFIG_NEXMO_APP_ID], config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY])
-        start = time.time()
-
-        callback_url = "https://" + channel.callback_domain + reverse('courier.nx', args=[channel.uuid, 'receive'])
-
-        event = None
-        attempts = 0
-        while not event:
-            try:
-                (message_id, event) = client.send_message_via_nexmo(channel.address, msg.urn_path, text, callback_url)
-            except SendException as e:
-                match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.events[0].response_body)
-
-                # this is a throughput failure, attempt to wait up to three times
-                if match and attempts < 3:
-                    sleep(float(match.group(1)) / 1000)
-                    attempts += 1
-                else:
-                    raise e
-
-        Channel.success(channel, msg, SENT, start, event=event, external_id=message_id)

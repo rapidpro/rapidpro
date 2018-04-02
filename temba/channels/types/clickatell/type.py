@@ -57,6 +57,3 @@ class ClickatellType(ChannelType):
         ),
 
     )
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Clickatell messages is only possible via Courier")

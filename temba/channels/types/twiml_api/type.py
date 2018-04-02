@@ -5,7 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.twiml_api.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
-from ...models import Channel, ChannelType
+from ...models import ChannelType
 
 
 class TwimlAPIType(ChannelType):
@@ -52,7 +52,3 @@ class TwimlAPIType(ChannelType):
             description=_("Incoming messages for this channel will be sent to this endpoint."),
         )
     )
-
-    def send(self, channel, msg, text):
-        # use regular Twilio channel sending
-        return Channel.get_type_from_code('T').send(channel, msg, text)

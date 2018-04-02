@@ -7,7 +7,7 @@ from temba.channels.types.twilio_messaging_service.views import ClaimView
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
 from temba.contacts.models import TEL_SCHEME
 from temba.utils.timezones import timezone_to_country_code
-from ...models import Channel, ChannelType
+from ...models import ChannelType
 
 
 class TwilioMessagingServiceType(ChannelType):
@@ -52,7 +52,3 @@ class TwilioMessagingServiceType(ChannelType):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
         return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
-
-    def send(self, channel, msg, text):
-        # use regular Twilio channel sending
-        return Channel.get_type_from_code('T').send(channel, msg, text)

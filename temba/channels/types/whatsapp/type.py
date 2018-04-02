@@ -2,16 +2,15 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import requests
-
-from django.utils.translation import ugettext_lazy as _
 from django.conf.urls import url
+from django.forms import ValidationError
+from django.urls import reverse
+from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp.views import ClaimView, RefreshView
 from temba.contacts.models import WHATSAPP_SCHEME
 from ...models import ChannelType
-from django.urls import reverse
-from django.forms import ValidationError
 
 
 class WhatsAppType(ChannelType):

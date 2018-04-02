@@ -182,7 +182,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
-        raise NotImplemented("sending for channel type '%s' should be done via Courier" % self.__class__.code)
+        raise NotImplemented("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
