@@ -149,6 +149,10 @@ class TwimlAPIHandler(BaseChannelHandler):
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
 
@@ -348,6 +352,10 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
     handler_url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twilio_messaging_service_handler'
+
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
@@ -1156,6 +1164,10 @@ class NexmoCallHandler(BaseChannelHandler):
 
     handler_url = r'^nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
     handler_name = 'handlers.nexmo_call_handler'
+
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
