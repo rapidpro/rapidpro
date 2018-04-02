@@ -3531,6 +3531,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     msg = self.get_last_msg(INCOMING)
                     if not msg:
                         msg = Msg()
+                        msg.id = 0
                         msg.text = ''
                         msg.org = self.org
                         msg.contact = self.contact
