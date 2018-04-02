@@ -2211,9 +2211,11 @@ class TopUp(SmartModel):
             if transfer:
                 comment = _('Transfer from %s' % transfer.topup.org.name)
             else:
-                if self.price > 0:
+                price = -1 if self.price is None else self.price
+
+                if price > 0:
                     comment = _('Purchased Credits')
-                elif self.price == 0:
+                elif price == 0:
                     comment = _('Complimentary Credits')
                 else:
                     comment = _('Credits')
