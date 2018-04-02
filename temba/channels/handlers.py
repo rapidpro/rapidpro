@@ -63,7 +63,7 @@ class BaseChannelHandler(View):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
-        logger.error("%s handler still being called. URL: %s" % (self.__class__, request.url))
+        logger.error("Handler URL called for channel %s: %s" % self.__class__, request.get_full_path())
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod
@@ -103,12 +103,14 @@ class CourierHandler(BaseChannelHandler):
     def get(self, request, *args, **kwargs):  # pragma: no cover
         if self.__class__.channel_name is None:
             raise Exception("CourierHandler subclasses must specify handler name")
-        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+        logger.error("Courier handler called for channel %s: %s" % self.__class__.channel_name, request.get_full_path())
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status=500)
 
-    def post(self):  # pragma: no cover
+    def post(self, request, *args, **kwargs):  # pragma: no cover
         if self.__class__.channel_name is None:
             raise Exception("CourierHandler subclasses must specify handler name")
-        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status_code=500)
+        logger.error("Courier handler called for channel %s: %s" % self.__class__.channel_name, request.get_full_path())
+        return HttpResponse("%s handling only implemented in Courier" % self.__class__.channel_name, status=500)
 
 
 class DMarkHandler(CourierHandler):
