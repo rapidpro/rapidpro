@@ -1,3 +1,8 @@
+v3.0.354
+----------
+ * Set placeholder msg.id = 0
+ * Fix comparison when price is None
+
 v3.0.353
 ----------
  * Evaluate contact field with no value as False
