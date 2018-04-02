@@ -1835,35 +1835,6 @@ class ChannelTest(TembaTest):
         self.assertTrue(ussd_context['has_outgoing_channel'])
         self.assertEqual(ussd_context['is_ussd_channel'], True)
 
-    def test_send_message_chatbase(self):
-        Channel.create(self.org, self.user, None, 'FCM', 'FCM Channel', 'fcm-channel',
-                       config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel', FCM_NOTIFICATION=True),
-                       uuid='00000000-0000-0000-0000-000000001234')
-
-        org_config = self.org.config
-        org_config.update(dict(CHATBASE_API_KEY='123456abcdef', CHATBASE_VERSION='1.0'))
-        self.org.config = org_config
-        self.org.save()
-
-        self.assertTrue(self.org.get_chatbase_credentials())
-        self.assertEqual(self.org.config['CHATBASE_API_KEY'], '123456abcdef')
-        self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
-
-        with self.settings(SEND_CHATBASE=True):
-            joe = self.create_contact("Joe", urn="fcm:forrest_gump", auth="1234567890")
-            msg = joe.send("Hello, world!", self.admin, trigger_send=False)[0]
-
-            with self.settings(SEND_MESSAGES=True):
-                with patch('requests.post') as mock:
-                    mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
-
-                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                    # check the status of the message is now sent
-                    msg.refresh_from_db()
-                    self.assertEqual(msg.status, WIRED)
-                    self.assertTrue(msg.sent_on)
-
 
 class ChannelBatchTest(TembaTest):
 
