@@ -1585,6 +1585,10 @@ class MageHandler(BaseChannelHandler):
     handler_url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
     handler_name = 'handlers.mage_handler'
 
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
 
