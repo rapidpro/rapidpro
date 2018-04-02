@@ -1,3 +1,8 @@
+v3.0.355
+----------
+ * Use force_text on uuids read from redis
+ * Log errors for any channel handler methods
+
 v3.0.354
 ----------
  * Set placeholder msg.id = 0
