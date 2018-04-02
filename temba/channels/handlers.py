@@ -63,6 +63,7 @@ class BaseChannelHandler(View):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
+        logger.error("%s handler still being called. URL: %s" % (self.__class__, request.url))
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod
@@ -1822,6 +1823,10 @@ class JunebugHandler(BaseChannelHandler):
     handler_name = 'handlers.junebug_handler'
     ACK = 'ack'
     NACK = 'nack'
+
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
