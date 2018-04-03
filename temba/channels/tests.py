@@ -3114,3 +3114,98 @@ class TwitterTest(TembaTest):
             self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
             self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
             self.clear_cache()
+
+
+class FacebookTest(TembaTest):
+
+    def setUp(self):
+        super(FacebookTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: 'auth'},
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        (self.contact, self.urn) = Contact.get_or_create(org=self.org, urn='facebook:1122', channel=self.channel)
+
+    def tearDown(self):
+        super(FacebookTest, self).tearDown()
+
+    def test_referrals_optin(self):
+        # create two triggers for referrals
+        flow = self.get_flow('favorites')
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
+                               flow=flow, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
+                               flow=flow, created_by=self.admin, modified_by=self.admin)
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"referrer_id": "join"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+
+    def test_referrals_params(self):
+        # create two triggers for referrals
+        favorites = self.get_flow('favorites')
+        pick = self.get_flow('pick_a_number')
+
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
+                               flow=favorites, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
+                               flow=favorites, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='',
+                               flow=pick, created_by=self.admin, modified_by=self.admin)
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"referrer_id": "JOIN", "source": "SHORTLINK", "type": "OPEN_THREAD"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("What is your favorite color?", contact1.msgs.order_by('id').last().text)
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"referrer_id": "not_handled", "source": "SHORTLINK", "type": "OPEN_THREAD"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by('id').last().text)
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"referrer_id": "signup", "source": "SHORTLINK", "type": "OPEN_THREAD"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+
+        # and that we created an event for it
+        self.assertTrue(ChannelEvent.objects.filter(contact=contact1, event_type=ChannelEvent.TYPE_REFERRAL))
