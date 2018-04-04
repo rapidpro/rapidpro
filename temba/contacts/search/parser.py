@@ -15,6 +15,7 @@ from django.db.models import Q, Func, Value as Val, CharField
 from django.db.models.functions import Upper, Substr
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
+from elasticsearch_dsl import Q as es_Q
 from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
@@ -85,6 +86,11 @@ class ContactQuery(object):
 
         return self.root.evaluate(contact_json, prop_map)
 
+    def as_elasticsearch(self, org):
+        prop_map = self.get_prop_map(org)
+
+        return self.root.as_elasticsearch(prop_map)
+
     def get_prop_map(self, org):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
@@ -149,6 +155,9 @@ class QueryNode(object):
         pass
 
     def as_text(self):  # pragma: no cover
+        pass
+
+    def as_elasticsearch(self, prop_map):  # pragma: no cover
         pass
 
     def evaluate(self, contact_json, prop_map):  # pragma: no cover
@@ -443,6 +452,24 @@ class Condition(QueryNode):
         else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
+    def as_elasticsearch(self, prop_map):
+        prop_type, field = prop_map[self.prop]
+        field_uuid = six.text_type(field.uuid)
+
+        if prop_type == ContactQuery.PROP_FIELD:
+
+            if field.value_type == Value.TYPE_TEXT:
+                query_value = self.value.upper()
+
+                if self.comparator == '=':
+                    query = es_Q('match', **{'fields.field': field_uuid}) & es_Q('match', **{'fields.text': query_value})
+
+                    return es_Q(
+                        'nested', path='fields', query=query
+                    )
+                else:  # pragma: no cover
+                    raise ValueError('Unknown text comparator: %s' % (self.comparator,))
+
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
 
@@ -694,6 +721,9 @@ class BoolCombination(QueryNode):
     def evaluate(self, contact_json, prop_map):
         return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
 
+    def as_elasticsearch(self, prop_map):
+        return reduce(self.op, [child.as_elasticsearch(prop_map) for child in self.children])
+
     def as_text(self):
         op = ' OR ' if self.op == self.OR else ' AND '
         children = []
@@ -888,6 +918,15 @@ def contact_search(org, text, base_queryset):
     query = parsed.as_query(org)
 
     return base_queryset.filter(org=org).filter(query), parsed
+
+
+def contact_es_search(org, text):
+    """
+    Returns ES query
+    """
+    parsed = parse_query(text, as_anon=org.is_anon)
+
+    return parsed.as_elasticsearch(org)
 
 
 def extract_fields(org, text):

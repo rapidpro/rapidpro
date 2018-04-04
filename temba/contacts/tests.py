@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_phonenumber, evaluate_query
+from temba.contacts.search import is_phonenumber, evaluate_query, contact_es_search
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -1491,6 +1491,52 @@ class ContactTest(TembaTest):
         # query with UTF-8 characters (non-ascii)
         query = parse_query('district="Kayônza"')
         self.assertEqual(query.as_text(), 'district = "Kayônza"')
+
+    def test_contact_elastic_search(self):
+        gender = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
+
+        self.assertEqual(
+            contact_es_search(self.org, 'gender = "unknown"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'match': {'fields.field': six.text_type(gender.uuid)}},
+                        {'match': {'fields.text': 'UNKNOWN'}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'gender = "unknown" AND gender = "known"').to_dict(),
+            ({'bool': {
+                'must': [
+                    {'nested': {'path': 'fields', 'query': {'bool': {'must': [
+                        {'match': {'fields.field': six.text_type(gender.uuid)}},
+                        {'match': {'fields.text': 'UNKNOWN'}}
+                    ]}}}},
+                    {'nested': {'path': 'fields', 'query': {'bool': {'must': [
+                        {'match': {'fields.field': six.text_type(gender.uuid)}},
+                        {'match': {'fields.text': 'KNOWN'}}
+                    ]}}}}
+                ]
+            }})
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'gender = "unknown" OR gender = "known"').to_dict(),
+            ({'bool': {
+                'should': [
+                    {'nested': {'path': 'fields', 'query': {'bool': {'must': [
+                        {'match': {'fields.field': six.text_type(gender.uuid)}},
+                        {'match': {'fields.text': 'UNKNOWN'}}
+                    ]}}}},
+                    {'nested': {'path': 'fields', 'query': {'bool': {'must': [
+                        {'match': {'fields.field': six.text_type(gender.uuid)}},
+                        {'match': {'fields.text': 'KNOWN'}}
+                    ]}}}}
+                ]
+            }})
+        )
 
     def test_contact_search(self):
         self.login(self.admin)
