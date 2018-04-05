@@ -454,21 +454,90 @@ class Condition(QueryNode):
 
     def as_elasticsearch(self, prop_map):
         prop_type, field = prop_map[self.prop]
-        field_uuid = six.text_type(field.uuid)
 
         if prop_type == ContactQuery.PROP_FIELD:
+            field_uuid = six.text_type(field.uuid)
+            es_query = es_Q('term', **{'fields.field': field_uuid})
 
             if field.value_type == Value.TYPE_TEXT:
                 query_value = self.value.upper()
 
                 if self.comparator == '=':
-                    query = es_Q('match', **{'fields.field': field_uuid}) & es_Q('match', **{'fields.text': query_value})
+                    es_query &= es_Q('term', **{'fields.text.keyword': query_value})
 
-                    return es_Q(
-                        'nested', path='fields', query=query
-                    )
                 else:  # pragma: no cover
                     raise ValueError('Unknown text comparator: %s' % (self.comparator,))
+
+            elif field.value_type == Value.TYPE_DECIMAL:
+                query_value = float(self._parse_decimal(self.value))
+
+                if self.comparator == '=':
+                    es_query &= es_Q('match', **{'fields.decimal': query_value})
+                elif self.comparator == '>':
+                    es_query &= es_Q('range', **{'fields.decimal': {'gt': query_value}})
+                elif self.comparator == '>=':
+                    es_query &= es_Q('range', **{'fields.decimal': {'gte': query_value}})
+                elif self.comparator == '<':
+                    es_query &= es_Q('range', **{'fields.decimal': {'lt': query_value}})
+                elif self.comparator == '<=':
+                    es_query &= es_Q('range', **{'fields.decimal': {'lte': query_value}})
+                else:  # pragma: no cover
+                    raise ValueError('Unknown decimal comparator: %s' % (self.comparator,))
+
+            elif field.value_type == Value.TYPE_DATETIME:
+                query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
+
+                if not query_value:
+                    raise SearchException(_("Unable to parse the date %s") % self.value)
+
+                utc_range = date_to_utc_range(query_value.date(), field.org)
+                utc_date = six.text_type(utc_range[0].date())
+
+                if self.comparator == '=':
+                    es_query &= es_Q('match', **{'fields.datetime': utc_date})
+                elif self.comparator == '>':
+                    es_query &= es_Q('range', **{'fields.datetime': {'gt': utc_date}})
+                elif self.comparator == '>=':
+                    es_query &= es_Q('range', **{'fields.datetime': {'gte': utc_date}})
+                elif self.comparator == '<':
+                    es_query &= es_Q('range', **{'fields.datetime': {'lt': utc_date}})
+                elif self.comparator == '<=':
+                    es_query &= es_Q('range', **{'fields.datetime': {'lte': utc_date}})
+                else:  # pragma: no cover
+                    raise ValueError('Unknown datetime comparator: %s' % (self.comparator,))
+
+            elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+                query_value = self.value.upper()
+
+                if field.value_type == Value.TYPE_WARD:
+                    field_name = 'fields.ward'
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    field_name = 'fields.district'
+                elif field.value_type == Value.TYPE_STATE:
+                    field_name = 'fields.state'
+                else:  # pragma: no cover
+                    raise ValueError('Unknown location type: %s' % (field.value_type, ))
+
+                if self.comparator == '=':
+                    es_query &= es_Q('term', **{field_name: query_value})
+                elif self.comparator == '~':
+                    raise Exception()
+                else:  # pragma: no cover
+                    raise ValueError('Unknown location comparator: %s' % (self.comparator,))
+
+            else:  # pragma: no cover
+                raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
+
+            return es_Q(
+                'nested', path='fields', query=es_query
+            )
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            query_value = self.value.upper()
+            es_query = es_Q('term', **{'name': query_value})
+
+            return es_query
+        else:
+            raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value

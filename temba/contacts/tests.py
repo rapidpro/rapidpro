@@ -1494,48 +1494,209 @@ class ContactTest(TembaTest):
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
+        age = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        joined = ContactField.get_or_create(self.org, self.admin, 'joined', "Joined On", value_type=Value.TYPE_DATETIME)
+        ward = ContactField.get_or_create(self.org, self.admin, 'ward', "Ward", value_type=Value.TYPE_WARD)
+        district = ContactField.get_or_create(
+            self.org, self.admin, 'district', "District", value_type=Value.TYPE_DISTRICT
+        )
+        state = ContactField.get_or_create(self.org, self.admin, 'state', "State", value_type=Value.TYPE_STATE)
 
+        # text term matches
         self.assertEqual(
             contact_es_search(self.org, 'gender = "unknown"').to_dict(),
             {'nested': {'path': 'fields', 'query': {
                 'bool': {
                     'must': [
-                        {'match': {'fields.field': six.text_type(gender.uuid)}},
-                        {'match': {'fields.text': 'UNKNOWN'}}
+                        {'term': {'fields.field': six.text_type(gender.uuid)}},
+                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
+                    ]}
+            }}}
+        )
+
+        # decimal range matches
+        self.assertEqual(
+            contact_es_search(self.org, 'age = 35').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'match': {'fields.decimal': 35.0}}
                     ]}
             }}}
         )
 
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" AND gender = "known"').to_dict(),
+            contact_es_search(self.org, 'age > 35').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'range': {'fields.decimal': {'gt': 35.0}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'age >= 35').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'range': {'fields.decimal': {'gte': 35.0}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'age < 35').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'range': {'fields.decimal': {'lt': 35.0}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'age <= 35').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'range': {'fields.decimal': {'lte': 35.0}}}
+                    ]}
+            }}}
+        )
+
+        # datetime range matches
+        self.assertEqual(
+            contact_es_search(self.org, 'joined = "01-03-2018"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'match': {'fields.datetime': '2018-02-28'}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'joined > "01-03-2018"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'range': {'fields.datetime': {'gt': '2018-02-28'}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'joined >= "01-03-2018"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'range': {'fields.datetime': {'gte': '2018-02-28'}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'joined < "01-03-2018"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'joined <= "01-03-2018"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'range': {'fields.datetime': {'lte': '2018-02-28'}}}
+                    ]}
+            }}}
+        )
+
+        # ward matches
+        self.assertEqual(
+            contact_es_search(self.org, 'ward = "Bukure"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(ward.uuid)}},
+                        {'term': {'fields.ward': 'BUKURE'}}
+                    ]}
+            }}}
+        )
+
+        # district matches
+        self.assertEqual(
+            contact_es_search(self.org, 'district = "Rwamagana"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(district.uuid)}},
+                        {'term': {'fields.district': 'RWAMAGANA'}}
+                    ]}
+            }}}
+        )
+
+        # state matches
+        self.assertEqual(
+            contact_es_search(self.org, 'state = "Eastern Province"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(state.uuid)}},
+                        {'term': {'fields.state': 'EASTERN PROVINCE'}}
+                    ]}
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'gender = "unknown" AND age > 32').to_dict(),
             ({'bool': {
                 'must': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                        {'match': {'fields.field': six.text_type(gender.uuid)}},
-                        {'match': {'fields.text': 'UNKNOWN'}}
+                        {'term': {'fields.field': six.text_type(gender.uuid)}},
+                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                        {'match': {'fields.field': six.text_type(gender.uuid)}},
-                        {'match': {'fields.text': 'KNOWN'}}
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'range': {'fields.decimal': {'gt': 32.0}}}
                     ]}}}}
                 ]
             }})
         )
 
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" OR gender = "known"').to_dict(),
+            contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"').to_dict(),
             ({'bool': {
                 'should': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                        {'match': {'fields.field': six.text_type(gender.uuid)}},
-                        {'match': {'fields.text': 'UNKNOWN'}}
+                        {'term': {'fields.field': six.text_type(gender.uuid)}},
+                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                        {'match': {'fields.field': six.text_type(gender.uuid)}},
-                        {'match': {'fields.text': 'KNOWN'}}
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
                     ]}}}}
                 ]
             }})
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'name = "joe Blow"').to_dict(),
+            {'term': {'name': 'JOE BLOW'}}
         )
 
     def test_contact_search(self):
