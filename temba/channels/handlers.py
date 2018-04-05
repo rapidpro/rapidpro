@@ -325,7 +325,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from_number = self.get_param('From')
 
         # Twilio sometimes sends un-normalized numbers
-        if to_number and not to_number.startswith('+') and to_country:
+        if to_number and not to_number.startswith('+') and to_country:  # pragma: no cover
             to_number, valid = URN.normalize_number(to_number, to_country)
 
         # see if it's a twilio call being initiated
@@ -405,13 +405,13 @@ class TwimlAPIHandler(BaseChannelHandler):
     def get_ringing_channel(self, uuid):
         return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).first()
 
-    def get_receive_channel(self, uuid=None):
+    def get_receive_channel(self, uuid=None):  # pragma: no cover
         return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).first()
 
     def get_client(self, channel):
         return channel.get_ivr_client()
 
-    def get_channel_type(self):
+    def get_channel_type(self):  # pragma: no cover
         return 'TW'
 
 

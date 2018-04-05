@@ -989,7 +989,7 @@ class Msg(models.Model):
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
-        else:
+        else:  # pragma: no cover
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):

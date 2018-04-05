@@ -4955,7 +4955,16 @@ class ContactFieldTest(TembaTest):
 
 class URNTest(TembaTest):
 
-    def test_fb_urn(self):
+    def test_line_urn(self):
+        self.assertEqual('line:asdf', URN.from_line('asdf'))
+
+    def test_viber_urn(self):
+        self.assertEqual('viber:12345', URN.from_viber('12345'))
+
+    def test_fcm_urn(self):
+        self.assertEqual('fcm:12345', URN.from_fcm('12345'))
+
+    def test_facebook_urn(self):
         self.assertEqual('facebook:ref:asdf', URN.from_facebook(URN.path_from_fb_ref('asdf')))
         self.assertEqual('asdf', URN.fb_ref_from_path(URN.path_from_fb_ref('asdf')))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref('asdf'))))
