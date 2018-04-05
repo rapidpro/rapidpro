@@ -1,3 +1,7 @@
+v3.0.357
+----------
+ * Add linear backdown for our refresh rate on inbox pages
+
 v3.0.356
 ----------
  * Do not log MageHandler calls
