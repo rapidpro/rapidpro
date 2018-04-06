@@ -2340,6 +2340,7 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(resp_json['results'][2], {
             'id': frank_run2.pk,
+            'uuid': str(frank_run2.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'start': None,
@@ -2356,6 +2357,7 @@ class APITest(TembaTest):
         })
         self.assertEqual(resp_json['results'][4], {
             'id': joe_run1.pk,
+            'uuid': str(joe_run1.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'start': {'uuid': str(joe_run1.start.uuid)},
@@ -2385,6 +2387,17 @@ class APITest(TembaTest):
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by uuid
+        response = self.fetchJSON(url, 'uuid=%s' % frank_run2.uuid)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by mismatching id and uuid
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, joe_run1.pk))
+        self.assertResultsById(response, [])
+
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, frank_run2.pk))
         self.assertResultsById(response, [frank_run2])
 
         # filter by flow
