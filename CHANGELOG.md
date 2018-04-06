@@ -1,3 +1,8 @@
+v3.0.358
+----------
+ * Allow filtering by uuid on runs API endpoint, and include run uuid in webhooks
+ * Fix blockstrans failing on label count
+
 v3.0.357
 ----------
  * Add linear backdown for our refresh rate on inbox pages
