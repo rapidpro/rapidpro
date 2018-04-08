@@ -1509,7 +1509,7 @@ class ContactTest(TembaTest):
                 'bool': {
                     'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'unknown'}}
+                        {'term': {'fields.text': 'unknown'}}
                     ]}
             }}}
         )
@@ -1698,7 +1698,7 @@ class ContactTest(TembaTest):
                 'must': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'unknown'}}
+                        {'term': {'fields.text': 'unknown'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(age.uuid)}},
@@ -1714,7 +1714,7 @@ class ContactTest(TembaTest):
                 'should': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'unknown'}}
+                        {'term': {'fields.text': 'unknown'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(joined.uuid)}},
@@ -1752,6 +1752,163 @@ class ContactTest(TembaTest):
             }}}
         )
 
+        # is set not set
+        self.assertEqual(
+            contact_es_search(self.org, 'gender = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.text'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'gender != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(gender.uuid)}},
+                        {'exists': {'field': 'fields.text'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'age = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(age.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.decimal'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'age != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(age.uuid)}},
+                        {'exists': {'field': 'fields.decimal'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'joined = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(joined.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.datetime'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'joined != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(joined.uuid)}},
+                        {'exists': {'field': 'fields.datetime'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'ward = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.ward'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'ward != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(ward.uuid)}},
+                        {'exists': {'field': 'fields.ward'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'district = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(district.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.district'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'district != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(district.uuid)}},
+                        {'exists': {'field': 'fields.district'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'state = ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [{'term': {'fields.field': six.text_type(state.uuid)}}],
+                    'must_not': [{'exists': {'field': 'fields.state'}}],
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'state != ""').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(state.uuid)}},
+                        {'exists': {'field': 'fields.state'}}
+                    ]
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'tel != ""').to_dict(),
+            {'nested': {'path': 'urns', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'urns.scheme': 'tel'}},
+                        {'exists': {'field': 'path'}}
+                    ]
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'twitter = ""').to_dict(),
+            {'nested': {'path': 'urns', 'query': {
+                'bool': {
+                    'must': [{'term': {'urns.scheme': 'twitter'}}],
+                    'must_not': [{'exists': {'field': 'path'}}],
+                }
+            }}}
+        )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'name = ""').to_dict(),
+            {'term': {'name': ''}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'name != ""').to_dict(),
+            {'bool': {'must_not': [{'term': {'name': ''}}]}}
+        )
+
         with AnonymousOrg(self.org):
             self.assertEqual(
                 contact_es_search(self.org, '123').to_dict(),
@@ -1762,6 +1919,16 @@ class ContactTest(TembaTest):
                 contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
                 {'ids': {'values': [-1]}}
             )
+            self.assertEqual(
+                contact_es_search(self.org, 'twitter != ""').to_dict(),
+                {'ids': {'values': [-1]}}
+            )
+            self.assertEqual(
+                contact_es_search(self.org, 'twitter = ""').to_dict(),
+                {'ids': {'values': [-1]}}
+            )
+
+            self.assertRaises(SearchException, contact_es_search, self.org, 'id = ""')
 
     def test_contact_search(self):
         self.login(self.admin)

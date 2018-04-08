@@ -463,7 +463,7 @@ class Condition(QueryNode):
                 query_value = self.value.lower()
 
                 if self.comparator == '=':
-                    es_query &= es_Q('term', **{'fields.text.keyword': query_value})
+                    es_query &= es_Q('term', **{'fields.text': query_value})
 
                 else:  # pragma: no cover
                     raise ValueError('Unknown text comparator: %s' % (self.comparator,))
@@ -545,7 +545,7 @@ class Condition(QueryNode):
 
         elif prop_type == ContactQuery.PROP_SCHEME:
             query_value = self.value.lower()
-            es_query = es_Q('term', **{'urns.scheme': field.lower()}) & es_Q()
+            es_query = es_Q('term', **{'urns.scheme': field.lower()})
 
             if org.is_anon:
                 return es_Q('ids', **{'values': [-1]})
@@ -739,6 +739,71 @@ class IsSetCondition(Condition):
 
         else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
+
+    def as_elasticsearch(self, org, prop_map):
+        prop_type, field = prop_map[self.prop]
+
+        if self.comparator.lower() in self.IS_SET_LOOKUPS:
+            is_set = True
+        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
+            is_set = False
+        else:
+            raise SearchException(_("Invalid operator for empty string comparison"))
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            field_uuid = six.text_type(field.uuid)
+            es_query = es_Q('term', **{'fields.field': field_uuid})
+
+            if field.value_type == Value.TYPE_TEXT:
+                field_name = 'fields.text'
+            elif field.value_type == Value.TYPE_DECIMAL:
+                field_name = 'fields.decimal'
+            elif field.value_type == Value.TYPE_DATETIME:
+                field_name = 'fields.datetime'
+            elif field.value_type == Value.TYPE_STATE:
+                field_name = 'fields.state'
+            elif field.value_type == Value.TYPE_DISTRICT:
+                field_name = 'fields.district'
+            elif field.value_type == Value.TYPE_WARD:
+                field_name = 'fields.ward'
+            else:  # pragma: no cover
+                raise ValueError("Unrecognized contact field type '%s'" % (field.value_type, ))
+
+            if is_set:
+                es_query &= es_Q('exists', **{'field': field_name})
+            else:
+                es_query &= ~es_Q('exists', **{'field': field_name})
+
+            return es_Q(
+                'nested', path='fields', query=es_query
+            )
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                return es_Q('ids', **{'values': [-1]})
+
+            es_query = es_Q('term', **{'urns.scheme': field.lower()})
+
+            if is_set:
+                es_query &= es_Q('exists', **{'field': 'path'})
+            else:
+                es_query &= ~es_Q('exists', **{'field': 'path'})
+
+            return es_Q(
+                'nested', path='urns', query=es_query
+            )
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            if field == 'name':
+                if is_set:
+                    es_query = ~es_Q('term', **{'name': ''})
+                else:
+                    es_query = es_Q('term', **{'name': ''})
+                return es_query
+            elif field == 'id':
+                raise SearchException("All contacts have an ID, you cannot check if 'id' is set")
+            else:  # pragma: no cover
+                raise ValueError("Unknown attribute field '%s'" % (field, ))
+        else:
+            raise ValueError("Unrecognized contact field type '%s'" % (prop_type, ))
 
 
 @six.python_2_unicode_compatible
