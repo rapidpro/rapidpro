@@ -487,7 +487,7 @@ class Condition(QueryNode):
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
 
-                if not query_value:
+                if not query_value:  # pragma: no cover
                     raise SearchException(_("Unable to parse the date %s") % self.value)
 
                 utc_range = date_to_utc_range(query_value.date(), field.org)
@@ -556,7 +556,7 @@ class Condition(QueryNode):
                     es_query &= es_Q('match', **{'urns.path': query_value})
 
                 return es_Q('nested', path='urns', query=es_query)
-        else:
+        else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
     def __eq__(self, other):
@@ -747,7 +747,7 @@ class IsSetCondition(Condition):
             is_set = True
         elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
             is_set = False
-        else:
+        else:  # pragma: no cover
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -802,7 +802,7 @@ class IsSetCondition(Condition):
                 raise SearchException("All contacts have an ID, you cannot check if 'id' is set")
             else:  # pragma: no cover
                 raise ValueError("Unknown attribute field '%s'" % (field, ))
-        else:
+        else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % (prop_type, ))
 
 
