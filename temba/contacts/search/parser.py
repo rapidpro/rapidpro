@@ -89,7 +89,7 @@ class ContactQuery(object):
     def as_elasticsearch(self, org):
         prop_map = self.get_prop_map(org)
 
-        return self.root.as_elasticsearch(prop_map)
+        return self.root.as_elasticsearch(org, prop_map)
 
     def get_prop_map(self, org):
         """
@@ -157,7 +157,7 @@ class QueryNode(object):
     def as_text(self):  # pragma: no cover
         pass
 
-    def as_elasticsearch(self, prop_map):  # pragma: no cover
+    def as_elasticsearch(self, org, prop_map):  # pragma: no cover
         pass
 
     def evaluate(self, contact_json, prop_map):  # pragma: no cover
@@ -452,7 +452,7 @@ class Condition(QueryNode):
         else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
-    def as_elasticsearch(self, prop_map):
+    def as_elasticsearch(self, org, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -460,7 +460,7 @@ class Condition(QueryNode):
             es_query = es_Q('term', **{'fields.field': field_uuid})
 
             if field.value_type == Value.TYPE_TEXT:
-                query_value = self.value.upper()
+                query_value = self.value.lower()
 
                 if self.comparator == '=':
                     es_query &= es_Q('term', **{'fields.text.keyword': query_value})
@@ -507,7 +507,7 @@ class Condition(QueryNode):
                     raise ValueError('Unknown datetime comparator: %s' % (self.comparator,))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-                query_value = self.value.upper()
+                query_value = self.value.lower()
 
                 if field.value_type == Value.TYPE_WARD:
                     field_name = 'fields.ward'
@@ -519,9 +519,10 @@ class Condition(QueryNode):
                     raise ValueError('Unknown location type: %s' % (field.value_type, ))
 
                 if self.comparator == '=':
+                    field_name += '.keyword'
                     es_query &= es_Q('term', **{field_name: query_value})
                 elif self.comparator == '~':
-                    raise Exception()
+                    es_query &= es_Q('match', **{field_name: query_value})
                 else:  # pragma: no cover
                     raise ValueError('Unknown location comparator: %s' % (self.comparator,))
 
@@ -531,11 +532,30 @@ class Condition(QueryNode):
             return es_Q(
                 'nested', path='fields', query=es_query
             )
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            query_value = self.value.upper()
-            es_query = es_Q('term', **{'name': query_value})
 
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            query_value = self.value.lower()
+            if field == 'name':
+                es_query = es_Q('term', **{'name': query_value})
+            elif field == 'id':
+                es_query = es_Q('ids', **{'values': [query_value]})
+            else:  # pragma: no cover
+                raise ValueError("Unknown attribute field '%s'" % (field, ))
             return es_query
+
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            query_value = self.value.lower()
+            es_query = es_Q('term', **{'urns.scheme': field.lower()}) & es_Q()
+
+            if org.is_anon:
+                return es_Q('ids', **{'values': [-1]})
+            else:
+                if self.comparator == '=':
+                    es_query &= es_Q('term', **{'urns.path.keyword': query_value})
+                elif self.comparator == '~':
+                    es_query &= es_Q('match', **{'urns.path': query_value})
+
+                return es_Q('nested', path='urns', query=es_query)
         else:
             raise ValueError("Unrecognized contact field type '%s'" % prop_type)
 
@@ -790,8 +810,8 @@ class BoolCombination(QueryNode):
     def evaluate(self, contact_json, prop_map):
         return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
 
-    def as_elasticsearch(self, prop_map):
-        return reduce(self.op, [child.as_elasticsearch(prop_map) for child in self.children])
+    def as_elasticsearch(self, org, prop_map):
+        return reduce(self.op, [child.as_elasticsearch(org, prop_map) for child in self.children])
 
     def as_text(self):
         op = ' OR ' if self.op == self.OR else ' AND '

@@ -1509,7 +1509,7 @@ class ContactTest(TembaTest):
                 'bool': {
                     'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
+                        {'term': {'fields.text.keyword': 'unknown'}}
                     ]}
             }}}
         )
@@ -1633,7 +1633,17 @@ class ContactTest(TembaTest):
                 'bool': {
                     'must': [
                         {'term': {'fields.field': six.text_type(ward.uuid)}},
-                        {'term': {'fields.ward': 'BUKURE'}}
+                        {'term': {'fields.ward.keyword': 'bukure'}}
+                    ]}
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'ward ~ "Bukure"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(ward.uuid)}},
+                        {'match': {'fields.ward': 'bukure'}}
                     ]}
             }}}
         )
@@ -1645,7 +1655,17 @@ class ContactTest(TembaTest):
                 'bool': {
                     'must': [
                         {'term': {'fields.field': six.text_type(district.uuid)}},
-                        {'term': {'fields.district': 'RWAMAGANA'}}
+                        {'term': {'fields.district.keyword': 'rwamagana'}}
+                    ]}
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'district ~ "Rwamagana"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(district.uuid)}},
+                        {'match': {'fields.district': 'rwamagana'}}
                     ]}
             }}}
         )
@@ -1657,7 +1677,17 @@ class ContactTest(TembaTest):
                 'bool': {
                     'must': [
                         {'term': {'fields.field': six.text_type(state.uuid)}},
-                        {'term': {'fields.state': 'EASTERN PROVINCE'}}
+                        {'term': {'fields.state.keyword': 'eastern province'}}
+                    ]}
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'state ~ "Eastern Province"').to_dict(),
+            {'nested': {'path': 'fields', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'fields.field': six.text_type(state.uuid)}},
+                        {'match': {'fields.state': 'eastern province'}}
                     ]}
             }}}
         )
@@ -1668,7 +1698,7 @@ class ContactTest(TembaTest):
                 'must': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
+                        {'term': {'fields.text.keyword': 'unknown'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(age.uuid)}},
@@ -1684,7 +1714,7 @@ class ContactTest(TembaTest):
                 'should': [
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(gender.uuid)}},
-                        {'term': {'fields.text.keyword': 'UNKNOWN'}}
+                        {'term': {'fields.text.keyword': 'unknown'}}
                     ]}}}},
                     {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                         {'term': {'fields.field': six.text_type(joined.uuid)}},
@@ -1696,8 +1726,42 @@ class ContactTest(TembaTest):
 
         self.assertEqual(
             contact_es_search(self.org, 'name = "joe Blow"').to_dict(),
-            {'term': {'name': 'JOE BLOW'}}
+            {'term': {'name': 'joe blow'}}
         )
+
+        self.assertEqual(
+            contact_es_search(self.org, 'tel = "+250788382011"').to_dict(),
+            {'nested': {'path': 'urns', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'urns.scheme': 'tel'}},
+                        {'term': {'urns.path.keyword': '+250788382011'}}
+                    ]
+                }
+            }}}
+        )
+        self.assertEqual(
+            contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+            {'nested': {'path': 'urns', 'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'urns.scheme': 'twitter'}},
+                        {'match': {'urns.path': 'blow'}}
+                    ]
+                }
+            }}}
+        )
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(
+                contact_es_search(self.org, '123').to_dict(),
+                {'ids': {'values': ['123']}}
+            )
+
+            self.assertEqual(
+                contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+                {'ids': {'values': [-1]}}
+            )
 
     def test_contact_search(self):
         self.login(self.admin)
