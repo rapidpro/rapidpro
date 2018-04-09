@@ -1,3 +1,7 @@
+v3.0.359
+----------
+ * Add API endpoint to view failed messages
+
 v3.0.358
 ----------
  * Allow filtering by uuid on runs API endpoint, and include run uuid in webhooks
