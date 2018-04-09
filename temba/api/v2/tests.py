@@ -2086,6 +2086,7 @@ class APITest(TembaTest):
         joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe,
                                    attachments=['image/jpeg:https://example.com/test.jpg'])
         frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
+        frank_msg4 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='F')
 
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
@@ -2146,6 +2147,10 @@ class APITest(TembaTest):
         # filter by folder (sent)
         response = self.fetchJSON(url, 'folder=sent')
         self.assertResultsById(response, [joe_msg4, frank_msg2])
+
+        # filter by folder (failed)
+        response = self.fetchJSON(url, 'folder=failed')
+        self.assertResultsById(response, [frank_msg4])
 
         # filter by invalid view
         response = self.fetchJSON(url, 'folder=invalid')
