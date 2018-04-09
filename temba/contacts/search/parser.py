@@ -15,7 +15,7 @@ from django.db.models import Q, Func, Value as Val, CharField
 from django.db.models.functions import Upper, Substr
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
-from elasticsearch_dsl import Q as es_Q
+from elasticsearch_dsl import Q as es_Q, Search as es_Search
 from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
@@ -1080,7 +1080,15 @@ def contact_es_search(org, text):
     """
     parsed = parse_query(text, as_anon=org.is_anon)
 
-    return parsed.as_elasticsearch(org)
+    es_match = parsed.as_elasticsearch(org)
+
+    es_filter = es_Q('bool', filter=[
+        # es_Q('term', is_blocked=False),
+        # es_Q('term', is_stopped=False),
+        es_Q('term', org_id=org.id)
+    ])
+
+    return es_Search().query((es_match & es_filter)).sort('-modified_on')
 
 
 def extract_fields(org, text):
