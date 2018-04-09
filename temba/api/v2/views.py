@@ -2187,7 +2187,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming` or `sent`.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, 'failed' or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
     The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
@@ -2246,6 +2246,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                       'flows': SystemLabel.TYPE_FLOWS,
                       'archived': SystemLabel.TYPE_ARCHIVED,
                       'outbox': SystemLabel.TYPE_OUTBOX,
+                      'failed': SystemLabel.TYPE_FAILED,
                       'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
