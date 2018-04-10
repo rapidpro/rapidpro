@@ -2184,7 +2184,14 @@ class ChannelLogTest(TembaTest):
         self.assertEqual(self.contact, incoming_msg.contact)
 
         success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
-        ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
+        success_msg.status_delivered()
+
+        self.assertIsNotNone(success_msg.sent_on)
+
+        success_log = ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
+        success_log.response = "non-json response"
+        success_log.request = "POST https://foo.bar/send?msg=failed+message"
+        success_log.save(update_fields=['request', 'response'])
 
         failed_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "failed message", channel=self.channel)
         failed_log = ChannelLog.log_error(dict_to_struct('MockMsg', failed_msg.as_task_json()), "Error Sending")
@@ -2221,10 +2228,21 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "Successfully Sent")
         self.assertContains(response, "Error Sending")
 
-        # view one alone
+        # view failed alone
         response = self.client.get(read_url)
         self.assertContains(response, "failed+message")
         self.assertContains(response, "invalid credentials")
+
+        # disconnect our msg
+        failed_log.msg = None
+        failed_log.save(update_fields=['msg'])
+        response = self.client.get(read_url)
+        self.assertContains(response, "failed+message")
+        self.assertContains(response, "invalid credentials")
+
+        # view success alone
+        response = self.client.get(reverse('channels.channellog_read', args=[success_log.id]))
+        self.assertContains(response, "non-json response")
 
         self.assertEqual(1, self.channel.get_success_log_count())
         self.assertEqual(1, self.channel.get_error_log_count())
