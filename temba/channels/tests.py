@@ -2180,6 +2180,9 @@ class ChannelLogTest(TembaTest):
         self.contact = self.create_contact("Fred Jones", "+12067799191")
         self.create_secondary_org(100000)
 
+        incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg")
+        self.assertEqual(self.contact, incoming_msg.contact)
+
         success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
         ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
 
@@ -2239,7 +2242,7 @@ class ChannelLogTest(TembaTest):
         self.admin.save()
 
         response = self.client.get(read_url)
-        self.assertContains(response, "failed+message")
+        self.assertContains(response, "invalid credentials")
 
 
 class MageHandlerTest(TembaTest):
