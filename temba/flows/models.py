@@ -1645,8 +1645,6 @@ class Flow(TembaModel):
                              extra=None, flow_start=None, parent_run=None):
 
         batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
-        print ("*"*30)
-        print (batch_message_ids)
         Contact.bulk_cache_initialize(self.org, batch_contacts)
         contact_map = {c.id: c for c in batch_contacts}
 
