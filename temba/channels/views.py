@@ -1778,6 +1778,10 @@ class ChannelLogCRUDL(SmartCRUDL):
         link_fields = ('channel', 'description', 'created_on')
         paginate_by = 50
 
+        def derive_org(self):
+            channel = Channel.objects.get(pk=self.request.GET['channel'])
+            return channel.org
+
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
 
@@ -1802,12 +1806,16 @@ class ChannelLogCRUDL(SmartCRUDL):
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
-    class Session(AnonMixin, SmartReadView):
+    class Session(AnonMixin, OrgPermsMixin, SmartReadView):
         model = ChannelSession
 
-    class Read(AnonMixin, SmartReadView):
+    class Read(AnonMixin, OrgPermsMixin, SmartReadView):
         fields = ('description', 'created_on')
+
+        def derive_org(self):
+            object = self.get_object()
+            return object.channel.org if object else None
 
         def derive_queryset(self, **kwargs):
             queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
-            return queryset.filter(channel__org=self.request.user.get_org()).order_by('-created_on')
+            return queryset.order_by('-created_on')

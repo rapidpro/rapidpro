@@ -2174,6 +2174,52 @@ class ChannelCountTest(TembaTest):
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
 
+class ChannelLogTest(TembaTest):
+
+    def test_channellog_views(self):
+        self.contact = self.create_contact("Fred Jones", "+12067799191")
+        self.create_secondary_org(100000)
+
+        success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
+        ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
+
+        failed_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "failed message", channel=self.channel)
+        failed_log = ChannelLog.objects.create(channel=self.channel, msg=failed_msg, description="Error Sending",
+                                               request="POST http://foo.bar/send?msg=failed+message", is_error=True)
+
+        # can't see the view without logging in
+        list_url = reverse('channels.channellog_list') + "?channel=%d" % self.channel.id
+        response = self.client.get(list_url)
+        self.assertLoginRedirect(response)
+
+        read_url = reverse('channels.channellog_read', args=[failed_log.id])
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        # same if logged in as other admin
+        self.login(self.admin2)
+
+        list_url = reverse('channels.channellog_list') + "?channel=%d" % self.channel.id
+        response = self.client.get(list_url)
+        self.assertLoginRedirect(response)
+
+        read_url = reverse('channels.channellog_read', args=[failed_log.id])
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        # login as real admin
+        self.login(self.admin)
+
+        # check our list page has both our channel logs
+        response = self.client.get(list_url)
+        self.assertContains(response, "Successfully Sent")
+        self.assertContains(response, "Error Sending")
+
+        # view one alone
+        response = self.client.get(read_url)
+        self.assertContains(response, "failed+message")
+
+
 class MageHandlerTest(TembaTest):
 
     def setUp(self):
