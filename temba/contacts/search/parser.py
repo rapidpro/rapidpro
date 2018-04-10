@@ -536,7 +536,14 @@ class Condition(QueryNode):
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
             query_value = self.value.lower()
             if field == 'name':
-                es_query = es_Q('term', **{'name': query_value})
+                field_name = 'name'
+                if self.comparator == '=':
+                    field_name += '.keyword'
+                    es_query = es_Q('term', **{field_name: query_value})
+                elif self.comparator == '~':
+                    es_query = es_Q('match', **{field_name: query_value})
+                else:  # pragma: no cover
+                    raise ValueError('Unknown attribute comparator: %s' % (self.comparator,))
             elif field == 'id':
                 es_query = es_Q('ids', **{'values': [query_value]})
             else:  # pragma: no cover
@@ -1074,21 +1081,28 @@ def contact_search(org, text, base_queryset):
     return base_queryset.filter(org=org).filter(query), parsed
 
 
-def contact_es_search(org, text):
+def contact_es_search(org, text, base_group=None):
     """
     Returns ES query
     """
-    parsed = parse_query(text, as_anon=org.is_anon)
 
-    es_match = parsed.as_elasticsearch(org)
+    if not base_group:
+        base_group = org.cached_all_contacts_group
 
     es_filter = es_Q('bool', filter=[
         # es_Q('term', is_blocked=False),
         # es_Q('term', is_stopped=False),
-        es_Q('term', org_id=org.id)
+        es_Q('term', org_id=org.id),
+        es_Q('term', groups=six.text_type(base_group.uuid))
     ])
 
-    return es_Search().query((es_match & es_filter)).sort('-modified_on')
+    if text:
+        parsed = parse_query(text, as_anon=org.is_anon)
+        es_match = parsed.as_elasticsearch(org)
+
+        return es_Search(index='contacts').query((es_match & es_filter)).sort('-modified_on')
+    else:
+        return es_Search(index='contacts').query(es_filter).sort('-modified_on')
 
 
 def extract_fields(org, text):

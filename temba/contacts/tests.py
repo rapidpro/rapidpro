@@ -1504,7 +1504,10 @@ class ContactTest(TembaTest):
         state = ContactField.get_or_create(self.org, self.admin, 'state', "State", value_type=Value.TYPE_STATE)
 
         base_search = {'query': {'bool': {
-            'filter': [{'term': {'org_id': self.org.id}}],
+            'filter': [
+                {'term': {'org_id': self.org.id}},
+                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+            ],
             'must': []
         }}, 'sort': [{'modified_on': {'order': 'desc'}}]}
 
@@ -1755,7 +1758,10 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
                 ]}}}}
             ],
-            'filter': [{'term': {'org_id': self.org.id}}],
+            'filter': [
+                {'term': {'org_id': self.org.id}},
+                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+            ],
             'minimum_should_match': 1}}, 'sort': [{'modified_on': {'order': 'desc'}}]}
 
         self.assertEqual(
@@ -1764,7 +1770,7 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'term': {'name': 'joe blow'}}]
+        expected_search['query']['bool']['must'] = [{'term': {'name.keyword': 'joe blow'}}]
         self.assertEqual(
             contact_es_search(self.org, 'name = "joe Blow"').to_dict(),
             expected_search
