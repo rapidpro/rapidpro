@@ -2180,7 +2180,7 @@ class ChannelLogTest(TembaTest):
         self.contact = self.create_contact("Fred Jones", "+12067799191")
         self.create_secondary_org(100000)
 
-        incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg")
+        incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
         self.assertEqual(self.contact, incoming_msg.contact)
 
         success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
@@ -2189,7 +2189,7 @@ class ChannelLogTest(TembaTest):
         self.assertIsNotNone(success_msg.sent_on)
 
         success_log = ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
-        success_log.response = "non-json response"
+        success_log.response = ""
         success_log.request = "POST https://foo.bar/send?msg=failed+message"
         success_log.save(update_fields=['request', 'response'])
 
@@ -2242,7 +2242,7 @@ class ChannelLogTest(TembaTest):
 
         # view success alone
         response = self.client.get(reverse('channels.channellog_read', args=[success_log.id]))
-        self.assertContains(response, "non-json response")
+        self.assertContains(response, "Successfully Sent")
 
         self.assertEqual(1, self.channel.get_success_log_count())
         self.assertEqual(1, self.channel.get_error_log_count())
