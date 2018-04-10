@@ -1221,7 +1221,7 @@ class Msg(models.Model):
                     metadata=self.metadata,
                     connection_id=self.connection_id)
 
-        if self.contact_urn.auth:
+        if self.contact_urn.auth:  # pragma: no cover
             data.update(dict(auth=self.contact_urn.auth))
 
         return data

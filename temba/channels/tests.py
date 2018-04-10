@@ -2184,8 +2184,11 @@ class ChannelLogTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False)
 
         failed_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "failed message", channel=self.channel)
-        failed_log = ChannelLog.objects.create(channel=self.channel, msg=failed_msg, description="Error Sending",
-                                               request="POST http://foo.bar/send?msg=failed+message", is_error=True)
+        failed_log = ChannelLog.log_error(dict_to_struct('MockMsg', failed_msg.as_task_json()), "Error Sending")
+
+        failed_log.response = json.dumps(dict(error="invalid credentials"))
+        failed_log.request = "POST https://foo.bar/send?msg=failed+message"
+        failed_log.save(update_fields=['request', 'response'])
 
         # can't see the view without logging in
         list_url = reverse('channels.channellog_list') + "?channel=%d" % self.channel.id
@@ -2216,6 +2219,25 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "Error Sending")
 
         # view one alone
+        response = self.client.get(read_url)
+        self.assertContains(response, "failed+message")
+        self.assertContains(response, "invalid credentials")
+
+        self.assertEqual(1, self.channel.get_success_log_count())
+        self.assertEqual(1, self.channel.get_error_log_count())
+
+        # change our org to anonymous
+        self.org.is_anon = True
+        self.org.save()
+
+        # should no longer be able to see read page
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        # but if our admin is a superuser they can
+        self.admin.is_superuser = True
+        self.admin.save()
+
         response = self.client.get(read_url)
         self.assertContains(response, "failed+message")
 

@@ -1517,49 +1517,36 @@ class ChannelLog(models.Model):
     @classmethod
     def log_error(cls, msg, description):
         print(u"[%d] ERROR - %s" % (msg.id, description))
-        ChannelLog.objects.create(channel_id=msg.channel,
-                                  msg_id=msg.id,
-                                  is_error=True,
-                                  description=description[:255])
+        return (ChannelLog.objects.create(
+            channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
+        ))
 
     @classmethod
     def log_message(cls, msg, description, event, is_error=False):
-        ChannelLog.objects.create(channel_id=msg.channel_id,
-                                  msg=msg,
-                                  request=event.request_body,
-                                  response=event.response_body,
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255])
+        return (ChannelLog.objects.create(
+            channel_id=msg.channel_id, msg=msg, request=event.request_body, response=event.response_body,
+            url=event.url, method=event.method, is_error=is_error, response_status=event.status_code,
+            description=description[:255]
+        ))
 
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
-        ChannelLog.objects.create(channel_id=call.channel_id,
-                                  connection_id=call.id,
-                                  request=six.text_type(event.request_body),
-                                  response=six.text_type(event.response_body),
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255])
+        return (ChannelLog.objects.create(
+            channel_id=call.channel_id, connection_id=call.id, request=six.text_type(event.request_body),
+            response=six.text_type(event.response_body), url=event.url, method=event.method, is_error=is_error,
+            response_status=event.status_code, description=description[:255]
+        ))
 
     @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000
 
-        ChannelLog.objects.create(channel_id=channel_id,
-                                  request=six.text_type(event.request_body),
-                                  response=six.text_type(event.response_body),
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255],
-                                  request_time=request_time_ms)
+        return (ChannelLog.objects.create(
+            channel_id=channel_id, request=six.text_type(event.request_body), response=six.text_type(event.response_body),
+            url=event.url, method=event.method, is_error=is_error, response_status=event.status_code,
+            description=description[:255], request_time=request_time_ms
+        ))
 
     def get_url_host(self):
         parsed = urlparse(self.url)
