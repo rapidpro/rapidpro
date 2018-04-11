@@ -1,3 +1,7 @@
+v3.0.361
+----------
+ * Migrate Dart/Hub9 Contact urns and channels to support ext schemes
+
 v3.0.360
 ----------
  * Use more efficient queries for check channels task
