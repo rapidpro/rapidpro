@@ -21,7 +21,6 @@ from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from temba.contacts.models import ContactField, ContactURN
-from temba.utils.search import ngrams
 
 # our index for equality checks on string values is limited to the first 32 characters
 STRING_VALUE_COMPARISON_LIMIT = 32
@@ -557,11 +556,7 @@ class Condition(QueryNode):
                 if self.comparator == '=':
                     es_query &= es_Q('term', **{'urns.path.keyword': query_value})
                 elif self.comparator == '~':
-                    if len(query_value) < 3:
-                        raise SearchException(_('Minimum search length for URN search is 3 characters.'))
-
-                    for ngram in ngrams(query_value):
-                        es_query &= es_Q('match', **{'urns.path': ngram})
+                    es_query &= es_Q('match_phrase', **{'urns.path': query_value})
 
                 return es_Q('nested', path='urns', query=es_query)
         else:  # pragma: no cover
