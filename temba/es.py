@@ -5,4 +5,4 @@ from django.conf import settings
 
 from elasticsearch import Elasticsearch
 
-ES = Elasticsearch(hosts=[settings.ES_CONNECTION_URL])
+ES = Elasticsearch(hosts=[settings.ELASTICSEARCH_URL])
