@@ -10,6 +10,7 @@ from datetime import timedelta
 from django.db import migrations, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
+from django.utils.text import force_text
 from django_redis import get_redis_connection
 from six.moves import range
 from temba.utils import chunk_list
@@ -84,7 +85,7 @@ def exit_uuid_for_step(step, prev_used, action_set_objs, cache):
 
     exit_uuid = cache.hget(CACHE_KEY_ACTIONSET_EXITS, step.step_uuid)
     if exit_uuid:
-        return str(exit_uuid)
+        return force_text(exit_uuid)
 
     exit_uuid = str(uuid4())
     cache.hset(CACHE_KEY_ACTIONSET_EXITS, step.step_uuid, exit_uuid)

@@ -1,3 +1,31 @@
+v3.0.360
+----------
+ * Use more efficient queries for check channels task
+ * Fix Location geojson import
+
+v3.0.359
+----------
+ * Add API endpoint to view failed messages
+
+v3.0.358
+----------
+ * Allow filtering by uuid on runs API endpoint, and include run uuid in webhooks
+ * Fix blockstrans failing on label count
+
+v3.0.357
+----------
+ * Add linear backdown for our refresh rate on inbox pages
+
+v3.0.356
+----------
+ * Do not log MageHandler calls
+ * Serialize contact field label as name instead
+
+v3.0.355
+----------
+ * Use force_text on uuids read from redis
+ * Log errors for any channel handler methods
+
 v3.0.354
 ----------
  * Set placeholder msg.id = 0

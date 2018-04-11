@@ -1733,7 +1733,7 @@ class Alert(SmartModel):
         for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
             # are there still queued messages?
 
-            if not Msg.objects.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
+            if not Msg.objects.filter(status__in=['Q', 'P'], channel_id=alert.channel_id, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exists():
                 alert.ended_on = timezone.now()
                 alert.save()
 
@@ -1760,7 +1760,7 @@ class Alert(SmartModel):
                     continue
 
                 # if we haven't sent an alert in the past six ours
-                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
+                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)).exists():
                     alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS,
                                                  modified_by=alert_user, created_by=alert_user)
                     alert.send_alert()

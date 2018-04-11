@@ -709,7 +709,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'start', 'responded', 'path', 'values',
+        fields = ('id', 'uuid', 'flow', 'contact', 'start', 'responded', 'path', 'values',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 
