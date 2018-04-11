@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-from temba.contacts.models import EXTERNAL_SCHEME, URN
+from temba.contacts.models import URN
 
 
 def update_dart_hub9_ext_scheme_urns(apps, schema_editor):
@@ -11,8 +11,8 @@ def update_dart_hub9_ext_scheme_urns(apps, schema_editor):
 
     encrypted_urns = ContactURN.objects.filter(channel__channel_type__in=['DA', 'H9']).exclude(identity__icontains="+")
     for contact_urn in encrypted_urns:
-        contact_urn.scheme = EXTERNAL_SCHEME
-        contact_urn.identity = URN.from_parts(EXTERNAL_SCHEME, contact_urn.path)
+        contact_urn.scheme = 'ext'
+        contact_urn.identity = URN.from_parts('ext', contact_urn.path)
         contact_urn.save()
 
 
