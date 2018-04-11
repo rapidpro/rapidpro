@@ -1268,7 +1268,9 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()))
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()
+        )
 
         self.assertFalse(
             evaluate_query(self.org, 'ward = "cedevita is not a ward"', contact_json=self.joe.as_search_json())
@@ -1304,7 +1306,9 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.admin, 'state', 'Rwanda > Eastern Province')
         self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()))
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()
+        )
 
         self.assertFalse(
             evaluate_query(self.org, 'state = "cedevita is not a state"', contact_json=self.joe.as_search_json())
@@ -1672,18 +1676,8 @@ class ContactTest(TembaTest):
             contact_es_search(self.org, 'ward = "Bukure"').to_dict(),
             expected_search
         )
-        expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
-            'bool': {
-                'must': [
-                    {'term': {'fields.field': six.text_type(ward.uuid)}},
-                    {'match': {'fields.ward': 'bukure'}}
-                ]}
-        }}}]
-        self.assertEqual(
-            contact_es_search(self.org, 'ward ~ "Bukure"').to_dict(),
-            expected_search
-        )
+
+        self.assertRaises(SearchException, contact_es_search, self.org, 'ward ~ "Bukure"')
 
         # district matches
         expected_search = copy.deepcopy(base_search)
@@ -1698,18 +1692,7 @@ class ContactTest(TembaTest):
             contact_es_search(self.org, 'district = "Rwamagana"').to_dict(),
             expected_search
         )
-        expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
-            'bool': {
-                'must': [
-                    {'term': {'fields.field': six.text_type(district.uuid)}},
-                    {'match': {'fields.district': 'rwamagana'}}
-                ]}
-        }}}]
-        self.assertEqual(
-            contact_es_search(self.org, 'district ~ "Rwamagana"').to_dict(),
-            expected_search
-        )
+        self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
 
         # state matches
         expected_search = copy.deepcopy(base_search)
@@ -1724,18 +1707,9 @@ class ContactTest(TembaTest):
             contact_es_search(self.org, 'state = "Eastern Province"').to_dict(),
             expected_search
         )
-        expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
-            'bool': {
-                'must': [
-                    {'term': {'fields.field': six.text_type(state.uuid)}},
-                    {'match': {'fields.state': 'eastern province'}}
-                ]}
-        }}}]
-        self.assertEqual(
-            contact_es_search(self.org, 'state ~ "Eastern Province"').to_dict(),
-            expected_search
-        )
+
+        self.assertRaises(SearchException, contact_es_search, self.org, 'state ~ "Eastern Province"')
+
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
@@ -2123,7 +2097,6 @@ class ContactTest(TembaTest):
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
         self.assertEqual(q('ward is kageyo'), 30)
-        self.assertEqual(q('home has ga'), 60)
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)

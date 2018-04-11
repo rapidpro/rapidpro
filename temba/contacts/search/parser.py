@@ -187,7 +187,7 @@ class Condition(QueryNode):
         '<=': 'lte'
     }
 
-    LOCATION_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
+    LOCATION_LOOKUPS = {'=': 'iexact'}
 
     COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
 
@@ -425,10 +425,8 @@ class Condition(QueryNode):
 
                 if self.comparator == '=':
                     return contact_value == query_value
-                elif self.comparator == '~':
-                    return query_value in contact_value
-                else:  # pragma: no cover
-                    raise ValueError('Unknown location comparator: %s' % (self.comparator,))
+                else:
+                    raise SearchException(_("Unsupported comparator %s for location field") % self.comparator)
 
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
@@ -522,10 +520,8 @@ class Condition(QueryNode):
                 if self.comparator == '=':
                     field_name += '.keyword'
                     es_query &= es_Q('term', **{field_name: query_value})
-                elif self.comparator == '~':
-                    es_query &= es_Q('match', **{field_name: query_value})
-                else:  # pragma: no cover
-                    raise ValueError('Unknown location comparator: %s' % (self.comparator,))
+                else:
+                    raise SearchException(_("Unsupported comparator %s for location field") % self.comparator)
 
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
