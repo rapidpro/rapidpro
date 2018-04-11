@@ -1798,7 +1798,8 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'urns.scheme': 'twitter'}},
-                    {'match': {'urns.path': 'blow'}}
+                    {'match': {'urns.path': 'blo'}},
+                    {'match': {'urns.path': 'low'}}
                 ]
             }
         }}}]
@@ -1806,6 +1807,9 @@ class ContactTest(TembaTest):
             contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
             expected_search
         )
+
+        # raises search exception when searching with less then 3 characters (trigrams)
+        self.assertRaises(SearchException, contact_es_search, self.org, 'twitter ~ "ow"')
 
         # is set not set
         expected_search = copy.deepcopy(base_search)
