@@ -1,3 +1,8 @@
+v3.0.360
+----------
+ * Use more efficient queries for check channels task
+ * Fix Location geojson import
+
 v3.0.359
 ----------
  * Add API endpoint to view failed messages
