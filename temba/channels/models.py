@@ -468,7 +468,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type,
-                                           url, role=DEFAULT_ROLE, extra_config=None):
+                                           url, role=DEFAULT_ROLE, extra_config=None, schemes=['tel']):
 
         try:
             parsed = phonenumbers.parse(phone_number, None)
@@ -482,7 +482,7 @@ class Channel(TembaModel):
             config.update(extra_config)
 
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
-                              role=role)
+                              role=role, schemes=schemes)
 
     @classmethod
     def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
