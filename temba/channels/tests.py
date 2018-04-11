@@ -2862,61 +2862,60 @@ class FacebookWhitelistTest(TembaTest):
 
 class CourierTest(TembaTest):
     def test_queue_to_courier(self):
-        with self.settings(COURIER_CHANNELS=['T']):
-            self.channel.channel_type = 'T'
-            self.channel.save()
+        self.channel.channel_type = 'T'
+        self.channel.save()
 
-            bob = self.create_contact("Bob", urn='tel:+12065551111')
-            incoming = self.create_msg(contact=bob, text="Hello", direction="I", external_id="external-id")
+        bob = self.create_contact("Bob", urn='tel:+12065551111')
+        incoming = self.create_msg(contact=bob, text="Hello", direction="I", external_id="external-id")
 
-            # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
-                                       attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
-                                       attachments=[])
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
-                                       attachments=None)
-            msg4 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 4", high_priority=True)
-            msg5 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 5", high_priority=True)
-            all_msgs = [msg1, msg2, msg3, msg4, msg5]
+        # create some outgoing messages for our channel
+        msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
+                                   attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+        msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
+                                   attachments=[])
+        msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
+                                   attachments=None)
+        msg4 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 4", high_priority=True)
+        msg5 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 5", high_priority=True)
+        all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
-            Msg.send_messages(all_msgs)
+        Msg.send_messages(all_msgs)
 
-            # we should have been queued to our courier queues and our msgs should be marked as such
-            for msg in all_msgs:
-                msg.refresh_from_db()
-                self.assertEqual(msg.status, QUEUED)
+        # we should have been queued to our courier queues and our msgs should be marked as such
+        for msg in all_msgs:
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, QUEUED)
 
-            self.assertFalse(msg1.high_priority)
+        self.assertFalse(msg1.high_priority)
 
-            # responses arent enough to be high priority, it depends on run responded
-            self.assertFalse(msg2.high_priority)
+        # responses arent enough to be high priority, it depends on run responded
+        self.assertFalse(msg2.high_priority)
 
-            self.assertFalse(msg3.high_priority)
-            self.assertTrue(msg4.high_priority)  # explicitly high
-            self.assertTrue(msg5.high_priority)
+        self.assertFalse(msg3.high_priority)
+        self.assertTrue(msg4.high_priority)  # explicitly high
+        self.assertTrue(msg5.high_priority)
 
-            # check against redis
-            r = get_redis_connection()
+        # check against redis
+        r = get_redis_connection()
 
-            # should have our channel in the active queue
-            queue_name = "msgs:" + self.channel.uuid + "|10"
-            self.assertEqual(1, r.zcard("msgs:active"))
-            self.assertEqual(0, r.zrank("msgs:active", queue_name))
+        # should have our channel in the active queue
+        queue_name = "msgs:" + self.channel.uuid + "|10"
+        self.assertEqual(1, r.zcard("msgs:active"))
+        self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
-            # check that messages went into the correct queues
-            high_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/1", 0, -1)]
-            low_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/0", 0, -1)]
+        # check that messages went into the correct queues
+        high_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/1", 0, -1)]
+        low_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/0", 0, -1)]
 
-            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
-            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
+        self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
+        self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
 
-            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
-            self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
-            self.assertIsNone(low_priority_msgs[1][0]['attachments'])
-            self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
-            self.assertEqual(low_priority_msgs[1][0]['response_to_external_id'], "external-id")
-            self.assertIsNone(low_priority_msgs[2][0]['attachments'])
+        self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+        self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
+        self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+        self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
+        self.assertEqual(low_priority_msgs[1][0]['response_to_external_id'], "external-id")
+        self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
 class HandleEventTest(TembaTest):

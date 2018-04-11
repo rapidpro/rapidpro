@@ -783,7 +783,7 @@ class Msg(models.Model):
                 # now push each onto our queue
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
-                        if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
+                        if msg.channel.channel_type not in settings.LEGACY_CHANNELS and msg.uuid:
                             courier_msgs.append(msg)
                             continue
 

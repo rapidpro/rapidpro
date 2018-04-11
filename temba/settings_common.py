@@ -1224,9 +1224,11 @@ FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
-# Which channel types will be sent using Courier instead of RapidPro
+# These legacy channels still send on RapidPro:
+#   * TT is our old Twitter integration, will be removed ~June 2018
+#   * JNU is junebug USSD, which may be removed depending on future of USSD
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['CT', 'DK', 'MT', 'WA', 'ZV'])
+LEGACY_CHANNELS = set(['TT', 'JNU'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
