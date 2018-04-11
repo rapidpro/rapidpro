@@ -810,9 +810,6 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         """
         return {}
 
-    def get_channel_schemes(self, data):
-        return ['tel']
-
     def form_valid(self, form):
         org = self.request.user.get_org()
 
