@@ -5005,9 +5005,10 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(ValueError):
             FlowRevision.validate_flow_definition(self.get_flow_json('non_localized_ruleset'))
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_start_flow_queueing(self):
         self.get_flow('start_flow_queued')
-        self.channel.channel_type = 'TG'
+        self.channel.channel_type = 'EX'
         self.channel.save()
 
         # trigger Flow A
@@ -8518,6 +8519,7 @@ class OrderingTest(FlowFileTest):
     def tearDown(self):
         super(OrderingTest, self).tearDown()
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_two_in_row(self):
         flow = self.get_flow('ordering')
         from temba.channels.tasks import send_msg_task
@@ -8968,6 +8970,7 @@ class StackedExitsTest(FlowFileTest):
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_stacked_exits(self):
         self.get_flow('stacked_exits')
         flow = Flow.objects.get(name="Stacked")
@@ -8986,6 +8989,7 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_stacked_webhook_exits(self):
         self.get_flow('stacked_webhook_exits')
         flow = Flow.objects.get(name="Stacked")
@@ -9005,6 +9009,7 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_response_exits(self):
         self.get_flow('stacked_response_exits')
         flow = Flow.objects.get(name="Stacked")
@@ -9044,6 +9049,7 @@ class ParentChildOrderingTest(FlowFileTest):
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_parent_child_ordering(self):
         from temba.channels.tasks import send_msg_task
         self.get_flow('parent_child_ordering')
