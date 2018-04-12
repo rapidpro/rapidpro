@@ -467,7 +467,7 @@ class Condition(QueryNode):
                     raise ValueError('Unknown text comparator: %s' % (self.comparator,))
 
             elif field.value_type == Value.TYPE_DECIMAL:
-                query_value = float(self._parse_decimal(self.value))
+                query_value = six.text_type(self._parse_decimal(self.value))
 
                 if self.comparator == '=':
                     es_query &= es_Q('match', **{'fields.decimal': query_value})
@@ -1096,9 +1096,9 @@ def contact_es_search(org, text, base_group=None):
         parsed = parse_query(text, as_anon=org.is_anon)
         es_match = parsed.as_elasticsearch(org)
 
-        return es_Search(index='contacts').query((es_match & es_filter)).sort('-modified_on')
+        return es_Search(index='contacts').params(routing=org.id).query((es_match & es_filter)).sort('-modified_on')
     else:
-        return es_Search(index='contacts').query(es_filter).sort('-modified_on')
+        return es_Search(index='contacts').params(routing=org.id).query(es_filter).sort('-modified_on')
 
 
 def extract_fields(org, text):

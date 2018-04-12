@@ -40,7 +40,7 @@ from .search import SearchException, parse_query
 from .tasks import export_contacts_task
 
 
-LOG = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class RemoveContactForm(forms.Form):
@@ -160,7 +160,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         the_qs = qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
 
         from .search import contact_es_search
-        from temba.es import ES
+        from temba.utils.es import ES
         try:  # pragma: no cover
             es_search = contact_es_search(org, search_query, group)
 
@@ -168,14 +168,14 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
             # .count() will evaluate the DB query
             if the_qs.count() != es_result.hits.total:
-                LOG.warning(
+                logger.error(
                     'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
                         the_qs.count(), es_result.hits.total, search_query,
                         es_JSONSerializer().dumps(es_search.to_dict())
                     )
                 )
         except SearchException:
-            pass
+            logger.exception("Exception while executing contact query. search_text={}".format(search_query))
 
         return the_qs
 
