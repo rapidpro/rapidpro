@@ -514,8 +514,9 @@ class MsgTest(TembaTest):
 
         # visit inbox page as a manager of the organization
         with self.assertNumQueries(60):
-            response = self.fetch_protected(inbox_url, self.admin)
+            response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
+        self.assertEqual(response.context['refresh'], 20000)
         self.assertEqual(response.context['object_list'].count(), 5)
         self.assertEqual(response.context['folders'][0]['url'], '/msg/inbox/')
         self.assertEqual(response.context['folders'][0]['count'], 5)

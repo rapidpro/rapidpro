@@ -24,7 +24,8 @@
 
     {% if refresh > 0 %}
     <script>
-      window.setTimeout(refresh, {{ refresh }});
+    refreshTimeout = {{ refresh }};
+    window.setTimeout(refresh, {{ refresh }});
     </script>
     {% endif %}
 {% endif %}

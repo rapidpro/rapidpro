@@ -168,6 +168,12 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['current_label'] = label
         context['export_url'] = self.derive_export_url()
         context['show_channel_logs'] = self.show_channel_logs
+
+        # if refresh was passed in, increase it by our normal refresh time
+        previous_refresh = self.request.GET.get('refresh')
+        if previous_refresh:
+            context['refresh'] = int(previous_refresh) + self.derive_refresh()
+
         return context
 
     def get_gear_links(self):
