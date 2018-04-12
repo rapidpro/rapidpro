@@ -82,7 +82,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.object = Contact.objects.get(org=self.org, urns__path=post_data['urn__tel__0'], name=post_data['name'])
         return self.object
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def testList(self, mock_ES):
         self.joe, urn_obj = Contact.get_or_create(self.org, 'tel:123', user=self.user, name='Joe')
         self.joe.set_field(self.user, 'age', 20)
@@ -202,7 +202,7 @@ class ContactGroupTest(TembaTest):
         # exception if group name is blank
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_create_dynamic(self, mock_ES):
         age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_DECIMAL)
         gender = ContactField.get_or_create(self.org, self.admin, 'gender')
@@ -404,7 +404,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(all_contacts.get_member_count(), 3)
         self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_delete(self, mock_ES):
         group = self.create_group("one")
         flow = self.get_flow('favorites')
@@ -1536,7 +1536,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'match': {'fields.decimal': 35.0}}
+                {'match': {'fields.decimal': '35'}}
             ]}
         }}}]
         self.assertEqual(
@@ -1549,7 +1549,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gt': 35.0}}}
+                    {'range': {'fields.decimal': {'gt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1562,7 +1562,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gte': 35.0}}}
+                    {'range': {'fields.decimal': {'gte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1575,7 +1575,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lt': 35.0}}}
+                    {'range': {'fields.decimal': {'lt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1588,7 +1588,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lte': 35.0}}}
+                    {'range': {'fields.decimal': {'lte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1718,7 +1718,7 @@ class ContactTest(TembaTest):
             ]}}}},
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'range': {'fields.decimal': {'gt': 32.0}}}
+                {'range': {'fields.decimal': {'gt': '32'}}}
             ]}}}}
         ]
         self.assertEqual(
@@ -2912,7 +2912,7 @@ class ContactTest(TembaTest):
         response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
         self.assertFormError(response, 'form', 'name', "Name is used by another group")
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_update_and_list(self, mock_ES):
         list_url = reverse('contacts.contact_list')
 
@@ -4889,7 +4889,7 @@ class ContactTest(TembaTest):
             self.mary.update_urns(self.user, ['tel:54321', 'twitter:mary_mary'])
             self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by('name')))
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_simulator_contact_views(self, mock_ES):
         simulator_contact = Contact.get_test_contact(self.admin)
 
@@ -5132,7 +5132,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_contact_export(self, mock_ES):
         self.clear_storage()
 
@@ -5255,7 +5255,7 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, 'first')
         self.assertNotContains(response, 'Second')
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_delete_with_flow_dependency(self, mock_ES):
         self.login(self.admin)
         self.get_flow('dependencies')
@@ -5305,7 +5305,7 @@ class ContactFieldTest(TembaTest):
         self.assertNotIn('form', response.context)
         self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_manage_fields(self, mock_ES):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
