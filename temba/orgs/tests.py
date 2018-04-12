@@ -2018,7 +2018,8 @@ class AnonOrgTest(TembaTest):
         self.org.is_anon = True
         self.org.save()
 
-    def test_contacts(self):
+    @patch('temba.utils.es.ES')
+    def test_contacts(self, mock_ES):
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
