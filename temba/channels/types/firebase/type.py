@@ -15,6 +15,8 @@ class FirebaseCloudMessagingType(ChannelType):
     code = 'FCM'
     category = ChannelType.Category.API
 
+    courier_url = r'^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$'
+
     name = "Firebase Cloud Messaging"
     icon = 'icon-fcm'
 

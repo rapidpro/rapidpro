@@ -21,6 +21,8 @@ class DartMediaType(ChannelType):
     code = 'DA'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^da/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|received|receive)$'
+
     name = "DartMedia"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://dartmedia.biz/">Dart Media</a> in Indonesia.""")

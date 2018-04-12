@@ -17,6 +17,8 @@ class StartType(ChannelType):
     code = 'ST'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+
     name = "Start Mobile"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.""")

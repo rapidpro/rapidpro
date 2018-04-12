@@ -17,6 +17,8 @@ class MacrokioskType(ChannelType):
     code = 'MK'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^mk/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Macrokiosk"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://macrokiosk.com/">Macrokiosk</a> using their APIs.""")

@@ -17,6 +17,8 @@ class M3TechType(ChannelType):
     code = 'M3'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^m3/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+
     name = "M3 Tech"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://m3techservice.com">M3 Tech</a> using their APIs.""")

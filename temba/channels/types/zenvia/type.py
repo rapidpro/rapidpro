@@ -17,6 +17,8 @@ class ZenviaType(ChannelType):
     code = 'ZV'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Zenvia"
 
     claim_blurb = _("""If you are based in Brazil, you can purchase a short code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it in a few simple steps.""")

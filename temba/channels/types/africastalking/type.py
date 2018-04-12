@@ -16,6 +16,8 @@ class AfricasTalkingType(ChannelType):
     code = 'AT'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$'
+
     name = "Africa's Talking"
     icon = 'icon-channel-external'
 

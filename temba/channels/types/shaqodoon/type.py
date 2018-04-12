@@ -17,6 +17,8 @@ class ShaqodoonType(ChannelType):
     code = 'SQ'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+
     name = "Shaqodoon"
 
     claim_blurb = _("""If you are based in Somalia, you can integrate with Shaqodoon to send

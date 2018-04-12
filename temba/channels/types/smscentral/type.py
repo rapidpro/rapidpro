@@ -17,6 +17,8 @@ class SMSCentralType(ChannelType):
     code = 'SC'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^sc/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+
     name = "SMSCentral"
     icon = 'icon-channel-external'
 

@@ -18,6 +18,8 @@ class TwilioMessagingServiceType(ChannelType):
     code = 'TMS'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+
     name = "Twilio Messaging Service"
     slug = "twilio_messaging_service"
     icon = "icon-channel-twilio"

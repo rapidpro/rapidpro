@@ -16,6 +16,8 @@ class KannelType(ChannelType):
     code = 'KN'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Kannel"
     icon = "icon-channel-kannel"
 

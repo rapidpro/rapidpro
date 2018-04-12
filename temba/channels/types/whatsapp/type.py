@@ -20,6 +20,8 @@ class WhatsAppType(ChannelType):
     code = 'WA'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+
     name = "WhatsApp"
     icon = 'icon-whatsapp'
 

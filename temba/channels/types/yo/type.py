@@ -21,6 +21,8 @@ class YoType(ChannelType):
     code = 'YO'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+
     name = "YO!"
     slug = 'yo'
 

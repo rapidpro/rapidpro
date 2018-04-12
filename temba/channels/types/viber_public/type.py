@@ -17,6 +17,8 @@ class ViberPublicType(ChannelType):
     code = 'VP'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^vp/(?P<uuid>[a-z0-9\-]+)/receive$'
+
     name = "Viber"
     icon = 'icon-viber'
 

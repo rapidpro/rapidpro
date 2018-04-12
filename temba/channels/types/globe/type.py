@@ -17,6 +17,8 @@ class GlobeType(ChannelType):
     code = 'GL'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+
     name = "Globe Labs"
 
     claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send

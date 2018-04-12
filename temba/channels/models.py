@@ -81,6 +81,9 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     slug = None
     category = None
 
+    # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
+    courier_url = None
+
     name = None
     icon = 'icon-channel-external'
     schemes = None
@@ -140,6 +143,14 @@ class ChannelType(six.with_metaclass(ABCMeta)):
             return [self.get_claim_url()]
         else:
             return []
+
+    def get_courier_url(self):
+        """
+        Returns the url pattern for our courier URL
+        """
+        from .handlers import CourierHandler
+        courier_url = self.__class__.courier_url
+        return url(courier_url, CourierHandler.as_view(channel_name=self.name), name='courier.%s' % self.code.lower()) if courier_url else None
 
     def get_claim_url(self):
         """

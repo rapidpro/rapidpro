@@ -16,6 +16,8 @@ class MbloxType(ChannelType):
     code = 'MB'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^mb/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+
     name = "Mblox"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.mblox.com/">Mblox</a> using their APIs.""")

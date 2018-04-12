@@ -17,6 +17,8 @@ class HighConnectionType(ChannelType):
     code = 'HX'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "High Connection"
     slug = "high_connection"
 

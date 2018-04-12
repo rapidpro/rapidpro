@@ -16,6 +16,8 @@ class JasminType(ChannelType):
     code = 'JS'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^js/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Jasmin"
 
     claim_blurb = _("""Connect your <a href="http://www.jasminsms.com/" target="_blank">Jasmin</a> instance that you have

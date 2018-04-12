@@ -17,6 +17,8 @@ class ChikkaType(ChannelType):
     code = 'CK'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^ck/(?P<uuid>[a-z0-9\-]+)/receive$'
+
     name = "Chikka"
 
     claim_blurb = _("""If you are based in the Phillipines, you can integrate with Chikka to send

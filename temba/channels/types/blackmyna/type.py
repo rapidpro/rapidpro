@@ -17,6 +17,8 @@ class BlackmynaType(ChannelType):
     code = 'BM'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Blackmyna"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs.""")

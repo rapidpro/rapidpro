@@ -16,6 +16,8 @@ class ClickatellType(ChannelType):
     code = 'CT'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Clickatell"
     icon = "icon-channel-clickatell"
 

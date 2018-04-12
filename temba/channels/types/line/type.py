@@ -15,6 +15,8 @@ class LineType(ChannelType):
     code = 'LN'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^ln/(?P<uuid>[a-z0-9\-]+)/receive$'
+
     name = "LINE"
     icon = 'icon-line'
 

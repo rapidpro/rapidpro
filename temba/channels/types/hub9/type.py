@@ -21,6 +21,8 @@ class Hub9Type(ChannelType):
     code = 'H9'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$'
+
     name = "Hub9"
 
     claim_blurb = _("""Easily add a two way number you have configured with Hub9 in Indonesia.""")

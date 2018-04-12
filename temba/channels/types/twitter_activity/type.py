@@ -23,6 +23,8 @@ class TwitterActivityType(ChannelType):
     code = 'TWT'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^twt/(?P<uuid>[a-z0-9\-]+)/receive$'
+
     name = "Twitter Activity API"
     icon = 'icon-twitter'
 

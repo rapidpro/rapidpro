@@ -18,6 +18,8 @@ class NexmoType(ChannelType):
     code = 'NX'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Nexmo"
     icon = "icon-channel-nexmo"
 

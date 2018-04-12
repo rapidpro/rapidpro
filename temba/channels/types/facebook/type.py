@@ -17,6 +17,8 @@ class FacebookType(ChannelType):
     code = 'FB'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^fb/(?P<uuid>[a-z0-9\-]+)/receive'
+
     name = "Facebook"
     icon = 'icon-facebook-official'
 

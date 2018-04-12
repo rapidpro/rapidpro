@@ -15,6 +15,8 @@ class JioChatType(ChannelType):
     code = 'JC'
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    courier_url = r'^jc/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+
     name = "JioChat"
     icon = 'icon-jiochat'
 

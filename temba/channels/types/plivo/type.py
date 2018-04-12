@@ -18,6 +18,8 @@ class PlivoType(ChannelType):
     code = 'PL'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^pl/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Plivo"
     icon = "icon-channel-plivo"
 

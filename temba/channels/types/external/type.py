@@ -15,6 +15,8 @@ class ExternalType(ChannelType):
     code = 'EX'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+
     name = "External API"
     icon = 'icon-power-cord'
 

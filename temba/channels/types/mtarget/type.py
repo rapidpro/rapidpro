@@ -15,6 +15,8 @@ class MtargetType(ChannelType):
     code = 'MT'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+
     name = "Mtarget"
     icon = 'icon-mtarget'
 
