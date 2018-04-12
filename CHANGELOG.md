@@ -1,3 +1,7 @@
+v3.0.364
+----------
+ * fix environment variable for elastic search, catch all exceptions
+
 v3.0.363
 ----------
  * Add Elastic searching for contacts, for now only validating that results through ES are the same as through postgres searches
