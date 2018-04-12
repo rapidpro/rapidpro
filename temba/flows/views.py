@@ -1290,7 +1290,12 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
-            print(json.dumps(json_dict, indent=2))
+            try:
+                print(json.dumps(json_dict, indent=2))
+            except :
+                print ("No se pudo imprimir el json del flujo")
+                print ("Ser hereda la exepcion al siguiente nivel")
+                
 
             try:
                 flow = self.get_object(self.get_queryset())
