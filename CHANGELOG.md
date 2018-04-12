@@ -1,3 +1,7 @@
+v3.0.363
+----------
+ * Add Elastic searching for contacts, for now only validating that results through ES are the same as through postgres searches
+
 v3.0.361
 ----------
  * Migrate Dart/Hub9 Contact urns and channels to support ext schemes
