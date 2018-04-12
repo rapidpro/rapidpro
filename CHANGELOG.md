@@ -1,3 +1,25 @@
+v3.0.361
+----------
+ * Migrate Dart/Hub9 Contact urns and channels to support ext schemes
+
+v3.0.360
+----------
+ * Use more efficient queries for check channels task
+ * Fix Location geojson import
+
+v3.0.359
+----------
+ * Add API endpoint to view failed messages
+
+v3.0.358
+----------
+ * Allow filtering by uuid on runs API endpoint, and include run uuid in webhooks
+ * Fix blockstrans failing on label count
+
+v3.0.357
+----------
+ * Add linear backdown for our refresh rate on inbox pages
+
 v3.0.356
 ----------
  * Do not log MageHandler calls

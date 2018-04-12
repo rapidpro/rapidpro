@@ -2086,6 +2086,7 @@ class APITest(TembaTest):
         joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe,
                                    attachments=['image/jpeg:https://example.com/test.jpg'])
         frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
+        frank_msg4 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='F')
 
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
@@ -2146,6 +2147,10 @@ class APITest(TembaTest):
         # filter by folder (sent)
         response = self.fetchJSON(url, 'folder=sent')
         self.assertResultsById(response, [joe_msg4, frank_msg2])
+
+        # filter by folder (failed)
+        response = self.fetchJSON(url, 'folder=failed')
+        self.assertResultsById(response, [frank_msg4])
 
         # filter by invalid view
         response = self.fetchJSON(url, 'folder=invalid')
@@ -2340,6 +2345,7 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(resp_json['results'][2], {
             'id': frank_run2.pk,
+            'uuid': str(frank_run2.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'start': None,
@@ -2356,6 +2362,7 @@ class APITest(TembaTest):
         })
         self.assertEqual(resp_json['results'][4], {
             'id': joe_run1.pk,
+            'uuid': str(joe_run1.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'start': {'uuid': str(joe_run1.start.uuid)},
@@ -2385,6 +2392,17 @@ class APITest(TembaTest):
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by uuid
+        response = self.fetchJSON(url, 'uuid=%s' % frank_run2.uuid)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by mismatching id and uuid
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, joe_run1.pk))
+        self.assertResultsById(response, [])
+
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, frank_run2.pk))
         self.assertResultsById(response, [frank_run2])
 
         # filter by flow

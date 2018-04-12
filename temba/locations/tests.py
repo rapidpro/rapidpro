@@ -162,6 +162,35 @@ class LocationTest(TembaTest):
         response_json = response.json()
         self.assertEqual(len(response_json.get('features')), 1)
 
+    def test_adminboundary_create(self):
+        # create a simple boundary
+        boundary = AdminBoundary.create(osm_id='-1', name='Null Island', level=0)
+        self.assertEqual(boundary.path, 'Null Island')
+        self.assertIsNone(boundary.simplified_geometry)
+
+        # create a simple boundary with parent
+        child_boundary = AdminBoundary.create(osm_id='-2', name='Palm Tree', level=1, parent=boundary)
+        self.assertEqual(child_boundary.path, 'Null Island > Palm Tree')
+        self.assertIsNone(child_boundary.geometry)
+
+        wkb_geometry = (
+            '0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27'
+            '400000000080443DC040848F2D272C304000000000407241C01395356EBA0B3040'
+        )
+
+        # create a simple boundary with parent and geometry
+        geom_boundary = AdminBoundary.create(
+            osm_id='-3', name='Plum Tree', level=1, parent=boundary,
+            simplified_geometry=wkb_geometry,
+            geometry=wkb_geometry
+        )
+        self.assertEqual(geom_boundary.path, 'Null Island > Plum Tree')
+        self.assertIsNotNone(geom_boundary.simplified_geometry)
+        self.assertIsNotNone(geom_boundary.geometry)
+
+        # path should not be defined when calling AdminBoundary.create
+        self.assertRaises(TypeError, AdminBoundary.create, osm_id='-1', name='Null Island', level=0, path='some path')
+
 
 class DownloadGeoJsonTest(TembaTest):
 
