@@ -1655,7 +1655,7 @@ class MiddlewareTest(TembaTest):
 
         self.assertFalse(Contact.get_simulation())
 
-    @patch('temba.es.ES')
+    @patch('temba.utils.es.ES')
     def test_activate_language(self, mock_ES):
         self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
 
