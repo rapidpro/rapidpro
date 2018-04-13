@@ -1,3 +1,8 @@
+v3.0.365
+----------
+ * chill the f out with sentry if the first contact in our queryset is less than 30 seconds old
+ * fix duplicate messages when searching on msgs whose contacts have more than one urn
+
 v3.0.364
 ----------
  * fix environment variable for elastic search, catch all exceptions
