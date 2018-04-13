@@ -447,7 +447,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (1)")
@@ -460,7 +460,7 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by('-created_on', '-id'))
 
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
