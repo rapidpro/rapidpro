@@ -1,3 +1,7 @@
+v3.0.366
+----------
+ * fix empty queryset case for ES comparison
+
 v3.0.365
 ----------
  * chill the f out with sentry if the first contact in our queryset is less than 30 seconds old
