@@ -112,9 +112,10 @@ class ContactGroupForm(forms.ModelForm):
             if parsed_query.can_be_dynamic_group():
                 return cleaned_query
             else:
-                raise forms.ValidationError(
-                    _('You cannot create a dynamic group based on "name" or "id".')
-                )
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
+        except forms.ValidationError as e:
+            raise e
+
         except Exception as e:
             raise forms.ValidationError(six.text_type(e))
 
