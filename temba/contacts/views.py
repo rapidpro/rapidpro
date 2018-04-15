@@ -168,7 +168,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
             es_result = es_search.using(ES).execute(ignore_cache=True)
 
             # .count() will evaluate the DB query
-            if the_qs.count() != es_result.hits.total and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):
+            if the_qs.count() != es_result.hits.total and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=120)):
                 logger.error(
                     'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
                         the_qs.count(), es_result.hits.total, search_query,
