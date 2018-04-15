@@ -1,3 +1,7 @@
+v3.0.367
+----------
+ * allow up to two minutes for elastic search lag
+
 v3.0.366
 ----------
  * fix empty queryset case for ES comparison
