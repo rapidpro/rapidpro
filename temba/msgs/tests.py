@@ -43,7 +43,7 @@ class MsgTest(TembaTest):
         super(MsgTest, self).setUp()
 
         self.joe = self.create_contact("Joe Blow", "123")
-        ContactURN.create(self.org, self.joe, "tel:456")
+        ContactURN.create(self.org, self.joe, "tel:789")
 
         self.frank = self.create_contact("Frank Blow", "321")
         self.kevin = self.create_contact("Kevin Durant", "987")
