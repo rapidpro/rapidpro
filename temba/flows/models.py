@@ -3345,7 +3345,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if path_step['node_uuid'] != step.step_uuid:  # pragma: no cover
             raise ValueError("Trying to add messages to a step which doesn't exist in the run path")
 
-        existing_msg_uuids = {e['msg']['uuid'] for e in self.events if e['type'] in ('msg_received', 'msg_created')}
+        existing_msg_uuids = set()
+        for e in self.events:
+            if e['type'] in ('msg_received', 'msg_created'):
+                msg_uuid = e['msg'].get('uuid')
+                if msg_uuid:
+                    existing_msg_uuids.add(msg_uuid)
 
         needs_update = False
 
