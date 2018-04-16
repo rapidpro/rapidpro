@@ -164,11 +164,11 @@ class ContactListView(OrgPermsMixin, SmartListView):
         from temba.utils.es import ES
         try:  # pragma: no cover
             es_search = contact_es_search(org, search_query, group)
-
             es_result = es_search.using(ES).execute(ignore_cache=True)
 
-            # .count() will evaluate the DB query
-            if the_qs.count() != es_result.hits.total and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=120)):
+            qs_count = the_qs.count()
+
+            if abs(qs_count - es_result.hits.total) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):
                 logger.error(
                     'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
                         the_qs.count(), es_result.hits.total, search_query,
