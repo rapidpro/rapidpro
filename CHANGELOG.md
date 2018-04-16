@@ -1,3 +1,8 @@
+v3.0.368
+----------
+ * Fewer sentry errors from ES searching
+ * Don't assume messages have a UUID in FlowRun.add_messages
+
 v3.0.367
 ----------
  * allow up to two minutes for elastic search lag
