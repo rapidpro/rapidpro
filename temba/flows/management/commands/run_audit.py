@@ -6,9 +6,8 @@ import time
 
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.db.models import Count
-from django.db.models.expressions import RawSQL
-from temba.flows.models import FlowRun
+from django.db.models import Count, Prefetch
+from temba.flows.models import Flow, FlowRun
 
 
 def audit_runs():  # pragma: no cover
@@ -35,25 +34,27 @@ def audit_runs():  # pragma: no cover
             run_batch = list(
                 FlowRun.objects
                 .filter(id__gt=max_run_id)
-                .annotate(num_steps=Count('steps'), fields_raw=RawSQL("fields", []))
-                .select_related('flow')
+                .annotate(num_steps=Count('steps'))
+                .extra(select={'fields_raw': 'fields'})
+                .prefetch_related(Prefetch('flow', queryset=Flow.objects.only('id', 'is_active')))
                 .defer('fields')
-                .order_by('id')[:1000]
+                .order_by('id')[:5000]
             )
             if not run_batch:
                 break
 
             for run in run_batch:
-                if len(run.path) == 0:
-                    if run.flow.is_active:
-                        empty_paths_active_flow.append(run.id)
-                    else:
-                        empty_paths_inactive_flow.append(run.id)
+                if run.num_steps > 0:  # don't include runs whose steps were purged when their flow was deleted
+                    if len(run.path) == 0:
+                        if run.flow.is_active:
+                            empty_paths_active_flow.append(run.id)
+                        else:
+                            empty_paths_inactive_flow.append(run.id)
 
-                if len(run.path) != run.num_steps:
-                    path_len_step_count_mismatch.append(run.id)
+                    if len(run.path) != run.num_steps and run.num_steps < 100:  # don't include trimmed paths
+                        path_len_step_count_mismatch.append(run.id)
 
-                if len(run.events or []) != len(set(run.message_ids or [])):
+                if len(run.events or []) < len(set(run.message_ids or [])):  # events might include purged messages
                     event_count_message_id_mismatch.append(run.id)
 
                 if run.fields_raw is not None:
@@ -74,9 +75,9 @@ def audit_runs():  # pragma: no cover
 
     print("Found:")
     print(" * %d runs" % num_audited)
-    print(" * %d runs from active flows with empty paths: %s"
+    print(" * %d runs from active flows with steps but empty paths: %s"
           % (len(empty_paths_active_flow), ids_to_string(empty_paths_active_flow)))
-    print(" * %d runs from inactive flows with empty paths"
+    print(" * %d runs from inactive flows with steps but empty paths"
           % len(empty_paths_inactive_flow))
     print(" * %d runs with difference in path length vs step count: %s"
           % (len(path_len_step_count_mismatch), ids_to_string(path_len_step_count_mismatch)))
