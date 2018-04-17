@@ -2888,7 +2888,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # run syncing to work
             now = timezone.now()
 
-            flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
+            flow = Flow.objects.get(org=contact.org, uuid=run_output['flow']['uuid'])
 
             parent_uuid = run_output.get('parent_uuid')
             parent = cls.objects.get(org=contact.org, uuid=parent_uuid) if parent_uuid else None
