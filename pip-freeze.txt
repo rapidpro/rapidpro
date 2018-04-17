@@ -43,6 +43,8 @@ djangorestframework==3.5.1
 docutils==0.13.1          # via botocore
 enum34==1.1.6
 et-xmlfile==1.0.1         # via openpyxl
+elasticsearch==6.2.0
+elasticsearch_dsl==6.1.0
 flake8-deprecated==1.2.1
 flake8-print==2.0.2
 flake8==3.3.0
