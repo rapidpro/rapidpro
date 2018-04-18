@@ -1156,11 +1156,11 @@ class FlowCRUDL(SmartCRUDL):
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(asset_timestamp).asset_server(flow.org, simulator=True)
+                flow_request = client.request_builder(flow.org, asset_timestamp).asset_server(simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:
-                    flow_request.include_all(flow.org, simulator=True)
+                    flow_request.include_all(simulator=True)
 
                 flow_request.request['events'] = json_dict.get('events')
 
