@@ -1521,11 +1521,13 @@ class ContactTest(TembaTest):
 
         base_search = {'query': {'bool': {
             'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
             'must': []
-        }}, 'sort': [{'modified_on': {'order': 'desc'}}]}
+        }}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
         # text term matches
         expected_search = copy.deepcopy(base_search)
@@ -1745,10 +1747,12 @@ class ContactTest(TembaTest):
                 ]}}}}
             ],
             'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
-            'minimum_should_match': 1}}, 'sort': [{'modified_on': {'order': 'desc'}}]}
+            'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
         self.assertEqual(
             contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"').to_dict(),
@@ -1792,10 +1796,10 @@ class ContactTest(TembaTest):
 
         # is set not set
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.text'}}],
+                'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
             }
         }}}]
         self.assertEqual(
@@ -1818,10 +1822,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.decimal'}}],
+                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.decimal'}}]
             }
         }}}]
         self.assertEqual(
@@ -1844,10 +1848,12 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(joined.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.datetime'}}],
+                'must': [
+                    {'term': {'fields.field': six.text_type(joined.uuid)}}, {'exists': {'field': 'fields.datetime'}}
+                ]
             }
         }}}]
         self.assertEqual(
@@ -1870,10 +1876,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.ward'}}],
+                'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
             }
         }}}]
         self.assertEqual(
@@ -1896,10 +1902,12 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(district.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.district'}}],
+                'must': [
+                    {'term': {'fields.field': six.text_type(district.uuid)}}, {'exists': {'field': 'fields.district'}}
+                ]
             }
         }}}]
         self.assertEqual(
@@ -1922,10 +1930,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(state.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.state'}}],
+                'must': [{'term': {'fields.field': six.text_type(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
             }
         }}}]
         self.assertEqual(
@@ -1951,8 +1959,8 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'urns.scheme': 'tel'}},
-                    {'exists': {'field': 'path'}}
+                    {'exists': {'field': 'urns.path'}},
+                    {'term': {'urns.scheme': 'tel'}}
                 ]
             }
         }}}]
@@ -1962,10 +1970,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'urns', 'query': {
             'bool': {
-                'must': [{'term': {'urns.scheme': 'twitter'}}],
-                'must_not': [{'exists': {'field': 'path'}}],
+                'must': [{'exists': {'field': 'urns.path'}}, {'term': {'urns.scheme': 'twitter'}}],
             }
         }}}]
         self.assertEqual(

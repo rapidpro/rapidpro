@@ -533,11 +533,11 @@ class Condition(QueryNode):
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
             query_value = self.value.lower()
             if field == 'name':
-                field_name = 'name'
                 if self.comparator == '=':
-                    field_name += '.keyword'
+                    field_name = 'name.keyword'
                     es_query = es_Q('term', **{field_name: query_value})
                 elif self.comparator == '~':
+                    field_name = 'name'
                     es_query = es_Q('match', **{field_name: query_value})
                 else:  # pragma: no cover
                     raise ValueError('Unknown attribute comparator: %s' % (self.comparator,))
@@ -773,28 +773,22 @@ class IsSetCondition(Condition):
             else:  # pragma: no cover
                 raise ValueError("Unrecognized contact field type '%s'" % (field.value_type, ))
 
-            if is_set:
-                es_query &= es_Q('exists', **{'field': field_name})
-            else:
-                es_query &= ~es_Q('exists', **{'field': field_name})
+            es_query &= es_Q('exists', **{'field': field_name})
 
-            return es_Q(
-                'nested', path='fields', query=es_query
-            )
+            if is_set:
+                return es_Q('nested', path='fields', query=es_query)
+            else:
+                return ~es_Q('nested', path='fields', query=es_query)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return es_Q('ids', **{'values': [-1]})
 
-            es_query = es_Q('term', **{'urns.scheme': field.lower()})
+            es_query = es_Q('exists', **{'field': 'urns.path'}) & es_Q('term', **{'urns.scheme': field.lower()})
 
             if is_set:
-                es_query &= es_Q('exists', **{'field': 'path'})
+                return es_Q('nested', path='urns', query=es_query)
             else:
-                es_query &= ~es_Q('exists', **{'field': 'path'})
-
-            return es_Q(
-                'nested', path='urns', query=es_query
-            )
+                return ~es_Q('nested', path='urns', query=es_query)
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
             if field == 'name':
                 if is_set:
@@ -1100,7 +1094,7 @@ def contact_es_search(org, text, base_group=None):
         ModelESSearch(model=Contact, index='contacts')
         .params(routing=org.id)
         .query((es_match & es_filter))
-        .sort('-modified_on')
+        .sort('-modified_on_mu')
     )
 
 
