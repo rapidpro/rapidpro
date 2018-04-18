@@ -1,3 +1,7 @@
+v3.0.370
+----------
+ * remove logging of base handler being called
+
 v3.0.369
 ----------
  * rename contact field types of decimal to number
