@@ -9,6 +9,7 @@ from six.moves.urllib.parse import urlencode
 from temba.values.models import Value
 
 VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
+VALUE_TYPE_NAMES['N'] = 'number'
 
 
 def serialize_flow(flow, strip_ui=True):

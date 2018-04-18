@@ -4604,7 +4604,7 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        payload = client.request_builder(int(time.time() * 1000000)).request
+        payload = client.request_builder(self.org, int(time.time() * 1000000)).request
 
         # add a manual trigger
         payload['trigger'] = {
@@ -4619,7 +4619,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        payload = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact).request
         payload['session'] = response.json()['session']
         self.add_message(payload, 'blue')
 
