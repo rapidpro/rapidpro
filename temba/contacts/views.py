@@ -168,8 +168,7 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
 
                 qs_count = the_qs.count()
 
-                if abs(qs_count - int(es_search.count())) > 1 and (
-                        the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):
+                if abs(qs_count - int(es_search.count())) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):  # pragma: no cover
                     logger.error(
                         'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
                             the_qs.count(), es_search.count(), search_query,

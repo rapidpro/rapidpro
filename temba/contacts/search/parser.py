@@ -1093,23 +1093,15 @@ def contact_es_search(org, text, base_group=None):
         es_Q('term', groups=six.text_type(base_group.uuid))
     ])
 
-    if text:
-        parsed = parse_query(text, as_anon=org.is_anon)
-        es_match = parsed.as_elasticsearch(org)
+    parsed = parse_query(text, as_anon=org.is_anon)
+    es_match = parsed.as_elasticsearch(org)
 
-        return (
-            ModelESSearch(model=Contact, index='contacts')
-            .params(routing=org.id)
-            .query((es_match & es_filter))
-            .sort('-modified_on')
-        )
-    else:
-        return (
-            ModelESSearch(model=Contact, index='contacts')
-            .params(routing=org.id)
-            .query(es_filter)
-            .sort('-modified_on')
-        )
+    return (
+        ModelESSearch(model=Contact, index='contacts')
+        .params(routing=org.id)
+        .query((es_match & es_filter))
+        .sort('-modified_on')
+    )
 
 
 def extract_fields(org, text):
