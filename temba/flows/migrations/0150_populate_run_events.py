@@ -105,58 +105,61 @@ def fill_path_and_events(run, action_set_uuid_to_exit, cache):
         run.save(update_fields=('path',))
         return
 
-    else:
-        # if we have steps, we rebuild the JSON path as these aren't 100% right sometimes for surveyor runs, due to
-        # a previous migration sorting steps by arrived_on, and surveyor steps often having same arrived_on values
+    # if we have steps, we rebuild the JSON path as these aren't 100% right sometimes for surveyor runs, due to
+    # a previous migration sorting steps by arrived_on, and surveyor steps often having same arrived_on values
 
-        # we can re-use exit_uuids calculated in previous migration for actionsets which always have the same exit_uuid
-        previous_exit_uuids = {s[PATH_NODE_UUID]: s.get(PATH_EXIT_UUID) for s in run.path}
+    old_path = run.path
+    old_events = run.events
 
-        run.path = []
-        run.events = []
-        seen_msgs = set()
+    # we can re-use exit_uuids calculated in previous migration for actionsets which always have the same exit_uuid
+    previous_exit_uuids = {s[PATH_NODE_UUID]: s.get(PATH_EXIT_UUID) for s in run.path if s.get(PATH_EXIT_UUID)}
 
-        for step in steps:
-            path_step = {
-                PATH_STEP_UUID: str(uuid4()),
-                PATH_NODE_UUID: step.step_uuid,
-                PATH_ARRIVED_ON: step.arrived_on.isoformat(),
-            }
-            if step.left_on:
-                exit_uuid = exit_uuid_for_step(step, previous_exit_uuids, action_set_uuid_to_exit, cache)
-                path_step[PATH_EXIT_UUID] = exit_uuid
+    run.path = []
+    run.events = []
+    seen_msgs = set()
 
-            run.path.append(path_step)
+    for step in steps:
+        path_step = {
+            PATH_STEP_UUID: str(uuid4()),
+            PATH_NODE_UUID: step.step_uuid,
+            PATH_ARRIVED_ON: step.arrived_on.isoformat(),
+        }
+        if step.left_on:
+            exit_uuid = exit_uuid_for_step(step, previous_exit_uuids, action_set_uuid_to_exit, cache)
+            path_step[PATH_EXIT_UUID] = exit_uuid
 
-            step_events = []
+        run.path.append(path_step)
 
-            # generate message events for this step
-            for msg in step.messages.all():
-                if msg not in seen_msgs:
-                    seen_msgs.add(msg)
-                    step_events.append({
-                        'type': 'msg_received' if msg.direction == 'I' else 'msg_created',
-                        'created_on': msg.created_on.isoformat(),
-                        'step_uuid': path_step[PATH_STEP_UUID],
-                        'msg': serialize_message(msg)
-                    })
+        step_events = []
 
-            for bcast in step.broadcasts.all():
+        # generate message events for this step
+        for msg in step.messages.all():
+            if msg not in seen_msgs:
+                seen_msgs.add(msg)
                 step_events.append({
-                    'type': 'msg_created',
-                    'created_on': bcast.created_on.isoformat(),
+                    'type': 'msg_received' if msg.direction == 'I' else 'msg_created',
+                    'created_on': msg.created_on.isoformat(),
                     'step_uuid': path_step[PATH_STEP_UUID],
-                    'msg': serialize_broadcast(bcast, run.flow, run.contact)
+                    'msg': serialize_message(msg)
                 })
 
-            for evt in sorted(step_events, key=lambda e: e['created_on']):
-                run.events.append(evt)
+        for bcast in step.broadcasts.all():
+            step_events.append({
+                'type': 'msg_created',
+                'created_on': bcast.created_on.isoformat(),
+                'step_uuid': path_step[PATH_STEP_UUID],
+                'msg': serialize_broadcast(bcast, run.flow, run.contact)
+            })
 
-        # trim final path if necessary
-        if len(run.path) > PATH_MAX_STEPS:
-            run.path = run.path[len(run.path) - PATH_MAX_STEPS:]
+        for evt in sorted(step_events, key=lambda e: e['created_on']):
+            run.events.append(evt)
 
-    run.save(update_fields=('events', 'path'))
+    # trim final path if necessary
+    if len(run.path) > PATH_MAX_STEPS:
+        run.path = run.path[len(run.path) - PATH_MAX_STEPS:]
+
+    if old_path != run.path or old_events != run.events:
+        run.save(update_fields=('events', 'path'))
 
 
 def backfill_flowrun_events(FlowRun, Flow, ActionSet, Contact, FlowStep, Msg, Channel, ContactURN, Broadcast):
