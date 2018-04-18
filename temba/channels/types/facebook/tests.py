@@ -57,41 +57,6 @@ class FacebookTypeTest(TembaTest):
         # should be on our configuration page displaying our secret
         self.assertContains(response, channel.config[Channel.CONFIG_SECRET])
 
-        # test validating our secret
-        handler_url = reverse('courier.fb', args=['invalid'])
-        response = self.client.get(handler_url)
-        self.assertEqual(response.status_code, 400)
-
-        # test invalid token
-        handler_url = reverse('courier.fb', args=[channel.uuid])
-        payload = {'hub.mode': 'subscribe', 'hub.verify_token': 'invalid', 'hub.challenge': 'challenge'}
-        response = self.client.get(handler_url, payload)
-        self.assertEqual(response.status_code, 400)
-
-        # test actual token
-        payload['hub.verify_token'] = channel.config[Channel.CONFIG_SECRET]
-
-        # try with unsuccessful callback to subscribe (this fails silently)
-        mock_post.return_value = MockResponse(400, json.dumps({'success': True}))
-
-        response = self.client.get(handler_url, payload)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'challenge')
-
-        # assert we subscribed to events
-        self.assertEqual(mock_post.call_count, 1)
-
-        # but try again and we should try again
-        mock_post.reset_mock()
-        mock_post.return_value = MockResponse(200, json.dumps({'success': True}))
-
-        response = self.client.get(handler_url, payload)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'challenge')
-
-        # assert we subscribed to events
-        self.assertEqual(mock_post.call_count, 1)
-
     @override_settings(IS_PROD=True)
     @patch('requests.delete')
     def test_release(self, mock_delete):

@@ -2,15 +2,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import logging
+
 import six
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
+
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
-from ...models import Channel, ChannelType
+from ...models import ChannelType
 from ...views import UpdateTwitterForm
-
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,8 @@ class TwitterActivityType(ChannelType):
     """
     code = 'TWT'
     category = ChannelType.Category.SOCIAL_MEDIA
+
+    courier_url = r'^twt/(?P<uuid>[a-z0-9\-]+)/receive$'
 
     name = "Twitter Activity API"
     icon = 'icon-twitter'
@@ -53,7 +56,3 @@ class TwitterActivityType(ChannelType):
         config = channel.config
         client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
         client.delete_webhook(config['env_name'])
-
-    def send(self, channel, msg, text):
-        # use regular Twitter channel sending
-        return Channel.get_type_from_code('TT').send(channel, msg, text)

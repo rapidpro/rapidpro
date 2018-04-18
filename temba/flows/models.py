@@ -2888,7 +2888,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # run syncing to work
             now = timezone.now()
 
-            flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
+            flow = Flow.objects.get(org=contact.org, uuid=run_output['flow']['uuid'])
 
             parent_uuid = run_output.get('parent_uuid')
             parent = cls.objects.get(org=contact.org, uuid=parent_uuid) if parent_uuid else None
@@ -4044,7 +4044,7 @@ class RuleSet(models.Model):
             rule_type = None
 
             if isinstance(rule.test, NumericTest):
-                rule_type = Value.TYPE_DECIMAL
+                rule_type = Value.TYPE_NUMBER
 
             elif isinstance(rule.test, DateTest):
                 rule_type = Value.TYPE_DATETIME

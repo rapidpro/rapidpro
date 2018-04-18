@@ -1412,16 +1412,6 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.config['CHATBASE_AGENT_NAME'], 'chatbase_agent')
         self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
-        with self.assertRaises(Exception):
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
-        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
@@ -1433,13 +1423,6 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
-            self.assertEqual(len(mock_post.mock_calls), 0)
 
     def test_resthooks(self):
         # no hitting this page without auth
@@ -3261,11 +3244,11 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_location_path(' Nigeria > Lagos '), lagos)
 
     def test_parse_decimal(self):
-        self.assertEqual(self.org.parse_decimal("Not num"), None)
-        self.assertEqual(self.org.parse_decimal("00.123"), Decimal("0.123"))
-        self.assertEqual(self.org.parse_decimal("6e33"), None)
-        self.assertEqual(self.org.parse_decimal("6e5"), Decimal("600000"))
-        self.assertEqual(self.org.parse_decimal("9999999999999999999999999"), None)
-        self.assertEqual(self.org.parse_decimal(""), None)
-        self.assertEqual(self.org.parse_decimal("NaN"), None)
-        self.assertEqual(self.org.parse_decimal("Infinity"), None)
+        self.assertEqual(self.org.parse_number("Not num"), None)
+        self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
+        self.assertEqual(self.org.parse_number("6e33"), None)
+        self.assertEqual(self.org.parse_number("6e5"), Decimal("600000"))
+        self.assertEqual(self.org.parse_number("9999999999999999999999999"), None)
+        self.assertEqual(self.org.parse_number(""), None)
+        self.assertEqual(self.org.parse_number("NaN"), None)
+        self.assertEqual(self.org.parse_number("Infinity"), None)

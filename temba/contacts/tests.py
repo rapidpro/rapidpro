@@ -214,7 +214,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
     def test_create_dynamic(self):
-        age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_DECIMAL)
+        age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, 'gender')
         self.joe.set_field(self.admin, 'age', 17)
         self.joe.set_field(self.admin, 'gender', "male")
@@ -277,7 +277,7 @@ class ContactGroupTest(TembaTest):
 
         fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
         for key in fields:
-            ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
+            ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
         with QueryTracker(assert_query_count=182, stack_count=16, skip_unique_queries=False):
@@ -1050,7 +1050,7 @@ class ContactTest(TembaTest):
 
         # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
         has_twitter = self.create_group("Has twitter", query='twitter != ""')
         no_gender = self.create_group("No gender", query='gender is ""')
         males = self.create_group("Male", query='gender is M or gender is Male')
@@ -1196,7 +1196,7 @@ class ContactTest(TembaTest):
 
     def test_contact_search_evaluation(self):
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
-        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'joined', "Joined On", value_type=Value.TYPE_DATETIME)
         ContactField.get_or_create(self.org, self.admin, 'ward', "Ward", value_type=Value.TYPE_WARD)
         ContactField.get_or_create(self.org, self.admin, 'district', "District", value_type=Value.TYPE_DISTRICT)
@@ -1223,7 +1223,7 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
 
-        self.joe.set_field(self.admin, 'age', 'cedevita is not a decimal object')
+        self.joe.set_field(self.admin, 'age', 'cedevita is not a number')
         self.assertFalse(evaluate_query(self.org, 'age < 99', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
@@ -1239,7 +1239,7 @@ class ContactTest(TembaTest):
 
         self.assertRaises(
             SearchException, evaluate_query,
-            self.org, 'age < "cedevita is not a decimal object"', contact_json=self.joe.as_search_json()
+            self.org, 'age < "cedevita is not a number"', contact_json=self.joe.as_search_json()
         )
 
         # test DATETIME field type
@@ -1511,7 +1511,7 @@ class ContactTest(TembaTest):
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
-        age = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        age = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
         joined = ContactField.get_or_create(self.org, self.admin, 'joined', "Joined On", value_type=Value.TYPE_DATETIME)
         ward = ContactField.get_or_create(self.org, self.admin, 'ward', "Ward", value_type=Value.TYPE_WARD)
         district = ContactField.get_or_create(
@@ -1547,7 +1547,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'match': {'fields.decimal': '35'}}
+                {'match': {'fields.number': '35'}}
             ]}
         }}}]
         self.assertEqual(
@@ -1560,7 +1560,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gt': '35'}}}
+                    {'range': {'fields.number': {'gt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1573,7 +1573,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gte': '35'}}}
+                    {'range': {'fields.number': {'gte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1586,7 +1586,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lt': '35'}}}
+                    {'range': {'fields.number': {'lt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1599,7 +1599,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lte': '35'}}}
+                    {'range': {'fields.number': {'lte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1729,7 +1729,7 @@ class ContactTest(TembaTest):
             ]}}}},
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'range': {'fields.decimal': {'gt': '32'}}}
+                {'range': {'fields.number': {'gt': '32'}}}
             ]}}}}
         ]
         self.assertEqual(
@@ -1825,7 +1825,7 @@ class ContactTest(TembaTest):
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.decimal'}}]
+                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
             }
         }}}]
         self.assertEqual(
@@ -1838,7 +1838,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'exists': {'field': 'fields.decimal'}}
+                    {'exists': {'field': 'fields.number'}}
                 ]
             }
         }}}]
@@ -2181,7 +2181,7 @@ class ContactTest(TembaTest):
 
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
-        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
         ContactGroup.create_dynamic(
@@ -3536,6 +3536,12 @@ class ContactTest(TembaTest):
             if expected_results.get('records', 0):
                 self.assertIsNotNone(response.context['group'])
 
+            # assert all contacts in the group have the same modified_on
+            group = response.context['group']
+            if group and group.contacts.first():
+                first_modified_on = group.contacts.first().modified_on
+                self.assertEqual(group.contacts.count(), group.contacts.filter(modified_on=first_modified_on).count())
+
         return response
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -4440,7 +4446,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "23.00",
-                    "decimal": "23"
+                    "number": "23"
                 }
             }
         )
@@ -4453,7 +4459,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "2300",
-                    "decimal": "2300"
+                    "number": "2300"
                 }
             }
         )
@@ -4628,14 +4634,14 @@ class ContactTest(TembaTest):
 
         # check that this field has been set
         self.assertEqual(self.joe.get_field_value(birth_date), urn)
-        self.assertIsNone(self.joe.get_field_json(birth_date).get('decimal'))
+        self.assertIsNone(self.joe.get_field_json(birth_date).get('number'))
         self.assertIsNone(self.joe.get_field_json(birth_date).get('datetime'))
 
     def test_field_values(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
                                                         None, Value.TYPE_DATETIME)
 
-        weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, Value.TYPE_DECIMAL)
+        weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, Value.TYPE_NUMBER)
         color_field = ContactField.get_or_create(self.org, self.admin, 'color', "Color", None, Value.TYPE_TEXT)
         state_field = ContactField.get_or_create(self.org, self.admin, 'state', "State", None, Value.TYPE_STATE)
 
@@ -4938,7 +4944,7 @@ class ContactTest(TembaTest):
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
 
-        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
         ContactGroup.create_dynamic(
@@ -5052,10 +5058,10 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(join_date.label, "Join Date")
         self.assertEqual(join_date.value_type, Value.TYPE_TEXT)
 
-        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_DECIMAL)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_NUMBER)
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "My Label")
-        self.assertEqual(another.value_type, Value.TYPE_DECIMAL)
+        self.assertEqual(another.value_type, Value.TYPE_NUMBER)
 
         another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", value_type=Value.TYPE_DATETIME)
         self.assertEqual(another.key, "another")
@@ -5493,7 +5499,16 @@ class ContactFieldTest(TembaTest):
 
 class URNTest(TembaTest):
 
-    def test_fb_urn(self):
+    def test_line_urn(self):
+        self.assertEqual('line:asdf', URN.from_line('asdf'))
+
+    def test_viber_urn(self):
+        self.assertEqual('viber:12345', URN.from_viber('12345'))
+
+    def test_fcm_urn(self):
+        self.assertEqual('fcm:12345', URN.from_fcm('12345'))
+
+    def test_facebook_urn(self):
         self.assertEqual('facebook:ref:asdf', URN.from_facebook(URN.path_from_fb_ref('asdf')))
         self.assertEqual('asdf', URN.fb_ref_from_path(URN.path_from_fb_ref('asdf')))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref('asdf'))))

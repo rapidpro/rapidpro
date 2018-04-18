@@ -29,7 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user, on_transaction_commit
+from temba.utils import analytics, format_number, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
 from temba.utils.cache import get_cacheable_attr
@@ -330,7 +330,7 @@ class ContactField(SmartModel):
 
     DATETIME_KEY = 'datetime'
     TEXT_KEY = 'text'
-    DECIMAL_KEY = 'decimal'
+    NUMBER_KEY = 'number'
     COUNTRY_KEY = 'country'
     STATE_KEY = 'state'
     DISTRICT_KEY = 'district'
@@ -690,9 +690,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return json_value.get(ContactField.TEXT_KEY)
         elif field.value_type == Value.TYPE_DATETIME:
             return json_value.get(ContactField.DATETIME_KEY)
-        elif field.value_type == Value.TYPE_DECIMAL:
-            dec_value = json_value.get(ContactField.DECIMAL_KEY)
-            return format_decimal(Decimal(dec_value)) if dec_value is not None else None
+        elif field.value_type == Value.TYPE_NUMBER:
+            dec_value = json_value.get(ContactField.NUMBER_KEY, json_value.get('decimal'))
+            return format_number(Decimal(dec_value)) if dec_value is not None else None
         elif field.value_type == Value.TYPE_STATE:
             return json_value.get(ContactField.STATE_KEY)
         elif field.value_type == Value.TYPE_DISTRICT:
@@ -715,7 +715,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return string_value
         elif field.value_type == Value.TYPE_DATETIME:
             return iso8601.parse_date(string_value)
-        elif field.value_type == Value.TYPE_DECIMAL:
+        elif field.value_type == Value.TYPE_NUMBER:
             return Decimal(string_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
             return AdminBoundary.get_by_path(self.org, string_value)
@@ -729,9 +729,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return ""
 
         if field.value_type == Value.TYPE_DATETIME:
-            return self.org.format_date(value)
-        elif field.value_type == Value.TYPE_DECIMAL:
-            return format_decimal(value)
+            return self.org.format_datetime(value)
+        elif field.value_type == Value.TYPE_NUMBER:
+            return format_number(value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
             return value.name
         else:
@@ -754,8 +754,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
-            dt_value = self.org.parse_date(value)
-            dec_value = self.org.parse_decimal(value)
+            dt_value = self.org.parse_datetime(value)
+            num_value = self.org.parse_number(value)
             loc_value = None
 
             # for locations, if it has a '>' then it is explicit, look it up that way
@@ -804,8 +804,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if dt_value is not None:
                 field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
-            if dec_value is not None:
-                field_dict[ContactField.DECIMAL_KEY] = format_decimal(dec_value)
+            if num_value is not None:
+                field_dict[ContactField.NUMBER_KEY] = format_number(num_value)
 
             if loc_value:
                 if loc_value.level == AdminBoundary.LEVEL_STATE:
@@ -854,13 +854,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if existing:
                 # only update the existing value if it will be different
                 if existing.string_value != str_value \
-                        or existing.decimal_value != dec_value \
+                        or existing.decimal_value != num_value \
                         or existing.datetime_value != dt_value \
                         or existing.location_value != loc_value \
                         or existing.category != category:
 
                     existing.string_value = str_value
-                    existing.decimal_value = dec_value
+                    existing.decimal_value = num_value
                     existing.datetime_value = dt_value
                     existing.location_value = loc_value
                     existing.category = category
@@ -875,7 +875,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # otherwise, create a new value for it
             else:
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
-                                                string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
+                                                string_value=str_value, decimal_value=num_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
                 has_changed = True
 
@@ -1310,7 +1310,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # make naive datetime timezone-aware, ignoring date
                 if getattr(value, 'tzinfo', 'ignore') is None:
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
-                value = org.format_date(value, True)
+                value = org.format_datetime(value, True)
 
             contact.set_field(user, key, value, importing=True)
             contact_field_keys_updated.add(key)
@@ -1488,6 +1488,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             import_results['error_messages'] = error_messages
 
         return records
+
+    @classmethod
+    def finalize_import(cls, task, records):
+        for chunk in chunk_list(records, 1000):
+            Contact.objects.filter(id__in=[c.id for c in chunk]).update(modified_on=timezone.now())
 
     @classmethod
     def import_csv(cls, task, log=None):

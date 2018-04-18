@@ -6,15 +6,10 @@ import time
 import uuid
 
 import jwt
-import requests
 import nexmo as nx
+import requests
 import six
 from django.utils.encoding import force_bytes
-
-from temba.utils.gsm7 import is_gsm7
-from django.utils.http import urlencode
-
-from temba.utils.http import HttpEvent
 
 
 class NexmoValidationError(Exception):
@@ -58,45 +53,6 @@ class NexmoClient(nx.Client):
             return response['numbers']
         else:
             return []
-
-    def send_message_via_nexmo(self, from_number, to_number, text, callback_url=None):
-        from temba.channels.models import SendException
-
-        params = dict(api_key=self.api_key, api_secret=self.api_secret)
-        params['from'] = from_number.strip('+')
-        params['to'] = to_number.strip('+')
-        params['text'] = text
-        params['status-report-req'] = 1
-
-        if callback_url:
-            params['callback'] = callback_url
-
-        # if this isn't going to work as plaintext, send as unicode instead
-        if not is_gsm7(text):
-            params['type'] = 'unicode'
-
-        log_params = params.copy()
-        log_params['api_secret'] = 'x' * len(log_params['api_secret'])
-        log_url = NexmoClient.SEND_URL + '?' + urlencode(log_params)
-
-        event = HttpEvent('GET', log_url)
-
-        try:
-            response = requests.get(NexmoClient.SEND_URL, params=params)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-            messages = response_json.get('messages', [])
-        except Exception:
-            raise SendException(u"Failed sending message: %s" % response.text, event=event)
-
-        if not messages or int(messages[0]['status']) != 0:
-            raise SendException(u"Failed sending message, received error status [%s]" % messages[0]['status'],
-                                event=event)
-
-        else:
-            return messages[0]['message-id'], event
 
     def search_numbers(self, country, pattern):
         response = nx.Client.get_available_numbers(self, country_code=country, pattern=pattern, search_pattern=1,

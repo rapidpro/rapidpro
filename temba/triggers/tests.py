@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import six
 import time
-import json
+from datetime import timedelta
 from uuid import uuid4
 
-from mock import patch
-from datetime import timedelta
+import six
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
+
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME, Contact
+from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
-from temba.orgs.models import Language
 from temba.msgs.models import Msg, INCOMING
+from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, MockResponse
 from .models import Trigger
@@ -749,50 +749,6 @@ class TriggerTest(TembaTest):
         response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]), data=dict(channel=fb_channel.id, flow=flow2.id))
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
-
-        # ok, trigger a facebook event
-        data = json.loads("""{
-        "object": "page",
-          "entry": [
-            {
-              "id": "620308107999975",
-              "time": 1467841778778,
-              "messaging": [
-                {
-                  "sender":{
-                    "id":"1001"
-                  },
-                  "recipient":{
-                    "id":"%s"
-                  },
-                  "timestamp":1458692752478,
-                  "postback":{
-                    "payload":"get_started"
-                  }
-                }
-              ]
-            }
-          ]
-        }
-        """ % fb_channel.address)
-
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
-
-            callback_url = reverse('handlers.facebook_handler', args=[fb_channel.uuid])
-            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-            self.assertEqual(response.status_code, 200)
-
-            # should have a new flow run for Ben
-            contact = Contact.from_urn(self.org, 'facebook:1001')
-            self.assertTrue(contact.name, "Ben Haggerty")
-
-            # and a new channel event for the conversation
-            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact,
-                                                        event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
-
-            run = FlowRun.objects.get(contact=contact)
-            self.assertEqual(run.flow, flow)
 
         # archive our trigger, should unregister our callback
         with patch('requests.post') as mock_post:

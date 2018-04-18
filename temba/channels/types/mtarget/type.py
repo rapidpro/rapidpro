@@ -4,8 +4,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME
-from ...models import ChannelType
 from .views import ClaimView
+from ...models import ChannelType
 
 
 class MtargetType(ChannelType):
@@ -14,6 +14,8 @@ class MtargetType(ChannelType):
     """
     code = 'MT'
     category = ChannelType.Category.PHONE
+
+    courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
 
     name = "Mtarget"
     icon = 'icon-mtarget'

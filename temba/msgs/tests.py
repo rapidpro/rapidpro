@@ -1255,9 +1255,9 @@ class BroadcastTest(TembaTest):
         self.assertEqual(40, len(parts[3]))
 
     def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_NUMBER)
         self.joe.set_field(self.user, 'goats', "3 ")
-        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_NUMBER)
         self.joe.set_field(self.user, 'temp', "37.45")
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
@@ -1902,6 +1902,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_batch(self):
         # broadcast out to 11 contacts to test our batching
         contacts = []
