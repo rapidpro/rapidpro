@@ -4849,32 +4849,6 @@ class ExportFlowResultsTask(BaseExportTask):
         group_names.sort()
         return ", ".join(group_names)
 
-    def _get_messages_for_runs(self, runs):
-        """
-        Batch fetches messages for the given runs and returns a dict of runs to messages
-        """
-        message_ids = set()
-        for r in runs:
-            message_ids.update(r.get_message_ids())
-
-        messages = (
-            Msg.objects.filter(id__in=message_ids, visibility=Msg.VISIBILITY_VISIBLE)
-            .select_related('contact_urn')
-            .prefetch_related('channel')
-            .order_by('created_on')
-        )
-
-        msgs_by_id = {m.id: m for m in messages}
-
-        msgs_by_run = defaultdict(list)
-        for run in runs:
-            for msg_id in run.get_message_ids():
-                msg = msgs_by_id.get(msg_id)
-                if msg:
-                    msgs_by_run[run].append(msg)
-
-        return msgs_by_run
-
     def write_export(self):
         config = self.config
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -4939,8 +4913,6 @@ class ExportFlowResultsTask(BaseExportTask):
                 .select_related('contact')
                 .order_by('contact', 'id')
             )
-
-            msgs_by_run = self._get_messages_for_runs(run_batch)
 
             for run in run_batch:
                 # is this a new contact?
@@ -5012,7 +4984,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 # write out any message associated with this run
                 if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run, msgs_by_run)
+                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
 
                 runs_exported += 1
                 if runs_exported % 10000 == 0:  # pragma: needs cover
@@ -5030,27 +5002,41 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, 'xlsx'
 
-    def _write_run_messages(self, book, msgs_sheet, run, msgs_by_run):
+    def _write_run_messages(self, book, msgs_sheet, run):
         """
         Writes out any messages associated with the given run
         """
-        for msg in msgs_by_run.get(run, []):
+        for event in run.events:
+            if event['type'] == 'msg_received':
+                msg_direction = "IN"
+            elif event['type'] == 'msg_created':
+                msg_direction = "OUT"
+            else:
+                continue
+
+            msg = event['msg']
+            msg_text = msg.get('text', "")
+            msg_created_on = iso8601.parse_date(event['created_on'])
+            msg_channel = msg.get('channel')
+
+            if self.org.is_anon:
+                msg_urn = run.contact.id
+            elif 'urn' in msg:
+                msg_urn = URN.format(msg['urn'], localize_tel=False)
+            else:
+                msg_urn = ''
+
             if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
-            if self.org.is_anon:
-                urn_display = run.contact.id
-            else:
-                urn_display = msg.contact_urn.get_display(org=self.org, formatted=False) if msg.contact_urn else ''
-
             self.append_row(msgs_sheet, [
                 run.contact.uuid,
-                urn_display,
+                msg_urn,
                 self.prepare_value(run.contact.name),
-                msg.created_on,
-                "IN" if msg.direction == INCOMING else "OUT",
-                msg.text,
-                msg.channel.name if msg.channel else ''
+                msg_created_on,
+                msg_direction,
+                msg_text,
+                msg_channel['name'] if msg_channel else ''
             ])
 
         return msgs_sheet

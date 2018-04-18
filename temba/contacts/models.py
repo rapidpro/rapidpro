@@ -127,6 +127,25 @@ class URN(object):
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
+    def format(cls, urn, localize_tel=True):
+        """
+        formats this URN as a human friendly string
+        """
+        scheme, path, query, display = cls.to_parts(urn)
+
+        if scheme == TEL_SCHEME and localize_tel:
+            try:
+                parsed = phonenumbers.parse(path)
+                return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)
+            except phonenumbers.NumberParseException:
+                pass
+
+        if display:
+            return display
+
+        return path
+
+    @classmethod
     def validate(cls, urn, country_code=None):
         """
         Validates a normalized URN
