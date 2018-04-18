@@ -3518,7 +3518,7 @@ class ContactTest(TembaTest):
 
             # assert all contacts in the group have the same modified_on
             group = response.context['group']
-            if group.contacts.first():
+            if group and group.contacts.first():
                 first_modified_on = group.contacts.first().modified_on
                 self.assertEqual(group.contacts.count(), group.contacts.filter(modified_on=first_modified_on).count())
 
