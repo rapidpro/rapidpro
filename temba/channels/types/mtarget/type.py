@@ -20,8 +20,8 @@ class MtargetType(ChannelType):
     name = "Mtarget"
     icon = 'icon-mtarget'
 
-    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Kinshasa", "Europe/Paris"]
-    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Kinshasa", "Europe/Paris"]
+    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
+    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
 
     schemes = [TEL_SCHEME]
     max_length = 765

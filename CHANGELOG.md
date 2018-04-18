@@ -1,3 +1,33 @@
+v3.0.368
+----------
+ * Fewer sentry errors from ES searching
+ * Don't assume messages have a UUID in FlowRun.add_messages
+
+v3.0.367
+----------
+ * allow up to two minutes for elastic search lag
+
+v3.0.366
+----------
+ * fix empty queryset case for ES comparison
+
+v3.0.365
+----------
+ * chill the f out with sentry if the first contact in our queryset is less than 30 seconds old
+ * fix duplicate messages when searching on msgs whose contacts have more than one urn
+
+v3.0.364
+----------
+ * fix environment variable for elastic search, catch all exceptions
+
+v3.0.363
+----------
+ * Add Elastic searching for contacts, for now only validating that results through ES are the same as through postgres searches
+
+v3.0.361
+----------
+ * Migrate Dart/Hub9 Contact urns and channels to support ext schemes
+
 v3.0.360
 ----------
  * Use more efficient queries for check channels task

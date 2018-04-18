@@ -5,8 +5,11 @@ import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dartmedia.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
-from ...models import ChannelType
+from temba.contacts.models import TEL_SCHEME, EXTERNAL_SCHEME
+from temba.msgs.models import SENT
+from temba.utils.http import HttpEvent, http_headers
+from ...models import Channel, ChannelType, SendException
+
 
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
@@ -28,7 +31,7 @@ class Hub9Type(ChannelType):
     claim_blurb = _("""Easily add a two way number you have configured with Hub9 in Indonesia.""")
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [TEL_SCHEME, EXTERNAL_SCHEME]
     max_length = 1600
     attachment_support = False
 

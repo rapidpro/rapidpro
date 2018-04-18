@@ -4,6 +4,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import json
 import regex
 import six
+import logging
+from elasticsearch.serializer import JSONSerializer as es_JSONSerializer
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -36,6 +38,9 @@ from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
 from .tasks import export_contacts_task
+
+
+logger = logging.getLogger(__name__)
 
 
 class RemoveContactForm(forms.Form):
@@ -107,10 +112,11 @@ class ContactGroupForm(forms.ModelForm):
             if parsed_query.can_be_dynamic_group():
                 return cleaned_query
             else:
-                raise forms.ValidationError(
-                    _('You cannot create a dynamic group based on "name" or "id".')
-                )
-        except SearchException as e:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
+        except forms.ValidationError as e:
+            raise e
+
+        except Exception as e:
             raise forms.ValidationError(six.text_type(e))
 
     class Meta:
@@ -152,7 +158,27 @@ class ContactListView(OrgPermsMixin, SmartListView):
         else:
             qs = group.contacts.all()
 
-        return qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
+        the_qs = qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
+
+        from .search import contact_es_search
+        from temba.utils.es import ES
+        try:  # pragma: no cover
+            es_search = contact_es_search(org, search_query, group)
+            es_result = es_search.using(ES).execute(ignore_cache=True)
+
+            qs_count = the_qs.count()
+
+            if abs(qs_count - int(es_result.hits.total)) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):
+                logger.error(
+                    'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
+                        the_qs.count(), es_result.hits.total, search_query,
+                        es_JSONSerializer().dumps(es_search.to_dict())
+                    )
+                )
+        except SearchException:
+            logger.exception("Exception while executing contact query. search_text={}".format(search_query))
+
+        return the_qs
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()

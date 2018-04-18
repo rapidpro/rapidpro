@@ -820,7 +820,7 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         extra_config = self.get_channel_config(org, data)
         self.object = Channel.add_authenticated_external_channel(
             org, self.request.user, self.get_submitted_country(data), data['number'], data['username'],
-            data['password'], self.channel_type, data.get('url'), extra_config=extra_config,
+            data['password'], self.channel_type, data.get('url'), extra_config=extra_config
         )
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)

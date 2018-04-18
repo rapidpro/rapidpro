@@ -130,7 +130,7 @@ class InboxView(OrgPermsMixin, SmartListView):
             last_90 = timezone.now() - timedelta(days=90)
             queryset = queryset.filter(created_on__gte=last_90)
 
-        return queryset.order_by('-created_on', '-id')
+        return queryset.order_by('-created_on', '-id').distinct('created_on', 'id')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()

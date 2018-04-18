@@ -4922,6 +4922,23 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
 
+    def test_resuming_run_with_old_uuidless_message(self):
+        favorites = self.get_flow('favorites')
+        run, = favorites.start([], [self.contact])
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+
+        # old messages don't have UUIDs so their events on the run also won't
+        run.refresh_from_db()
+        del run.events[1]['msg']['uuid']
+        run.save(update_fields=('events',))
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Ben")
+
+        run.refresh_from_db()
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
     @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_payload(self):
         flow = self.get_flow('webhook_payload')
