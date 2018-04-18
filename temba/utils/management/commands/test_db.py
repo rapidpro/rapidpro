@@ -65,7 +65,7 @@ CHANNELS = (
 )
 FIELDS = (
     {'key': 'gender', 'label': "Gender", 'value_type': Value.TYPE_TEXT},
-    {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_DECIMAL},
+    {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_NUMBER},
     {'key': 'joined', 'label': "Joined On", 'value_type': Value.TYPE_DATETIME},
     {'key': 'ward', 'label': "Ward", 'value_type': Value.TYPE_WARD},
     {'key': 'district', 'label': "District", 'value_type': Value.TYPE_DISTRICT},
@@ -468,7 +468,7 @@ class Command(BaseCommand):
                         }
                     if c['joined'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
-                            'text': org.format_date(c['joined'], show_time=False),
+                            'text': org.format_datetime(c['joined'], show_time=False),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
@@ -557,7 +557,7 @@ class Command(BaseCommand):
                                           string_value=str(c['age']), decimal_value=c['age']))
             if c['joined']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                          string_value=org.format_date(c['joined'], show_time=False), datetime_value=c['joined']))
+                                          string_value=org.format_datetime(c['joined'], show_time=False), datetime_value=c['joined']))
             if c['ward']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
                                           string_value=c['ward'].name, location_value=c['ward']))

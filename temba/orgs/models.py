@@ -995,7 +995,7 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
 
-    def format_date(self, datetime, show_time=True):
+    def format_datetime(self, datetime, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
@@ -1003,13 +1003,13 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(datetime, format, False, self.timezone)
 
-    def parse_date(self, date_string):
-        if isinstance(date_string, datetime):
-            return date_string
+    def parse_datetime(self, datetime_string):
+        if isinstance(datetime_string, datetime):
+            return datetime_string
 
-        return str_to_datetime(date_string, self.timezone, self.get_dayfirst())
+        return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
 
-    def parse_decimal(self, decimal_string):
+    def parse_number(self, decimal_string):
         parsed = None
 
         try:

@@ -16,14 +16,14 @@ class Value(models.Model):
     A value holds a contact specific value for a contact field.
     """
     TYPE_TEXT = 'T'
-    TYPE_DECIMAL = 'N'
+    TYPE_NUMBER = 'N'
     TYPE_DATETIME = 'D'
     TYPE_STATE = 'S'
     TYPE_DISTRICT = 'I'
     TYPE_WARD = 'W'
 
     TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
-                   (TYPE_DECIMAL, _("Numeric"), 'numeric'),
+                   (TYPE_NUMBER, _("Numeric"), 'numeric'),
                    (TYPE_DATETIME, _("Date & Time"), 'datetime'),
                    (TYPE_STATE, _("State"), 'state'),
                    (TYPE_DISTRICT, _("District"), 'district'),

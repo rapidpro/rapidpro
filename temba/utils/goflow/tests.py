@@ -15,7 +15,7 @@ from .client import serialize_field, serialize_label, serialize_channel, get_cli
 class SerializationTest(TembaTest):
     def test_serialize_field(self):
         gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
-        age = self.create_field('age', "Age", Value.TYPE_DECIMAL)
+        age = self.create_field('age', "Age", Value.TYPE_NUMBER)
 
         self.assertEqual(serialize_field(gender), {
             'key': "gender",
@@ -47,7 +47,7 @@ class ClientTest(TembaTest):
         super(ClientTest, self).setUp()
 
         self.gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
-        self.age = self.create_field('age', "Age", Value.TYPE_DECIMAL)
+        self.age = self.create_field('age', "Age", Value.TYPE_NUMBER)
         self.contact = self.create_contact("Bob", number="+12345670987", urn='twitterid:123456785#bobby')
         self.testers = self.create_group("Testers", [self.contact])
         self.client = get_client()

@@ -4044,7 +4044,7 @@ class RuleSet(models.Model):
             rule_type = None
 
             if isinstance(rule.test, NumericTest):
-                rule_type = Value.TYPE_DECIMAL
+                rule_type = Value.TYPE_NUMBER
 
             elif isinstance(rule.test, DateTest):
                 rule_type = Value.TYPE_DATETIME
