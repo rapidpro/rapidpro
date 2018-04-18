@@ -40,7 +40,7 @@ def percentage(numerator, denominator):
     return int(100.0 * numerator / denominator + .5)
 
 
-def format_decimal(val):
+def format_number(val):
     """
     Formats a decimal value without trailing zeros
     """

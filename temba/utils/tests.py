@@ -31,7 +31,7 @@ from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest, matchers
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
-from . import format_decimal, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
+from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
 from . import chunk_list, get_country_code_by_name, voicexml, json_date_to_datetime
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
@@ -97,19 +97,19 @@ class InitTest(TembaTest):
         self.assertTrue(str_to_bool('1'))
 
     def test_format_decimal(self):
-        self.assertEqual('', format_decimal(None))
-        self.assertEqual('0', format_decimal(Decimal('0.0')))
-        self.assertEqual('10', format_decimal(Decimal('10')))
-        self.assertEqual('100', format_decimal(Decimal('100.0')))
-        self.assertEqual('123', format_decimal(Decimal('123')))
-        self.assertEqual('123', format_decimal(Decimal('123.0')))
-        self.assertEqual('123.34', format_decimal(Decimal('123.34')))
-        self.assertEqual('123.34', format_decimal(Decimal('123.3400000')))
-        self.assertEqual('-123', format_decimal(Decimal('-123.0')))
-        self.assertEqual('-12300', format_decimal(Decimal('-123E+2')))
-        self.assertEqual('-12350', format_decimal(Decimal('-123.5E+2')))
-        self.assertEqual('-1.235', format_decimal(Decimal('-123.5E-2')))
-        self.assertEqual('', format_decimal(Decimal('NaN')))
+        self.assertEqual('', format_number(None))
+        self.assertEqual('0', format_number(Decimal('0.0')))
+        self.assertEqual('10', format_number(Decimal('10')))
+        self.assertEqual('100', format_number(Decimal('100.0')))
+        self.assertEqual('123', format_number(Decimal('123')))
+        self.assertEqual('123', format_number(Decimal('123.0')))
+        self.assertEqual('123.34', format_number(Decimal('123.34')))
+        self.assertEqual('123.34', format_number(Decimal('123.3400000')))
+        self.assertEqual('-123', format_number(Decimal('-123.0')))
+        self.assertEqual('-12300', format_number(Decimal('-123E+2')))
+        self.assertEqual('-12350', format_number(Decimal('-123.5E+2')))
+        self.assertEqual('-1.235', format_number(Decimal('-123.5E-2')))
+        self.assertEqual('', format_number(Decimal('NaN')))
 
     def test_slugify_with(self):
         self.assertEqual('foo_bar', slugify_with('foo bar'))
