@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import six
 import time
 
+import six
 from django.utils.translation import ugettext_lazy as _
+
 from temba.contacts.models import Contact, TWITTER_SCHEME, TWITTERID_SCHEME, URN
 from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython

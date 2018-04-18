@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
 import logging
-import pytz
-import regex
-import requests
-import six
 import time
 import traceback
-
 from datetime import datetime, timedelta
+from uuid import uuid4
+
+import pytz
+import regex
+import six
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -23,21 +22,20 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from temba.channels.courier import push_courier_msgs
+
 from temba.assets.models import register_asset_store
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
+from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.orgs.models import Org, TopUp, Language
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, on_transaction_commit, dict_to_json, get_anonymous_user
 from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_s
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
-from temba.utils.http import http_headers
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -785,7 +783,7 @@ class Msg(models.Model):
                 # now push each onto our queue
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
-                        if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
+                        if msg.channel.channel_type not in settings.LEGACY_CHANNELS and msg.uuid:
                             courier_msgs.append(msg)
                             continue
 
@@ -850,8 +848,6 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
-        from temba.orgs.models import CHATBASE_TYPE_USER
-
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -878,16 +874,6 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
-        # chatbase parameters to track logs
-        chatbase_not_handled = msg.msg_type != FLOW
-
-        # Sending data to Chatbase API
-        if not msg.contact.is_test:
-            (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
-            if chatbase_api_key:
-                cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
-                                      CHATBASE_TYPE_USER, chatbase_not_handled)
-
         # record our handling latency for this object
         if msg.queued_on:
             analytics.gauge('temba.handling_latency', (msg.modified_on - msg.queued_on).total_seconds())
@@ -895,34 +881,6 @@ class Msg(models.Model):
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
         analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
-
-    @classmethod
-    def send_chatbase_log(cls, chatbase_api_key, chatbase_version, channel_name, text, contact_id, log_type,
-                          not_handled=True):
-        """
-        Send messages logs in batch to Chatbase
-        """
-        if not settings.SEND_CHATBASE:
-            raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
-
-        message = {
-            'type': log_type,
-            'user_id': contact_id,
-            'platform': channel_name,
-            'message': text,
-            'time_stamp': int(time.time()),
-            'api_key': chatbase_api_key
-        }
-
-        if chatbase_version:
-            message['version'] = chatbase_version
-
-        if log_type == 'user' and not_handled:
-            message['not_handled'] = not_handled
-
-        headers = http_headers(extra={'Content-Type': 'application/json'})
-
-        requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -1031,7 +989,7 @@ class Msg(models.Model):
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
-        else:
+        else:  # pragma: no cover
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):
@@ -1263,13 +1221,8 @@ class Msg(models.Model):
                     metadata=self.metadata,
                     connection_id=self.connection_id)
 
-        if self.contact_urn.auth:
+        if self.contact_urn.auth:  # pragma: no cover
             data.update(dict(auth=self.contact_urn.auth))
-
-        (chatbase_api_key, chatbase_version) = self.org.get_chatbase_credentials()
-        if chatbase_api_key:
-            data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
-                             is_org_connected_to_chatbase=True))
 
         return data
 

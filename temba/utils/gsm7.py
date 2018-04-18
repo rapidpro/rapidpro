@@ -293,7 +293,7 @@ def encode(input_, errors='strict'):  # pragma: needs cover
     return ret, len(ret)
 
 
-def decode(input_, errors='strict'):
+def decode(input_, errors='strict'):  # pragma: needs cover
     """
     :type input_: str
     :return: unicode

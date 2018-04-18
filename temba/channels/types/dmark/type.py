@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import six
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dmark.views import ClaimView
@@ -19,6 +18,8 @@ class DMarkType(ChannelType):
 
     name = "DMark"
     icon = 'icon-channel-external'
+
+    courier_url = r'^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
 
     claim_blurb = _("""If you are based in Uganda or DRC you can purchase a short
     code from <a href="http://dmarkmobile.com/">DMark Mobile</a> and connect it
@@ -45,6 +46,3 @@ class DMarkType(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["Africa/Kampala", "Africa/Kinshasa"]
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending DMark messages is only possible via Courier")

@@ -3,9 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 import time
-import requests
-
 from datetime import timedelta
+
+import requests
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _

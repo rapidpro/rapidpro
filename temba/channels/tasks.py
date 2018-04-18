@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import requests
 import logging
 import time
+from datetime import timedelta
+from enum import Enum
 
 from celery.task import task
-from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from enum import Enum
+
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
-from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
 from temba.utils.mage import MageClient
+from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
 from .models import Channel, Alert, ChannelLog, ChannelCount
-
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +96,7 @@ def send_alert_task(alert_id, resolved):
 
 
 @task(track_started=True, name='refresh_all_jiochat_access_tokens')
-def refresh_all_jiochat_access_tokens(channel_id=None):
+def refresh_all_jiochat_access_tokens(channel_id=None):  # pragma: no cover
     Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
 
 
@@ -141,18 +140,3 @@ def notify_mage_task(channel_uuid, action):
 @nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key='squash_channelcounts')
 def squash_channelcounts():
     ChannelCount.squash()
-
-
-@task(track_started=True, name="fb_channel_subscribe")
-def fb_channel_subscribe(channel_id):
-    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
-
-    if channel:
-        page_access_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
-
-        # subscribe to messaging events for this channel
-        response = requests.post('https://graph.facebook.com/v2.6/me/subscribed_apps',
-                                 params=dict(access_token=page_access_token))
-
-        if response.status_code != 200 or not response.json()['success']:
-            print("Unable to subscribe for delivery of events: %s" % response.content)

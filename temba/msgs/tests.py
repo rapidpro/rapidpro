@@ -1902,6 +1902,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_batch(self):
         # broadcast out to 11 contacts to test our batching
         contacts = []
