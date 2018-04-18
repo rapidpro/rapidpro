@@ -6,9 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dartmedia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME, EXTERNAL_SCHEME
-from temba.msgs.models import SENT
-from temba.utils.http import HttpEvent, http_headers
-from ...models import Channel, ChannelType, SendException
+from ...models import ChannelType
 
 # DartMedia is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
