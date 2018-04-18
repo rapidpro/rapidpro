@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import base64
+import hashlib
+import hmac
 import json
 
 import requests
@@ -162,3 +165,8 @@ class TembaTwython(Twython):  # pragma: no cover
         Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
         """
         return self.post('https://api.twitter.com/1.1/account_activity/all/%s/subscriptions.json' % env_name)
+
+
+def generate_twitter_signature(content, consumer_secret):  # pragma: no cover
+    token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
+    return 'sha256=' + base64.standard_b64encode(token)
