@@ -1214,7 +1214,7 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
 
-        self.joe.set_field(self.admin, 'age', 'cedevita is not a decimal object')
+        self.joe.set_field(self.admin, 'age', 'cedevita is not a number')
         self.assertFalse(evaluate_query(self.org, 'age < 99', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
@@ -1230,7 +1230,7 @@ class ContactTest(TembaTest):
 
         self.assertRaises(
             SearchException, evaluate_query,
-            self.org, 'age < "cedevita is not a decimal object"', contact_json=self.joe.as_search_json()
+            self.org, 'age < "cedevita is not a number"', contact_json=self.joe.as_search_json()
         )
 
         # test DATETIME field type
@@ -1536,7 +1536,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'match': {'fields.decimal': '35'}}
+                {'match': {'fields.number': '35'}}
             ]}
         }}}]
         self.assertEqual(
@@ -1549,7 +1549,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gt': '35'}}}
+                    {'range': {'fields.number': {'gt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1562,7 +1562,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'gte': '35'}}}
+                    {'range': {'fields.number': {'gte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1575,7 +1575,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lt': '35'}}}
+                    {'range': {'fields.number': {'lt': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1588,7 +1588,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'range': {'fields.decimal': {'lte': '35'}}}
+                    {'range': {'fields.number': {'lte': '35'}}}
                 ]}
         }}}]
         self.assertEqual(
@@ -1718,7 +1718,7 @@ class ContactTest(TembaTest):
             ]}}}},
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                 {'term': {'fields.field': six.text_type(age.uuid)}},
-                {'range': {'fields.decimal': {'gt': '32'}}}
+                {'range': {'fields.number': {'gt': '32'}}}
             ]}}}}
         ]
         self.assertEqual(
@@ -1812,7 +1812,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [{'term': {'fields.field': six.text_type(age.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.decimal'}}],
+                'must_not': [{'exists': {'field': 'fields.number'}}],
             }
         }}}]
         self.assertEqual(
@@ -1825,7 +1825,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(age.uuid)}},
-                    {'exists': {'field': 'fields.decimal'}}
+                    {'exists': {'field': 'fields.number'}}
                 ]
             }
         }}}]
@@ -4420,7 +4420,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "23.00",
-                    "decimal": "23"
+                    "number": "23"
                 }
             }
         )
@@ -4433,7 +4433,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "2300",
-                    "decimal": "2300"
+                    "number": "2300"
                 }
             }
         )
@@ -4608,7 +4608,7 @@ class ContactTest(TembaTest):
 
         # check that this field has been set
         self.assertEqual(self.joe.get_field_value(birth_date), urn)
-        self.assertIsNone(self.joe.get_field_json(birth_date).get('decimal'))
+        self.assertIsNone(self.joe.get_field_json(birth_date).get('number'))
         self.assertIsNone(self.joe.get_field_json(birth_date).get('datetime'))
 
     def test_field_values(self):
