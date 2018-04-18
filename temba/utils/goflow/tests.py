@@ -86,7 +86,7 @@ class ClientTest(TembaTest):
 
     def test_add_environment_changed(self):
         with patch('django.utils.timezone.now', return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
-            self.assertEqual(self.client.request_builder(self.org, 1234).add_environment_changed(self.org).request['events'], [{
+            self.assertEqual(self.client.request_builder(self.org, 1234).add_environment_changed().request['events'], [{
                 'type': "environment_changed",
                 'created_on': "2018-01-18T14:24:30+00:00",
                 'environment': {
@@ -118,6 +118,6 @@ class ClientTest(TembaTest):
         contact = self.create_contact("Joe", number='+29638356667')
 
         with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(self.org, 1234).start_manual(self.org, contact, flow)
+            self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
         self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
