@@ -76,7 +76,7 @@ class ClientTest(TembaTest):
                     ],
                     'fields': {
                         'gender': {'text': 'M'},
-                        'age': {'text': '36', 'decimal': '36'},
+                        'age': {'text': '36', 'number': '36'},
                     },
                     'groups': [
                         {'uuid': str(self.testers.uuid), 'name': "Testers"}

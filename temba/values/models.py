@@ -23,7 +23,7 @@ class Value(models.Model):
     TYPE_WARD = 'W'
 
     TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
-                   (TYPE_NUMBER, _("Numeric"), 'numeric'),
+                   (TYPE_NUMBER, _("Number"), 'numeric'),
                    (TYPE_DATETIME, _("Date & Time"), 'datetime'),
                    (TYPE_STATE, _("State"), 'state'),
                    (TYPE_DISTRICT, _("District"), 'district'),
