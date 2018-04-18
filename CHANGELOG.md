@@ -1,3 +1,7 @@
+v3.0.371
+----------
+ * add twilio messaging handling back in
+
 v3.0.370
 ----------
  * remove logging of base handler being called
