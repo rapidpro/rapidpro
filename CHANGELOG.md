@@ -1,3 +1,10 @@
+v3.0.369
+----------
+ * rename contact field types of decimal to number
+ * finalize contact imports so that updated contacts have modified_on outside transaction 
+ * try to fetch IVR recordings for up to a minute before giving up
+ * remove handling and sendind code for all channel types (except twitter and junebug)
+
 v3.0.368
 ----------
  * Fewer sentry errors from ES searching
