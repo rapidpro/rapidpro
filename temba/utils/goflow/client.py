@@ -13,94 +13,91 @@ from .serialize import (
 
 
 class RequestBuilder(object):
-    def __init__(self, client, asset_timestamp):
+    def __init__(self, client, org, base_assets_url):
         self.client = client
-        self.asset_timestamp = asset_timestamp
+        self.org = org
+        self.base_assets_url = base_assets_url
         self.request = {'assets': [], 'events': []}
 
-    def include_all(self, org, simulator=False):
+    def include_all(self, simulator=False):
         request = self
-        for f in org.flows.filter(is_active=True, is_archived=False):
+        for f in self.org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
 
-        request = request.include_fields(org).include_groups(org).include_labels(org).include_channels(org, simulator)
-        if org.country_id:
-            request = request.include_country(org)
+        request = request.include_fields().include_groups().include_labels().include_channels(simulator)
+        if self.org.country_id:
+            request = request.include_country()
 
         return request
 
-    def include_channels(self, org, simulator):
+    def include_channels(self, simulator):
         from temba.channels.models import Channel
 
-        channels = [serialize_channel(c) for c in org.channels.filter(is_active=True)]
+        channels = [serialize_channel(c) for c in self.org.channels.filter(is_active=True)]
         if simulator:
             channels.append(Channel.SIMULATOR_CHANNEL)
 
         self.request['assets'].append({
-            'type': "channel",
-            'url': get_assets_url(org, self.asset_timestamp, 'channel', simulator=simulator),
-            'content': channels,
-            'is_set': True
+            'type': "channel_set",
+            'url': '%s/channel/?simulator=%d' % (self.base_assets_url, 1 if simulator else 0),
+            'content': channels
         })
         return self
 
-    def include_fields(self, org):
+    def include_fields(self):
         from temba.contacts.models import ContactField
 
         self.request['assets'].append({
-            'type': "field",
-            'url': get_assets_url(org, self.asset_timestamp, 'field'),
-            'content': [serialize_field(f) for f in ContactField.objects.filter(org=org, is_active=True)],
-            'is_set': True
+            'type': "field_set",
+            'url': '%s/field/' % self.base_assets_url,
+            'content': [serialize_field(f) for f in ContactField.objects.filter(org=self.org, is_active=True)]
         })
         return self
 
     def include_flow(self, flow):
         self.request['assets'].append({
             'type': "flow",
-            'url': get_assets_url(flow.org, self.asset_timestamp, 'flow', str(flow.uuid)),
+            'url': '%s/flow/%s/' % (self.base_assets_url, str(flow.uuid)),
             'content': serialize_flow(flow)
         })
         return self
 
-    def include_groups(self, org):
+    def include_groups(self):
         from temba.contacts.models import ContactGroup
 
         self.request['assets'].append({
-            'type': "group",
-            'url': get_assets_url(org, self.asset_timestamp, 'group'),
-            'content': [serialize_group(g) for g in ContactGroup.get_user_groups(org)],
-            'is_set': True
+            'type': "group_set",
+            'url': '%s/group/' % self.base_assets_url,
+            'content': [serialize_group(g) for g in ContactGroup.get_user_groups(self.org)]
         })
         return self
 
-    def include_labels(self, org):
+    def include_labels(self):
         from temba.msgs.models import Label
 
         self.request['assets'].append({
-            'type': "label",
-            'url': get_assets_url(org, self.asset_timestamp, 'label'),
-            'content': [serialize_label(l) for l in Label.label_objects.filter(org=org, is_active=True)],
-            'is_set': True
+            'type': "label_set",
+            'url': '%s/label/' % self.base_assets_url,
+            'content': [serialize_label(l) for l in Label.label_objects.filter(org=self.org, is_active=True)]
         })
         return self
 
-    def include_country(self, org):
+    def include_country(self):
         self.request['assets'].append({
             'type': "location_hierarchy",
-            'url': get_assets_url(org, self.asset_timestamp, 'location_hierarchy'),
-            'content': serialize_location_hierarchy(org.country, org)
+            'url': '%s/location_hierarchy/' % self.base_assets_url,
+            'content': serialize_location_hierarchy(self.org.country, self.org)
         })
         return self
 
-    def add_environment_changed(self, org):
+    def add_environment_changed(self):
         """
         Notify the engine that the environment has changed
         """
         self.request['events'].append({
             'type': "environment_changed",
             'created_on': timezone.now().isoformat(),
-            'environment': serialize_environment(org)
+            'environment': serialize_environment(self.org)
         })
         return self
 
@@ -137,28 +134,28 @@ class RequestBuilder(object):
         })
         return self
 
-    def asset_server(self, org, simulator=False):
+    def asset_server(self, simulator=False):
         type_urls = {
-            'channel': get_assets_url(org, self.asset_timestamp, 'channel', simulator=simulator),
-            'field': get_assets_url(org, self.asset_timestamp, 'field'),
-            'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
-            'group': get_assets_url(org, self.asset_timestamp, 'group'),
-            'label': get_assets_url(org, self.asset_timestamp, 'label'),
+            'flow': '%s/flow/{uuid}/' % self.base_assets_url,
+            'channel_set': '%s/channel/?simulator=%d' % (self.base_assets_url, 1 if simulator else 0),
+            'field_set': '%s/field/' % self.base_assets_url,
+            'group_set': '%s/group/' % self.base_assets_url,
+            'label_set': '%s/label/' % self.base_assets_url
         }
 
-        if org.country_id:
-            type_urls['location_hierarchy'] = get_assets_url(org, self.asset_timestamp, 'location_hierarchy')
+        if self.org.country_id:
+            type_urls['location_hierarchy'] = '%s/location_hierarchy/' % self.base_assets_url
 
         self.request['asset_server'] = {'type_urls': type_urls}
         return self
 
-    def start_manual(self, org, contact, flow, params=None):
+    def start_manual(self, contact, flow, params=None):
         """
         User is manually starting this session
         """
         trigger = {
             'type': 'manual',
-            'environment': serialize_environment(org),
+            'environment': serialize_environment(self.org),
             'contact': serialize_contact(contact),
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
             'params': params,
@@ -171,13 +168,13 @@ class RequestBuilder(object):
 
         return self.client.start(self.request)
 
-    def start_by_flow_action(self, org, contact, flow, parent_run_summary):
+    def start_by_flow_action(self, contact, flow, parent_run_summary):
         """
         New session was triggered by a flow action in a different run
         """
         self.request['trigger'] = {
             'type': 'flow_action',
-            'environment': serialize_environment(org),
+            'environment': serialize_environment(self.org),
             'contact': serialize_contact(contact),
             'flow': {'uuid': str(flow.uuid), 'name': flow.name},
             'triggered_on': timezone.now().isoformat(),
@@ -222,8 +219,11 @@ class FlowServerClient(object):
         self.base_url = base_url
         self.debug = debug
 
-    def request_builder(self, asset_timestamp):
-        return RequestBuilder(self, asset_timestamp)
+    def request_builder(self, org, asset_timestamp):
+        assets_host = 'http://localhost:8000' if settings.TESTING else ('https://%s' % settings.HOSTNAME)
+        base_assets_url = '%s/flow/assets/%d/%d' % (assets_host, org.id, asset_timestamp)
+
+        return RequestBuilder(self, org, base_assets_url)
 
     def start(self, flow_start):
         return Output.from_json(self._request('start', flow_start))
@@ -255,23 +255,6 @@ class FlowServerClient(object):
         response.raise_for_status()
 
         return resp_json
-
-
-def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None, simulator=False):
-    if settings.TESTING:
-        url = 'http://localhost:8000/flow/assets/%d/%d/' % (org.id, timestamp)
-    else:  # pragma: no cover
-        url = 'https://%s/flow/assets/%d/%d/' % (settings.HOSTNAME, org.id, timestamp)
-
-    if asset_type:
-        url += asset_type + '/'
-    if asset_uuid:
-        url += asset_uuid + '/'
-
-    if simulator:
-        url += '?simulator=1'
-
-    return url
 
 
 def get_client():

@@ -45,7 +45,6 @@ class BaseChannelHandler(View):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
-        logger.error("Handler URL called for channel %s: %s" % (self.__class__, request.get_full_path()))
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod

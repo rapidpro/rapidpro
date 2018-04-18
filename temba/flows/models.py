@@ -168,11 +168,11 @@ class FlowSession(models.Model):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder(asset_timestamp).asset_server(flow.org)
+            request = client.request_builder(flow.org, asset_timestamp).asset_server()
 
             if settings.TESTING:
                 # TODO find a way to run an assets server during testing?
-                request.include_all(flow.org)
+                request.include_all()
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -180,9 +180,9 @@ class FlowSession(models.Model):
 
             try:
                 if parent_run_summary:
-                    output = request.start_by_flow_action(flow.org, contact, flow, parent_run_summary)
+                    output = request.start_by_flow_action(contact, flow, parent_run_summary)
                 else:
-                    output = request.start_manual(flow.org, contact, flow, params)
+                    output = request.start_manual(contact, flow, params)
 
             except goflow.FlowServerException:
                 continue
@@ -221,11 +221,11 @@ class FlowSession(models.Model):
 
         # build request to flow server
         asset_timestamp = int(time.time() * 1000000)
-        request = client.request_builder(asset_timestamp).asset_server(self.org)
+        request = client.request_builder(self.org, asset_timestamp).asset_server()
 
         if settings.TESTING:
             # TODO find a way to run an assets server during testing?
-            request.include_all(self.org)
+            request.include_all()
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -235,7 +235,7 @@ class FlowSession(models.Model):
 
         # TODO determine if contact or environment has changed
         # request = request.add_contact_changed(self.contact)
-        # request = request.add_environment_changed(self.org)
+        # request = request.add_environment_changed()
 
         try:
             new_output = request.resume(self.output)
