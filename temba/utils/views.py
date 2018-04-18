@@ -159,7 +159,7 @@ class ESPaginator(Paginator):
         return super(ESPaginator, self)._get_page(*new_args, **kwargs)
 
 
-class ESPaginationMixin:
+class ESPaginationMixin(object):
     paginator_class = ESPaginator
 
     def paginate_queryset(self, es_search, page_size):
