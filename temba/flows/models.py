@@ -5022,7 +5022,7 @@ class ExportFlowResultsTask(BaseExportTask):
             if self.org.is_anon:
                 msg_urn = run.contact.id
             elif 'urn' in msg:
-                msg_urn = URN.format(msg['urn'], localize_tel=False)
+                msg_urn = URN.format(msg['urn'], formatted=False)
             else:
                 msg_urn = ''
 

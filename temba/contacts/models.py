@@ -127,16 +127,19 @@ class URN(object):
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
-    def format(cls, urn, localize_tel=True):
+    def format(cls, urn, international=False, formatted=True):
         """
         formats this URN as a human friendly string
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        if scheme == TEL_SCHEME and localize_tel:
+        if scheme == TEL_SCHEME and formatted:
             try:
-                parsed = phonenumbers.parse(path)
-                return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)
+                if path and path[0] == '+':
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                    return phonenumbers.format_number(phonenumbers.parse(path, None), phone_format)
             except phonenumbers.NumberParseException:
                 pass
 
@@ -2303,23 +2306,7 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
-        if self.scheme == TEL_SCHEME and formatted:
-            # if we don't want a full tell, see if we can show the national format instead
-            try:
-                if self.path and self.path[0] == '+':
-                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
-                    if international:
-                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
-
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
-
-            except Exception:  # pragma: no cover
-                pass
-
-        if self.display:
-            return self.display
-
-        return self.path
+        return URN.format(self.urn, international=international, formatted=formatted)
 
     @property
     def urn(self):
