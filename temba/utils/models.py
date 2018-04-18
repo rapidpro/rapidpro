@@ -21,6 +21,17 @@ def generate_uuid():
     return six.text_type(uuid4())
 
 
+def mapEStoDB(model, es_queryset):
+    """
+    Map ElasticSearch results to Django Model objects
+    We use object PKs from ElasticSearch result set and select those objects in the database
+    """
+    pks = [result.id for result in es_queryset]
+
+    # TODO: order_by must be the same as the sort_by on ES, since we are losing the order of results
+    return model.objects.filter(pk__in=pks).order_by('-modified_on')
+
+
 class TranslatableField(HStoreField):
     """
     Model field which is a set of language code and translation pairs stored as HSTORE

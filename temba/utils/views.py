@@ -2,9 +2,14 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
+from django.core.paginator import Paginator
 from django.http import HttpResponse
+from django.utils.functional import cached_property
 from django.views import View
 from django.utils.translation import ugettext_lazy as _
+
+from temba.utils.es import ModelESSearch
+from temba.utils.models import mapEStoDB
 
 
 class PostOnlyMixin(View):
@@ -128,3 +133,44 @@ class BaseActionForm(forms.Form):
 
         else:  # pragma: no cover
             return dict(error=_("Oops, so sorry. Something went wrong!"))
+
+
+class ESPaginator(Paginator):
+    """
+    Paginator that knows how to work with ES dsl Search objects
+    """
+
+    @cached_property
+    def count(self):
+        # execute search to get the count
+        return self.object_list.count()
+
+    def _get_page(self, *args, **kwargs):
+        new_args = list(args)
+
+        es_search = args[0]
+
+        if isinstance(es_search, ModelESSearch):
+            # we need to execute the ES search again, to get the actual page of records
+            new_object_list = args[0].execute()
+
+            new_args[0] = new_object_list
+
+        return super(ESPaginator, self)._get_page(*new_args, **kwargs)
+
+
+class ESPaginationMixin:
+    paginator_class = ESPaginator
+
+    def paginate_queryset(self, es_search, page_size):
+
+        if isinstance(es_search, ModelESSearch):
+
+            paginator, page, es_queryset, is_paginated = super(ESPaginationMixin, self).paginate_queryset(es_search, page_size)
+
+            model_queryset = mapEStoDB(self.model, es_queryset)
+
+            return paginator, page, model_queryset, is_paginated
+
+        else:
+            return super(ESPaginationMixin, self).paginate_queryset(es_search, page_size)

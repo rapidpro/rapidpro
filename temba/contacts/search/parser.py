@@ -15,12 +15,13 @@ from django.db.models import Q, Func, Value as Val, CharField
 from django.db.models.functions import Upper, Substr
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
-from elasticsearch_dsl import Q as es_Q, Search as es_Search
+from elasticsearch_dsl import Q as es_Q
 from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
+from temba.utils.es import ModelESSearch
 from temba.values.models import Value
-from temba.contacts.models import ContactField, ContactURN
+from temba.contacts.models import ContactField, ContactURN, Contact
 
 # our index for equality checks on string values is limited to the first 32 characters
 STRING_VALUE_COMPARISON_LIMIT = 32
@@ -1096,9 +1097,19 @@ def contact_es_search(org, text, base_group=None):
         parsed = parse_query(text, as_anon=org.is_anon)
         es_match = parsed.as_elasticsearch(org)
 
-        return es_Search(index='contacts').params(routing=org.id).query((es_match & es_filter)).sort('-modified_on')
+        return (
+            ModelESSearch(model=Contact, index='contacts')
+            .params(routing=org.id)
+            .query((es_match & es_filter))
+            .sort('-modified_on')
+        )
     else:
-        return es_Search(index='contacts').params(routing=org.id).query(es_filter).sort('-modified_on')
+        return (
+            ModelESSearch(model=Contact, index='contacts')
+            .params(routing=org.id)
+            .query(es_filter)
+            .sort('-modified_on')
+        )
 
 
 def extract_fields(org, text):
