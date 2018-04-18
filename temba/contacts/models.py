@@ -1490,6 +1490,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return records
 
     @classmethod
+    def finalize_import(cls, task, records):
+        for chunk in chunk_list(records, 1000):
+            Contact.objects.filter(id__in=[c.id for c in chunk]).update(modified_on=timezone.now())
+
+    @classmethod
     def import_csv(cls, task, log=None):
         import pyexcel
 
