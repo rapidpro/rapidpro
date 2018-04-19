@@ -721,6 +721,7 @@ class MsgTest(TembaTest):
 
         self.assertEqual(response.context['object_list'].count(), 3)
         self.assertEqual(response.context['actions'], ['resend'])
+        self.assertContains(response, "Export")
 
         self.assertContains(response, reverse('channels.channellog_read', args=[log.id]))
 
