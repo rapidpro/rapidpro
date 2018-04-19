@@ -140,7 +140,7 @@ class URN(object):
                     if international:
                         phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
                     return phonenumbers.format_number(phonenumbers.parse(path, None), phone_format)
-            except phonenumbers.NumberParseException:
+            except phonenumbers.NumberParseException:  # pragma: no cover
                 pass
 
         if display:

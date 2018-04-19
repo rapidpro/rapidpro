@@ -5011,7 +5011,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 msg_direction = "IN"
             elif event['type'] == 'msg_created':
                 msg_direction = "OUT"
-            else:
+            else:  # pragma: no cover
                 continue
 
             msg = event['msg']
