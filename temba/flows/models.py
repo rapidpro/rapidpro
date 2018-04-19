@@ -2864,7 +2864,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         # for now we only store message events
-        events = [e for e in run_output['events'] if e['type'] in ('msg_received', 'msg_created')]
+        events = [e for e in run_output['events'] if e['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name)]
 
         if existing:
             existing.path = path
@@ -3347,7 +3347,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         existing_msg_uuids = set()
         for e in self.events:
-            if e['type'] in ('msg_received', 'msg_created'):
+            if e['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name):
                 msg_uuid = e['msg'].get('uuid')
                 if msg_uuid:
                     existing_msg_uuids.add(msg_uuid)
@@ -3365,7 +3365,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.message_ids.append(msg.id)
             self.events.append({
-                'type': 'msg_received' if msg.direction == INCOMING else 'msg_created',
+                'type': goflow.Events.msg_received.name if msg.direction == INCOMING else goflow.Events.msg_created.name,
                 'created_on': msg.created_on.isoformat(),
                 'step_uuid': path_step.get('uuid'),
                 'msg': goflow.serialize_message(msg)
@@ -5007,9 +5007,9 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes out any messages associated with the given run
         """
         for event in run.events:
-            if event['type'] == 'msg_received':
+            if event['type'] == goflow.Events.msg_received.name:
                 msg_direction = "IN"
-            elif event['type'] == 'msg_created':
+            elif event['type'] == goflow.Events.msg_created.name:
                 msg_direction = "OUT"
             else:  # pragma: no cover
                 continue

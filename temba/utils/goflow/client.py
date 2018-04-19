@@ -6,10 +6,35 @@ import requests
 
 from django.conf import settings
 from django.utils import timezone
+from enum import Enum
 from .serialize import (
     serialize_contact, serialize_label, serialize_field, serialize_channel, serialize_flow, serialize_group,
     serialize_location_hierarchy, serialize_environment, serialize_message
 )
+
+
+class Events(Enum):
+    broadcast_created = 1
+    contact_changed = 2
+    contact_channel_changed = 3
+    contact_field_changed = 4
+    contact_groups_added = 5
+    contact_groups_removed = 6
+    contact_property_changed = 7
+    contact_urn_added = 8
+    email_created = 9
+    environment_changed = 10
+    error = 11
+    flow_triggered = 12
+    input_labels_added = 13
+    msg_created = 14
+    msg_received = 15
+    msg_wait = 16
+    nothing_wait = 17
+    run_expired = 18
+    run_result_changed = 19
+    session_triggered = 20
+    webhook_called = 21
 
 
 class RequestBuilder(object):
@@ -95,7 +120,7 @@ class RequestBuilder(object):
         Notify the engine that the environment has changed
         """
         self.request['events'].append({
-            'type': "environment_changed",
+            'type': Events.environment_changed.name,
             'created_on': timezone.now().isoformat(),
             'environment': serialize_environment(self.org)
         })
@@ -106,7 +131,7 @@ class RequestBuilder(object):
         Notify the engine that the contact has changed
         """
         self.request['events'].append({
-            'type': "contact_changed",
+            'type': Events.contact_changed.name,
             'created_on': contact.modified_on.isoformat(),
             'contact': serialize_contact(contact)
         })
@@ -117,7 +142,7 @@ class RequestBuilder(object):
         Notify the engine that an incoming message has been received from the session contact
         """
         self.request['events'].append({
-            'type': "msg_received",
+            'type': Events.msg_received.name,
             'created_on': msg.created_on.isoformat(),
             'msg': serialize_message(msg)
         })
@@ -128,7 +153,7 @@ class RequestBuilder(object):
         Notify the engine that the active run in this session has expired
         """
         self.request['events'].append({
-            'type': "run_expired",
+            'type': Events.run_expired.name,
             'created_on': run.exited_on.isoformat(),
             'run_uuid': str(run.uuid),
         })
