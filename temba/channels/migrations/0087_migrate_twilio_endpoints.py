@@ -17,6 +17,7 @@ def update_application_urls(Channel):
     for channel in Channel.objects.filter(is_active=True, channel_type='T').select_related('org'):
         if 'account_sid' not in channel.config or 'auth_token' not in channel.config or 'application_sid' not in channel.config:
             print("Skipping app migration for %s, missing settings in %s" % (channel.uuid, channel.config))
+            return
 
         try:
             prefix = "https://" + channel.callback_domain
@@ -46,7 +47,7 @@ def update_application_urls(Channel):
 
 
 def apply_as_migration(apps, schema_editor):
-    Channel = apps.get_model('channels', 'Channel')
+    from temba.channels.models import Channel
     update_application_urls(Channel)
 
 
