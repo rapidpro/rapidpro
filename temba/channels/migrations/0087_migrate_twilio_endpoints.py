@@ -40,7 +40,7 @@ def update_application_urls(Channel):
                 print("Updating %s with %s" % (channel.uuid, updates))
                 client.applications.update(channel.config['application_sid'], **updates)
 
-        except Exception as e:
+        except Exception:
             print("Error updating %s" % channel.uuid)
             traceback.print_exc()
 
