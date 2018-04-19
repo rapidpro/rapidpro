@@ -104,7 +104,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         # create new TwiML app
         callback_domain = org.get_brand_domain()
         new_receive_url = "https://" + callback_domain + reverse('courier.t', args=[channel_uuid, 'receive'])
-        new_status_url = "https://" + callback_domain + reverse('courier.t', args=[channel_uuid, 'status'])
+        new_status_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['status', channel_uuid])
         new_voice_url = "https://" + callback_domain + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(

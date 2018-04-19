@@ -20,6 +20,8 @@ class TwimlAPIType(ChannelType):
     slug = "twiml_api"
     icon = "icon-channel-twilio"
 
+    courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+
     schemes = [TEL_SCHEME]
     max_length = 1600
 

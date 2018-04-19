@@ -81,9 +81,6 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
-    courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
-    courier_name = 'courier.tw'
-
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
@@ -185,6 +182,8 @@ class TwimlAPIHandler(BaseChannelHandler):
 
         # this is a callback for a message we sent
         elif action == 'callback':  # pragma: no cover
+            logger.error("Twilio callback handler called in RapidPro with URL: %s" % request.get_full_path())
+
             smsId = request.GET.get('id', None)
             status = request.POST.get('SmsStatus', None)
 
@@ -220,6 +219,8 @@ class TwimlAPIHandler(BaseChannelHandler):
             return HttpResponse("", status=200)
 
         elif action == 'received':  # pragma: no cover
+            logger.error("Twilio receive handler called in RapidPro with URL: %s" % request.get_full_path())
+
             if not to_number:
                 return HttpResponse("Must provide To number for received messages", status=400)
 
@@ -267,9 +268,6 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 
 class TwilioHandler(TwimlAPIHandler):
-
-    courier_url = r'^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status|voice)$'
-    courier_name = 'courier.t'
 
     handler_url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twilio_handler'
