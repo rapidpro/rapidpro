@@ -81,8 +81,8 @@ def serialize_environment(org):
     languages = [org.primary_language.iso_code] if org.primary_language else []
 
     return {
-        'date_format': "dd-MM-yyyy" if org.date_format == 'D' else "MM-dd-yyyy",
-        'time_format': "hh:mm",
+        'date_format': "DD-MM-YYYY" if org.date_format == 'D' else "MM-DD-YYYY",
+        'time_format': "tt:mm",
         'timezone': six.text_type(org.timezone),
         'languages': languages
     }

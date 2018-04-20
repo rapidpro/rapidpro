@@ -4940,6 +4940,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
 
     @override_settings(SEND_WEBHOOKS=True)
+    @also_in_flowserver
     def test_webhook_payload(self):
         flow = self.get_flow('webhook_payload')
 
@@ -4963,7 +4964,7 @@ class FlowsTest(FlowFileTest):
         flow.start([], [empty])
         self.send('39', empty)
         self.send('tornado', empty)
-        self.assertNotIn('urn', empty_post.data['contact'])
+        self.assertIsNone(empty_post.data['contact'].get('urn'))
 
         # test fallback urn
         fallback_post = self.mockRequest('POST', '/send_results', '{"received":"ruleset"}', content_type=ctype)
@@ -4974,24 +4975,26 @@ class FlowsTest(FlowFileTest):
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid, urn='tel:+12065552020'), payload['contact'])
             self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
-            self.assertEqual(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
+            self.assertDictContainsSubset(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
             self.assertEqual(path_length, len(payload['path']))
             self.assertEqual(result_count, len(payload['results']))
-            self.assertEqual(dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat()), payload['run'])
+
+            # flowserver's created_on isn't necessarily the same as what we store in the database
+            self.assertEqual({'uuid', 'created_on'}, set(payload['run'].keys()))
+            self.assertEqual(six.text_type(run.uuid), payload['run']['uuid'])
 
             # make sure things don't sneak into our path format unintentionally
             # first item in the path should have uuid, node, arrived, and exit
             self.assertEqual(set(payload['path'][0].keys()), {'uuid', 'node_uuid', 'arrived_on', 'exit_uuid'})
-
-            # last item has the same, but no exit
-            self.assertEqual(set(payload['path'][-1].keys()), {'uuid', 'node_uuid', 'arrived_on'})
 
             for key, value in six.iteritems(results):
                 result = payload['results'].get(key)
                 self.assertEqual(value, result.get('value'))
 
                 # make sure nothing sneaks into our result format unintentionally
-                self.assertEqual(6, len(result))
+                results_keys = set(result.keys())
+                results_keys.remove('category_localized')  # except this...
+                self.assertEqual(results_keys, {'name', 'value', 'category', 'input', 'node_uuid', 'created_on'})
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
