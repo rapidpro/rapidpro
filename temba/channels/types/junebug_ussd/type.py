@@ -35,7 +35,7 @@ class JunebugUSSDType(ChannelType):
     configuration_urls = (
         dict(
             label=_("Push Message URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.jn' channel.uuid 'inbound' %}",
+            url="https://{{ channel.callback_domain }}{% url 'handlers.junebug_handler' 'inbound' channel.uuid %}",
             description=_("This endpoint will be called by Junebug when new messages are received to your number, it must be configured to be called as a POST"),
         ),
     )

@@ -27,6 +27,8 @@ class JunebugType(ChannelType):
     code = 'JN'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>inbound)$'
+
     name = "Junebug"
     icon = "icon-junebug"
 

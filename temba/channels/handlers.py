@@ -26,7 +26,6 @@ from temba.ussd.models import USSDSession
 from temba.utils import on_transaction_commit
 from temba.utils.http import HttpEvent
 from temba.utils.queues import push_task
-from temba.utils.text import decode_base64
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,7 @@ def get_channel_handlers():
     return all_subclasses(BaseChannelHandler)
 
 
-class TwimlAPIHandler(BaseChannelHandler):
+class TWIMLCallHandler(BaseChannelHandler):
 
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
@@ -166,8 +165,6 @@ class TwimlAPIHandler(BaseChannelHandler):
                     # either way, we need to hangup now
                     return HttpResponse(six.text_type(response))
 
-        action = request.GET.get('action', 'received')
-
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
             if call_sid:
@@ -179,78 +176,6 @@ class TwimlAPIHandler(BaseChannelHandler):
                     call.save()
                     return HttpResponse("Call status updated")
             return HttpResponse("No call found")
-
-        # this is a callback for a message we sent
-        elif action == 'callback':  # pragma: no cover
-            logger.error("Twilio callback handler called in RapidPro with URL: %s" % request.get_full_path())
-
-            smsId = request.GET.get('id', None)
-            status = request.POST.get('SmsStatus', None)
-
-            # get the SMS
-            sms = Msg.objects.select_related('channel').filter(id=smsId).first()
-            if sms is None:
-                return HttpResponse("No message found with id: %s" % smsId, status=400)
-
-            # validate this request is coming from twilio
-            org = sms.org
-
-            if not org.is_connected_to_twilio():
-                return HttpResponse("No Twilio account is connected", status=400)
-
-            channel = sms.channel
-            if not channel:  # pragma: needs cover
-                channel = org.channels.filter(channel_type=self.get_channel_type()).first()
-
-            client = self.get_client(channel=channel)
-            validator = RequestValidator(client.auth[1])
-
-            if not validator.validate(url, request.POST, signature):  # pragma: needs cover
-                return HttpResponse("Invalid request signature.", status=400)
-
-            # queued, sending, sent, failed, or received.
-            if status == 'sent':
-                sms.status_sent()
-            elif status == 'delivered':
-                sms.status_delivered()
-            elif status == 'failed':
-                sms.status_fail()
-
-            return HttpResponse("", status=200)
-
-        elif action == 'received':  # pragma: no cover
-            logger.error("Twilio receive handler called in RapidPro with URL: %s" % request.get_full_path())
-
-            if not to_number:
-                return HttpResponse("Must provide To number for received messages", status=400)
-
-            channel = self.get_receive_channel(uuid=channel_uuid)
-            if not channel:
-                return HttpResponse("No active channel found for number: %s" % to_number, status=400)
-
-            org = channel.org
-
-            if self.get_channel_type() == 'T' and not org.is_connected_to_twilio():
-                return HttpResponse("No Twilio account is connected", status=400)
-
-            client = self.get_client(channel=channel)
-            validator = RequestValidator(client.auth[1])
-
-            if not validator.validate(url, request.POST, signature):
-                return HttpResponse("Invalid request signature.", status=400)
-
-            # Twilio sometimes sends concat sms as base64 encoded MMS
-            body = decode_base64(request.POST['Body'])
-            urn = URN.from_tel(request.POST['From'])
-            attachments = []
-
-            # download any attached media
-            for i in range(int(request.POST.get('NumMedia', 0))):
-                attachments.append(client.download_media(request.POST['MediaUrl%d' % i]))
-
-            Msg.create_incoming(channel, urn, body, attachments=attachments)
-
-            return HttpResponse("", status=201)
 
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
@@ -267,7 +192,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         return 'TW'
 
 
-class TwilioHandler(TwimlAPIHandler):
+class TwilioCallHandler(TWIMLCallHandler):
 
     handler_url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twilio_handler'
@@ -460,10 +385,7 @@ class MageHandler(BaseChannelHandler):
         return JsonResponse(dict(error=None))
 
 
-class JunebugHandler(BaseChannelHandler):
-    courier_url = r'^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>event|inbound)$'
-    courier_name = 'courier.jn'
-
+class JunebugUSSDHandler(BaseChannelHandler):
     handler_url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.junebug_handler'
     ACK = 'ack'
