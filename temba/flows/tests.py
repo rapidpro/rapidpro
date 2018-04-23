@@ -677,7 +677,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -825,7 +825,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -902,7 +902,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(39):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -929,7 +929,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(40):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -4604,7 +4604,7 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        payload = client.request_builder(int(time.time() * 1000000)).request
+        payload = client.request_builder(self.org, int(time.time() * 1000000)).request
 
         # add a manual trigger
         payload['trigger'] = {
@@ -4619,7 +4619,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        payload = client.request_builder(int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        payload = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact).request
         payload['session'] = response.json()['session']
         self.add_message(payload, 'blue')
 

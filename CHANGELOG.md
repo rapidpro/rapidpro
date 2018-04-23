@@ -1,3 +1,13 @@
+v3.0.372
+----------
+ * remap sms and status Twilio urls, log people still calling old ones
+ * fix to display Export buttons on sent msgs folder and failed msgs folder
+ * use message events in run.events for results exports instead of run.message_ids
+
+v3.0.371
+----------
+ * add twilio messaging handling back in
+
 v3.0.370
 ----------
  * remove logging of base handler being called
