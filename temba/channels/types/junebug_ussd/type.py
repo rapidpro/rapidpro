@@ -12,11 +12,11 @@ from django.utils.translation import ugettext_lazy as _
 from six import text_type
 
 from temba.channels.models import ChannelType, Channel, SendException
-from temba.channels.types.junebug.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import Msg, WIRED
 from temba.ussd.models import USSDSession
 from temba.utils.http import HttpEvent, http_headers
+from temba.channels.types.junebug.views import ClaimView
 
 
 class JunebugUSSDType(ChannelType):
