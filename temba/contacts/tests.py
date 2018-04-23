@@ -2247,12 +2247,16 @@ class ContactTest(TembaTest):
         self.assertEqual(q('age >= 30'), 70)
         self.assertEqual(q('age > 30 and age <= 40'), 10)
         self.assertEqual(q('AGE < 20'), 10)
+        self.assertEqual(q('age != ""'), 90)
+        self.assertEqual(q('age = ""'), 0)
 
         self.assertEqual(q('join_date = 1-1-14'), 1)
         self.assertEqual(q('join_date < 30/1/2014'), 29)
         self.assertEqual(q('join_date <= 30/1/2014'), 30)
         self.assertEqual(q('join_date > 30/1/2014'), 60)
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
+        self.assertEqual(q('join_date != ""'), 90)
+        self.assertEqual(q('join_date = ""'), 0)
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
