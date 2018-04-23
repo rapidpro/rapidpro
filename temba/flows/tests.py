@@ -2111,10 +2111,31 @@ class FlowTest(TembaTest):
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
 
-    def test_send_to_group_restriction(self):
+    def test_copy_view(self):
 
-        # can't copy flows that have a send to group
-        pass
+        self.login(self.admin)
+
+        # test a successful copy
+        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
+        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % self.flow.name)
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
+        flow_copy.delete()
+
+        # make our first action one that can't be copied (a send with a group)
+        group = ContactGroup.user_groups.filter(name='Other').first()
+        actionset = self.flow.action_sets.first()
+        actions = actionset.actions
+
+        actions[0]['type'] = SendAction.TYPE
+        actions[0]['groups'] = [dict(uuid=group.uuid, name=group.name)]
+        actions[0]['contacts'] = []
+        actionset.actions = actions
+        actionset.save(update_fields=['actions'])
+
+        # we should have failed to copy and redirected to the original flow
+        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
+        self.assertIsNone(Flow.objects.filter(org=self.org, name="Copy of %s" % self.flow.name).first())
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[self.flow.uuid]))
 
     def test_views(self):
         self.create_secondary_org()
@@ -2436,11 +2457,6 @@ class FlowTest(TembaTest):
         self.assertIn('description', json_dict.keys())
         self.assertEqual(json_dict['status'], 'success')
         self.assertEqual(json_dict['description'], 'Message sent to Flow')
-
-        # test our copy view
-        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
-        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % self.flow.name)
-        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
 
         FlowLabel.objects.create(name="one", org=self.org, parent=None)
         FlowLabel.objects.create(name="two", org=self.org2, parent=None)
