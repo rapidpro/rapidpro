@@ -388,6 +388,7 @@ class MageHandler(BaseChannelHandler):
 class JunebugUSSDHandler(BaseChannelHandler):
     handler_url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.junebug_handler'
+
     ACK = 'ack'
     NACK = 'nack'
 
