@@ -16,7 +16,7 @@ from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import Msg, WIRED
 from temba.ussd.models import USSDSession
 from temba.utils.http import HttpEvent, http_headers
-from temba.channels.types.junebug.views import ClaimView
+from temba.channels.types.junebug_ussd.views import ClaimView
 
 
 class JunebugUSSDType(ChannelType):
