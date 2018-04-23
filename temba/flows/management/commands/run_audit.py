@@ -19,6 +19,9 @@ def audit_runs(max_id=0):  # pragma: no cover
 
     print("Estimated total number of runs: %d" % total_runs)
 
+    if max_id:
+        print("Resuming from maximum run id: %d" % max_id)
+
     max_run_id = max_id
     num_audited = 0
     num_problems = 0
@@ -107,5 +110,9 @@ def has_less_events_than_message_ids(run):
 class Command(BaseCommand):  # pragma: no cover
     help = "Audits all runs"
 
-    def handle(self, *args, **options):
-        audit_runs()
+    def add_arguments(self, parser):
+        parser.add_argument('--resume-from', type=int, action='store', dest='resume_from', default=0,
+                            help="Resume from max run id")
+
+    def handle(self, resume_from, *args, **options):
+        audit_runs(resume_from)
