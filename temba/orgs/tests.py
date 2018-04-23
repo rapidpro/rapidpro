@@ -2001,8 +2001,7 @@ class AnonOrgTest(TembaTest):
         self.org.is_anon = True
         self.org.save()
 
-    @patch('temba.utils.es.ES')
-    def test_contacts(self, mock_ES):
+    def test_contacts(self):
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -2019,10 +2018,14 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
         # can't search for it
-        response = self.client.get(reverse('contacts.contact_list') + "?search=788")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': []}
+            mock_ES.count.return_value = {'count': 0}
+            response = self.client.get(reverse('contacts.contact_list') + "?search=788")
 
-        # can't look for 788 as that is in the search box..
-        self.assertNotContains(response, "123123")
+            # can't look for 788 as that is in the search box..
+            self.assertNotContains(response, "123123")
+            self.assertContains(response, 'No matching contacts.')
 
         # create a flow
         flow = self.get_flow('color')
