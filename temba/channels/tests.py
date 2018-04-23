@@ -2274,7 +2274,18 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """

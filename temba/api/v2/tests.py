@@ -1140,7 +1140,19 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
-        dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+
+            dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
         response = self.postJSON(url, None, {
@@ -1419,7 +1431,20 @@ class APITest(TembaTest):
 
         group = self.create_group("Testers")
         self.create_field('isdeveloper', "Is developer")
-        self.create_group("Developers", query="isdeveloper = YES")
+
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+
+            self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.get_flow('color')
@@ -1812,10 +1837,23 @@ class APITest(TembaTest):
 
         self.create_field('isdeveloper', "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        developers = self.create_group("Developers", query="isdeveloper = YES")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
 
-        # a group which is being re-evaluated
-        unready = self.create_group("Big Group", query="isdeveloper=NO")
+            developers = self.create_group("Developers", query="isdeveloper = YES")
+
+            # a group which is being re-evaluated
+            unready = self.create_group("Big Group", query="isdeveloper=NO")
+
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=('status',))
 

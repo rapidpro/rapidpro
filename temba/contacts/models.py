@@ -31,7 +31,7 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_number, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
+from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, mapEStoDB
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.text import clean_string, truncate
@@ -2596,15 +2596,15 @@ class ContactGroup(TembaModel):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
-        from .search import SearchException
-
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
+        from .search import contact_es_search, SearchException
+        from temba.utils.es import ES
         try:
-            qs, parsed = Contact.search(self.org, self.query)
+            es_search = contact_es_search(self.org, self.query, None).source(include=['id']).using(ES).scan()
 
-            return qs, parsed
+            return mapEStoDB(Contact, es_search), None
         except SearchException:  # pragma: no cover
             return Contact.objects.none(), None
 

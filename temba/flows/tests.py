@@ -2868,10 +2868,22 @@ class ActionPackedTest(FlowFileTest):
     def test_add_remove_from_group(self):
 
         # convert the static groups created by import into dynamic ones
-        groups = ContactGroup.user_groups.filter(name__in=('Males', 'Females'))
-        for group in groups:
-            group.query = 'gender="%s"' % group.name[0:-1]
-            group.update_query(group.query)
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+
+            groups = ContactGroup.user_groups.filter(name__in=('Males', 'Females'))
+            for group in groups:
+                group.query = 'gender="%s"' % group.name[0:-1]
+                group.update_query(group.query)
 
         self.start_flow()
 
@@ -3938,7 +3950,19 @@ class ActionTest(TembaTest):
 
         # try adding a contact to a dynamic group
         self.create_field('isalive', "Is Alive")
-        dynamic_group = self.create_group("Dynamic", query="isalive=YES")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+
+            dynamic_group = self.create_group("Dynamic", query="isalive=YES")
         action = AddToGroupAction(str(uuid4()), [dynamic_group])
 
         self.execute_action(action, run, msg)

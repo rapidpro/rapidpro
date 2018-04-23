@@ -1684,7 +1684,18 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            mock_ES.scroll.return_value = {
+                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+                "_scroll_id": '1',
+                'hits': {'hits': []}
+            }
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
