@@ -3393,12 +3393,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update and do_save:
             self.save(update_fields=('responded', 'message_ids', 'events'))
 
-    def get_message_ids(self):
-        """
-        Gets all the messages associated with this run
-        """
-        return self.message_ids or []
-
     def get_messages(self):
         """
         Gets all the messages associated with this run
