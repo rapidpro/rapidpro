@@ -19,9 +19,10 @@ class TwilioType(ChannelType):
     code = 'T'
     category = ChannelType.Category.PHONE
 
+    courier_url = r'^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+
     name = "Twilio"
     icon = "icon-channel-twilio"
-
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs.""")
     claim_view = ClaimView
 
