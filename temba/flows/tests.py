@@ -4993,7 +4993,8 @@ class FlowsTest(FlowFileTest):
 
                 # make sure nothing sneaks into our result format unintentionally
                 results_keys = set(result.keys())
-                results_keys.remove('category_localized')  # except this...
+                if 'category_localized' in results_keys:
+                    results_keys.remove('category_localized')  # except this...
                 self.assertEqual(results_keys, {'name', 'value', 'category', 'input', 'node_uuid', 'created_on'})
 
         # we arrived at our ruleset webhook first
