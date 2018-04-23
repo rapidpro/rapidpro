@@ -29,7 +29,7 @@ def mapEStoDB(model, es_queryset):
     pks = [result.id for result in es_queryset]
 
     # TODO: order_by must be the same as the sort_by on ES, since we are losing the order of results
-    return model.objects.filter(pk__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
+    return model.objects.filter(id__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
 
 
 class TranslatableField(HStoreField):

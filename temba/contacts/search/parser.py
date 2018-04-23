@@ -1093,7 +1093,7 @@ def contact_es_search(org, text, base_group=None):
     return (
         ModelESSearch(model=Contact, index='contacts')
         .params(routing=org.id)
-        .query((es_match & es_filter))
+        .query(es_match & es_filter)
         .sort('-modified_on_mu')
     )
 
