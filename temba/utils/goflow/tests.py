@@ -92,7 +92,7 @@ class ClientTest(TembaTest):
                 'environment': {
                     'date_format': 'DD-MM-YYYY',
                     'languages': [],
-                    'time_format': 'hh:mm',
+                    'time_format': 'tt:mm',
                     'timezone': 'Africa/Kigali'
                 }
             }])
