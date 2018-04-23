@@ -93,6 +93,10 @@ def has_no_steps_for_active_flow(run):
 
 
 def has_step_count_path_length_mismatch(run):
+    # don't worry about runs whose steps were deleted when their flow was deactivated
+    if run.num_steps == 0 and not run.flow.is_active:
+        return False
+
     return min(len(run.path), 100) != min(run.num_steps, 100)  # take path trimming into account
 
 
