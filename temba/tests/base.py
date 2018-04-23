@@ -23,6 +23,7 @@ from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
+from functools import wraps
 from future.moves.html.parser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -97,10 +98,21 @@ class AddFlowServerTestsMeta(type):
     def __new__(mcs, name, bases, dct):
         if settings.FLOW_SERVER_URL:
             new_tests = {}
-            for key, val in six.iteritems(dct):
-                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                    new_tests[key + '_flowserver'] = new_func
+            for key, test_func in six.iteritems(dct):
+                if key.startswith('test_') and getattr(test_func, '_also_in_flowserver', False):
+                    old_engine_func = test_func
+                    new_engine_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(test_func)
+
+                    @wraps(old_engine_func)
+                    def old_engine_wrapper(*args, **kwargs):
+                        return old_engine_func(*args, in_flowserver=False)
+
+                    @wraps(new_engine_func)
+                    def new_engine_wrapper(*args, **kwargs):
+                        return new_engine_func(*args, in_flowserver=True)
+
+                    new_tests[key] = old_engine_wrapper
+                    new_tests[key + '_flowserver'] = new_engine_wrapper
             dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)

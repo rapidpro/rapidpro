@@ -2676,7 +2676,7 @@ class FlowTest(TembaTest):
         self.assertEqual(len(run.path), 2)
 
     @also_in_flowserver
-    def test_quick_replies(self):
+    def test_quick_replies(self, in_flowserver):
         flow = self.get_flow('quick_replies')
         run, = flow.start([], [self.contact4])
 
@@ -2688,7 +2688,7 @@ class FlowTest(TembaTest):
         self.assertEqual(msg.metadata, {'quick_replies': ['Sim', 'No']})
 
     @also_in_flowserver
-    def test_multiple(self):
+    def test_multiple(self, in_flowserver):
         run1, = self.flow.start([], [self.contact])
 
         # create a second flow and start our same contact
@@ -2841,7 +2841,7 @@ class ActionPackedTest(FlowFileTest):
         self.send("Male")
 
     @also_in_flowserver
-    def test_send_message(self):
+    def test_send_message(self, in_flowserver):
 
         self.start_flow()
 
@@ -2865,7 +2865,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertIsNotNone(Msg.objects.filter(text="Thanks Trey Anastasio, you are male.").first())
 
     @also_in_flowserver
-    def test_add_remove_from_group(self):
+    def test_add_remove_from_group(self, in_flowserver):
 
         # convert the static groups created by import into dynamic ones
         groups = ContactGroup.user_groups.filter(name__in=('Males', 'Females'))
@@ -2928,13 +2928,13 @@ class ActionPackedTest(FlowFileTest):
         self.assertIsNotNone(ContactGroup.user_groups.filter(name='Customers', is_active=True).first())
 
     @also_in_flowserver
-    def test_labeling(self):
+    def test_labeling(self, in_flowserver):
         self.start_flow()
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
         self.assertEqual('Friends', msg.labels.all().first().name)
 
     @also_in_flowserver
-    def test_trigger_flow_action(self):
+    def test_trigger_flow_action(self, in_flowserver):
 
         self.create_contact('Oprah Winfrey', '+12065552121')
 
@@ -2953,7 +2953,7 @@ class ActionPackedTest(FlowFileTest):
 
     @also_in_flowserver
     @override_settings(SEND_EMAILS=True)
-    def test_email(self):
+    def test_email(self, in_flowserver):
         self.start_flow()
 
         # trigger our email action
@@ -3009,7 +3009,7 @@ class ActionPackedTest(FlowFileTest):
                     self.update_action_json(self.flow, action)
 
     @also_in_flowserver
-    def test_update_contact(self):
+    def test_update_contact(self, in_flowserver):
 
         gender_action_uuid = '8492be2d-b6d1-4b1e-a15e-a7d1fa3a0671'
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
@@ -3068,7 +3068,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertEqual(action['value'], self.contact.get_field_value(ContactField.get_by_key(self.org, 'last_message')))
 
     @also_in_flowserver
-    def test_add_phone_number(self):
+    def test_add_phone_number(self, in_flowserver):
 
         name_action_uuid = '0afb91da-9eb7-4e11-9cd8-ae01952c1153'
 
@@ -3116,7 +3116,7 @@ class ActionPackedTest(FlowFileTest):
         self.assertFalse(robbed.urns.all())
 
     @also_in_flowserver
-    def test_save_contact_simulator_messages(self):
+    def test_save_contact_simulator_messages(self, in_flowserver):
 
         action = self.get_action_json(self.flow, '0afb91da-9eb7-4e11-9cd8-ae01952c1153')
         Contact.set_simulation(True)
@@ -3154,7 +3154,7 @@ class ActionPackedTest(FlowFileTest):
                          'Contact not updated, missing connection for contact')
 
     @also_in_flowserver
-    def test_set_language_action(self):
+    def test_set_language_action(self, in_flowserver):
 
         self.org.set_languages(self.admin, ['eng', 'spa'], 'eng')
         self.start_flow()
@@ -4215,7 +4215,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual(run.fields, {"0": "zero", "1": "one", "2": "two"})
 
     @also_in_flowserver
-    def test_is_completed(self):
+    def test_is_completed(self, in_flowserver):
         self.flow.start([], [self.contact])
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
@@ -4767,7 +4767,7 @@ class SimulationTest(FlowFileTest):
 class FlowsTest(FlowFileTest):
 
     @also_in_flowserver
-    def test_simple(self):
+    def test_simple(self, in_flowserver):
         favorites = self.get_flow('favorites')
         action_set1, action_set3, action_set3 = favorites.action_sets.order_by('y')[:3]
         rule_set1, rule_set2 = favorites.rule_sets.order_by('y')[:2]
@@ -4941,7 +4941,7 @@ class FlowsTest(FlowFileTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     @also_in_flowserver
-    def test_webhook_payload(self):
+    def test_webhook_payload(self, in_flowserver):
         flow = self.get_flow('webhook_payload')
 
         # we call as an action, and then again as a ruleset
@@ -4993,9 +4993,10 @@ class FlowsTest(FlowFileTest):
 
                 # make sure nothing sneaks into our result format unintentionally
                 results_keys = set(result.keys())
-                if 'category_localized' in results_keys:
-                    results_keys.remove('category_localized')  # except this...
-                self.assertEqual(results_keys, {'name', 'value', 'category', 'input', 'node_uuid', 'created_on'})
+                if in_flowserver:
+                    self.assertEqual(results_keys, {'name', 'value', 'category', 'category_localized', 'input', 'node_uuid', 'created_on'})
+                else:
+                    self.assertEqual(results_keys, {'name', 'value', 'category', 'input', 'node_uuid', 'created_on'})
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
@@ -6660,7 +6661,7 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.modified_on > starting_modified)
 
     @also_in_flowserver
-    def test_initial_expiration(self):
+    def test_initial_expiration(self, in_flowserver):
         flow = self.get_flow('favorites')
         flow.start(groups=[], contacts=[self.contact])
 
@@ -6800,7 +6801,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(4, Msg.objects.filter(direction='O', high_priority=True).count())
 
     @also_in_flowserver
-    def test_subflow(self):
+    def test_subflow(self, in_flowserver):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
         """
