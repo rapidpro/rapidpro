@@ -71,24 +71,21 @@ class JunebugUSSDType(ChannelType):
         if secret is not None:
             payload['event_auth_token'] = secret
 
-        if is_ussd:
-            connection = USSDSession.objects.get_with_status_only(msg.connection_id)
-            # make sure USSD responses are only valid for a short window
-            response_expiration = timezone.now() - timedelta(seconds=180)
-            external_id = None
-            if msg.response_to_id and msg.created_on > response_expiration:
-                external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-            # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
-            if external_id:
-                payload['reply_to'] = external_id
-            else:
-                payload['to'] = msg.urn_path
-            payload['channel_data'] = {
-                'continue_session': connection and not connection.should_end or False,
-            }
+        connection = USSDSession.objects.get_with_status_only(msg.connection_id)
+
+        # make sure USSD responses are only valid for a short window
+        response_expiration = timezone.now() - timedelta(seconds=180)
+        external_id = None
+        if msg.response_to_id and msg.created_on > response_expiration:
+            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
+        # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
+        if external_id:
+            payload['reply_to'] = external_id
         else:
-            payload['from'] = channel.address
             payload['to'] = msg.urn_path
+        payload['channel_data'] = {
+            'continue_session': connection and not connection.should_end or False,
+        }
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
         start = time.time()

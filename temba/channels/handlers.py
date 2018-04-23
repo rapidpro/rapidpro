@@ -48,10 +48,6 @@ class BaseChannelHandler(View):
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod
-    def get_courier_url(cls):
-        return cls.courier_url, cls.courier_name
-
-    @classmethod
     def get_handler_url(cls):
         return cls.handler_url, cls.handler_name
 
