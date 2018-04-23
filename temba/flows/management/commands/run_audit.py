@@ -11,7 +11,7 @@ from django.db.models import Count, Prefetch
 from temba.flows.models import Flow, FlowRun
 
 
-def audit_runs():  # pragma: no cover
+def audit_runs(max_id=0):  # pragma: no cover
     # get estimate of number of runs
     with connection.cursor() as c:
         c.execute("SELECT reltuples::BIGINT as rows FROM pg_class WHERE relname = '%s';" % FlowRun._meta.db_table)
@@ -19,7 +19,7 @@ def audit_runs():  # pragma: no cover
 
     print("Estimated total number of runs: %d" % total_runs)
 
-    max_run_id = 0
+    max_run_id = max_id
     num_audited = 0
     num_problems = 0
 
@@ -38,7 +38,6 @@ def audit_runs():  # pragma: no cover
         run_batch = list(
             FlowRun.objects
             .filter(id__gt=max_run_id)
-            .annotate(num_steps=Count('steps'))
             .extra(select={'fields_raw': 'fields'})
             .prefetch_related(Prefetch('flow', queryset=Flow.objects.only('id', 'is_active')))
             .defer('fields')
@@ -47,7 +46,16 @@ def audit_runs():  # pragma: no cover
         if not run_batch:
             break
 
+        step_counts = (
+            FlowRun.objects.filter(id__in=[r.id for r in run_batch])
+            .annotate(num_steps=Count('steps'))
+            .values('id', 'num_steps')
+        )
+        step_counts = {sc['id']: sc['num_steps'] for sc in step_counts}
+
         for run in run_batch:
+            run.num_steps = step_counts.get(run.id, 0)
+
             for problem_name, problem_finder in six.iteritems(problem_finders):
                 if problem_finder(run):
                     msg = "Run #%d for flow #%d has problem: %s" % (run.id, run.flow.id, problem_name)
@@ -97,12 +105,3 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, *args, **options):
         audit_runs()
-
-
-def ids_to_string(id_list, limit=100):
-    subset = id_list[:limit]
-    text = ", ".join([str(i) for i in subset])
-    if len(subset) < len(id_list):
-        text += "..."
-
-    return text
