@@ -2950,7 +2950,13 @@ class ActionPackedTest(FlowFileTest):
 
     @also_in_flowserver
     def test_labeling(self):
-        self.start_flow()
+
+        # start contact as a single member of a group
+        contact_group = self.create_group('Lonely Group', [self.contact])
+        self.flow.start([contact_group], [], restart_participants=True)
+        self.send("Trey Anastasio")
+        self.send("Male")
+
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
         self.assertEqual('Friends', msg.labels.all().first().name)
 
