@@ -90,9 +90,9 @@ class ClientTest(TembaTest):
                 'type': "environment_changed",
                 'created_on': "2018-01-18T14:24:30+00:00",
                 'environment': {
-                    'date_format': 'dd-MM-yyyy',
+                    'date_format': 'DD-MM-YYYY',
                     'languages': [],
-                    'time_format': 'hh:mm',
+                    'time_format': 'tt:mm',
                     'timezone': 'Africa/Kigali'
                 }
             }])
