@@ -2950,13 +2950,7 @@ class ActionPackedTest(FlowFileTest):
 
     @also_in_flowserver
     def test_labeling(self):
-
-        # start contact as a single member of a group
-        contact_group = self.create_group('Lonely Group', [self.contact])
-        self.flow.start([contact_group], [], restart_participants=True)
-        self.send("Trey Anastasio")
-        self.send("Male")
-
+        self.start_flow()
         msg = Msg.objects.filter(direction=INCOMING, text='Male').order_by('-id').first()
         self.assertEqual('Friends', msg.labels.all().first().name)
 
@@ -2964,12 +2958,16 @@ class ActionPackedTest(FlowFileTest):
     def test_trigger_flow_action(self):
 
         self.create_contact('Oprah Winfrey', '+12065552121')
+        lonely = self.create_contact('Lonely Contact', '+12065550001')
+
+        dog_facts = ContactGroup.user_groups.filter(name='Dog Facts').first()
+        dog_facts.contacts.add(lonely)
 
         self.start_flow()
 
         # we should have fired off a new flow run for a total of two
-        self.assertEqual(2, Contact.objects.all().count())
-        self.assertEqual(2, FlowRun.objects.all().count())
+        self.assertEqual(3, Contact.objects.all().count())
+        self.assertEqual(3, FlowRun.objects.all().count())
 
         # our newest flow run should be down the triggered flow
         triggered_run = FlowRun.objects.all().order_by('-id').first()

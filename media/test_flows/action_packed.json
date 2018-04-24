@@ -247,7 +247,13 @@
               "uuid": "38b07089-ab02-48a7-9065-ec2d8f02104f"
             }, 
             {
-              "uuid": "0b387b74-cf44-461d-9970-054c5892eecf", 
+              "uuid": "0b387b74-cf44-461d-9970-054c5892eecf",
+              "groups": [
+                {
+                  "name": "Dog Facts",
+                  "uuid": "abcd1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                }
+              ],
               "contacts": [
                 {
                   "urns": [
@@ -265,7 +271,6 @@
                 "name": "Favorite Color", 
                 "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
               }, 
-              "groups": [], 
               "type": "trigger-flow"
             }
           ]
