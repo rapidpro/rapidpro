@@ -4368,6 +4368,7 @@ class FlowLabelTest(FlowFileTest):
 
 class WebhookTest(TembaTest):
 
+    # @also_in_flowserver  see https://github.com/nyaruka/goflow/issues/269
     @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_subflow_extra(self):
         # import out flow that triggers another flow
@@ -4389,8 +4390,9 @@ class WebhookTest(TembaTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    @also_in_flowserver
     @override_settings(SEND_WEBHOOKS=True)
-    def test_webhook(self):
+    def test_webhook(self, in_flowserver):
         flow = self.get_flow('webhook')
         contact = self.create_contact("Ben Haggerty", '+250788383383')
 
@@ -4398,7 +4400,16 @@ class WebhookTest(TembaTest):
 
         run1, = flow.start([], [contact])
         run1.refresh_from_db()
-        self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
+
+        if in_flowserver:
+            expected_webhook_ruleset_input = 'GET http://localhost:49999/check_order.php?phone=%2B250788383383'
+            expected_expression_ruleset_input = 'Get '
+        else:
+            expected_webhook_ruleset_input = ''
+            expected_expression_ruleset_input = ''
+
+            self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
+
         self.assertEqual(run1.results, {
             'order_status': {
                 'category': 'Other',
@@ -4406,7 +4417,7 @@ class WebhookTest(TembaTest):
                 'name': 'Order Status',
                 'value': 'Get ',
                 'created_on': matchers.ISODate(),
-                'input': ''
+                'input': expected_expression_ruleset_input
             },
             'response_1': {
                 'category': 'Success',
@@ -4414,7 +4425,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': '{ "text": "Get", "blank": "" }',
                 'created_on': matchers.ISODate(),
-                'input': ''
+                'input': expected_webhook_ruleset_input
             }
         })
 
@@ -4430,6 +4441,13 @@ class WebhookTest(TembaTest):
         run2, = flow.start([], [contact], restart_participants=True)
         run2.refresh_from_db()
 
+        if in_flowserver:
+            expected_webhook_ruleset_input = 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
+            expected_expression_ruleset_input = 'Post '
+        else:
+            expected_webhook_ruleset_input = ''
+            expected_expression_ruleset_input = ''
+
         self.assertEqual(run2.results, {
             'order_status': {
                 'category': 'Other',
@@ -4437,7 +4455,7 @@ class WebhookTest(TembaTest):
                 'name': 'Order Status',
                 'value': 'Post ',
                 'created_on': matchers.ISODate(),
-                'input': ''
+                'input': expected_expression_ruleset_input
             },
             'response_1': {
                 'category': 'Success',
@@ -4445,7 +4463,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': '{ "text": "Post", "blank": "" }',
                 'created_on': matchers.ISODate(),
-                'input': ''
+                'input': expected_webhook_ruleset_input
             }
         })
 
@@ -4454,25 +4472,27 @@ class WebhookTest(TembaTest):
 
         run3, = flow.start([], [contact], restart_participants=True)
         run3.refresh_from_db()
-        self.assertEqual(run3.fields, {'0': 'zero', '1': 'one', '2': 'two'})
 
-        # which is also how it will appear in the expressions context
-        message_context = flow.build_expressions_context(contact, None)
-        self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
+        if not in_flowserver:
+            self.assertEqual(run3.fields, {'0': 'zero', '1': 'one', '2': 'two'})
 
-        # check that we limit JSON responses to 256 values
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', json.dumps(['x'] * 300))
+            # which is also how it will appear in the expressions context
+            message_context = flow.build_expressions_context(contact, None)
+            self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
-        run4, = flow.start([], [contact], restart_participants=True)
-        run4.refresh_from_db()
-        self.assertEqual(run4.fields, {str(n): 'x' for n in range(256)})
+            # check that we limit JSON responses to 256 values
+            self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', json.dumps(['x'] * 300))
 
-        # check we handle a non-dict or list response
-        self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
+            run4, = flow.start([], [contact], restart_participants=True)
+            run4.refresh_from_db()
+            self.assertEqual(run4.fields, {str(n): 'x' for n in range(256)})
 
-        run5, = flow.start([], [contact], restart_participants=True)
-        run5.refresh_from_db()
-        self.assertEqual(run5.fields, {})
+            # check we handle a non-dict or list response
+            self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "12345")
+
+            run5, = flow.start([], [contact], restart_participants=True)
+            run5.refresh_from_db()
+            self.assertEqual(run5.fields, {})
 
         # check we handle a non-JSON response
         self.mockRequest('POST', '/check_order.php?phone=%2B250788383383', "asdfasdfasdf")
@@ -4493,6 +4513,11 @@ class WebhookTest(TembaTest):
         run7, = flow.start([], [contact], restart_participants=True)
         run7.refresh_from_db()
 
+        if in_flowserver:
+            expected_webhook_ruleset_input = 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
+        else:
+            expected_webhook_ruleset_input = ''
+
         self.assertEqual(run7.fields, {})
         self.assertEqual(run7.results, {
             'response_1': {
@@ -4501,7 +4526,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': 'Server Error',
                 'created_on': matchers.ISODate(),
-                'input': ''
+                'input': expected_webhook_ruleset_input
             }
         })
 
@@ -4510,7 +4535,9 @@ class WebhookTest(TembaTest):
 
         run8, = flow.start([], [contact], restart_participants=True)
         run8.refresh_from_db()
-        self.assertEqual(run8.fields, {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
+
+        if not in_flowserver:
+            self.assertEqual(run8.fields, {'text': "Valid", 'error': "400", 'message': "Missing field in request"})
 
         results = run8.results
         self.assertEqual(len(results), 1)
@@ -4521,6 +4548,7 @@ class WebhookTest(TembaTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    # @also_in_flowserver  see https://github.com/nyaruka/goflow/issues/268
     @override_settings(SEND_WEBHOOKS=True)
     def test_resthook(self):
         self.contact = self.create_contact("Macklemore", "+12067799294")
