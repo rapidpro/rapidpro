@@ -32,7 +32,7 @@ from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, ESPaginationMixin
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
@@ -124,7 +124,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(OrgPermsMixin, SmartListView):
+class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -160,25 +160,33 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         the_qs = qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
 
-        from .search import contact_es_search
-        from temba.utils.es import ES
-        try:  # pragma: no cover
-            es_search = contact_es_search(org, search_query, group)
-            es_result = es_search.using(ES).execute(ignore_cache=True)
+        if search_query:
+            from .search import contact_es_search
+            from temba.utils.es import ES
+            try:
+                es_search = contact_es_search(org, search_query, group).source(fields=('id', )).using(ES)
 
-            qs_count = the_qs.count()
+                qs_count = the_qs.count()
 
-            if abs(qs_count - int(es_result.hits.total)) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):
-                logger.error(
-                    'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
-                        the_qs.count(), es_result.hits.total, search_query,
-                        es_JSONSerializer().dumps(es_search.to_dict())
+                if abs(qs_count - int(es_search.count())) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):  # pragma: no cover
+                    logger.error(
+                        'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
+                            the_qs.count(), es_search.count(), search_query,
+                            es_JSONSerializer().dumps(es_search.to_dict())
+                        )
                     )
-                )
-        except SearchException:
-            logger.exception("Exception while executing contact query. search_text={}".format(search_query))
 
-        return the_qs
+                return es_search
+
+            except SearchException as e:
+                self.search_error = six.text_type(e)
+                logger.exception("Exception while executing contact query. search_text={}".format(search_query))
+
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return group.contacts.all().filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
