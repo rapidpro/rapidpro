@@ -1289,7 +1289,7 @@ class FlowTest(TembaTest):
         action_set = ActionSet.objects.get(x=4, y=4)
 
         actions = [AddToGroupAction(str(uuid4()), [self.other_group]).as_json(),
-                   SendAction(str(uuid4()), "Outgoing Message", [self.other_group], [self.contact], []).as_json()]
+                   SendAction(str(uuid4()), "Outgoing Message", [], [self.contact], []).as_json()]
 
         action_set.actions = actions
         action_set.save()
@@ -1311,7 +1311,7 @@ class FlowTest(TembaTest):
 
         # should still see a reference to our group even (recreated)
         self.assertEqual(1, len(add_group['groups']))
-        self.assertEqual(1, len(send['groups']))
+        self.assertEqual(0, len(send['groups']))
 
     def assertTest(self, expected_test, expected_value, test, extra=None):
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -2111,6 +2111,32 @@ class FlowTest(TembaTest):
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
 
+    def test_copy_view(self):
+
+        self.login(self.admin)
+
+        # test a successful copy
+        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
+        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % self.flow.name)
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
+        flow_copy.delete()
+
+        # make our first action one that can't be copied (a send with a group)
+        group = ContactGroup.user_groups.filter(name='Other').first()
+        actionset = self.flow.action_sets.first()
+        actions = actionset.actions
+
+        actions[0]['type'] = SendAction.TYPE
+        actions[0]['groups'] = [dict(uuid=group.uuid, name=group.name)]
+        actions[0]['contacts'] = []
+        actionset.actions = actions
+        actionset.save(update_fields=['actions'])
+
+        # we should have failed to copy and redirected to the original flow
+        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
+        self.assertIsNone(Flow.objects.filter(org=self.org, name="Copy of %s" % self.flow.name).first())
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[self.flow.uuid]))
+
     def test_views(self):
         self.create_secondary_org()
 
@@ -2431,11 +2457,6 @@ class FlowTest(TembaTest):
         self.assertIn('description', json_dict.keys())
         self.assertEqual(json_dict['status'], 'success')
         self.assertEqual(json_dict['description'], 'Message sent to Flow')
-
-        # test our copy view
-        response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
-        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % self.flow.name)
-        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
 
         FlowLabel.objects.create(name="one", org=self.org, parent=None)
         FlowLabel.objects.create(name="two", org=self.org2, parent=None)
@@ -2937,12 +2958,16 @@ class ActionPackedTest(FlowFileTest):
     def test_trigger_flow_action(self):
 
         self.create_contact('Oprah Winfrey', '+12065552121')
+        lonely = self.create_contact('Lonely Contact', '+12065550001')
+
+        dog_facts = ContactGroup.user_groups.filter(name='Dog Facts').first()
+        dog_facts.contacts.add(lonely)
 
         self.start_flow()
 
         # we should have fired off a new flow run for a total of two
-        self.assertEqual(2, Contact.objects.all().count())
-        self.assertEqual(2, FlowRun.objects.all().count())
+        self.assertEqual(3, Contact.objects.all().count())
+        self.assertEqual(3, FlowRun.objects.all().count())
 
         # our newest flow run should be down the triggered flow
         triggered_run = FlowRun.objects.all().order_by('-id').first()
@@ -3552,10 +3577,10 @@ class ActionTest(TembaTest):
 
         self.assertTrue(action.groups)
         self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
-        # should create new group the next time the flow is read
-        updated_action = SendAction.from_json(self.org, action.as_json())
-        self.assertTrue(updated_action.groups)
-        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+
+        # no longer support sending to groups inside SendAction
+        with self.assertRaises(FlowException):
+            SendAction.from_json(self.org, action.as_json())
 
         # test send media to someone else
         run = FlowRun.create(self.flow, self.contact)
@@ -6320,8 +6345,9 @@ class FlowsTest(FlowFileTest):
         # and create another as well
         ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
 
-        # this could blow up due to illegal lookup for more than one contact group
-        self.get_flow('group_send_flow')
+        # make sure flows with send to groups are disallowed
+        with self.assertRaises(FlowException):
+            self.get_flow('group_send_flow')
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
@@ -7878,7 +7904,7 @@ class FlowMigrationTest(FlowFileTest):
         # check that contacts migrated properly
         send_action = flow_json['action_sets'][0]['actions'][1]
         self.assertEqual(1, len(send_action['contacts']))
-        self.assertEqual(1, len(send_action['groups']))
+        self.assertEqual(0, len(send_action['groups']))
 
         for contact in send_action['contacts']:
             self.assertIn('uuid', contact)
