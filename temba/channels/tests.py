@@ -2514,7 +2514,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.channel.delete()
 
         self.channel = Channel.create(
-            self.org, self.user, 'RW', 'JN', None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234',
             role=Channel.DEFAULT_ROLE)
