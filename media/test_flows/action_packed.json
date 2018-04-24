@@ -278,6 +278,27 @@
           "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
           "actions": [
             {
+              "uuid": "4c729279-b30f-471d-8995-cd1667117194",
+              "contacts": [{
+                  "urns": [
+                    {
+                      "priority": 50,
+                      "path": "+12065552121",
+                      "scheme": "tel"
+                    }
+                  ],
+                  "name": "Oprah Winfrey"
+                }],
+              "media": {},
+              "variables": [{"id": "+12065551212"}],
+              "groups": [],
+              "msg": {
+                "spa": "Hola Opraho!",
+                "eng": "Hey Oprah!"
+              },
+              "type": "send"
+            },
+            {
               "type": "del_group", 
               "uuid": "b4c7c2c7-987d-47e2-8b6c-fd30ef3196c0", 
               "groups": [
