@@ -4401,13 +4401,7 @@ class WebhookTest(TembaTest):
         run1, = flow.start([], [contact])
         run1.refresh_from_db()
 
-        if in_flowserver:
-            expected_webhook_ruleset_input = 'GET http://localhost:49999/check_order.php?phone=%2B250788383383'
-            expected_expression_ruleset_input = 'Get '
-        else:
-            expected_webhook_ruleset_input = ''
-            expected_expression_ruleset_input = ''
-
+        if not in_flowserver:
             self.assertEqual(run1.fields, {'text': "Get", 'blank': ""})
 
         self.assertEqual(run1.results, {
@@ -4417,7 +4411,7 @@ class WebhookTest(TembaTest):
                 'name': 'Order Status',
                 'value': 'Get ',
                 'created_on': matchers.ISODate(),
-                'input': expected_expression_ruleset_input
+                'input': 'Get ' if in_flowserver else ''
             },
             'response_1': {
                 'category': 'Success',
@@ -4425,7 +4419,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': '{ "text": "Get", "blank": "" }',
                 'created_on': matchers.ISODate(),
-                'input': expected_webhook_ruleset_input
+                'input': 'GET http://localhost:49999/check_order.php?phone=%2B250788383383'
             }
         })
 
@@ -4441,13 +4435,6 @@ class WebhookTest(TembaTest):
         run2, = flow.start([], [contact], restart_participants=True)
         run2.refresh_from_db()
 
-        if in_flowserver:
-            expected_webhook_ruleset_input = 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
-            expected_expression_ruleset_input = 'Post '
-        else:
-            expected_webhook_ruleset_input = ''
-            expected_expression_ruleset_input = ''
-
         self.assertEqual(run2.results, {
             'order_status': {
                 'category': 'Other',
@@ -4455,7 +4442,7 @@ class WebhookTest(TembaTest):
                 'name': 'Order Status',
                 'value': 'Post ',
                 'created_on': matchers.ISODate(),
-                'input': expected_expression_ruleset_input
+                'input': 'Post ' if in_flowserver else ''
             },
             'response_1': {
                 'category': 'Success',
@@ -4463,7 +4450,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': '{ "text": "Post", "blank": "" }',
                 'created_on': matchers.ISODate(),
-                'input': expected_webhook_ruleset_input
+                'input': 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
             }
         })
 
@@ -4513,11 +4500,6 @@ class WebhookTest(TembaTest):
         run7, = flow.start([], [contact], restart_participants=True)
         run7.refresh_from_db()
 
-        if in_flowserver:
-            expected_webhook_ruleset_input = 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
-        else:
-            expected_webhook_ruleset_input = ''
-
         self.assertEqual(run7.fields, {})
         self.assertEqual(run7.results, {
             'response_1': {
@@ -4526,7 +4508,7 @@ class WebhookTest(TembaTest):
                 'name': 'Response 1',
                 'value': 'Server Error',
                 'created_on': matchers.ISODate(),
-                'input': expected_webhook_ruleset_input
+                'input': 'POST http://localhost:49999/check_order.php?phone=%2B250788383383'
             }
         })
 
