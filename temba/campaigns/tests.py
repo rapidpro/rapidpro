@@ -9,14 +9,13 @@ from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from mock import patch
 
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField, ImportTask, Contact, ContactGroup
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest
+from temba.tests import TembaTest, ESMockWithScroll
 from temba.values.models import Value
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -823,17 +822,7 @@ class CampaignTest(TembaTest):
         # create a campaign on a dynamic group
         self.create_field('gender', "Gender")
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             women = self.create_group("Women", query='gender="F"')
 
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
@@ -857,17 +846,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             women.update_query('gender=FEMALE')
 
         self.assertEqual(set(women.contacts.all()), set())
@@ -876,19 +855,8 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': anna.id}},
-                ]}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': anna.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             women.update_query('gender=F')
         self.assertEqual(set(women.contacts.all()), {anna})
 

@@ -29,7 +29,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.utils.profiler import QueryTracker
@@ -222,20 +222,11 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'gender', "female")
 
         # create a dynamic group using a query
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}
-                ]}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
             group = ContactGroup.create_dynamic(
                 self.org, self.admin, "Group two",
                 '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
@@ -248,19 +239,8 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}
-                ]}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             group.update_query('age > 18')
 
         group.refresh_from_db()
@@ -303,17 +283,7 @@ class ContactGroupTest(TembaTest):
         flow = self.get_flow('initialize')
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             fields = [
                 'total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes',
                 'name_changes', 'total_editorials_submitted'
@@ -346,17 +316,7 @@ class ContactGroupTest(TembaTest):
         deleted.is_active = False
         deleted.save()
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
 
         self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
@@ -555,18 +515,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -603,20 +552,8 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
-                ]}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
 
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
@@ -688,19 +625,8 @@ class ContactGroupCRUDLTest(TembaTest):
         )
 
         # create a dynamic group using a query
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
-                ]}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
 
         self.assertNoFormErrors(response)
@@ -988,17 +914,7 @@ class ContactTest(TembaTest):
 
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             dynamic_group = self.create_group("Dynamic", query="gender is M")
 
         self.joe.set_field(self.admin, 'gender', "M")
@@ -1160,48 +1076,25 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}
-                ]}
-            }
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             has_twitter = self.create_group("Has twitter", query='twitter != ""')
 
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}},
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.billy.id}},
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.voldemort.id}}
-                ]}
-            }
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.billy.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.voldemort.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
             no_gender = self.create_group("No gender", query='gender is ""')
 
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             males = self.create_group("Male", query='gender is M or gender is Male')
             youth = self.create_group("Male", query='age > 18 or age < 30')
 
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': [
-                    {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}
-                ]}
-            }
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+        with ESMockWithScroll(data=mock_es_data):
             joes = self.create_group("Joes", query='twitter = "blow80"')
 
         self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
@@ -2335,17 +2228,7 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             ContactGroup.create_dynamic(
                 self.org, self.admin, 'simple group',
                 '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
@@ -2380,17 +2263,7 @@ class ContactTest(TembaTest):
         self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         nobody = self.create_group("Nobody", [])
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             men = self.create_group("Men", query="gender=M")
 
             # a group which is being re-evaluated and shouldn't appear in any omnibox results
@@ -3489,17 +3362,7 @@ class ContactTest(TembaTest):
 
         # try to push into a dynamic group
         self.login(self.admin)
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             group = self.create_group('Dynamo', query='tel = 325423')
 
         with self.assertRaises(ValueError):
@@ -4469,17 +4332,7 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         self.create_field('team', "Team")
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             ballers = self.create_group("Ballers", query='team = ballers')
 
         self.campaign.group = ballers
@@ -5048,30 +4901,15 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            with patch('temba.utils.es.ES') as mock_ES:
-                mock_ES.search.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': [
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}
-                    ]}
-                }
-                mock_ES.scroll.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': []}
-                }
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+            with ESMockWithScroll(data=mock_es_data):
                 joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
 
-                mock_ES.search.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': [
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
-                    ]}
-                }
-
+            mock_es_data = [
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
+            ]
+            with ESMockWithScroll(data=mock_es_data):
                 mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact("Mary", "+250783333333")
@@ -5090,30 +4928,15 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, 'joined', '1/1/2014')
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
-            with patch('temba.utils.es.ES') as mock_ES:
-                mock_ES.search.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': [
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
-                    ]}
-                }
-                mock_ES.scroll.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': []}
-                }
+            mock_es_data = [
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
+            ]
+            with ESMockWithScroll(data=mock_es_data):
                 men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
 
-                mock_ES.search.return_value = {
-                    "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                    "_scroll_id": '1',
-                    'hits': {'hits': [
-                        {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}
-                    ]}
-                }
-
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}]
+            with ESMockWithScroll(data=mock_es_data):
                 women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
@@ -5188,17 +5011,7 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
+        with ESMockWithScroll():
             ContactGroup.create_dynamic(
                 self.org, self.admin, 'simple group',
                 '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'

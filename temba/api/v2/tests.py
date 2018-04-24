@@ -25,7 +25,7 @@ from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction,
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg
+from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
 from temba.values.models import Value
 from uuid import uuid4
 from six.moves.urllib.parse import quote_plus
@@ -1140,18 +1140,7 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
@@ -1432,18 +1421,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field('isdeveloper', "Is developer")
 
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
@@ -1837,18 +1815,7 @@ class APITest(TembaTest):
 
         self.create_field('isdeveloper', "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             developers = self.create_group("Developers", query="isdeveloper = YES")
 
             # a group which is being re-evaluated

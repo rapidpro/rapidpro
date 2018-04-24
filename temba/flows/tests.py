@@ -30,7 +30,10 @@ from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers, MigrationTest
+from temba.tests import (
+    TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers,
+    MigrationTest, ESMockWithScroll
+)
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException, get_client, serialize_contact
@@ -2868,18 +2871,7 @@ class ActionPackedTest(FlowFileTest):
     def test_add_remove_from_group(self):
 
         # convert the static groups created by import into dynamic ones
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             groups = ContactGroup.user_groups.filter(name__in=('Males', 'Females'))
             for group in groups:
                 group.query = 'gender="%s"' % group.name[0:-1]
@@ -3950,18 +3942,7 @@ class ActionTest(TembaTest):
 
         # try adding a contact to a dynamic group
         self.create_field('isalive', "Is Alive")
-        with patch('temba.utils.es.ES') as mock_ES:
-            mock_ES.search.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-            mock_ES.scroll.return_value = {
-                "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
-                "_scroll_id": '1',
-                'hits': {'hits': []}
-            }
-
+        with ESMockWithScroll():
             dynamic_group = self.create_group("Dynamic", query="isalive=YES")
         action = AddToGroupAction(str(uuid4()), [dynamic_group])
 
