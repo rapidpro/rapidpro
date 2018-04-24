@@ -82,8 +82,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.object = Contact.objects.get(org=self.org, urns__path=post_data['urn__tel__0'], name=post_data['name'])
         return self.object
 
-    @patch('temba.utils.es.ES')
-    def testList(self, mock_ES):
+    def testList(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, 'tel:123', user=self.user, name='Joe')
         self.joe.set_field(self.user, 'age', 20)
         self.joe.set_field(self.user, 'home', 'Kigali')
@@ -91,26 +90,38 @@ class ContactCRUDLTest(_CRUDLTest):
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
-        self.assertEqual(list(response.context['object_list']), [self.frank, self.joe])
+        self.assertEqual(set(response.context['object_list']), {self.frank, self.joe})
         self.assertIsNone(response.context['search_error'])
 
-        response = self._do_test_view('list', query_string='search=age+%3D+18')
-        self.assertEqual(list(response.context['object_list']), [self.frank])
-        self.assertEqual(response.context['search'], 'age = 18')
-        self.assertEqual(response.context['save_dynamic_search'], True)
-        self.assertIsNone(response.context['search_error'])
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': [{'id': self.frank.id}]}
+            mock_ES.count.return_value = {'count': 1}
 
-        response = self._do_test_view('list', query_string='search=age+>+18+and+home+%3D+"Kigali"')
-        self.assertEqual(list(response.context['object_list']), [self.joe])
-        self.assertEqual(response.context['search'], 'age > 18 AND home = "Kigali"')
-        self.assertEqual(response.context['save_dynamic_search'], True)
-        self.assertIsNone(response.context['search_error'])
+            response = self._do_test_view('list', query_string='search=age+%3D+18')
+            self.assertEqual(list(response.context['object_list']), [self.frank])
+            self.assertEqual(response.context['search'], 'age = 18')
+            self.assertEqual(response.context['save_dynamic_search'], True)
+            self.assertIsNone(response.context['search_error'])
 
-        response = self._do_test_view('list', query_string='search=Joe')
-        self.assertEqual(list(response.context['object_list']), [self.joe])
-        self.assertEqual(response.context['search'], 'name ~ "Joe"')
-        self.assertEqual(response.context['save_dynamic_search'], False)
-        self.assertIsNone(response.context['search_error'])
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
+            mock_ES.count.return_value = {'count': 1}
+
+            response = self._do_test_view('list', query_string='search=age+>+18+and+home+%3D+"Kigali"')
+            self.assertEqual(list(response.context['object_list']), [self.joe])
+            self.assertEqual(response.context['search'], 'age > 18 AND home = "Kigali"')
+            self.assertEqual(response.context['save_dynamic_search'], True)
+            self.assertIsNone(response.context['search_error'])
+
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
+            mock_ES.count.return_value = {'count': 1}
+
+            response = self._do_test_view('list', query_string='search=Joe')
+            self.assertEqual(list(response.context['object_list']), [self.joe])
+            self.assertEqual(response.context['search'], 'name ~ "Joe"')
+            self.assertEqual(response.context['save_dynamic_search'], False)
+            self.assertIsNone(response.context['search_error'])
 
         # try with invalid search string
         response = self._do_test_view('list', query_string='search=(((')
@@ -202,8 +213,7 @@ class ContactGroupTest(TembaTest):
         # exception if group name is blank
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
-    @patch('temba.utils.es.ES')
-    def test_create_dynamic(self, mock_ES):
+    def test_create_dynamic(self):
         age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, 'gender')
         self.joe.set_field(self.admin, 'age', 17)
@@ -404,8 +414,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(all_contacts.get_member_count(), 3)
         self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
-    @patch('temba.utils.es.ES')
-    def test_delete(self, mock_ES):
+    def test_delete(self):
         group = self.create_group("one")
         flow = self.get_flow('favorites')
 
@@ -1512,11 +1521,13 @@ class ContactTest(TembaTest):
 
         base_search = {'query': {'bool': {
             'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
             'must': []
-        }}, 'sort': [{'modified_on': {'order': 'desc'}}]}
+        }}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
         # text term matches
         expected_search = copy.deepcopy(base_search)
@@ -1736,10 +1747,12 @@ class ContactTest(TembaTest):
                 ]}}}}
             ],
             'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
-            'minimum_should_match': 1}}, 'sort': [{'modified_on': {'order': 'desc'}}]}
+            'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
         self.assertEqual(
             contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"').to_dict(),
@@ -1783,10 +1796,10 @@ class ContactTest(TembaTest):
 
         # is set not set
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.text'}}],
+                'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
             }
         }}}]
         self.assertEqual(
@@ -1809,10 +1822,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.number'}}],
+                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
             }
         }}}]
         self.assertEqual(
@@ -1835,10 +1848,12 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(joined.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.datetime'}}],
+                'must': [
+                    {'term': {'fields.field': six.text_type(joined.uuid)}}, {'exists': {'field': 'fields.datetime'}}
+                ]
             }
         }}}]
         self.assertEqual(
@@ -1861,10 +1876,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.ward'}}],
+                'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
             }
         }}}]
         self.assertEqual(
@@ -1887,10 +1902,12 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(district.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.district'}}],
+                'must': [
+                    {'term': {'fields.field': six.text_type(district.uuid)}}, {'exists': {'field': 'fields.district'}}
+                ]
             }
         }}}]
         self.assertEqual(
@@ -1913,10 +1930,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(state.uuid)}}],
-                'must_not': [{'exists': {'field': 'fields.state'}}],
+                'must': [{'term': {'fields.field': six.text_type(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
             }
         }}}]
         self.assertEqual(
@@ -1942,8 +1959,8 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'urns.scheme': 'tel'}},
-                    {'exists': {'field': 'path'}}
+                    {'exists': {'field': 'urns.path'}},
+                    {'term': {'urns.scheme': 'tel'}}
                 ]
             }
         }}}]
@@ -1953,10 +1970,10 @@ class ContactTest(TembaTest):
         )
 
         expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
+        del expected_search['query']['bool']['must']
+        expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'urns', 'query': {
             'bool': {
-                'must': [{'term': {'urns.scheme': 'twitter'}}],
-                'must_not': [{'exists': {'field': 'path'}}],
+                'must': [{'exists': {'field': 'urns.path'}}, {'term': {'urns.scheme': 'twitter'}}],
             }
         }}}]
         self.assertEqual(
@@ -2912,8 +2929,7 @@ class ContactTest(TembaTest):
         response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
         self.assertFormError(response, 'form', 'name', "Name is used by another group")
 
-    @patch('temba.utils.es.ES')
-    def test_update_and_list(self, mock_ES):
+    def test_update_and_list(self):
         list_url = reverse('contacts.contact_list')
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -3117,8 +3133,12 @@ class ContactTest(TembaTest):
         self.assertEqual(list(response.context['object_list']), [self.billy, self.joe])
 
         # can search blocked contacts from this page
-        response = self.client.get(blocked_url + '?search=Joe')
-        self.assertEqual(list(response.context['object_list']), [self.joe])
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
+            mock_ES.count.return_value = {'count': 1}
+
+            response = self.client.get(blocked_url + '?search=Joe')
+            self.assertEqual(list(response.context['object_list']), [self.joe])
 
         # can unblock contacts from this page
         self.client.post(blocked_url, {'action': 'unblock', 'objects': self.joe.id}, follow=True)
@@ -4895,8 +4915,7 @@ class ContactTest(TembaTest):
             self.mary.update_urns(self.user, ['tel:54321', 'twitter:mary_mary'])
             self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by('name')))
 
-    @patch('temba.utils.es.ES')
-    def test_simulator_contact_views(self, mock_ES):
+    def test_simulator_contact_views(self):
         simulator_contact = Contact.get_test_contact(self.admin)
 
         other_contact = self.create_contact("Will", "+250788987987")
@@ -5138,8 +5157,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
-    @patch('temba.utils.es.ES')
-    def test_contact_export(self, mock_ES):
+    def test_contact_export(self):
         self.clear_storage()
 
         self.login(self.admin)
@@ -5261,8 +5279,7 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, 'first')
         self.assertNotContains(response, 'Second')
 
-    @patch('temba.utils.es.ES')
-    def test_delete_with_flow_dependency(self, mock_ES):
+    def test_delete_with_flow_dependency(self):
         self.login(self.admin)
         self.get_flow('dependencies')
 
@@ -5311,8 +5328,7 @@ class ContactFieldTest(TembaTest):
         self.assertNotIn('form', response.context)
         self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
 
-    @patch('temba.utils.es.ES')
-    def test_manage_fields(self, mock_ES):
+    def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
         self.login(self.non_org_user)

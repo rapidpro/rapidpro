@@ -447,7 +447,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
-        from temba.channels.handlers import JunebugHandler
+        from temba.channels.handlers import JunebugUSSDHandler
 
         data = self.mk_ussd_msg(content="événement", to=self.starcode)
         callback_url = reverse('handlers.junebug_handler',
@@ -456,7 +456,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], JunebugHandler.ACK)
+        self.assertEqual(response.json()['status'], JunebugUSSDHandler.ACK)
 
         # load our message
         inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
@@ -481,7 +481,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEqual(inbound_msg.connection.external_id, 'session-id')
 
     def test_receive_ussd_no_session(self):
-        from temba.channels.handlers import JunebugHandler
+        from temba.channels.handlers import JunebugUSSDHandler
 
         # Delete the trigger to prevent the sesion from being created
         self.trigger.delete()
@@ -493,7 +493,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+        self.assertEqual(response.json()['status'], JunebugUSSDHandler.NACK)
 
     def test_send_ussd_continue_and_end_session(self):
         flow = self.get_flow('ussd_session_end')
