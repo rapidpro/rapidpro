@@ -403,7 +403,9 @@ class FlowCRUDL(SmartCRUDL):
                 # make sure actions can be parsed before allowing a copy
                 flow_json = flow.as_json()
                 for actionset in flow_json.get(Flow.ACTION_SETS):
-                    Action.from_json_array(flow.org, actionset.get(Flow.ACTIONS))
+                    for action in Action.from_json_array(flow.org, actionset.get(Flow.ACTIONS)):
+                        # this can blow up in half-supported cases
+                        action.as_json()
 
             except FlowException:
                 messages.error(self.request, _("Sorry, your flow could not be copied. Please try again"

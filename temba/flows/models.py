@@ -6452,8 +6452,6 @@ class SendAction(VariableContactAction):
         groups = VariableContactAction.parse_groups(org, json_obj)
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
-        if groups:
-            raise FlowException('SendAction no longer allows sending to groups')
 
         return cls(json_obj.get(cls.UUID), json_obj.get(cls.MESSAGE), groups, contacts, variables,
                    json_obj.get(cls.MEDIA, None))
