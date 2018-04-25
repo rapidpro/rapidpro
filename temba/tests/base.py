@@ -23,6 +23,7 @@ from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
+from functools import wraps
 from future.moves.html.parser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
@@ -97,13 +98,37 @@ class AddFlowServerTestsMeta(type):
     def __new__(mcs, name, bases, dct):
         if settings.FLOW_SERVER_URL:
             new_tests = {}
-            for key, val in six.iteritems(dct):
-                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                    new_tests[key + '_flowserver'] = new_func
+            for key, test_func in six.iteritems(dct):
+                if key.startswith('test_') and getattr(test_func, '_also_in_flowserver', False):
+                    test_without, test_with = mcs._split_test(test_func)
+
+                    new_tests[key] = test_without
+                    new_tests[key + '_flowserver'] = test_with
+
             dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+
+    @staticmethod
+    def _split_test(test_func):
+        """
+        Takes a given test function and returns two test functions - one that will run without the flowserver, and one
+        that will run with the flowserver
+        """
+        old_func = test_func
+        new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(test_func)
+
+        @wraps(old_func)
+        def old_wrapper(*args, **kwargs):
+            kwargs['in_flowserver'] = False
+            return old_func(*args, **kwargs)
+
+        @wraps(new_func)
+        def new_wrapper(*args, **kwargs):
+            kwargs['in_flowserver'] = True
+            return new_func(*args, **kwargs)
+
+        return old_wrapper, new_wrapper
 
 
 class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
