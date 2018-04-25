@@ -2,13 +2,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
-import regex
-import six
 import logging
-from elasticsearch.serializer import JSONSerializer as es_JSONSerializer
-
 from collections import OrderedDict
 from datetime import timedelta
+
+import regex
+import six
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -18,27 +17,27 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartTemplateView, smart_url
+
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.values.models import Value
 from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, ESPaginationMixin
+from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
 from .tasks import export_contacts_task
-
 
 logger = logging.getLogger(__name__)
 
@@ -150,32 +149,16 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
         if search_query:
-            try:
-                qs, self.parsed_search = Contact.search(org, search_query, group)
-            except SearchException as e:
-                self.search_error = six.text_type(e)
-                qs = Contact.objects.none()
-        else:
-            qs = group.contacts.all()
-
-        the_qs = qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
-
-        if search_query:
             from .search import contact_es_search
             from temba.utils.es import ES
+
+            try:
+                _, self.parsed_search = Contact.search(org, search_query, group)
+            except SearchException as e:
+                self.search_error = six.text_type(e)
+
             try:
                 es_search = contact_es_search(org, search_query, group).source(fields=('id', )).using(ES)
-
-                qs_count = the_qs.count()
-
-                if abs(qs_count - int(es_search.count())) > 1 and (the_qs.count() > 0 and the_qs.first().modified_on < timezone.now() - timedelta(seconds=30)):  # pragma: no cover
-                    logger.error(
-                        'Contact query result mismatch, DB={}, ES={}, search_text=\'{}\', ES_query={}'.format(
-                            the_qs.count(), es_search.count(), search_query,
-                            es_JSONSerializer().dumps(es_search.to_dict())
-                        )
-                    )
-
                 return es_search
 
             except SearchException as e:
