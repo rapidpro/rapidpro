@@ -1,3 +1,11 @@
+v3.0.373
+----------
+ * optimize group views
+ * don't allow sends to groups to be imported or copied
+ * remove normal junebug, keep only junebug ussd
+ * fix isset/~isset, sort by 'modified_on_mu' in ES
+ * use ES to search for contacts
+
 v3.0.372
 ----------
  * remap sms and status Twilio urls, log people still calling old ones
