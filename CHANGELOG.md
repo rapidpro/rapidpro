@@ -1,3 +1,8 @@
+v3.0.374
+----------
+ * allow reading, just not writing of sends with groups
+ * remove old seaching from contact views
+
 v3.0.373
 ----------
  * optimize group views
