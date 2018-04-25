@@ -9520,16 +9520,22 @@ class BackfillRunEventsTest(MigrationTest):
 
         contact1_run, contact2_run, contact3_run = self.flow1.start([], [self.contact1, self.contact2, self.contact3])
 
+        msg = Msg.create_incoming(self.channel, 'tel:+250783831111', "Red")
+
         def remove_path_fields(path_step, fields):
             return {k: v for k, v in six.iteritems(path_step) if k not in fields}
 
         # make run #1 look like it was created before we started saving step uuids and msg events
+        contact1_run.refresh_from_db()
         contact1_run.path = [remove_path_fields(s, ['uuid']) for s in contact1_run.path]
         contact1_run.events = []
         contact1_run.save(update_fields=('path', 'events'))
 
+        # associate the incoming message with another step to check it doesn't get duplicated in run.events
+        contact1_run.steps.order_by('id')[2].messages.add(msg)
+
         # make run #3 look like that and delete it's steps like we used to when flows were deleted
-        contact3_run.path = [remove_path_fields(s, ['uuid']) for s in contact1_run.path]
+        contact3_run.path = [remove_path_fields(s, ['uuid']) for s in contact3_run.path]
         contact3_run.events = []
         contact3_run.save(update_fields=('path', 'events'))
         contact3_run.steps.all().delete()
@@ -9571,7 +9577,7 @@ class BackfillRunEventsTest(MigrationTest):
         self.num_flow_node_counts = FlowNodeCount.objects.count()
 
     def test_events_created(self):
-        action_set1, action_set3, action_set3 = self.flow1.action_sets.order_by('y')[:3]
+        action_set1, action_set2, action_set3 = self.flow1.action_sets.order_by('y')[:3]
         rule_set1, rule_set2 = self.flow1.rule_sets.order_by('y')[:2]
 
         contact1_run, contact2_run, contact3_run, contact4_run, contact5_run, contact6_run, contact7_run = FlowRun.objects.order_by('contact__id')
@@ -9590,6 +9596,18 @@ class BackfillRunEventsTest(MigrationTest):
             {
                 'uuid': matchers.UUID4String(),
                 'node_uuid': str(rule_set1.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': rule_set1.get_rules()[0].uuid
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(action_set3.uuid),
+                'arrived_on': matchers.ISODate(),
+                'exit_uuid': str(action_set3.exit_uuid),
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'node_uuid': str(rule_set2.uuid),
                 'arrived_on': matchers.ISODate()
             }
         ])
@@ -9601,9 +9619,31 @@ class BackfillRunEventsTest(MigrationTest):
                     'uuid': str(contact1_msgs[0].uuid),
                     'channel': {'uuid': self.channel.uuid, 'name': 'Test Channel'},
                     'text': 'What is your favorite color?',
-                    'urn': 'tel:+250783831111',
+                    'urn': 'tel:+250783831111'
                 },
                 'step_uuid': contact1_run.path[0]['uuid']
+            },
+            {
+                "type": "msg_received",
+                "created_on": contact1_msgs[1].created_on.isoformat(),
+                "msg": {
+                    "text": "Red",
+                    "urn": "tel:+250783831111",
+                    "uuid": str(contact1_msgs[1].uuid),
+                    'channel': {'uuid': self.channel.uuid, 'name': 'Test Channel'}
+                },
+                "step_uuid": contact1_run.path[1]['uuid']
+            },
+            {
+                "type": "msg_created",
+                "created_on": contact1_msgs[2].created_on.isoformat(),
+                "msg": {
+                    "text": "Good choice, I like Red too! What is your favorite beer?",
+                    "urn": "tel:+250783831111",
+                    "uuid": str(contact1_msgs[2].uuid),
+                    'channel': {'uuid': self.channel.uuid, 'name': 'Test Channel'}
+                },
+                "step_uuid": contact1_run.path[2]['uuid']
             }
         ])
 
