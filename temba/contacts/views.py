@@ -186,16 +186,18 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            return group.contacts.all().filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
+            test_contact_ids = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
+            return group.contacts.all().exclude(id__in=test_contact_ids).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
+        group = self.derive_group()
 
-        # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
-        # speed up paging
-        if self.system_group and 'search' not in self.request.GET:
-            self.object_list.count = lambda: counts[self.system_group]
+        # if there isn't a search filtering the queryset, we can replace the count function using ContactGroupCounts
+        if group and 'search' not in self.request.GET:
+            group_count = ContactGroupCount.get_totals([group])
+            self.object_list.count = lambda: group_count[group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
