@@ -110,12 +110,13 @@ def has_less_events_than_message_ids(run):
 
 def has_duplicate_message_events(run):
     seen_msg_uuids = set()
-    for event in run.events:
+    for event in (run.events or []):
         if event['type'] in ('msg_created', 'msg_received'):
-            msg_uuid = event['msg']['uuid']
-            if msg_uuid in seen_msg_uuids:
-                return True
-            seen_msg_uuids.add(msg_uuid)
+            msg_uuid = event['msg'].get('uuid')
+            if msg_uuid:
+                if msg_uuid in seen_msg_uuids:
+                    return True
+                seen_msg_uuids.add(msg_uuid)
     return False
 
 
