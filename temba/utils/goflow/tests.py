@@ -6,10 +6,11 @@ import pytz
 from datetime import datetime
 from mock import patch
 from temba.channels.models import Channel
-from temba.msgs.models import Label
-from temba.tests import TembaTest, MockResponse
+from temba.msgs.models import Label, Msg
+from temba.tests import TembaTest, skip_if_no_flowserver, MockResponse
 from temba.values.models import Value
 from .client import serialize_field, serialize_label, serialize_channel, get_client, FlowServerException
+from . import trial
 
 
 class SerializationTest(TembaTest):
@@ -121,3 +122,29 @@ class ClientTest(TembaTest):
             self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
         self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
+
+
+class TrialTest(TembaTest):
+    def setUp(self):
+        super(TrialTest, self).setUp()
+
+        self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
+
+    @skip_if_no_flowserver
+    def test_resume_and_compare(self):
+        favorites = self.get_flow('favorites')
+
+        run, = favorites.start([], [self.contact])
+        run.refresh_from_db()
+
+        # capture session state before resumption
+        pre_session = trial.reconstruct_session(run)
+
+        msg_in = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
+                                     attachments=['image/jpeg:http://example.com/test.jpg'])
+        run.refresh_from_db()
+
+        resume_output = trial.resume(self.org, pre_session, msg_in=msg_in)
+        new_session = resume_output.session
+
+        self.assertEqual(trial.compare(run, new_session), [])
