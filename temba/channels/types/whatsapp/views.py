@@ -53,12 +53,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.cleaned_data['number'] = number
 
             try:
-                resp = requests.post(self.cleaned_data['base_url'] + '/api/check_health.php',
-                                     json=dict(payload=['gateway_status']),
+                resp = requests.post(self.cleaned_data['base_url'] + '/v1/users/login',
                                      auth=(self.cleaned_data['username'], self.cleaned_data['password']))
 
                 if resp.status_code != 200:
                     raise Exception("Received non-200 response: %d", resp.status_code)
+
+                self.cleaned_data['auth_token'] = resp.json()['users'][0]['token']
 
             except Exception:
                 raise forms.ValidationError(_("Unable to check WhatsApp enterprise account, please check username and password"))
@@ -80,6 +81,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_BASE_URL: data['base_url'],
             Channel.CONFIG_USERNAME: data['username'],
             Channel.CONFIG_PASSWORD: data['password'],
+            Channel.CONFIG_AUTH_TOKEN: data['auth_token'],
         }
 
         self.object = Channel.create(org, user, data['country'], 'WA',

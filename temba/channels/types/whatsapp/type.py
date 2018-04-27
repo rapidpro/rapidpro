@@ -46,59 +46,51 @@ class WhatsAppType(ChannelType):
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
+        headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
 
         # first set our callbacks
         payload = {
-            'payload': {
-                'set_settings': {
-                    'webcallbacks': {
-                        "0": "https://" + domain + reverse('courier.wa', args=[channel.uuid, 'status']),
-                        "1": "https://" + domain + reverse('courier.wa', args=[channel.uuid, 'receive']),
-                        "2": ""
+            'settings': {
+                'application': {
+                    'webhooks': {
+                        "url": "https://" + domain + reverse('courier.wa', args=[channel.uuid, 'receive'])
                     }
                 }
             }
         }
 
-        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-                             json=payload,
-                             auth=(channel.config[Channel.CONFIG_USERNAME],
-                                   channel.config[Channel.CONFIG_PASSWORD]))
+        resp = requests.patch(channel.config[Channel.CONFIG_BASE_URL] + '/v1/settings/application',
+                              json=payload, headers=headers)
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %s", resp.content))
 
-        # then make sure group chats are disabled (this has to be two requests, whatsapp doesn't allow
-        # multiple settings to be set in one call)
+        # then make sure group chats are disabled
         payload = {
-            "payload": {
-                "set_allow_unsolicited_group_add": False
-            }
+            "allow_unsolicited_add": False
         }
 
-        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-                             json=payload,
-                             auth=(channel.config[Channel.CONFIG_USERNAME],
-                                   channel.config[Channel.CONFIG_PASSWORD]))
+        resp = requests.patch(channel.config[Channel.CONFIG_BASE_URL] + '/v1/settings/groups',
+                              json=payload, headers=headers)
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to configure channel: %s", resp.content))
 
-        # finally, up our quotas
-        payload = {
-            "payload": {
-                "set_settings": {
-                    "messaging_api_rate_limit": ["15", "54600", "1000000"],
-                    "unique_message_sends_rate_limit": ["15", "54600", "1000000"],
-                    "contacts_api_rate_limit": ["15", "54600", "1000000"]
-                }
-            }
-        }
-
-        resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-                             json=payload,
-                             auth=(channel.config[Channel.CONFIG_USERNAME],
-                                   channel.config[Channel.CONFIG_PASSWORD]))
-
-        if resp.status_code != 200:
-            raise ValidationError(_("Unable to configure channel: %s", resp.content))
+        # TODO: Figure out what the new endpoints are for upping our quotas
+        # payload = {
+        #     "payload": {
+        #         "set_settings": {
+        #             "messaging_api_rate_limit": ["15", "54600", "1000000"],
+        #             "unique_message_sends_rate_limit": ["15", "54600", "1000000"],
+        #             "contacts_api_rate_limit": ["15", "54600", "1000000"]
+        #         }
+        #     }
+        # }
+        #
+        # resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
+        #                      json=payload,
+        #                      auth=(channel.config[Channel.CONFIG_USERNAME],
+        #                            channel.config[Channel.CONFIG_PASSWORD]))
+        #
+        # if resp.status_code != 200:
+        #     raise ValidationError(_("Unable to configure channel: %s", resp.content))
