@@ -494,7 +494,7 @@ class EventFire(Model):
                 event.campaign.group.contacts
                 .filter(is_active=True, is_blocked=False)
                 .exclude(is_test=True)
-                .filter(fields__has_key=field_uuid)
+                .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
             )
 
             now = timezone.now()
@@ -515,7 +515,7 @@ class EventFire(Model):
     @classmethod
     def update_field_events(cls, contact_field):
         """
-        Cancel any events for the passed in contact field
+        Updates any events for the passed in contact field
         """
         if not contact_field.is_active:
             # remove any scheduled fires for the passed in field
@@ -541,7 +541,7 @@ class EventFire(Model):
                     event.campaign.group.contacts
                     .filter(is_active=True, is_blocked=False)
                     .exclude(is_test=True)
-                    .filter(fields__has_key=field_uuid)
+                    .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
                 )
 
                 events = []
