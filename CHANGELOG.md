@@ -1,3 +1,8 @@
+v3.0.375
+----------
+ * update whatsapp for new API
+ * new index on contacts_contact.fields optimized for space
+
 v3.0.374
 ----------
  * allow reading, just not writing of sends with groups
