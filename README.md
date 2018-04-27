@@ -1,21 +1,29 @@
-[![Coverage Status](https://coveralls.io/repos/github/rapidpro/rapidpro/badge.svg?branch=master)](https://coveralls.io/github/rapidpro/rapidpro?branch=master)  
+# RapidPro (IST Research Fork)
 
-# RapidPro     
+This repository is a fork of the RapidPro library used for developing additional functionality.
 
-RapidPro is a hosted service for visually building interactive messaging applications.
-To learn more, please visit the project site at http://rapidpro.github.io/rapidpro.
+### Development
 
-### Get Involved
+Ensure your changes are always compatible with the latest master release by running the following command to pull the latest image:
 
-To run RapidPro for development, follow the Quick Start guide at http://rapidpro.github.io/rapidpro/docs/development.
+```
+docker pull rapidpro/rapidpro:master
+```
 
-### License
+If you are running RapidPro for the first time, please ensure the following variable is set for the rapidpro service:
+```
+- MANAGEPY_MIGRATE=on
+```
 
-In late 2014, Nyaruka partnered with UNICEF to expand on the capabilities of TextIt and release the source code as RapidPro under the Affero GPL (AGPL) license.
+It will allow the database to be initialized.
 
-In brief, the Affero license states you can use the RapidPro source for any project free of charge, but that any changes you make to the source code must be available to others. Note that unlike the GPL, the AGPL requires these changes to be made public even if you do not redistribute them. If you host a version of RapidPro, you must make the same source you are hosting available for others.
+To stand up a development instance, simply run:
 
-RapidPro has dual copyright holders of UNICEF and Nyaruka.
+```
+./dc-rapidpro.dev.sh up --build -d
+```
 
-The software is provided under AGPL-3.0. Contributions to this project are accepted under the same license.
+RapidPro should now be available at `0.0.0.0:8000`.
 
+
+Any local changes will be picked up by the development instance. If, in any case, there are changes that do not appear in the development instance, ensure that the files are properly mounted in `rapidpro-compose.dev.yaml`

@@ -1,0 +1,61 @@
+version: '2'
+services:
+  rapidpro:
+    image: rapidpro/rapidpro:v3.0.334
+    depends_on:
+      - redis
+      - postgresql
+    ports:
+      - '8000:8000'
+    environment:
+      - DOMAIN_NAME=0.0.0.0
+      - ALLOWED_HOSTS=*
+      - TEMBA_HOST=0.0.0.0
+      - DJANGO_DEBUG=off
+      - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=super-secret-key
+      - MANAGEPY_COLLECTSTATIC=on
+      - MANAGEPY_COMPRESS=on
+      - MANAGEPY_INIT_DB=on
+      - MANAGEPY_MIGRATE=off
+    volumes:
+      - ./static/brands/pulse:/rapidpro/static/brands/pulse
+      - ./pulse_settings.py:/rapidpro/temba/settings.py
+  celery:
+    image: rapidpro/rapidpro:v3.0.334
+    depends_on:
+      - rapidpro
+    links:
+      - redis
+      - postgresql
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=super-secret-key
+    command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,msgs,flows,handler"]
+    volumes:
+      - ./static/brands/pulse:/rapidpro/static/brands/pulse
+      - ./pulse_settings.py:/rapidpro/temba/settings.py
+  redis:
+    image: redis:alpine
+  postgresql:
+    image: mdillon/postgis:9.6
+    environment:
+      - POSTGRES_DB=rapidpro
+    volumes:
+      - rapidpro:/var/lib/postgresql/data
+  mage:
+   image: rapidpro/mage
+   depends_on:
+     - rapidpro
+   links:
+     - redis
+     - postgresql
+   environment:
+     - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
+     - REDIS_URL=redis://redis/
+     - REDIS_DATABASE=8
+
+volumes:
+  rapidpro:
