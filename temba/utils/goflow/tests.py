@@ -135,7 +135,6 @@ class TrialTest(TembaTest):
         favorites = self.get_flow('favorites')
 
         run, = favorites.start([], [self.contact])
-        run.refresh_from_db()
 
         # capture session state before resumption
         pre_session = trial.reconstruct_session(run)
@@ -147,4 +146,11 @@ class TrialTest(TembaTest):
         resume_output = trial.resume(self.org, pre_session, msg_in=msg_in)
         new_session = resume_output.session
 
-        self.assertEqual(trial.compare(run, new_session), [])
+        self.assertTrue(trial.compare(run, new_session))
+
+        # simulate differences in the path, results and events
+        new_session['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
+        new_session['runs'][0]['results']['color']['value'] = 'wrong value'
+        new_session['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
+
+        self.assertFalse(trial.compare(run, new_session))

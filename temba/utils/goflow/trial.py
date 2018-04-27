@@ -12,6 +12,7 @@ import six
 import time
 
 from django.conf import settings
+from raven.contrib.django.raven_compat.models import client as raven_client
 from .client import get_client, FlowServerException, Events
 from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
 
@@ -38,7 +39,8 @@ def resume(org, session, msg_in=None, expired_child_run=None):
         return request.resume(session)
 
     except FlowServerException as e:  # pragma: no cover
-        logger.error("Flowserver exception: %s" % six.text_type(e), exc_info=True)
+        run_uuid = session['runs'][-1]['uuid']
+        logger.error("flowserver exception during trial resumption of run %s: %s" % (run_uuid, six.text_type(e)), exc_info=True)
         return None
 
 
@@ -161,69 +163,55 @@ def compare(run, session):
     if not session_run:
         return ["run %s not found in session" % str(run.uuid)]
 
-    problems = []
-    problems += compare_paths(run.path, session_run['path'])
-    problems += compare_results(run.results, session_run.get('results', []))
-    problems += compare_events(run.events, session_run.get('events', []))
-    return problems
+    differences = {}
+
+    path1, path2 = reduce_path(run.path), reduce_path(session_run['path'])
+    if path1 != path2:
+        differences['path'] = json.dumps(path1, sort_keys=True), json.dumps(path2, sort_keys=True)
+
+    results1, results2 = reduce_results(run.results), reduce_results(session_run.get('results', {}))
+    if results1 != results2:
+        differences['results'] = json.dumps(results1, sort_keys=True), json.dumps(results2, sort_keys=True)
+
+    events1, events2 = reduce_events(run.events), reduce_events(session_run.get('events', []))
+    if events1 != events2:
+        differences['events'] = json.dumps(events1, sort_keys=True), json.dumps(events2, sort_keys=True)
+
+    if differences:
+        raven_client.captureMessage("differences detected on run #%d" % run.id, extra=differences)
+
+    return len(differences) == 0
 
 
-def compare_paths(path1, path2):
-    def reduce(path):
-        """
-        Reduces path to just node/exit. Other fields are datetimes or generated UUIDs which can't be compared
-        """
-        return [{'node_uuid': step['node_uuid'], 'exit_uuid': step.get('exit_uuid')} for step in path]
-
-    if reduce(path1) != reduce(path2):
-        print(json.dumps(path1, indent=2))
-        print(json.dumps(path2, indent=2))
-
-        return ["path mismatch (%d steps vs %d steps)" % (len(path1), len(path2))]
-
-    return []
+def reduce_path(path):
+    """
+    Reduces path to just node/exit. Other fields are datetimes or generated step UUIDs which are non-deterministic
+    """
+    return [copy_keys(step, {'node_uuid', 'exit_uuid'}) for step in path]
 
 
-def compare_results(results1, results2):
-    def reduce(results):
-        for result in six.itervalues(results):
-            del result['created_on']
-
-            # flowserver uses operand as result input, rapidpro uses last message
-            if 'input' in result:
-                del result['input']
-        return results
-
-    if reduce(results1) != reduce(results2):
-        print(json.dumps(results1, indent=2))
-        print(json.dumps(results2, indent=2))
-
-        return ["results mismatch (%d results vs %d results)" % (len(results1), len(results2))]
-
-    return []
+def reduce_results(results):
+    """
+    Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
+    """
+    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in six.iteritems(results)}
 
 
-def compare_events(events1, events2):
-    def reduce(events):
-        new_events = []
-        for event in events:
-            # only include msg events
-            if event['type'] not in (Events.msg_created.name, Events.msg_received.name):
-                continue
+def reduce_events(events):
+    """
+    Excludes all but message events
+    """
+    new_events = []
+    for event in events:
+        if event['type'] not in (Events.msg_created.name, Events.msg_received.name):
+            continue
 
-            # remove non-deterministic fields
-            del event['created_on']
-            del event['msg']['uuid']
-            if 'step_uuid' in event:
-                del event['step_uuid']
+        new_event = copy_keys(event, {'type', 'msg'})
+        new_event['msg'] = copy_keys(event['msg'], {'text', 'urn', 'channel', 'attachments'})
 
-            new_events.append(event)
-        return new_events
+        new_events.append(new_event)
+    return new_events
 
-    if reduce(events1) != reduce(events2):
-        print(json.dumps(events1, indent=2))
-        print(json.dumps(events2, indent=2))
 
-        return ["events mismatch (%d events vs %d events)" % (len(events1), len(events2))]
-
-    return []
+def copy_keys(d, keys):
+    return {k: v for k, v in six.iteritems(d) if k in keys}
