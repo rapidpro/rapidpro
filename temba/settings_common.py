@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iptools
 import os
@@ -437,6 +438,7 @@ PERMISSIONS = {
                    'activity_list',
                    'api',
                    'archived',
+                   'assets',
                    'broadcast',
                    'campaign',
                    'category_counts',
@@ -501,7 +503,8 @@ PERMISSIONS = {
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
-        'msgs.msg_create',
+        'flows.flow_assets',
+        'msgs.msg_create'
     ),
     "Alpha": (
     ),
@@ -801,6 +804,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_activity',
         'flows.flow_activity_chart',
         'flows.flow_archived',
+        'flows.flow_assets',
         'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_category_counts',
@@ -968,11 +972,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
-    "refresh-jiochat-access-tokens": {
-        'task': 'refresh_jiochat_access_tokens',
-        'schedule': timedelta(seconds=3600),
-    },
-
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -999,14 +998,6 @@ BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
-CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
-AUTOSCALE_MAX_CPU_USAGE = 80
-AUTOSCALE_MAX_USED_MEMORY = 80
-AUTOSCALE_MAX_WORKER_INC_BY = 2
-AUTOSCALE_MAX_WORKER_DEC_BY = 2
-AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
-AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
 IS_PROD = False
 HOSTNAME = "localhost"
@@ -1125,6 +1116,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.arabiacell.ArabiaCellType',
     'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
@@ -1161,9 +1153,8 @@ CHANNEL_TYPES = [
     'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.verboice.VerboiceType',
     'temba.channels.types.viber_public.ViberPublicType',
-    'temba.channels.types.vumi.VumiType',
-    'temba.channels.types.vumi_ussd.VumiUSSDType',
     'temba.channels.types.yo.YoType',
     'temba.channels.types.zenvia.ZenviaType',
 ]
@@ -1208,6 +1199,14 @@ FLOWRUN_FIELDS_SIZE = 256
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# -----------------------------------------------------------------------------------
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
+# -----------------------------------------------------------------------------------
+FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
+FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro

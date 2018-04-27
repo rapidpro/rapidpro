@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import regex
@@ -38,6 +39,31 @@ class NexmoType(ChannelType):
     max_tps = 1
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
+
+    configuration_blurb = _(
+        """
+        Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Callback URL for Inbound Messages"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'receive' %}",
+            description=_("The callback URL is called by Nexmo when you receive new incoming messages."),
+        ),
+        dict(
+            label=_("Callback URL for Delivery Receipt"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'status' %}",
+            description=_("The delivery URL is called by Nexmo when a message is successfully delivered to a recipient.")
+        ),
+        dict(
+            label=_("Callback URL for Incoming Call"),
+            url="https://{{ channel.callback_domain }}{% url 'handlers.nexmo_call_handler' 'answer' channel.uuid %}",
+            description=_("The callback URL is called by Nexmo when you receive an incoming call.")
+        ),
+
+    )
 
     def is_recommended_to(self, user):
         NEXMO_RECOMMENDED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',

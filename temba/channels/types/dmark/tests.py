@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -12,7 +13,7 @@ class DMarkTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_dmark')
+        url = reverse('channels.types.dmark.claim')
         self.login(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))
@@ -49,15 +50,15 @@ class DMarkTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual('temba', channel.config_json()['username'])
-        self.assertEqual('tembapasswd', channel.config_json()['password'])
-        self.assertEqual('Authy', channel.config_json()['auth_token'])
+        self.assertEqual('temba', channel.config['username'])
+        self.assertEqual('tembapasswd', channel.config['password'])
+        self.assertEqual('Authy', channel.config['auth_token'])
 
         self.assertEqual('2020', channel.address)
         self.assertEqual('CD', channel.country)
         self.assertEqual('DK', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)

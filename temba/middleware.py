@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import cProfile
 import pstats
@@ -15,7 +16,7 @@ class ExceptionMiddleware(object):
 
     def process_exception(self, request, exception):
         if settings.DEBUG:
-            traceback.print_exc(exception)
+            traceback.print_exc()
 
         return None
 

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import requests
@@ -32,6 +33,25 @@ class FirebaseCloudMessagingType(ChannelType):
     attachment_support = False
     free_sending = True
     quick_reply_text_size = 36
+
+    configuration_blurb = _(
+        """
+        To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the parameters below.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Contact Register"),
+            url="https://{{ channel.callback_domain }}{% url 'handlers.fcm_handler' 'register' channel.uuid %}",
+            description=_("To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."),
+        ),
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'handlers.fcm_handler' 'receive' channel.uuid %}",
+            description=_("To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."),
+        ),
+    )
 
     def send(self, channel, msg, text):
         start = time.time()

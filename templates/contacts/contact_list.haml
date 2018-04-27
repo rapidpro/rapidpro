@@ -48,7 +48,11 @@
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
                   %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                    {{group.label}} ({{ group.count | intcomma }})
+                    -if group.is_ready
+                      {{group.label}} ({{ group.count | intcomma }})
+                    -else
+                      {{group.label}}
+                      %i.spin.icon-loop
 
           %div{style:"margin-top: 10px"}
             - if org_perms.contacts.contact_create

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import requests
@@ -80,7 +81,7 @@ class NexmoClient(NexmoCli):
 
             call.status = IVRCall.FAILED
             call.save()
-            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e))
 
     def download_media(self, call, media_url):
         """
@@ -191,7 +192,7 @@ class VerboiceClient:  # pragma: needs cover
     def __init__(self, channel):
         self.endpoint = 'https://verboice.instedd.org/api/call'
 
-        config = json.loads(channel.config)
+        config = channel.config
         self.auth = (config.get('username', None), config.get('password', None))
 
         # this is the verboice channel, not our channel

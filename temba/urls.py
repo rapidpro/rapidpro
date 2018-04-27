@@ -1,8 +1,8 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import debug_toolbar
 import importlib
-import logging
 
 from celery.signals import worker_process_init
 from django.conf.urls import include, url
@@ -53,9 +53,16 @@ for app in settings.APP_URLS:  # pragma: needs cover
 # provide a utility method to initialize our analytics
 def init_analytics():
     import analytics
-    analytics_key = getattr(settings, 'SEGMENT_IO_KEY', None)
-    if analytics_key:  # pragma: needs cover
-        analytics.init(analytics_key, send=settings.IS_PROD, log=not settings.IS_PROD, log_level=logging.DEBUG)
+
+    analytics.send = settings.IS_PROD
+    analytics.debug = not settings.IS_PROD
+
+    analytics_key = getattr(settings, 'SEGMENT_IO_KEY', '')
+
+    if settings.IS_PROD and not analytics_key:
+        raise ValueError('SEGMENT.IO analytics key is required for production')  # pragma: no cover
+
+    analytics.write_key = analytics_key
 
     from temba.utils.analytics import init_librato
     librato_user = getattr(settings, 'LIBRATO_USER', None)

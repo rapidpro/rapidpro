@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import phonenumbers
 from django import forms
@@ -55,7 +56,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.channel_search_nexmo')
 
     def get_claim_url(self):
-        return reverse('channels.claim_nexmo')
+        return reverse('channels.types.nexmo.claim')
 
     def get_supported_countries_tuple(self):
         return NEXMO_SUPPORTED_COUNTRIES
@@ -83,7 +84,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         client = org.get_nexmo_client()
-        org_config = org.config_json()
+        org_config = org.config
         app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)

@@ -1,4 +1,5 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iso8601
 import json
@@ -161,10 +162,7 @@ class ChannelEventReadSerializer(ReadSerializer):
         return self.TYPES.get(obj.event_type)
 
     def get_extra(self, obj):
-        if obj.extra:
-            return obj.extra_json()
-        else:
-            return None
+        return obj.extra
 
     class Meta:
         model = ChannelEvent
@@ -230,7 +228,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
     campaign = fields.CampaignField(required=True)
     offset = serializers.IntegerField(required=True)
-    unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
+    unit = serializers.ChoiceField(required=True, choices=list(UNITS.keys()))
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
     message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
@@ -503,7 +501,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
         UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)
     ])
-    value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
+    value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 
     def validate_label(self, value):
         if not ContactField.is_valid_label(value):
@@ -541,7 +539,13 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
 
 class ContactGroupReadSerializer(ReadSerializer):
+    status = serializers.SerializerMethodField()
     count = serializers.SerializerMethodField()
+
+    STATUSES = extract_constants(ContactGroup.STATUS_CONFIG)
+
+    def get_status(self, obj):
+        return self.STATUSES[obj.status]
 
     def get_count(self, obj):
         # count may be cached on the object
@@ -549,7 +553,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ('uuid', 'name', 'query', 'count')
+        fields = ('uuid', 'name', 'query', 'status', 'count')
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
@@ -687,7 +691,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(arrived_on)
             }
 
-        return [convert_step(s) for s in obj.get_path()]
+        return [convert_step(s) for s in obj.path]
 
     def get_values(self, obj):
         def convert_result(result):
@@ -699,7 +703,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.get_results())}
+        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
@@ -722,16 +726,10 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
-    extra = serializers.SerializerMethodField()
+    extra = serializers.JSONField(required=False)
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
-
-    def get_extra(self, obj):
-        if not obj.extra:
-            return None
-        else:
-            return json.loads(obj.extra)
 
     class Meta:
         model = FlowStart
@@ -1002,8 +1000,7 @@ class WebHookEventReadSerializer(ReadSerializer):
         return obj.resthook.slug
 
     def get_data(self, obj):
-        decoded = json.loads(obj.data)
-        return decoded
+        return obj.data
 
     class Meta:
         model = WebHookEvent

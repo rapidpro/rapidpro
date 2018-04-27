@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import time
 import requests
@@ -33,6 +34,19 @@ class HighConnectionType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1500
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming (MO) messages
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.hx' channel.uuid 'receive' %}",
+        ),
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

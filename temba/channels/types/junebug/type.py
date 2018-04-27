@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import time
@@ -34,6 +35,20 @@ class JunebugType(ChannelType):
 
     schemes = [TEL_SCHEME]
     max_length = 1600
+
+    configuration_blurb = _(
+        """
+        As a last step you'll need to configure Junebug to call the following URL for MO (incoming) messages.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Push Message URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.jn' channel.uuid 'inbound' %}",
+            description=_("This endpoint will be called by Junebug when new messages are received to your number, it must be configured to be called as a POST"),
+        ),
+    )
 
     def send(self, channel, msg, text):
         connection = None

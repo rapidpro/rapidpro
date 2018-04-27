@@ -1,9 +1,11 @@
-from __future__ import print_function, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import csv
 import gc
 import six
 import time
+import os
 
 from datetime import datetime, timedelta
 from django.core.files import File
@@ -13,7 +15,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
-from openpyxl.writer.write_only import WriteOnlyCell
+from openpyxl.worksheet.write_only import WriteOnlyCell
 from temba.assets.models import BaseAssetStore, get_asset_store
 from . import analytics
 from .models import TembaModel
@@ -72,6 +74,15 @@ class BaseExportTask(TembaModel):
             # notify user who requested this export
             send_template_email(self.created_by.username, self.email_subject, self.email_template,
                                 self.get_email_context(branding), branding)
+
+            # remove temporary file on PY3
+            if six.PY3:  # pragma: no cover
+                if hasattr(temp_file, 'delete'):
+                    if temp_file.delete is False:
+                        os.unlink(temp_file.name)
+                else:
+                    os.unlink(temp_file.name)
+
         except Exception:
             import traceback
             traceback.print_exc()
@@ -155,12 +166,18 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        self.file = NamedTemporaryFile(delete=True, suffix='.xlsx')
+        if six.PY2:
+            self.file = NamedTemporaryFile(delete=True, suffix='.xlsx', mode='wb+')
+        else:  # pragma: no cover
+            self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
 
         # if this is a csv file, create our csv writer and write our header
         if self.is_csv:
             self.writer = csv.writer(self.file, quoting=csv.QUOTE_ALL)
-            self.writer.writerow([s.encode('utf-8') for s in columns])
+            if six.PY2:
+                self.writer.writerow([s.encode('utf-8') for s in columns])
+            else:  # pragma: no cover
+                self.writer.writerow(columns)
 
         # otherwise, just open a workbook, initializing the first sheet
         else:
@@ -183,7 +200,10 @@ class TableExporter(object):
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
         if self.is_csv:
-            self.writer.writerow([s.encode('utf-8') for s in values])
+            if six.PY2:
+                self.writer.writerow([s.encode('utf-8') for s in values])
+            else:  # pragma: no cover
+                self.writer.writerow(values)
 
         else:
             # time for a new sheet? do it
@@ -199,6 +219,10 @@ class TableExporter(object):
         Saves our data to a file, returning the file saved to and the extension
         """
         gc.collect()  # force garbage collection
+
+        if six.PY3:  # pragma: no cover
+            self.file.close()
+            self.file = open(self.file.name, 'rb+')
 
         if not self.is_csv:
             print("Writing Excel workbook...")

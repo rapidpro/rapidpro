@@ -1,7 +1,18 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
+from django.http import HttpResponse
+from django.views import View
 from django.utils.translation import ugettext_lazy as _
+
+
+class PostOnlyMixin(View):
+    """
+    Utility mixin to make a class based view be POST only
+    """
+    def get(self, *args, **kwargs):
+        return HttpResponse("Method Not Allowed", status=405)
 
 
 class BaseActionForm(forms.Form):

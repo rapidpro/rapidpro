@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import nexmo
@@ -7,7 +8,6 @@ import six
 import stripe
 
 from bs4 import BeautifulSoup
-from context_processors import GroupPermWrapper
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -31,7 +31,8 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest, MockResponse
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
@@ -39,6 +40,7 @@ from uuid import uuid4
 from .models import Org, TopUp, Invitation, Language, TopUpCredits, DAYFIRST, MONTHFIRST, get_current_export_version
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING, WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
+from .context_processors import GroupPermWrapper
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -142,7 +144,7 @@ class OrgTest(TembaTest):
         # update the name and slug of the organization
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=DAYFIRST, slug="nice temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
-        self.assertTrue('slug' in response.context['form'].errors)
+        self.assertIn('slug', response.context['form'].errors)
 
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=MONTHFIRST, slug="nice-temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
@@ -321,7 +323,7 @@ class OrgTest(TembaTest):
 
         # set a webhook with headers
         post_data = response.context['form'].initial
-        post_data['webhook'] = 'http://webhooks.uniceflabs.org'
+        post_data['webhook_url'] = 'http://webhooks.uniceflabs.org'
         post_data['header_1_key'] = 'Authorization'
         post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
 
@@ -717,10 +719,10 @@ class OrgTest(TembaTest):
 
         # we have a form with 4 fields and one hidden 'loc'
         self.assertEqual(5, len(response.context['form'].fields))
-        self.assertTrue('first_name' in response.context['form'].fields)
-        self.assertTrue('last_name' in response.context['form'].fields)
-        self.assertTrue('email' in response.context['form'].fields)
-        self.assertTrue('password' in response.context['form'].fields)
+        self.assertIn('first_name', response.context['form'].fields)
+        self.assertIn('last_name', response.context['form'].fields)
+        self.assertIn('email', response.context['form'].fields)
+        self.assertIn('password', response.context['form'].fields)
 
         post_data = dict()
         post_data['first_name'] = "Norbert"
@@ -792,9 +794,9 @@ class OrgTest(TembaTest):
                          password='beastmode24', email='beastmode@seahawks.com',
                          surveyor_password='nyaruka')
         response = self.client.post(url, post_data)
-        self.assertTrue('token' in response.url)
-        self.assertTrue('beastmode' in response.url)
-        self.assertTrue('Temba' in response.url)
+        self.assertIn('token', response.url)
+        self.assertIn('beastmode', response.url)
+        self.assertIn('Temba', response.url)
 
         # try with a login that already exists
         post_data = dict(first_name='Resused', last_name='Email',
@@ -838,7 +840,7 @@ class OrgTest(TembaTest):
         response = self.client.get(choose_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertTrue('organization' in response.context['form'].fields)
+        self.assertIn('organization', response.context['form'].fields)
 
         post_data = dict()
         post_data['organization'] = self.org2.pk
@@ -917,6 +919,11 @@ class OrgTest(TembaTest):
         topup.save()
 
         self.assertEqual(topup.get_price_display(), "$1.00")
+
+        # ttl should never be negative even if expired
+        topup.expires_on = timezone.now() - timedelta(days=1)
+        topup.save(update_fields=['expires_on'])
+        self.assertEqual(10, self.org.get_topup_ttl(topup))
 
     def test_topup_expiration(self):
 
@@ -1174,7 +1181,7 @@ class OrgTest(TembaTest):
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
-        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+        with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Full')
 
             connect_url = reverse("orgs.org_twilio_connect")
@@ -1195,7 +1202,7 @@ class OrgTest(TembaTest):
             post_data['account_token'] = "AccountToken"
 
             # but with an unexpected exception
-            with patch('temba.tests.MockTwilioClient.__init__') as mock:
+            with patch('temba.tests.twilio.MockTwilioClient.__init__') as mock:
                 mock.side_effect = Exception('Unexpected')
                 response = self.client.post(connect_url, post_data)
                 self.assertFormError(response, 'form', '__all__', 'The Twilio account SID and Token seem invalid. '
@@ -1204,11 +1211,11 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, post_data)
 
             self.org.refresh_from_db()
-            self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-            self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+            self.assertEqual(self.org.config['ACCOUNT_SID'], "AccountSid")
+            self.assertEqual(self.org.config['ACCOUNT_TOKEN'], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
-            with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
+            with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get_primary:
                 with patch('twilio.rest.resources.ListResource.get') as mock_list_resource_get:
                     mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
                     mock_list_resource_get.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
@@ -1217,18 +1224,18 @@ class OrgTest(TembaTest):
                     self.assertEqual(response.status_code, 302)
 
                     response = self.client.post(connect_url, post_data, follow=True)
-                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.claim_twilio"))
+                    self.assertEqual(response.request['PATH_INFO'], reverse("channels.types.twilio.claim"))
 
                     self.org.refresh_from_db()
-                    self.assertEqual(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
-                    self.assertEqual(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.assertEqual(self.org.config['ACCOUNT_SID'], "AccountSid")
+                    self.assertEqual(self.org.config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
                     twilio_account_url = reverse('orgs.org_twilio_account')
                     response = self.client.get(twilio_account_url)
                     self.assertEqual("AccountSid", response.context['account_sid'])
 
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual('AccountSid', config['ACCOUNT_SID'])
                     self.assertEqual('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
@@ -1239,7 +1246,7 @@ class OrgTest(TembaTest):
 
                     # all our twilio creds should remain the same
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual(config['ACCOUNT_SID'], "AccountSid")
                     self.assertEqual(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
@@ -1324,8 +1331,8 @@ class OrgTest(TembaTest):
             # transferTo should be connected
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertTrue(self.org.is_connected_to_transferto())
-            self.assertEqual(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
-            self.assertEqual(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
+            self.assertEqual(self.org.config['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
+            self.assertEqual(self.org.config['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
 
             response = self.client.get(transferto_account_url)
             self.assertEqual(response.context['transferto_account_login'], 'login')
@@ -1337,8 +1344,8 @@ class OrgTest(TembaTest):
             self.assertNoFormErrors(response)
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertFalse(self.org.is_connected_to_transferto())
-            self.assertFalse(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'])
-            self.assertFalse(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'])
+            self.assertFalse(self.org.config['TRANSFERTO_ACCOUNT_LOGIN'])
+            self.assertFalse(self.org.config['TRANSFERTO_AIRTIME_API_TOKEN'])
 
             mock_post_transterto_request.side_effect = Exception('foo')
             response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
@@ -1390,9 +1397,9 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual(('api_key', '1.0'), self.org.get_chatbase_credentials())
 
-        self.assertEqual(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
-        self.assertEqual(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
-        self.assertEqual(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+        self.assertEqual(self.org.config['CHATBASE_API_KEY'], 'api_key')
+        self.assertEqual(self.org.config['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
         with self.assertRaises(Exception):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
@@ -1407,7 +1414,7 @@ class OrgTest(TembaTest):
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+        self.assertContains(response, self.org.config['CHATBASE_AGENT_NAME'])
 
         payload.update(dict(disconnect='true'))
 
@@ -1529,12 +1536,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
-        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], '')
+        self.assertEqual(self.org.config['SMTP_FROM_EMAIL'], 'foo@bar.com')
+        self.assertEqual(self.org.config['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config['SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
         self.assertEqual('foo@bar.com', response.context['flow_from_email'])
@@ -1564,7 +1571,7 @@ class OrgTest(TembaTest):
         # password shouldn't change
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
 
         response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
                                                           smtp_host='smtp.example.com',
@@ -1593,12 +1600,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
-        self.assertEqual(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
-        self.assertEqual(self.org.config_json()['SMTP_PASSWORD'], 'secret')
-        self.assertEqual(self.org.config_json()['SMTP_PORT'], '465')
-        self.assertEqual(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
+        self.assertEqual(self.org.config['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_HOST'], 'smtp.example.com')
+        self.assertEqual(self.org.config['SMTP_USERNAME'], 'support@example.com')
+        self.assertEqual(self.org.config['SMTP_PASSWORD'], 'secret')
+        self.assertEqual(self.org.config['SMTP_PORT'], '465')
+        self.assertEqual(self.org.config['SMTP_ENCRYPTION'], 'T')
 
     @patch('nexmo.Client.create_application')
     def test_connect_nexmo(self, mock_create_application):
@@ -1627,10 +1634,10 @@ class OrgTest(TembaTest):
                 # nexmo should now be connected
                 self.org = Org.objects.get(pk=self.org.pk)
                 self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEqual(self.org.config_json()['NEXMO_KEY'], 'key')
-                self.assertEqual(self.org.config_json()['NEXMO_SECRET'], 'secret')
+                self.assertEqual(self.org.config['NEXMO_KEY'], 'key')
+                self.assertEqual(self.org.config['NEXMO_SECRET'], 'secret')
 
-                nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+                nexmo_uuid = self.org.config['NEXMO_UUID']
 
                 self.assertEqual(mock_create_application.call_args_list[0][1]['params']['answer_url'],
                                  "https://%s%s" % (self.org.get_brand_domain().lower(),
@@ -1654,7 +1661,7 @@ class OrgTest(TembaTest):
                 self.assertEqual("key", response.context['api_key'])
 
                 self.org.refresh_from_db()
-                config = self.org.config_json()
+                config = self.org.config
                 self.assertEqual('key', config[NEXMO_KEY])
                 self.assertEqual('secret', config[NEXMO_SECRET])
 
@@ -1665,7 +1672,7 @@ class OrgTest(TembaTest):
 
                 # nexmo config should remain the same
                 self.org.refresh_from_db()
-                config = self.org.config_json()
+                config = self.org.config
                 self.assertEqual('key', config[NEXMO_KEY])
                 self.assertEqual('secret', config[NEXMO_SECRET])
 
@@ -1686,7 +1693,7 @@ class OrgTest(TembaTest):
                                                              disconnect='false'), follow=True)
 
                     self.org.refresh_from_db()
-                    config = self.org.config_json()
+                    config = self.org.config
                     self.assertEqual('other_key', config[NEXMO_KEY])
                     self.assertEqual('secret-too', config[NEXMO_SECRET])
 
@@ -1699,8 +1706,8 @@ class OrgTest(TembaTest):
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
-        self.assertFalse(self.org.config_json()['NEXMO_KEY'])
-        self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
+        self.assertFalse(self.org.config['NEXMO_KEY'])
+        self.assertFalse(self.org.config['NEXMO_SECRET'])
 
     @patch('nexmo.Client.create_application')
     def test_nexmo_configuration(self, mock_create_application):
@@ -1728,7 +1735,7 @@ class OrgTest(TembaTest):
             self.assertEqual(response.status_code, 302)
 
             response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request['PATH_INFO'], reverse('channels.claim_nexmo'))
+            self.assertEqual(response.request['PATH_INFO'], reverse('channels.types.nexmo.claim'))
 
         with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
@@ -1759,11 +1766,13 @@ class OrgTest(TembaTest):
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
             plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
-            self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+            response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
+
+            self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
 
@@ -2204,7 +2213,7 @@ class OrgCRUDLTest(TembaTest):
 
         post_data['name'] = "Relieves World Rwanda"
         response = self.client.post(signup_url, post_data)
-        self.assertTrue('email' in response.context['form'].errors)
+        self.assertIn('email', response.context['form'].errors)
 
         # if we hit /login we'll be taken back to the channel page
         response = self.client.get(reverse('users.user_check_login'))
@@ -2227,7 +2236,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook_url='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
@@ -2242,13 +2251,13 @@ class OrgCRUDLTest(TembaTest):
         post_data = dict(email='myal@wr.org', current_password='HelloWorld')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('current_password' in response.context['form'].errors)
+        self.assertIn('current_password', response.context['form'].errors)
 
         # bad new password
         post_data = dict(email='myal@wr.org', current_password='HelloWorld1', new_password='passwor')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('new_password' in response.context['form'].errors)
+        self.assertIn('new_password', response.context['form'].errors)
 
         User.objects.create(username='bill@msn.com', email='bill@msn.com')
 
@@ -2256,7 +2265,7 @@ class OrgCRUDLTest(TembaTest):
         post_data = dict(email='bill@msn.com', current_password='HelloWorld1')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertTrue('email' in response.context['form'].errors)
+        self.assertIn('email', response.context['form'].errors)
 
         post_data = dict(email='myal@wr.org', first_name="Myal", last_name="Greene", language="en-us", current_password='HelloWorld1')
         response = self.client.post(reverse('orgs.user_edit'), post_data)
@@ -2285,7 +2294,7 @@ class OrgCRUDLTest(TembaTest):
 
         # Check the message datetime
         created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
-        self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
+        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip('0'))
 
         # change the org timezone to "Africa/Nairobi"
         self.org.timezone = pytz.timezone('Africa/Nairobi')
@@ -2295,7 +2304,7 @@ class OrgCRUDLTest(TembaTest):
 
         # checkout the message should have the datetime changed by timezone
         created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
-        self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
+        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip('0'))
 
     def test_urn_schemes(self):
         # remove existing channels
@@ -2350,7 +2359,7 @@ class OrgCRUDLTest(TembaTest):
 
         # passwords stay case sensitive
         response = self.client.post(login_url, dict(username="withcaps", password="thepassword"), follow=True)
-        self.assertTrue('form' in response.context)
+        self.assertIn('form', response.context)
         self.assertTrue(response.context['form'].errors)
 
     def test_org_service(self):
@@ -2538,7 +2547,7 @@ class BulkExportTest(TembaTest):
 
         # splice our actionset with old bits
         actionset = flow.action_sets.all()[0]
-        actionset.actions = json.dumps(old_actions)
+        actionset.actions = old_actions
         actionset.save()
 
         # fake our version number back to 8
@@ -2599,7 +2608,7 @@ class BulkExportTest(TembaTest):
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
 
         # replace the actions
-        actionset.set_actions_dict([AddToGroupAction(str(uuid4()), [dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
+        actionset.actions = [AddToGroupAction(str(uuid4()), [dict(uuid='123', name="Other Group"), '@contact.name']).as_json()]
         actionset.save()
 
         # now let's export!
@@ -2616,7 +2625,7 @@ class BulkExportTest(TembaTest):
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
-        self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
+        self.assertIn('@contact.name', actionset.get_actions()[0].groups)
 
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
@@ -2693,7 +2702,7 @@ class BulkExportTest(TembaTest):
         event = campaign.events.all().first()
 
         action_set = event.flow.action_sets.order_by('-y').first()
-        actions = action_set.get_actions_dict()
+        actions = action_set.actions
         action_msg = actions[0]['msg']
 
         self.assertEqual(event.message['swa'], 'hello')
@@ -2731,9 +2740,9 @@ class BulkExportTest(TembaTest):
         confirm_appointment.save()
 
         action_set = confirm_appointment.action_sets.order_by('-y').first()
-        actions = action_set.get_actions_dict()
+        actions = action_set.actions
         actions[0]['msg']['base'] = 'Thanks for nothing'
-        action_set.set_actions_dict(actions)
+        action_set.actions = actions
         action_set.save()
 
         trigger = Trigger.objects.filter(keyword='patient').first()
@@ -2742,10 +2751,10 @@ class BulkExportTest(TembaTest):
 
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
-        actions = action_set.get_actions_dict()
+        actions = action_set.actions
         self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
-        action_set.set_actions_dict(actions)
+        action_set.actions = actions
         action_set.save()
 
         # now reimport
@@ -2754,7 +2763,7 @@ class BulkExportTest(TembaTest):
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
-        actions = action_set.get_actions_dict()
+        actions = action_set.actions
         self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
@@ -2767,7 +2776,7 @@ class BulkExportTest(TembaTest):
         # find our new message flow, and see that the original message is there
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
-        actions = action_set.get_actions_dict()
+        actions = action_set.actions
         self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
@@ -2908,8 +2917,8 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                self.assertTrue('is out of credit.' in sent_email.body)
+                self.assertIn('RapidPro account for Temba', sent_email.body)
+                self.assertIn('is out of credit.', sent_email.body)
 
                 # no new alert if one is sent and no new email
                 CreditAlert.check_org_credits()
@@ -2944,8 +2953,8 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                    self.assertTrue('is running low on credits' in sent_email.body)
+                    self.assertIn('RapidPro account for Temba', sent_email.body)
+                    self.assertIn('is running low on credits', sent_email.body)
 
                     # no new alert if one is sent and no new email
                     CreditAlert.check_org_credits()
@@ -2987,8 +2996,8 @@ class CreditAlertTest(TembaTest):
                         # email sent
                         sent_email = mail.outbox[4]
                         self.assertEqual(len(sent_email.to), 1)
-                        self.assertTrue('RapidPro account for Temba' in sent_email.body)
-                        self.assertTrue('expiring credits in less than one month.' in sent_email.body)
+                        self.assertIn('RapidPro account for Temba', sent_email.body)
+                        self.assertIn('expiring credits in less than one month.', sent_email.body)
 
                         # no new alert if one is sent and no new email
                         CreditAlert.check_org_credits()
@@ -3033,7 +3042,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertEqual(sent_email.to[0], 'nouser@nouser.com')
 
             # we have the domain of rapipro.io brand
-            self.assertTrue('app.rapidpro.io' in sent_email.body)
+            self.assertIn('app.rapidpro.io', sent_email.body)
 
 
 class StripeCreditsTest(TembaTest):
@@ -3065,9 +3074,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('Rudolph' in email.body)
-        self.assertTrue('Visa' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('Rudolph', email.body)
+        self.assertIn('Visa', email.body)
+        self.assertIn('$20', email.body)
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -3096,9 +3105,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('bitcoin' in email.body)
-        self.assertTrue('abcde' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('bitcoin', email.body)
+        self.assertIn('abcde', email.body)
+        self.assertIn('$20', email.body)
 
     @patch('stripe.Customer.create')
     def test_add_credits_fail(self, customer_create):
@@ -3190,9 +3199,9 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertTrue('Rudolph' in email.body)
-        self.assertTrue('Visa' in email.body)
-        self.assertTrue('$20' in email.body)
+        self.assertIn('Rudolph', email.body)
+        self.assertIn('Visa', email.body)
+        self.assertIn('$20', email.body)
 
         # try with an invalid card
         customer_retrieve.return_value.cards.throw = True

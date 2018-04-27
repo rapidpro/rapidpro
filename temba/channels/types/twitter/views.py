@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.conf import settings
 from django.contrib import messages
@@ -65,7 +66,7 @@ class ClaimView(ClaimViewMixin, SmartTemplateView):
 
         # generate temp OAuth token and secret
         twitter = TembaTwython(settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET)
-        callback_url = self.request.build_absolute_uri(reverse('channels.claim_twitter'))
+        callback_url = self.request.build_absolute_uri(reverse('channels.types.twitter.claim'))
         auth = twitter.get_authentication_tokens(callback_url=callback_url)
 
         # put in session for when we return from callback

@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import requests
 import six
@@ -33,6 +34,37 @@ class AfricasTalkingType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 160
     attachment_support = False
+
+    configuration_blurb = _(
+        """
+        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs
+        on the Africa's Talking website under your account.
+        """
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Callback URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'receive' %}",
+            description=_(
+                """
+                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
+                <a href="http://www.africastalking.com/account/sms/smscallback" target="africastalking">Callback URL</a>.
+                """
+            ),
+        ),
+        dict(
+            label=_("Delivery URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'status' %}",
+            description=_(
+                """
+                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
+                <a href="http://www.africastalking.com/account/sms/dlrcallback" target="africastalking">Delivery Reports</a>.
+                """
+            )
+        ),
+
+    )
 
     def is_available_to(self, user):
         org = user.get_org()

@@ -1,11 +1,12 @@
-from __future__ import absolute_import, unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import itertools
 import json
 import logging
-import plivo
 import nexmo
 import six
+import requests
 
 from collections import OrderedDict
 from datetime import datetime
@@ -23,6 +24,7 @@ from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
+from django.utils.encoding import force_text
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
@@ -40,6 +42,7 @@ from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
+from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
@@ -473,7 +476,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
-                json_data = json.loads(data)
+                json_data = json.loads(force_text(data))
                 if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
                     raise ValidationError('This file is no longer valid. Please export a new version and try again.')
 
@@ -572,7 +575,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # items within buckets are sorted by type and name
             def sort_key(c):
-                return c.__class__, c.name.lower()
+                return c.__class__.__name__, c.name.lower()
 
             # buckets with a single item are merged into a special singles bucket
             for b in buckets:
@@ -620,7 +623,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_twilio'
+        success_url = '@channels.types.twilio.claim'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -651,7 +654,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (domain, mo_path),
                                             'http://%s%s' % (domain, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -662,11 +665,11 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             domain = org.get_brand_domain()
 
-            config = org.config_json()
+            config = org.config
             context['nexmo_api_key'] = config[NEXMO_KEY]
             context['nexmo_api_secret'] = config[NEXMO_SECRET]
 
-            nexmo_uuid = config.get(NEXMO_UUID, None)
+            nexmo_uuid = org.config.get(NEXMO_UUID, None)
             mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
             dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             context['mo_path'] = 'https://%s%s' % (domain, mo_path)
@@ -712,7 +715,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.NexmoAccount, self).derive_initial()
             org = self.get_object()
-            config = org.config_json()
+            config = org.config
             initial['api_key'] = config.get(NEXMO_KEY, '')
             initial['api_secret'] = config.get(NEXMO_SECRET, '')
             initial['disconnect'] = 'false'
@@ -739,7 +742,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             client = org.get_nexmo_client()
             if client:
-                config = org.config_json()
+                config = org.config
                 context['api_key'] = config.get(NEXMO_KEY, '--')
 
             return context
@@ -796,20 +799,18 @@ class OrgCRUDL(SmartCRUDL):
                 auth_id = self.cleaned_data.get('auth_id', None)
                 auth_token = self.cleaned_data.get('auth_token', None)
 
-                try:
-                    client = plivo.RestAPI(auth_id, auth_token)
-                    validation_response = client.get_account()
-                except Exception:  # pragma: needs cover
-                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+                headers = http_headers(extra={'Content-Type': "application/json"})
 
-                if validation_response[0] != 200:
+                response = requests.get("https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token))
+
+                if response.status_code != 200:
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.claim_plivo'
+        success_url = '@channels.types.plivo.claim'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
@@ -822,12 +823,7 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
             self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
 
-            response = self.render_to_response(self.get_context_data(form=form,
-                                               success_url=self.get_success_url(),
-                                               success_script=getattr(self, 'success_script', None)))
-
-            response['Temba-Success'] = self.get_success_url()
-            return response
+            return HttpResponseRedirect(self.get_success_url())
 
     class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
@@ -855,7 +851,7 @@ class OrgCRUDL(SmartCRUDL):
                     smtp_password = self.cleaned_data.get('smtp_password', None)
                     smtp_port = self.cleaned_data.get('smtp_port', None)
 
-                    config = self.instance.config_json()
+                    config = self.instance.config
                     existing_username = config.get(SMTP_USERNAME, '')
                     if not smtp_password and existing_username == smtp_username:
                         smtp_password = config.get(SMTP_PASSWORD, '')
@@ -891,7 +887,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.SmtpServer, self).derive_initial()
             org = self.get_object()
-            config = org.config_json()
+            config = org.config
             initial['smtp_from_email'] = config.get(SMTP_FROM_EMAIL, '')
             initial['smtp_host'] = config.get(SMTP_HOST, '')
             initial['smtp_username'] = config.get(SMTP_USERNAME, '')
@@ -927,7 +923,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             if org.has_smtp_config():
-                config = org.config_json()
+                config = org.config
                 from_email = config.get(SMTP_FROM_EMAIL)
             else:
                 from_email = settings.FLOW_FROM_EMAIL
@@ -1117,7 +1113,7 @@ class OrgCRUDL(SmartCRUDL):
                         field_mapping.append((field_name, check_field))
                         fields.append(field_name)
 
-                    self.fields = OrderedDict(self.fields.items() + field_mapping)
+                    self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                     fields_by_user[user] = fields
                 return fields_by_user
 
@@ -1126,7 +1122,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 for invite in invites:
                     field_name = "%s_%d" % ('remove_invite', invite.pk)
-                    self.fields = OrderedDict(self.fields.items() + [(field_name, forms.BooleanField(required=False))])
+                    self.fields = OrderedDict(list(self.fields.items()) + [(field_name, forms.BooleanField(required=False))])
                     fields_by_invite[invite] = field_name
 
                 return fields_by_invite
@@ -1864,7 +1860,7 @@ class OrgCRUDL(SmartCRUDL):
                     field_mapping.append((field_name, check_field))
                     resthooks.append(dict(resthook=resthook, field=field_name))
 
-                self.fields = OrderedDict(self.fields.items() + field_mapping)
+                self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                 return resthooks
 
             def clean_resthook(self):
@@ -1910,7 +1906,7 @@ class OrgCRUDL(SmartCRUDL):
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class WebhookForm(forms.ModelForm):
-            webhook = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
+            webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
             headers = forms.CharField(required=False)
             mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
             mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
@@ -1920,7 +1916,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
+                fields = ('webhook_url', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
 
             def clean_headers(self):
                 idx = 1
@@ -1964,14 +1960,14 @@ class OrgCRUDL(SmartCRUDL):
             obj.webhook_events = webhook_events
 
             webhook_data = dict()
-            if data['webhook']:
-                webhook_data.update({'url': data['webhook']})
+            if data['webhook_url']:
+                webhook_data.update({'url': data['webhook_url']})
                 webhook_data.update({'method': 'POST'})
 
             if data['headers']:
                 webhook_data.update({'headers': data['headers']})
 
-            obj.webhook = json.dumps(webhook_data)
+            obj.webhook = webhook_data
 
             return obj
 
@@ -2016,7 +2012,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.Chatbase, self).derive_initial()
             org = self.get_object()
-            config = org.config_json()
+            config = org.config
             initial['agent_name'] = config.get(CHATBASE_AGENT_NAME, '')
             initial['api_key'] = config.get(CHATBASE_API_KEY, '')
             initial['version'] = config.get(CHATBASE_VERSION, '')
@@ -2027,7 +2023,7 @@ class OrgCRUDL(SmartCRUDL):
             context = super(OrgCRUDL.Chatbase, self).get_context_data(**kwargs)
             (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
             if chatbase_api_key:
-                config = self.object.config_json()
+                config = self.object.config
                 agent_name = config.get(CHATBASE_AGENT_NAME, None)
                 context['chatbase_agent_name'] = agent_name
 
@@ -2188,7 +2184,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.TransferToAccount, self).get_context_data(**kwargs)
             if self.object.is_connected_to_transferto():
-                config = self.object.config_json()
+                config = self.object.config
                 account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
                 context['transferto_account_login'] = account_login
 
@@ -2196,7 +2192,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super(OrgCRUDL.TransferToAccount, self).derive_initial()
-            config = self.object.config_json()
+            config = self.object.config
             initial['account_login'] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
             initial['airtime_api_token'] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
             initial['disconnect'] = 'false'
@@ -2267,7 +2263,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
-            config = json.loads(self.object.config)
+            config = self.object.config
             initial['account_sid'] = config[ACCOUNT_SID]
             initial['account_token'] = config[ACCOUNT_TOKEN]
             initial['disconnect'] = 'false'

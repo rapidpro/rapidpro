@@ -1,6 +1,5 @@
-from __future__ import unicode_literals, absolute_import
-
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.contrib.auth.models import Group
 from django.test import override_settings
@@ -31,18 +30,18 @@ class TwitterActivityTypeTest(TembaTest):
     @patch('temba.utils.twitter.TembaTwython.register_webhook')
     @patch('twython.Twython.verify_credentials')
     def test_claim(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
-        url = reverse('channels.claim_twitter_activity')
+        url = reverse('channels.types.twitter_activity.claim')
 
         self.login(self.admin)
 
         # check that channel is only available to beta users
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertNotContains(response, 'channels/claim/twitter_activity/')
+        self.assertNotContains(response, '/channels/types/twitter_activity/claim')
 
         Group.objects.get(name="Beta").user_set.add(self.admin)
 
         response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, 'channels/claim/twitter_activity/')
+        self.assertContains(response, '/channels/types/twitter_activity/claim')
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -83,7 +82,7 @@ class TwitterActivityTypeTest(TembaTest):
 
         channel = Channel.objects.get(address='jimmy')
         self.assertEqual(
-            json.loads(channel.config), {
+            channel.config, {
                 'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'env_name': 'beta',
                 'access_token_secret': 'ats', 'callback_domain': channel.callback_domain
             }

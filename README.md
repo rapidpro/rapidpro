@@ -10,6 +10,12 @@ Ensure your changes are always compatible with the latest master release by runn
 docker pull rapidpro/rapidpro:master
 ```
 
+If you are running RapidPro for the first time, please ensure the following variable is set for the rapidpro service:
+```
+- MANAGEPY_MIGRATE=on
+```
+
+It will allow the database to be initialized.
 
 To stand up a development instance, simply run:
 

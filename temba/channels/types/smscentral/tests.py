@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from temba.tests import TembaTest
@@ -10,7 +11,7 @@ class SMSCentralTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_smscentral')
+        url = reverse('channels.types.smscentral.claim')
 
         self.login(self.admin)
 
@@ -38,12 +39,12 @@ class SMSCentralTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('PH', channel.country)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('SC', channel.channel_type)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse('channels.channel_configuration', args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
@@ -66,7 +67,7 @@ class SMSCentralTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual('PH', channel.country)
-        self.assertEqual(post_data['username'], channel.config_json()['username'])
-        self.assertEqual(post_data['password'], channel.config_json()['password'])
+        self.assertEqual(post_data['username'], channel.config['username'])
+        self.assertEqual(post_data['password'], channel.config['password'])
         self.assertEqual('20050', channel.address)
         self.assertEqual('SC', channel.channel_type)
