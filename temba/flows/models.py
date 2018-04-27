@@ -6779,7 +6779,7 @@ class SubflowTest(Test):
         subflow_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
 
         if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
-            return 1, text
+            return 1, self.exit_type
         return 0, None
 
 

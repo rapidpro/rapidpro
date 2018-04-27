@@ -6,6 +6,7 @@ import pytz
 from datetime import datetime
 from mock import patch
 from temba.channels.models import Channel
+from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Label, Msg
 from temba.tests import TembaTest, skip_if_no_flowserver, MockResponse
 from temba.values.models import Value
@@ -131,26 +132,81 @@ class TrialTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
     @skip_if_no_flowserver
-    def test_resume_and_compare(self):
+    def test_resume_with_message(self):
         favorites = self.get_flow('favorites')
 
         run, = favorites.start([], [self.contact])
 
         # capture session state before resumption
-        pre_session = trial.reconstruct_session(run)
+        session_state1 = trial.reconstruct_session(run)
 
-        msg_in = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
-                                     attachments=['image/jpeg:http://example.com/test.jpg'])
+        self.assertEqual(len(session_state1['runs']), 1)
+        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(favorites.uuid))
+        self.assertEqual(session_state1['contact']['uuid'], str(self.contact.uuid))
+        self.assertNotIn('results', session_state1)
+        self.assertNotIn('events', session_state1)
+
+        # and then resume by replying
+        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
         run.refresh_from_db()
 
-        resume_output = trial.resume(self.org, pre_session, msg_in=msg_in)
-        new_session = resume_output.session
+        resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
 
-        self.assertTrue(trial.compare(run, new_session))
+        self.assertEqual(trial.compare_run(run, resume1_output.session), {})
+
+        # capture session state again
+        session_state2 = trial.reconstruct_session(run)
+
+        # and then resume by replying again
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus",
+                                   attachments=['image/jpeg:http://example.com/primus.jpg'])
+        run.refresh_from_db()
+
+        resume2_output = trial.resume(self.org, session_state2, msg_in=msg2)
+
+        self.assertEqual(trial.compare_run(run, resume2_output.session), {})
+
+        # simulate session not containing this run
+        self.assertEqual(set(trial.compare_run(run, {'runs': []}).keys()), {'session'})
 
         # simulate differences in the path, results and events
-        new_session['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
-        new_session['runs'][0]['results']['color']['value'] = 'wrong value'
-        new_session['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
+        session_state2['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
+        session_state2['runs'][0]['results']['color']['value'] = 'wrong value'
+        session_state2['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
 
-        self.assertFalse(trial.compare(run, new_session))
+        self.assertEqual(set(trial.compare_run(run, session_state2).keys()), {'path', 'results', 'events'})
+
+    @skip_if_no_flowserver
+    def test_resume_with_message_in_subflow(self):
+        self.get_flow('subflow')
+        parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
+        child_flow = Flow.objects.get(org=self.org, name='Child Flow')
+
+        # start the parent flow and then trigger the subflow by picking an option
+        parent_flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+
+        # capture session state before resumption
+        session_state1 = trial.reconstruct_session(child_run)
+
+        self.assertEqual(len(session_state1['runs']), 2)
+        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(parent_flow.uuid))
+        self.assertEqual(session_state1['runs'][1]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session_state1['contact']['uuid'], str(self.contact.uuid))
+        self.assertNotIn('results', session_state1)
+        self.assertNotIn('events', session_state1)
+
+        # and then resume by replying
+        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+        child_run.refresh_from_db()
+        parent_run.refresh_from_db()
+
+        # subflow run has completed
+        self.assertIsNotNone(child_run.exited_on)
+
+        resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
+
+        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
+        self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
