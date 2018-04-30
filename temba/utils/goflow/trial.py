@@ -162,7 +162,7 @@ def serialize_run_summary(run):
         'uuid': str(run.uuid),
         'flow': {'uuid': str(run.flow.uuid), 'name': run.flow.name},
         'contact': serialize_contact(run.contact),
-        'status': run.status,
+        'status': 'active',
         'results': run.results,
     }
 

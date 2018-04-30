@@ -6,6 +6,7 @@ import pytz
 from datetime import datetime
 from mock import patch
 from temba.channels.models import Channel
+from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Label, Msg
 from temba.tests import TembaTest, skip_if_no_flowserver, MockResponse
@@ -162,6 +163,7 @@ class TrialTest(TembaTest):
         msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus")
         run.refresh_from_db()
 
+        # now try with the flowserver...
         resume2_output = trial.resume(self.org, session_state2, msg_in=msg2)
 
         self.assertEqual(trial.compare_run(run, resume2_output.session), {})
@@ -195,6 +197,7 @@ class TrialTest(TembaTest):
         self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(parent_flow.uuid))
         self.assertEqual(session_state1['runs'][1]['flow']['uuid'], str(child_flow.uuid))
         self.assertEqual(session_state1['contact']['uuid'], str(self.contact.uuid))
+        self.assertEqual(session_state1['trigger']['type'], 'manual')
         self.assertNotIn('results', session_state1)
         self.assertNotIn('events', session_state1)
 
@@ -207,7 +210,7 @@ class TrialTest(TembaTest):
         self.assertIsNotNone(child_run.exited_on)
         self.assertIsNone(parent_run.exited_on)
 
-        # now try with the flowserver
+        # now try with the flowserver...
         resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
 
         self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
@@ -236,8 +239,49 @@ class TrialTest(TembaTest):
         self.assertIsNotNone(child_run.exited_on)
         self.assertIsNotNone(parent_run.exited_on)
 
-        # now try with the flowserver
+        # now try with the flowserver...
         resume1_output = trial.resume(self.org, session_state1, expired_run=child_run)
 
         self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
         self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
+
+    @skip_if_no_flowserver
+    def test_resume_in_triggered_session(self):
+        parent_flow = self.get_flow('action_packed')
+        child_flow = Flow.objects.get(org=self.org, name='Favorite Color')
+
+        parent_flow.start([], [self.contact], restart_participants=True)
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Trey Anastasio")
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Male")
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+        child_contact = Contact.objects.get(name="Oprah Winfrey")
+
+        self.assertEqual(parent_run.flow, parent_flow)
+        self.assertEqual(parent_run.contact, self.contact)
+        self.assertEqual(child_run.flow, child_flow)
+        self.assertEqual(child_run.contact, child_contact)
+
+        # capture session state before resumption
+        session_state1 = trial.reconstruct_session(child_run)
+
+        # check that the run which triggered the child run isn't part of its session, but is part of the trigger
+        self.assertEqual(len(session_state1['runs']), 1)
+        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session_state1['contact']['uuid'], str(child_contact.uuid))
+        self.assertEqual(session_state1['trigger']['type'], 'flow_action')
+        self.assertNotIn('results', session_state1)
+        self.assertNotIn('events', session_state1)
+
+        # resume child run with a message
+        msg = Msg.create_incoming(self.channel, 'tel:+12065552121', "red")
+        child_run.refresh_from_db()
+
+        # and it should now be complete
+        self.assertIsNotNone(child_run.exited_on)
+
+        # now try with the flowserver...
+        resume1_output = trial.resume(self.org, session_state1, msg_in=msg)
+
+        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
