@@ -67,13 +67,14 @@ class WhatsAppTypeTest(TembaTest):
         with patch('requests.patch') as mock_patch:
             mock_patch.side_effect = [
                 MockResponse(200, '{ "error": false }'),
-                MockResponse(200, '{ "error": false }')
+                MockResponse(200, '{ "error": false }'),
+                MockResponse(200, '{ "error": false }'),
             ]
             WhatsAppType().activate(channel)
-            self.assertEqual(mock_patch.call_args_list[0][1]['json']['settings']['application']['webhooks']['url'],
+            self.assertEqual(mock_patch.call_args_list[0][1]['json']['webhooks']['url'],
                              'https://%s%s' % (channel.org.get_brand_domain(), reverse('courier.wa', args=[channel.uuid, 'receive'])))
-            self.assertEqual(mock_patch.call_args_list[1][1]['json']['allow_unsolicited_add'],
-                             False)
+            self.assertEqual(mock_patch.call_args_list[1][1]['json']['allow_unsolicited_add'], False)
+            self.assertEqual(mock_patch.call_args_list[2][1]['json']['messaging_api_rate_limit'], ["15", "54600", "1000000"])
 
         with patch('requests.patch') as mock_patch:
             mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]
@@ -87,7 +88,20 @@ class WhatsAppTypeTest(TembaTest):
         with patch('requests.patch') as mock_patch:
             mock_patch.side_effect = [
                 MockResponse(200, '{ "error": "false" }'),
-                MockResponse(400, '{ "error": "true" }')
+                MockResponse(400, '{ "error": "true" }'),
+            ]
+
+            try:
+                WhatsAppType().activate(channel)
+                self.fail("Should have thrown error activating channel")
+            except ValidationError:
+                pass
+
+        with patch('requests.patch') as mock_patch:
+            mock_patch.side_effect = [
+                MockResponse(200, '{ "error": "false" }'),
+                MockResponse(200, '{ "error": "false" }'),
+                MockResponse(400, '{ "error": "true" }'),
             ]
 
             try:
