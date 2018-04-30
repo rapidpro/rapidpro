@@ -32,7 +32,7 @@ def resume_and_report(run, session, msg_in=None, expired_child_run=None):  # pra
         logger.error("flowserver exception during trial resumption of run %s: %s" % (run_uuid, six.text_type(e)), exc_info=True)
 
 
-def resume(org, session, msg_in=None, expired_child_run=None):
+def resume(org, session, msg_in=None, expired_run=None):
     """
     Resumes the given waiting session with either a message or an expired run
     """
@@ -48,8 +48,8 @@ def resume(org, session, msg_in=None, expired_child_run=None):
     # only include message if it's a real message
     if msg_in and msg_in.created_on:
         request.add_msg_received(msg_in)
-    if expired_child_run:  # pragma: needs cover
-        request.add_run_expired(expired_child_run)
+    if expired_run:
+        request.add_run_expired(expired_run)
 
     return request.resume(session)
 

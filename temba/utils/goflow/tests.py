@@ -147,7 +147,8 @@ class TrialTest(TembaTest):
         self.assertNotIn('events', session_state1)
 
         # and then resume by replying
-        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
+                                   attachments=['image/jpeg:http://example.com/red.jpg'])
         run.refresh_from_db()
 
         resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
@@ -158,8 +159,7 @@ class TrialTest(TembaTest):
         session_state2 = trial.reconstruct_session(run)
 
         # and then resume by replying again
-        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus",
-                                   attachments=['image/jpeg:http://example.com/primus.jpg'])
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus")
         run.refresh_from_db()
 
         resume2_output = trial.resume(self.org, session_state2, msg_in=msg2)
@@ -205,8 +205,39 @@ class TrialTest(TembaTest):
 
         # subflow run has completed
         self.assertIsNotNone(child_run.exited_on)
+        self.assertIsNone(parent_run.exited_on)
 
+        # now try with the flowserver
         resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
+
+        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
+        self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
+
+    @skip_if_no_flowserver
+    def test_resume_with_expiration_in_subflow(self):
+        self.get_flow('subflow')
+        parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
+
+        # start the parent flow and then trigger the subflow by picking an option
+        parent_flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+
+        # capture session state before resumption
+        session_state1 = trial.reconstruct_session(child_run)
+
+        # and then resume by expiring the child run
+        child_run.expire()
+        child_run.refresh_from_db()
+        parent_run.refresh_from_db()
+
+        # which should end both our runs
+        self.assertIsNotNone(child_run.exited_on)
+        self.assertIsNotNone(parent_run.exited_on)
+
+        # now try with the flowserver
+        resume1_output = trial.resume(self.org, session_state1, expired_run=child_run)
 
         self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
         self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
