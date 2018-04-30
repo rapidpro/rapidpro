@@ -120,7 +120,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
 FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
-STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
+STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), os.path.join(PROJECT_DIR, '../node_modules/@nyaruka/flow-editor/umd'))
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
@@ -511,7 +511,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
         'flows.flow_assets',
-        'msgs.msg_create'
+        'msgs.msg_create',
     ),
     "Alpha": (
     ),

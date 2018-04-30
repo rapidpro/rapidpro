@@ -5,15 +5,17 @@
 -block page-title
   {{object.name}}
 
--block content
-    #flow-editor
-
 -block extra-style
-  -compress css
-    {% lessblock %}
-      :plain
-        @import "flow_editor_next.less";
-    {% endlessblock %}
+  %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor.min.css"}
+  :css
+    #flow-editor {
+      height: 10000px;
+      width: 100%;
+      position: relative;
+    }
+
+-block content
+  #flow-editor
 
 -block extra-script
   {{ block.super }}
