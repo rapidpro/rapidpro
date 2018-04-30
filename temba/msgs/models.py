@@ -36,6 +36,7 @@ from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
+from temba.utils.cache import check_and_mark_in_timerange
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -432,24 +433,15 @@ class Broadcast(models.Model):
             groups = self.groups.all()
 
             # if we are sending to groups and any of them are big, make sure we aren't spamming
-            r = get_redis_connection()
             for group in groups:
                 if group.get_member_count() > 10:
-                    # have we sent this exact message today or yesterday and with this message?
-                    group_key = 'gb_%d' % group.id
-                    today_key = timezone.now().strftime(group_key + "_%Y_%m_%d")
-                    yesterday_key = (timezone.now() - timedelta(hours=24)).strftime(group_key + "_%Y_%m_%d")
+                    bcast_value = '%d_%s' % (group.id, self.text)
 
-                    if r.sismember(today_key, self.text) or r.sismember(yesterday_key, self.text):
+                    # have we sent this exact message today or yesterday and with this message?
+                    if check_and_mark_in_timerange('bcasts', 3, bcast_value):
                         self.status = FAILED
                         self.save(update_fields=['status'])
                         raise Exception("Not sending broadcast %d due to duplicate" % self.id)
-
-                    # add our message to redis so we can track dupes in the future
-                    with r.pipeline() as pipe:
-                        pipe.sadd(today_key, self.text)
-                        pipe.expire(today_key, 3600 * 24)
-                        pipe.execute()
 
             if hasattr(self, '_recipient_cache'):
                 # look to see if previous call to update_recipients left a cached value

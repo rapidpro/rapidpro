@@ -698,7 +698,7 @@ class MsgTest(TembaTest):
         bcast.send()
 
         bcast2 = Broadcast.create(self.org, self.admin, "This is my spam message", recipients=[group])
-        with self.assertRaises(expected_exception=Exception):
+        with self.assertRaises(Exception):
             bcast2.send()
 
     def test_failed(self):
