@@ -2826,11 +2826,10 @@ class ExportContactsTask(BaseExportTask):
 
         if self.search:
             es_search = contact_es_search(self.org, self.search, group).source(include=['id']).using(ES).scan()
-            contacts = mapEStoDB(Contact, es_search)
+            contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
         else:
             contacts = group.contacts.all()
-
-        contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
+            contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
         exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
