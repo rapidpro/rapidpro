@@ -5339,19 +5339,28 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search
-        with self.assertNumQueries(40):
-            self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
-            ])
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact2.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact3.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            with self.assertNumQueries(40):
+                self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                    [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
+                ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(41):
-            self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
-            ])
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            with self.assertNumQueries(41):
+                self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                    [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):

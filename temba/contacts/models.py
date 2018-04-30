@@ -2817,12 +2817,16 @@ class ExportContactsTask(BaseExportTask):
         return fields, scheme_counts
 
     def write_export(self):
+        from .search import contact_es_search
+        from temba.utils.es import ES
+
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts, _ = Contact.search(self.org, self.search, group)
+            es_search = contact_es_search(self.org, self.search, group).source(include=['id']).using(ES).scan()
+            contacts = mapEStoDB(Contact, es_search)
         else:
             contacts = group.contacts.all()
 
