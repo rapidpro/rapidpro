@@ -101,14 +101,14 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
         logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), six.text_type(e)), exc_info=True)
 
 
-def report_success(trial):
+def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
     print("Flowserver trial resume for run %s succeeded" % str(trial.run.uuid))
 
 
-def report_failure(trial):
+def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
@@ -166,6 +166,7 @@ def reconstruct_session(run):
         'environment': serialize_environment(run.org),
         'flow': {'uuid': str(session_root_run.flow.uuid), 'name': session_root_run.flow.name},
         'triggered_on': session_root_run.created_on.isoformat(),
+        'params': session_root_run.fields
     }
 
     if trigger_run:
@@ -173,9 +174,6 @@ def reconstruct_session(run):
         trigger['run'] = serialize_run_summary(trigger_run)
     else:
         trigger['type'] = 'manual'
-
-    if session_root_run.fields:
-        trigger['params'] = session_root_run.fields
 
     runs = [serialize_run(r) for r in session_runs]
     runs[-1]['status'] = 'waiting'

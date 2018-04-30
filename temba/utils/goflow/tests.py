@@ -135,6 +135,8 @@ class TrialTest(TembaTest):
 
     def test_is_flow_suitable(self):
         self.assertTrue(trial.is_flow_suitable(self.get_flow('favorites')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('airtime')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('call_me_maybe')))
         self.assertFalse(trial.is_flow_suitable(self.get_flow('action_packed')))
 
     @skip_if_no_flowserver
@@ -313,3 +315,38 @@ class TrialTest(TembaTest):
 
         self.assertEqual(mock_report_success.call_count, 1)
         self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    def test_trial_fault_tolerance(self, mock_report_failure):
+        favorites = self.get_flow('favorites')
+
+        # an exception in maybe_start_resume shouldn't prevent normal flow execution
+        with patch('temba.utils.goflow.trial.reconstruct_session') as mock_reconstruct_session:
+            mock_reconstruct_session.side_effect = ValueError("BOOM")
+
+            run, = favorites.start([], [self.contact])
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # an exception in end_resume also shouldn't prevent normal flow execution
+        with patch('temba.utils.goflow.trial.resume') as mock_resume:
+            mock_resume.side_effect = ValueError("BOOM")
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # detected differences should be reported but shouldn't effect normal flow execution
+        with patch('temba.utils.goflow.trial.compare_run') as mock_compare_run:
+            mock_compare_run.return_value = {'path': ['a', 'b']}
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+            self.assertEqual(mock_report_failure.call_count, 1)
