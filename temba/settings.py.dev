@@ -17,6 +17,11 @@ from .settings_common import *  # noqa
 
 DEBUG_TOOLBAR = False
 
+DATABASES = {
+    'default': DATABASES['direct'],
+    'direct': DATABASES['direct'],
+}
+
 # -----------------------------------------------------------------------------------
 # Add a custom brand for development
 # -----------------------------------------------------------------------------------

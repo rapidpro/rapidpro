@@ -324,6 +324,10 @@ class Broadcast(models.Model):
         return self.schedule and self.schedule.has_pending_fire()
 
     def fire(self):
+        """
+        Fires a scheduled broadcast, this creates a new broadcast as self here is a placeholder for
+        the broadcast that is scheduled (as opposed to the real broadcast that is being sent)
+        """
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
         broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
                                      media=self.media, base_language=self.base_language,
@@ -424,12 +428,35 @@ class Broadcast(models.Model):
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
             urns, contacts = partial_recipients
-        elif hasattr(self, '_recipient_cache'):
-            # look to see if previous call to update_recipients left a cached value
-            urns, contacts = self._recipient_cache
         else:
-            # otherwise fetch everything and calculate
-            urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), self.groups.all())
+            groups = self.groups.all()
+
+            # if we are sending to groups and any of them are big, make sure we aren't spamming
+            r = get_redis_connection()
+            for group in groups:
+                if group.get_member_count() > 10:
+                    # have we sent this exact message today or yesterday and with this message?
+                    group_key = 'gb_%d' % group.id
+                    today_key = timezone.now().strftime(group_key + "_%Y_%m_%d")
+                    yesterday_key = (timezone.now() - timedelta(hours=24)).strftime(group_key + "_%Y_%m_%d")
+
+                    if r.sismember(today_key, self.text) or r.sismember(yesterday_key, self.text):
+                        self.status = FAILED
+                        self.save(update_fields=['status'])
+                        raise Exception("Not sending broadcast %d due to duplicate" % self.id)
+
+                    # add our message to redis so we can track dupes in the future
+                    with r.pipeline() as pipe:
+                        pipe.sadd(today_key, self.text)
+                        pipe.expire(today_key, 3600 * 24)
+                        pipe.execute()
+
+            if hasattr(self, '_recipient_cache'):
+                # look to see if previous call to update_recipients left a cached value
+                urns, contacts = self._recipient_cache
+            else:
+                # otherwise fetch everything and calculate
+                urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), groups)
 
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
