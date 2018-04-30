@@ -1,3 +1,10 @@
+v3.0.376
+----------
+ * remove celery super auto scaler since we don't use it anywhere
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add admin command to help audit ES and DB discrepencies
+
 v3.0.375
 ----------
  * update whatsapp for new API
