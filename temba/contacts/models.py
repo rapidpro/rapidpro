@@ -2605,9 +2605,9 @@ class ContactGroup(TembaModel):
             for changed_contact in to_remove:
                 changed_contact.handle_update(group=self)
 
-                # update group updated_at
-                self.modified_on = datetime.datetime.now()
-                self.save(update_fields=('modified_on',))
+            # update group updated_at
+            self.modified_on = datetime.datetime.now()
+            self.save(update_fields=('modified_on',))
 
         self.status = ContactGroup.STATUS_READY
         self.save(update_fields=('status', 'modified_on'))
@@ -2662,6 +2662,10 @@ class ContactGroup(TembaModel):
 
             if should_add is True:
                 contact_ids.add(contact.id)
+
+        db_contacts_count = db_contacts.count()
+        if db_contacts_count > 1000:  # pragma: no cover
+            logger.error('Dynamic group manually evaluating more contacts than expected %s > 1000', db_contacts_count)
 
         return contact_ids
 
