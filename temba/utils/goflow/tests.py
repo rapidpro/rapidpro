@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytz
 
 from datetime import datetime
+from django.test.utils import override_settings
 from mock import patch
 from temba.channels.models import Channel
 from temba.contacts.models import Contact
@@ -133,53 +134,73 @@ class TrialTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
     @skip_if_no_flowserver
-    def test_resume_with_message(self):
+    @override_settings(FLOW_SERVER_TRIAL='on')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_trial_throttling(self, mock_report_success, mock_report_failure):
+        favorites = self.get_flow('favorites')
+
+        # first resume will be trialled in flowserver
+        favorites.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
+
+        # second won't because its too soon
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_message(self, mock_report_success, mock_report_failure):
         favorites = self.get_flow('favorites')
 
         run, = favorites.start([], [self.contact])
 
-        # capture session state before resumption
-        session_state1 = trial.reconstruct_session(run)
-
-        self.assertEqual(len(session_state1['runs']), 1)
-        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(favorites.uuid))
-        self.assertEqual(session_state1['contact']['uuid'], str(self.contact.uuid))
-        self.assertNotIn('results', session_state1)
-        self.assertNotIn('events', session_state1)
+        # check the reconstructed session for this run
+        session = trial.reconstruct_session(run)
+        self.assertEqual(len(session['runs']), 1)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(favorites.uuid))
+        self.assertEqual(session['contact']['uuid'], str(self.contact.uuid))
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
 
         # and then resume by replying
-        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
-                                   attachments=['image/jpeg:http://example.com/red.jpg'])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
+                            attachments=['image/jpeg:http://example.com/red.jpg'])
         run.refresh_from_db()
 
-        resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
-
-        self.assertEqual(trial.compare_run(run, resume1_output.session), {})
-
-        # capture session state again
-        session_state2 = trial.reconstruct_session(run)
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
 
         # and then resume by replying again
-        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus")
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus")
         run.refresh_from_db()
 
-        # now try with the flowserver...
-        resume2_output = trial.resume(self.org, session_state2, msg_in=msg2)
-
-        self.assertEqual(trial.compare_run(run, resume2_output.session), {})
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
 
         # simulate session not containing this run
         self.assertEqual(set(trial.compare_run(run, {'runs': []}).keys()), {'session'})
 
         # simulate differences in the path, results and events
-        session_state2['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
-        session_state2['runs'][0]['results']['color']['value'] = 'wrong value'
-        session_state2['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
+        session = trial.reconstruct_session(run)
+        session['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
+        session['runs'][0]['results']['color']['value'] = 'wrong value'
+        session['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
 
-        self.assertEqual(set(trial.compare_run(run, session_state2).keys()), {'path', 'results', 'events'})
+        self.assertEqual(set(trial.compare_run(run, session).keys()), {'path', 'results', 'events'})
 
     @skip_if_no_flowserver
-    def test_resume_with_message_in_subflow(self):
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_message_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow('subflow')
         parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
         child_flow = Flow.objects.get(org=self.org, name='Child Flow')
@@ -188,21 +209,23 @@ class TrialTest(TembaTest):
         parent_flow.start([], [self.contact])
         Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
 
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
         parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
 
-        # capture session state before resumption
-        session_state1 = trial.reconstruct_session(child_run)
-
-        self.assertEqual(len(session_state1['runs']), 2)
-        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(parent_flow.uuid))
-        self.assertEqual(session_state1['runs'][1]['flow']['uuid'], str(child_flow.uuid))
-        self.assertEqual(session_state1['contact']['uuid'], str(self.contact.uuid))
-        self.assertEqual(session_state1['trigger']['type'], 'manual')
-        self.assertNotIn('results', session_state1)
-        self.assertNotIn('events', session_state1)
+        # check the reconstructed session for this run
+        session = trial.reconstruct_session(child_run)
+        self.assertEqual(len(session['runs']), 2)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(parent_flow.uuid))
+        self.assertEqual(session['runs'][1]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session['contact']['uuid'], str(self.contact.uuid))
+        self.assertEqual(session['trigger']['type'], 'manual')
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
 
         # and then resume by replying
-        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
         child_run.refresh_from_db()
         parent_run.refresh_from_db()
 
@@ -210,14 +233,14 @@ class TrialTest(TembaTest):
         self.assertIsNotNone(child_run.exited_on)
         self.assertIsNone(parent_run.exited_on)
 
-        # now try with the flowserver...
-        resume1_output = trial.resume(self.org, session_state1, msg_in=msg1)
-
-        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
-        self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
 
     @skip_if_no_flowserver
-    def test_resume_with_expiration_in_subflow(self):
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_expiration_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow('subflow')
         parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
 
@@ -227,10 +250,7 @@ class TrialTest(TembaTest):
 
         parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
 
-        # capture session state before resumption
-        session_state1 = trial.reconstruct_session(child_run)
-
-        # and then resume by expiring the child run
+        # resume by expiring the child run
         child_run.expire()
         child_run.refresh_from_db()
         parent_run.refresh_from_db()
@@ -239,14 +259,13 @@ class TrialTest(TembaTest):
         self.assertIsNotNone(child_run.exited_on)
         self.assertIsNotNone(parent_run.exited_on)
 
-        # now try with the flowserver...
-        resume1_output = trial.resume(self.org, session_state1, expired_run=child_run)
-
-        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
-        self.assertEqual(trial.compare_run(parent_run, resume1_output.session), {})
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
 
     @skip_if_no_flowserver
-    def test_resume_in_triggered_session(self):
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_in_triggered_session(self, mock_report_success, mock_report_failure):
         parent_flow = self.get_flow('action_packed')
         child_flow = Flow.objects.get(org=self.org, name='Favorite Color')
 
@@ -263,25 +282,22 @@ class TrialTest(TembaTest):
         self.assertEqual(child_run.flow, child_flow)
         self.assertEqual(child_run.contact, child_contact)
 
-        # capture session state before resumption
-        session_state1 = trial.reconstruct_session(child_run)
-
         # check that the run which triggered the child run isn't part of its session, but is part of the trigger
-        self.assertEqual(len(session_state1['runs']), 1)
-        self.assertEqual(session_state1['runs'][0]['flow']['uuid'], str(child_flow.uuid))
-        self.assertEqual(session_state1['contact']['uuid'], str(child_contact.uuid))
-        self.assertEqual(session_state1['trigger']['type'], 'flow_action')
-        self.assertNotIn('results', session_state1)
-        self.assertNotIn('events', session_state1)
+        session = trial.reconstruct_session(child_run)
+        self.assertEqual(len(session['runs']), 1)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session['contact']['uuid'], str(child_contact.uuid))
+        self.assertEqual(session['trigger']['type'], 'flow_action')
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
 
-        # resume child run with a message
-        msg = Msg.create_incoming(self.channel, 'tel:+12065552121', "red")
-        child_run.refresh_from_db()
+        with override_settings(FLOW_SERVER_TRIAL='always'):
+            # resume child run with a message
+            Msg.create_incoming(self.channel, 'tel:+12065552121', "red")
+            child_run.refresh_from_db()
 
         # and it should now be complete
         self.assertIsNotNone(child_run.exited_on)
 
-        # now try with the flowserver...
-        resume1_output = trial.resume(self.org, session_state1, msg_in=msg)
-
-        self.assertEqual(trial.compare_run(child_run, resume1_output.session), {})
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)

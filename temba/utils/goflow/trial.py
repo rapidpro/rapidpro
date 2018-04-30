@@ -12,6 +12,7 @@ import six
 import time
 
 from django.conf import settings
+from django_redis import get_redis_connection
 from raven.contrib.django.raven_compat.models import client as raven_client
 from .client import get_client, Events
 from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
@@ -19,20 +20,106 @@ from .serialize import serialize_contact, serialize_environment, serialize_chann
 logger = logging.getLogger(__name__)
 
 
-def resume_and_report(run, session, msg_in=None, expired_child_run=None):  # pragma: no cover
-    try:
-        resume_output = resume(run.org, session, msg_in, expired_child_run)
+TRIAL_LOCK = 'flowserver_trial'
+TRIAL_PERIOD = 5 * 60  # only perform a trial every 5 minutes
 
-        differences = compare_run(run, resume_output)
-        if differences:
-            raven_client.captureMessage("differences detected on run #%d" % run.id, extra=differences)
+
+class ResumeTrial(object):
+    """
+    A trial of resuming a run in the flowserver
+    """
+    def __init__(self, run):
+        self.run = run
+        self.session_before = reconstruct_session(run)
+        self.session_after = None
+        self.differences = None
+
+
+def is_flow_suitable(flow):
+    """
+    Checks whether the given flow can be trialled in the flowserver
+    """
+    from temba.flows.models import WebhookAction, TriggerFlowAction, StartFlowAction, RuleSet, Flow
+
+    if flow.flow_type not in (Flow.FLOW, Flow.MESSAGE):
+        return False
+
+    for action_set in flow.action_sets.all():
+        for action in action_set.get_actions():
+            if action.TYPE in (WebhookAction.TYPE, TriggerFlowAction.TYPE, StartFlowAction.TYPE):
+                return False
+
+    for rule_set in flow.rule_sets.all():
+        if rule_set.ruleset_type in (RuleSet.TYPE_AIRTIME, RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK, RuleSet.TYPE_SUBFLOW):
+            return False
+
+    return True
+
+
+def maybe_start_resume(run):
+    """
+    Either starts a new trial resume or returns nothing
+    """
+    if settings.FLOW_SERVER_TRIAL == 'off':
+        return None
+    elif settings.FLOW_SERVER_TRIAL == 'on':
+        if not is_flow_suitable(run.flow):
+            return None
+
+        # very basic throttling
+        r = get_redis_connection()
+        if not r.set(TRIAL_LOCK, 'x', TRIAL_PERIOD, nx=True):
+            return None
+
+    elif settings.FLOW_SERVER_TRIAL == 'always':
+        pass
+
+    try:
+        print("Starting flowserver trial resume for run %s" % str(run.uuid))
+        return ResumeTrial(run)
 
     except Exception as e:
-        run_uuid = session['runs'][-1]['uuid']
-        logger.error("flowserver exception during trial resumption of run %s: %s" % (run_uuid, six.text_type(e)), exc_info=True)
+        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), six.text_type(e)), exc_info=True)
+        return None
 
 
-def resume(org, session, msg_in=None, expired_run=None):
+def end_resume(trial, msg_in=None, expired_child_run=None):
+    """
+    Ends a trial resume by performing the resumption in the flowserver and comparing the differences
+    """
+    try:
+        trial.session_after = resume(trial.run.org, trial.session_before, msg_in, expired_child_run)
+        trial.differences = compare_run(trial.run, trial.session_after)
+
+        if trial.differences:
+            report_failure(trial)
+        else:
+            report_success(trial)
+
+    except Exception as e:
+        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), six.text_type(e)), exc_info=True)
+
+
+def report_success(trial):
+    """
+    Reports a trial success... essentially a noop but useful for mocking in tests
+    """
+    print("Flowserver trial resume for run %s succeeded" % str(trial.run.uuid))
+
+
+def report_failure(trial):
+    """
+    Reports a trial failure to sentry
+    """
+    print("Flowserver trial resume for run %s failed" % str(trial['run'].uuid))
+
+    raven_client.captureMessage("trial resume in flowserver produced different output", extra={
+        'run_id': trial.run.id,
+        'differences': trial.differences
+    })
+
+
+def resume(org, session, msg_in=None, expired_child_run=None):
     """
     Resumes the given waiting session with either a message or an expired run
     """
@@ -48,10 +135,10 @@ def resume(org, session, msg_in=None, expired_run=None):
     # only include message if it's a real message
     if msg_in and msg_in.created_on:
         request.add_msg_received(msg_in)
-    if expired_run:
-        request.add_run_expired(expired_run)
+    if expired_child_run:
+        request.add_run_expired(expired_child_run)
 
-    return request.resume(session)
+    return request.resume(session).session
 
 
 def reconstruct_session(run):
@@ -77,7 +164,6 @@ def reconstruct_session(run):
         'contact': serialize_contact(run.contact),
         'environment': serialize_environment(run.org),
         'flow': {'uuid': str(session_root_run.flow.uuid), 'name': session_root_run.flow.name},
-        'params': session_root_run.fields,
         'triggered_on': session_root_run.created_on.isoformat(),
     }
 
@@ -87,10 +173,13 @@ def reconstruct_session(run):
     else:
         trigger['type'] = 'manual'
 
+    if session_root_run.fields:
+        trigger['params'] = session_root_run.fields
+
     runs = [serialize_run(r) for r in session_runs]
     runs[-1]['status'] = 'waiting'
 
-    return {
+    session = {
         'contact': serialize_contact(run.contact),
         'environment': serialize_environment(run.org),
         'runs': runs,
@@ -101,6 +190,9 @@ def reconstruct_session(run):
             'type': 'msg'
         }
     }
+
+    # ensure that we are a deep copy - i.e. subsequent changes to the run won't affect this snapshot of session state
+    return json.loads(json.dumps(session))
 
 
 def serialize_run(run):

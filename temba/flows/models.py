@@ -49,6 +49,7 @@ from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
+from temba.utils.goflow import trial
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
@@ -811,7 +812,7 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False,
+                        triggered_start=False, resume_parent_run=False, expired_child_run=None,
                         resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
         if started_flows is None:
@@ -834,11 +835,19 @@ class Flow(TembaModel):
                 Msg.mark_handled(msg)
                 return True, []
 
+            flowserver_trial = trial.maybe_start_resume(step.run)
+
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
                                                       continue_parent=continue_parent)
+
+            if flowserver_trial:
+                if msg and msg.id:
+                    trial.end_resume(flowserver_trial, msg_in=msg)
+                elif expired_child_run:
+                    trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
 
             if handled:
                 return True, msgs
@@ -3463,9 +3472,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     msg.org = run.org
                     msg.contact = run.contact
 
+                expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+
                 # finally, trigger our parent flow
                 (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
+                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
+                                                       expired_child_run=expired_child_run)
 
         return msgs
 
