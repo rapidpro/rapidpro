@@ -54,13 +54,8 @@
                   "name": "Trey Anastasio"
                 }
               ],
-              "groups": [
-                {
-                  "id": group_id, 
-                  "name": "Phans"
-                }
-              ],
-              "variables": [], 
+              "groups": [],
+              "variables": [],
               "msg": {
                 "base": "You're phantastic"
               }, 

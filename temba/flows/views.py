@@ -46,8 +46,8 @@ from temba.utils.expressions import get_function_listing
 from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
-from .models import FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
+from .models import Action, FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
+from .models import FlowException, FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 
 logger = logging.getLogger(__name__)
 
@@ -394,6 +394,25 @@ class FlowCRUDL(SmartCRUDL):
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
         success_message = ''
+
+        def pre_process(self, request, *args, **kwargs):
+
+            try:
+                flow = self.get_object()
+
+                # make sure actions can be parsed before allowing a copy
+                flow_json = flow.as_json()
+                for actionset in flow_json.get(Flow.ACTION_SETS):
+                    for action in Action.from_json_array(flow.org, actionset.get(Flow.ACTIONS)):
+                        # this can blow up in half-supported cases
+                        action.as_json()
+
+            except FlowException:
+                messages.error(self.request, _("Sorry, your flow could not be copied. Please try again"
+                                               " or contact support if the problem persists."))
+                return HttpResponseRedirect(reverse('flows.flow_editor', args=[flow.uuid]))
+
+            return super(FlowCRUDL.Copy, self).pre_process(request, *args, **kwargs)
 
         def form_valid(self, form):
             # copy our current object

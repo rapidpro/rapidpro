@@ -874,7 +874,7 @@ class APITest(TembaTest):
             self.assertEqual(201, response.status_code)
 
             with patch('temba.flows.models.RuleSet.find_matching_rule') as mock_find_matching_rule:
-                mock_find_matching_rule.return_value = None, None
+                mock_find_matching_rule.return_value = None, None, None
 
                 with self.assertRaises(ValueError):
                     self.postJSON(url, data)

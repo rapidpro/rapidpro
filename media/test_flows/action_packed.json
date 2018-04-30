@@ -247,7 +247,13 @@
               "uuid": "38b07089-ab02-48a7-9065-ec2d8f02104f"
             }, 
             {
-              "uuid": "0b387b74-cf44-461d-9970-054c5892eecf", 
+              "uuid": "0b387b74-cf44-461d-9970-054c5892eecf",
+              "groups": [
+                {
+                  "name": "Dog Facts",
+                  "uuid": "abcd1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                }
+              ],
               "contacts": [
                 {
                   "urns": [
@@ -265,7 +271,6 @@
                 "name": "Favorite Color", 
                 "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
               }, 
-              "groups": [], 
               "type": "trigger-flow"
             }
           ]
@@ -278,22 +283,26 @@
           "destination": "10d41071-dd84-42a5-b579-430c52774d1f", 
           "actions": [
             {
-              "uuid": "4c729279-b30f-471d-8995-cd1667117194", 
-              "contacts": [], 
-              "media": {}, 
+              "uuid": "4c729279-b30f-471d-8995-cd1667117194",
+              "contacts": [{
+                  "urns": [
+                    {
+                      "priority": 50,
+                      "path": "+12065552121",
+                      "scheme": "tel"
+                    }
+                  ],
+                  "name": "Oprah Winfrey"
+                }],
+              "media": {},
               "variables": [{"id": "+12065551212"}],
-              "groups": [
-                {
-                  "name": "Females", 
-                  "uuid": "f8f2ce18-b585-4969-8e58-237c1aa26d88"
-                }
-              ], 
+              "groups": [],
               "msg": {
-                "spa": "Hola chicas!", 
-                "eng": "Hey ladies."
-              }, 
+                "spa": "Hola Opraho!",
+                "eng": "Hey Oprah!"
+              },
               "type": "send"
-            }, 
+            },
             {
               "type": "del_group", 
               "uuid": "b4c7c2c7-987d-47e2-8b6c-fd30ef3196c0", 

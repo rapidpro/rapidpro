@@ -1,3 +1,21 @@
+v3.0.375
+----------
+ * update whatsapp for new API
+ * new index on contacts_contact.fields optimized for space
+
+v3.0.374
+----------
+ * allow reading, just not writing of sends with groups
+ * remove old seaching from contact views
+
+v3.0.373
+----------
+ * optimize group views
+ * don't allow sends to groups to be imported or copied
+ * remove normal junebug, keep only junebug ussd
+ * fix isset/~isset, sort by 'modified_on_mu' in ES
+ * use ES to search for contacts
+
 v3.0.372
 ----------
  * remap sms and status Twilio urls, log people still calling old ones

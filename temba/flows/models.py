@@ -977,12 +977,13 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-        msgs = []
+    def handle_ruleset(cls, ruleset, step, run, msg_in, started_flows, resume_parent_run=False, resume_after_timeout=False):
+        msgs_out = []
+        result_input = six.text_type(msg_in)
 
         if ruleset.is_ussd() and run.connection_interrupted:
-            rule, value = ruleset.find_interrupt_rule(step, run, msg)
-            if not rule:
+            result_rule, result_value = ruleset.find_interrupt_rule(step, run, msg_in)
+            if not result_rule:
                 run.set_interrupted(final_step=step)
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True)
         else:
@@ -991,14 +992,14 @@ class Flow(TembaModel):
                     flow_uuid = ruleset.config.get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
                     flow.org = run.org
-                    message_context = run.flow.build_expressions_context(run.contact, msg, run=run)
+                    message_context = run.flow.build_expressions_context(run.contact, msg_in, run=run)
 
                     # our extra will be the current flow variables
                     extra = message_context.get('extra', {})
                     extra['flow'] = message_context.get('flow', {})
 
-                    if msg.id:
-                        run.add_messages([msg], step=step)
+                    if msg_in.id:
+                        run.add_messages([msg_in], step=step)
                         run.update_expiration(timezone.now())
 
                     if flow:
@@ -1008,7 +1009,7 @@ class Flow(TembaModel):
 
                         if child_runs:
                             child_run = child_runs[0]
-                            msgs += child_run.start_msgs
+                            msgs_out += child_run.start_msgs
                             continue_parent = getattr(child_run, 'continue_parent', False)
                         else:  # pragma: no cover
                             continue_parent = False
@@ -1018,48 +1019,48 @@ class Flow(TembaModel):
                         if continue_parent and run.is_active:
                             started_flows.remove(flow.id)
                         else:
-                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
             # find a matching rule
-            rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
+            result_rule, result_value, result_input = ruleset.find_matching_rule(step, run, msg_in, resume_after_timeout=resume_after_timeout)
 
         flow = ruleset.flow
 
         # add the message to our step
-        if msg.id:
-            run.add_messages([msg], step=step)
+        if msg_in.id:
+            run.add_messages([msg_in], step=step)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.attachments:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
             # store the media path as the value
-            value = msg.attachments[0].split(':', 1)[1]
+            result_value = msg_in.attachments[0].split(':', 1)[1]
 
-        step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value, six.text_type(msg))
+        step.save_rule_match(result_rule, result_value)
+        ruleset.save_run_value(run, result_rule, result_value, result_input)
 
         # output the new value if in the simulator
         if run.contact.is_test:
             if run.connection_interrupted:  # pragma: no cover
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
-                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
+                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (result_value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
-        if not rule.destination:
+        if not result_rule.destination:
             if run.connection_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
             else:
                 run.set_completed(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+                return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
-        destination = Flow.get_node(flow, rule.destination, rule.destination_type)
+        destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=rule.uuid, previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=result_rule.uuid, previous_step=step)
 
-        return dict(handled=True, destination=destination, step=step, msgs=msgs)
+        return dict(handled=True, destination=destination, step=step, msgs=msgs_out)
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
@@ -3849,7 +3850,7 @@ class FlowStep(models.Model):
                 if not rule:
                     # the user updated the rules try to match the new rules
                     msg = Msg(org=run.org, contact=run.contact, text=json_obj['rule']['text'], id=0)
-                    rule, value = ruleset.find_matching_rule(step, run, msg)
+                    rule, value, result_input = ruleset.find_matching_rule(step, run, msg)
 
                     if not rule:
                         raise ValueError("No such rule with UUID %s" % rule_uuid)
@@ -4103,10 +4104,11 @@ class RuleSet(models.Model):
                 if isinstance(rule.test, TimeoutTest):
                     (result, value) = rule.matches(run, msg, context, orig_text)
                     if result > 0:
-                        return rule, value
+                        return rule, value, six.text_type(msg)
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
             header = {}
+            requests_made = []
 
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
@@ -4163,6 +4165,10 @@ class RuleSet(models.Model):
                 if url is None:
                     status_code = 200
                     body = _("No subscribers to this event")
+                else:
+                    requests_made.append('%s %s' % (action, value))
+
+            result_input = '\n'.join(requests_made)
 
             # default to a status code of 418 if we made no calls
             if not status_code:  # pragma: needs cover
@@ -4172,7 +4178,7 @@ class RuleSet(models.Model):
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(status_code))
                 if result > 0:
-                    return rule, body
+                    return rule, body, result_input
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -4214,12 +4220,12 @@ class RuleSet(models.Model):
                     (result, value) = rule.matches(run, msg, context, text)
                     if result:
                         # treat category as the base category
-                        return rule, value
+                        return rule, value, six.text_type(msg)
             finally:
                 if msg:
                     msg.text = orig_text
 
-        return None, None  # pragma: no cover
+        return None, None, None  # pragma: no cover
 
     def find_interrupt_rule(self, step, run, msg):
         rules = self.get_rules()
@@ -6460,6 +6466,10 @@ class SendAction(VariableContactAction):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
+
+        if group_ids:
+            raise FlowException('SendAction no longer allows sending to groups')
+
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg,
                     contacts=contact_ids, groups=group_ids, variables=variables,
                     media=self.media)
