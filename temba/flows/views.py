@@ -793,7 +793,7 @@ class FlowCRUDL(SmartCRUDL):
             return self.object.name
 
         def get_template_names(self):
-            return "flows/flow_editor.haml"
+            return "flows/flow_editor_next.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
@@ -853,6 +853,15 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_('Delete'), js_class='delete-flow', href="#"))
 
             return links
+
+    class EditorNext(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
+        def derive_title(self):
+            return self.object.name
+
+        def get_template_names(self):
+            return "flows/flow_editor_next.haml"
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
