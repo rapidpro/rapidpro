@@ -223,8 +223,12 @@ class ContactGroupTest(TembaTest):
 
         # create a dynamic group using a query
         mock_es_data = [
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+            }}
         ]
         with ESMockWithScroll(data=mock_es_data):
             group = ContactGroup.create_dynamic(
@@ -239,7 +243,9 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}]
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+        }}]
         with ESMockWithScroll(data=mock_es_data):
             group.update_query('age > 18')
 
@@ -552,7 +558,9 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}]
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+        }}]
         with ESMockWithScroll(data=mock_es_data):
             self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
 
@@ -625,7 +633,9 @@ class ContactGroupCRUDLTest(TembaTest):
         )
 
         # create a dynamic group using a query
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}]
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+        }}]
         with ESMockWithScroll(data=mock_es_data):
             response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
 
@@ -1076,15 +1086,25 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
 
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+        }}]
         with ESMockWithScroll(data=mock_es_data):
             has_twitter = self.create_group("Has twitter", query='twitter != ""')
 
         mock_es_data = [
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}},
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.billy.id}},
-            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.voldemort.id}}
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.billy.id, 'modified_on': self.billy.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.voldemort.id, 'modified_on': self.voldemort.modified_on.isoformat()
+            }}
         ]
         with ESMockWithScroll(data=mock_es_data):
             no_gender = self.create_group("No gender", query='gender is ""')
@@ -1093,7 +1113,9 @@ class ContactTest(TembaTest):
             males = self.create_group("Male", query='gender is M or gender is Male')
             youth = self.create_group("Male", query='age > 18 or age < 30')
 
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+        }}]
         with ESMockWithScroll(data=mock_es_data):
             joes = self.create_group("Joes", query='twitter = "blow80"')
 
@@ -2236,11 +2258,13 @@ class ContactTest(TembaTest):
             ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
             ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
             ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
-            ContactGroup.create_dynamic(self.org, self.admin, 'Age field is invalid', 'age < "age"')
             ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
+            with self.assertRaises(SearchException):
+                ContactGroup.create_dynamic(self.org, self.admin, 'Age field is invalid', 'age < "age"')
+
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(35):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         six.assertCountEqual(
@@ -4901,13 +4925,19 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}}]
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }}]
             with ESMockWithScroll(data=mock_es_data):
                 joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
 
             mock_es_data = [
-                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+                }},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+                }}
             ]
             with ESMockWithScroll(data=mock_es_data):
                 mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
@@ -4929,13 +4959,19 @@ class ContactTest(TembaTest):
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
             mock_es_data = [
-                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.joe.id}},
-                {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.frank.id}}
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+                }},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+                }}
             ]
             with ESMockWithScroll(data=mock_es_data):
                 men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
 
-            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': self.mary.id}}]
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+            }}]
             with ESMockWithScroll(data=mock_es_data):
                 women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 

@@ -855,7 +855,11 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {'id': anna.id}}]
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': anna.id, 'modified_on': anna.modified_on.isoformat()
+            }}
+        ]
         with ESMockWithScroll(data=mock_es_data):
             women.update_query('gender=F')
         self.assertEqual(set(women.contacts.all()), {anna})
