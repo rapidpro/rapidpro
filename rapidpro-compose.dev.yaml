@@ -1,7 +1,9 @@
 version: '2'
 services:
   rapidpro:
-    image: rapidpro/rapidpro:v3.0.334
+    build:
+      context: .
+    image: istresearch/rapidpro
     depends_on:
       - redis
       - postgresql
@@ -21,7 +23,7 @@ services:
       - MANAGEPY_MIGRATE=off
     volumes:
       - ./static/brands/pulse:/rapidpro/static/brands/pulse
-      - ./pulse_settings.py:/rapidpro/temba/settings.py
+      - ./pulse_settings.dev.py:/rapidpro/temba/settings.py
   celery:
     image: rapidpro/rapidpro:v3.0.334
     depends_on:
@@ -36,7 +38,7 @@ services:
     command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,msgs,flows,handler"]
     volumes:
       - ./static/brands/pulse:/rapidpro/static/brands/pulse
-      - ./pulse_settings.py:/rapidpro/temba/settings.py
+      - ./pulse_settings.dev.py:/rapidpro/temba/settings.py
   redis:
     image: redis:alpine
   postgresql:
