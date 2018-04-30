@@ -49,6 +49,7 @@ from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
 from .models import JSONAsTextField
+from .locks import NonBlockingLock, LockNotAcquiredException
 
 
 class InitTest(TembaTest):
@@ -1863,3 +1864,27 @@ class MatchersTest(TembaTest):
         self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
+
+
+class NonBlockingLockTest(TestCase):
+
+    def test_nonblockinglock(self):
+        with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as locked:
+            # we are able to get the initial lock
+            self.assertTrue(locked)
+
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as not_locked:
+                # but we are not able to get it the second time
+                self.assertFalse(not_locked)
+                # we need to terminate the execution
+                raise LockNotAcquiredException
+
+        def raise_exception():
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as locked:
+                if not locked:
+                    raise LockNotAcquiredException
+
+                raise Exception
+
+        # any other exceptions are handled as usual
+        self.assertRaises(Exception, raise_exception)

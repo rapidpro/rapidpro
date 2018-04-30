@@ -22,6 +22,8 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
+
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
@@ -37,6 +39,7 @@ from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.utils.dates import str_to_datetime
 from temba.values.models import Value
+from temba.utils.locks import NonBlockingLock, LockNotAcquiredException
 
 logger = logging.getLogger(__name__)
 
@@ -2571,46 +2574,53 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates the contacts in a dynamic group
         """
-        if self.status == ContactGroup.STATUS_EVALUATING:
-            raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        self.status = ContactGroup.STATUS_EVALUATING
-        self.save(update_fields=('status',))
+        lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
 
-        new_group_members = set(self._get_dynamic_members())
-        existing_member_ids = set(self.contacts.values_list('id', flat=True))
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=3600) as locked:
+            if not locked:  # pragma: no cover
+                raise LockNotAcquiredException
 
-        to_add_ids = new_group_members.difference(existing_member_ids)
-        to_remove_ids = existing_member_ids.difference(new_group_members)
+            if self.status == ContactGroup.STATUS_EVALUATING:
+                raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        # add new contacts to the group
-        for members_chunk in chunk_list(to_add_ids, 1000):
-            to_add = Contact.objects.filter(id__in=members_chunk)
+            self.status = ContactGroup.STATUS_EVALUATING
+            self.save(update_fields=('status',))
 
-            self.contacts.add(*to_add)
+            new_group_members = set(self._get_dynamic_members())
+            existing_member_ids = set(self.contacts.values_list('id', flat=True))
 
-            for changed_contact in to_add:
-                changed_contact.handle_update(group=self)
+            to_add_ids = new_group_members.difference(existing_member_ids)
+            to_remove_ids = existing_member_ids.difference(new_group_members)
 
-            # update group updated_at
-            self.modified_on = datetime.datetime.now()
-            self.save(update_fields=('modified_on', ))
+            # add new contacts to the group
+            for members_chunk in chunk_list(to_add_ids, 1000):
+                to_add = Contact.objects.filter(id__in=members_chunk)
 
-        # remove contacts from the group that are not in the search
-        for members_chunk in chunk_list(to_remove_ids, 1000):
-            to_remove = Contact.objects.filter(id__in=members_chunk)
+                self.contacts.add(*to_add)
 
-            self.contacts.remove(*to_remove)
+                for changed_contact in to_add:
+                    changed_contact.handle_update(group=self)
 
-            for changed_contact in to_remove:
-                changed_contact.handle_update(group=self)
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=('modified_on', ))
 
-            # update group updated_at
-            self.modified_on = datetime.datetime.now()
-            self.save(update_fields=('modified_on',))
+            # remove contacts from the group that are not in the search
+            for members_chunk in chunk_list(to_remove_ids, 1000):
+                to_remove = Contact.objects.filter(id__in=members_chunk)
 
-        self.status = ContactGroup.STATUS_READY
-        self.save(update_fields=('status', 'modified_on'))
+                self.contacts.remove(*to_remove)
+
+                for changed_contact in to_remove:
+                    changed_contact.handle_update(group=self)
+
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=('modified_on',))
+
+            self.status = ContactGroup.STATUS_READY
+            self.save(update_fields=('status', 'modified_on'))
 
     def _get_dynamic_members(self):
         """
