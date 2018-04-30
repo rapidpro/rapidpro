@@ -63,12 +63,13 @@ def maybe_start_resume(run):
     if settings.FLOW_SERVER_TRIAL == 'off':
         return None
     elif settings.FLOW_SERVER_TRIAL == 'on':
-        if not is_flow_suitable(run.flow):
-            return None
-
         # very basic throttling
         r = get_redis_connection()
         if not r.set(TRIAL_LOCK, 'x', TRIAL_PERIOD, nx=True):
+            return None
+
+        if not is_flow_suitable(run.flow):
+            r.delete(TRIAL_LOCK)
             return None
 
     elif settings.FLOW_SERVER_TRIAL == 'always':

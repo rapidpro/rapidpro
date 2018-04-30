@@ -133,14 +133,26 @@ class TrialTest(TembaTest):
 
         self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
+    def test_is_flow_suitable(self):
+        self.assertTrue(trial.is_flow_suitable(self.get_flow('favorites')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('action_packed')))
+
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='on')
     @patch('temba.utils.goflow.trial.report_failure')
     @patch('temba.utils.goflow.trial.report_success')
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
+        action_packed = self.get_flow('action_packed')
         favorites = self.get_flow('favorites')
 
-        # first resume will be trialled in flowserver
+        # trying a flow that can't be resumed won't effect throttling
+        action_packed.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        self.assertEqual(mock_report_success.call_count, 0)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        # first resume in a suitable flow will be trialled
         favorites.start([], [self.contact])
         Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
 
