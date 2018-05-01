@@ -210,7 +210,7 @@ class FlowRunCRUDL(SmartCRUDL):
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
-               'upload_action_recording', 'editor', 'results', 'run_table', 'category_counts', 'json',
+               'upload_action_recording', 'editor', 'editor_next', 'results', 'run_table', 'category_counts', 'json',
                'broadcast', 'activity', 'activity_chart', 'filter', 'campaign', 'completion', 'revisions',
                'recent_messages', 'assets', 'upload_media_action')
 
