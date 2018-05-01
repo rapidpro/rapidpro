@@ -1,3 +1,12 @@
+v3.0.377
+----------
+ * do not allow dupe broadcasts to groups
+ * Use ElasticSearch to export contacts and create dynamic groups
+ * remove celery super auto scaler
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add ability to test flow results against goflow
+
 v3.0.376
 ----------
  * remove celery super auto scaler since we don't use it anywhere
