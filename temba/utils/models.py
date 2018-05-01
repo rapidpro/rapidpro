@@ -31,7 +31,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
     if only_ids:
         return pks
     else:
-        # TODO: order_by must be the same as the sort_by on ES, since we are losing the order of results
+        # order_by must be the same as the sort_by on ES, since we are losing the order of results
         return model.objects.filter(id__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
 
 

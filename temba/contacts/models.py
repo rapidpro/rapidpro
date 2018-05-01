@@ -2579,7 +2579,7 @@ class ContactGroup(TembaModel):
         lock_timeout = 3600
 
         with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=lock_timeout) as lock:
-            lock.check_lock()
+            lock.exit_if_not_locked()
 
             if self.status == ContactGroup.STATUS_EVALUATING:
                 raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
