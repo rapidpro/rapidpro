@@ -2576,8 +2576,9 @@ class ContactGroup(TembaModel):
         """
 
         lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
+        lock_timeout = 3600
 
-        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=3600) as lock:
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=lock_timeout) as lock:
             lock.check_lock()
 
             if self.status == ContactGroup.STATUS_EVALUATING:
@@ -2605,6 +2606,9 @@ class ContactGroup(TembaModel):
                 self.modified_on = datetime.datetime.now()
                 self.save(update_fields=('modified_on', ))
 
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
+
             # remove contacts from the group that are not in the search
             for members_chunk in chunk_list(to_remove_ids, 1000):
                 to_remove = Contact.objects.filter(id__in=members_chunk)
@@ -2617,6 +2621,9 @@ class ContactGroup(TembaModel):
                 # update group updated_at
                 self.modified_on = datetime.datetime.now()
                 self.save(update_fields=('modified_on',))
+
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
 
             self.status = ContactGroup.STATUS_READY
             self.save(update_fields=('status', 'modified_on'))
