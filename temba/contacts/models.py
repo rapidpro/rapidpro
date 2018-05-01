@@ -39,7 +39,7 @@ from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.utils.dates import str_to_datetime
 from temba.values.models import Value
-from temba.utils.locks import NonBlockingLock, LockNotAcquiredException
+from temba.utils.locks import NonBlockingLock
 
 logger = logging.getLogger(__name__)
 
@@ -2577,9 +2577,8 @@ class ContactGroup(TembaModel):
 
         lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
 
-        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=3600) as locked:
-            if not locked:  # pragma: no cover
-                raise LockNotAcquiredException
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=3600) as lock:
+            lock.check_lock()
 
             if self.status == ContactGroup.STATUS_EVALUATING:
                 raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")

@@ -1869,19 +1869,20 @@ class MatchersTest(TembaTest):
 class NonBlockingLockTest(TestCase):
 
     def test_nonblockinglock(self):
-        with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as locked:
+        with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
             # we are able to get the initial lock
-            self.assertTrue(locked)
+            self.assertTrue(lock.acquired)
+            self.assertTrue(lock.check_lock())
 
-            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as not_locked:
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
                 # but we are not able to get it the second time
-                self.assertFalse(not_locked)
+                self.assertFalse(lock.acquired)
                 # we need to terminate the execution
-                raise LockNotAcquiredException
+                lock.check_lock()
 
         def raise_exception():
-            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as locked:
-                if not locked:
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+                if not lock.acquired:
                     raise LockNotAcquiredException
 
                 raise Exception
