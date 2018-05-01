@@ -13,7 +13,6 @@ import time
 
 from django.conf import settings
 from django_redis import get_redis_connection
-from raven.contrib.django.raven_compat.models import client as raven_client
 from .client import get_client, Events
 from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 TRIAL_LOCK = 'flowserver_trial'
-TRIAL_PERIOD = 5 * 60  # only perform a trial every 5 minutes
+TRIAL_PERIOD = 60  # only perform a trial every 1 minute
 
 
 class ResumeTrial(object):
@@ -114,7 +113,7 @@ def report_failure(trial):  # pragma: no cover
     """
     print("Flowserver trial resume for run %s failed" % str(trial['run'].uuid))
 
-    raven_client.captureMessage("trial resume in flowserver produced different output", extra={
+    logger.error("trial resume in flowserver produced different output", extra={
         'run_id': trial.run.id,
         'differences': trial.differences
     })
