@@ -2656,8 +2656,9 @@ class ContactGroup(TembaModel):
 
         # search the ES
         try:
-            es_search = contact_es_search(self.org, self.query, None).source(include=['id']).using(ES).scan()
+            search_object, _ = contact_es_search(self.org, self.query, None)
 
+            es_search = search_object.source(include=['id']).using(ES).scan()
             contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
         except SearchException:
             logger.exception("Error evaluating query", exc_info=True)
@@ -2841,7 +2842,9 @@ class ExportContactsTask(BaseExportTask):
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            es_search = contact_es_search(self.org, self.search, group).source(include=['id']).using(ES).scan()
+            search_object, _ = contact_es_search(self.org, self.search, group)
+
+            es_search = search_object.source(include=['id']).using(ES).scan()
             contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
         else:
             contacts = group.contacts.all()
