@@ -12,7 +12,7 @@ VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 VALUE_TYPE_NAMES['N'] = 'number'
 
 
-def serialize_flow(flow, strip_ui=False):
+def serialize_flow(flow):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
@@ -22,12 +22,7 @@ def serialize_flow(flow, strip_ui=False):
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
-    migrated_flow_def = get_client().migrate({'flows': [flow_def]})[0]
-
-    if strip_ui:
-        del migrated_flow_def['_ui']
-
-    return migrated_flow_def
+    return get_client().migrate({'flows': [flow_def]})[0]
 
 
 def serialize_channel(channel):
