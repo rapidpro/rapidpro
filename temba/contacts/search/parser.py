@@ -21,7 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
 from temba.utils.es import ModelESSearch
 from temba.values.models import Value
-from temba.contacts.models import ContactField, ContactURN, Contact
+from temba.contacts.models import ContactField, ContactURN, Contact, URN_SCHEME_CONFIG
 
 # our index for equality checks on string values is limited to the first 32 characters
 STRING_VALUE_COMPARISON_LIMIT = 32
@@ -66,7 +66,7 @@ class ContactQuery(object):
     PROP_SCHEME = 'S'
     PROP_FIELD = 'F'
 
-    SEARCHABLE_SCHEMES = ('tel', 'twitter')
+    SEARCHABLE_SCHEMES = [s[0] for s in URN_SCHEME_CONFIG]
 
     def __init__(self, root):
         self.root = root
