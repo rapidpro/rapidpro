@@ -50,15 +50,10 @@ class WhatsAppType(ChannelType):
 
         # first set our callbacks
         payload = {
-            'settings': {
-                'application': {
-                    'webhooks': {
-                        "url": "https://" + domain + reverse('courier.wa', args=[channel.uuid, 'receive'])
-                    }
-                }
+            'webhooks': {
+                "url": "https://" + domain + reverse('courier.wa', args=[channel.uuid, 'receive'])
             }
         }
-
         resp = requests.patch(channel.config[Channel.CONFIG_BASE_URL] + '/v1/settings/application',
                               json=payload, headers=headers)
 
@@ -69,28 +64,20 @@ class WhatsAppType(ChannelType):
         payload = {
             "allow_unsolicited_add": False
         }
-
         resp = requests.patch(channel.config[Channel.CONFIG_BASE_URL] + '/v1/settings/groups',
                               json=payload, headers=headers)
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to configure channel: %s", resp.content))
 
-        # TODO: Figure out what the new endpoints are for upping our quotas
-        # payload = {
-        #     "payload": {
-        #         "set_settings": {
-        #             "messaging_api_rate_limit": ["15", "54600", "1000000"],
-        #             "unique_message_sends_rate_limit": ["15", "54600", "1000000"],
-        #             "contacts_api_rate_limit": ["15", "54600", "1000000"]
-        #         }
-        #     }
-        # }
-        #
-        # resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/control.php',
-        #                      json=payload,
-        #                      auth=(channel.config[Channel.CONFIG_USERNAME],
-        #                            channel.config[Channel.CONFIG_PASSWORD]))
-        #
-        # if resp.status_code != 200:
-        #     raise ValidationError(_("Unable to configure channel: %s", resp.content))
+        # update our quotas so we can send at 15/s
+        payload = {
+            "messaging_api_rate_limit": ["15", "54600", "1000000"],
+            "contacts_scrape_rate_limit": "1000000",
+            "contacts_api_rate_limit": ["15", "54600", "1000000"]
+        }
+        resp = requests.patch(channel.config[Channel.CONFIG_BASE_URL] + '/v1/settings/application',
+                              json=payload, headers=headers)
+
+        if resp.status_code != 200:
+            raise ValidationError(_("Unable to configure channel: %s", resp.content))

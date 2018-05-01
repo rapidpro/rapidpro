@@ -36,6 +36,7 @@ from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField, JSONAsTextField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from temba.utils.text import clean_string
+from temba.utils.cache import check_and_mark_in_timerange
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -324,6 +325,10 @@ class Broadcast(models.Model):
         return self.schedule and self.schedule.has_pending_fire()
 
     def fire(self):
+        """
+        Fires a scheduled broadcast, this creates a new broadcast as self here is a placeholder for
+        the broadcast that is scheduled (as opposed to the real broadcast that is being sent)
+        """
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
         broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
                                      media=self.media, base_language=self.base_language,
@@ -424,12 +429,26 @@ class Broadcast(models.Model):
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
             urns, contacts = partial_recipients
-        elif hasattr(self, '_recipient_cache'):
-            # look to see if previous call to update_recipients left a cached value
-            urns, contacts = self._recipient_cache
         else:
-            # otherwise fetch everything and calculate
-            urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), self.groups.all())
+            groups = self.groups.all()
+
+            # if we are sending to groups and any of them are big, make sure we aren't spamming
+            for group in groups:
+                if group.get_member_count() > 10:
+                    bcast_value = '%d_%s' % (group.id, self.text)
+
+                    # have we sent this exact message today or yesterday and with this message?
+                    if check_and_mark_in_timerange('bcasts', 3, bcast_value):
+                        self.status = FAILED
+                        self.save(update_fields=['status'])
+                        raise Exception("Not sending broadcast %d due to duplicate" % self.id)
+
+            if hasattr(self, '_recipient_cache'):
+                # look to see if previous call to update_recipients left a cached value
+                urns, contacts = self._recipient_cache
+            else:
+                # otherwise fetch everything and calculate
+                urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), groups)
 
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)

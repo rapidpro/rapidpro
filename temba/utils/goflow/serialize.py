@@ -12,7 +12,7 @@ VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 VALUE_TYPE_NAMES['N'] = 'number'
 
 
-def serialize_flow(flow, strip_ui=True):
+def serialize_flow(flow, strip_ui=False):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
