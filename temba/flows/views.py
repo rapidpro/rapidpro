@@ -793,7 +793,7 @@ class FlowCRUDL(SmartCRUDL):
             return self.object.name
 
         def get_template_names(self):
-            return "flows/flow_editor_next.haml"
+            return "flows/flow_editor.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
@@ -1161,6 +1161,10 @@ class FlowCRUDL(SmartCRUDL):
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super(FlowCRUDL.Simulate, self).dispatch(*args, **kwargs)
+
         def get(self, request, *args, **kwargs):
             return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
@@ -1184,7 +1188,10 @@ class FlowCRUDL(SmartCRUDL):
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(flow.org, asset_timestamp).asset_server(simulator=True)
+                flow_request = client.request_builder(flow.org, asset_timestamp)
+                flow_request.request['asset_server'] = json_dict.get('asset_server')
+                flow_request.request['assets'] = json_dict.get('assets')
+                # asset_server(simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:

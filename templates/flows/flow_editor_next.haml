@@ -2,11 +2,8 @@
 
 -load compress temba i18n
 
--block page-title
-  {{object.name}}
-
--block content
-  #flow-editor
+-block page-container
+  #flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/1234", engine:"/flow/simulate/{{object.id}}/"}
 
 -block extra-script
   {{ block.super }}
@@ -23,5 +20,6 @@
       height: 10000px;
       width: 100%;
       position: relative;
+      margin-top: -29px;
     }
 

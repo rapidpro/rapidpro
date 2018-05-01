@@ -6,22 +6,23 @@ import * as React from 'react';
 import { render } from 'react-dom';
 import FlowEditor from '@nyaruka/flow-editor';
 
+const ele = document.getElementById('flow-editor');
+const base = ele.getAttribute("base");
+const engine = ele.getAttribute("engine");
+
 const config = {
-    flow: 'a4f64f1b-85bc-477e-b706-de313a022979',
-    languages: {
-        eng: 'English',
-        spa: 'Spanish',
-        fre: 'French'
-    },
+    flow: ele.getAttribute("uuid"),
+    languages: {},
     localStorage: true,
     endpoints: {
-        flows: '/assets/flows.json',
-        groups: '/assets/groups.json',
-        contacts: '/assets/contacts.json',
-        fields: '/assets/fields.json',
+        flows: `${base}/flow`,
+        groups: `${base}/group`,
+        contacts: `${base}/contact`,
+        fields: `${base}/field`,
         activity: '',
-        engine: '/flow'
+        simulateStart: engine,
+        simulateResume: engine
     }
 };
 
-render(<FlowEditor config={config} />, document.getElementById('flow-editor'));
+render(<FlowEditor config={config} />, ele);
