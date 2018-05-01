@@ -9,12 +9,13 @@ from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField, ImportTask, Contact, ContactGroup
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import TembaTest
+from temba.tests import TembaTest, ESMockWithScroll
 from temba.values.models import Value
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -820,7 +821,10 @@ class CampaignTest(TembaTest):
     def test_with_dynamic_group(self):
         # create a campaign on a dynamic group
         self.create_field('gender', "Gender")
-        women = self.create_group("Women", query='gender="F"')
+
+        with ESMockWithScroll():
+            women = self.create_group("Women", query='gender="F"')
+
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign,
                                                    relative_to=self.planting_date,
@@ -842,14 +846,22 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        women.update_query('gender=FEMALE')
+        with ESMockWithScroll():
+            women.update_query('gender=FEMALE')
+
         self.assertEqual(set(women.contacts.all()), set())
 
         # check that her event fire is now removed
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        women.update_query('gender=F')
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': anna.id, 'modified_on': anna.modified_on.isoformat()
+            }}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            women.update_query('gender=F')
         self.assertEqual(set(women.contacts.all()), {anna})
 
         # check that her event fire is now removed

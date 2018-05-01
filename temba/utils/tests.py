@@ -28,7 +28,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabelCount
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import TembaTest, matchers
+from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
 from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
@@ -49,6 +49,7 @@ from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
 from .models import JSONAsTextField
+from .locks import NonBlockingLock, LockNotAcquiredException
 
 
 class InitTest(TembaTest):
@@ -1684,7 +1685,8 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
+        with ESMockWithScroll():
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
@@ -1862,3 +1864,27 @@ class MatchersTest(TembaTest):
         self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
+
+
+class NonBlockingLockTest(TestCase):
+
+    def test_nonblockinglock(self):
+        with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+            # we are able to get the initial lock
+            self.assertTrue(lock.acquired)
+
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+                # but we are not able to get it the second time
+                self.assertFalse(lock.acquired)
+                # we need to terminate the execution
+                lock.exit_if_not_locked()
+
+        def raise_exception():
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+                if not lock.acquired:
+                    raise LockNotAcquiredException
+
+                raise Exception
+
+        # any other exceptions are handled as usual
+        self.assertRaises(Exception, raise_exception)

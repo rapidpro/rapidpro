@@ -12,7 +12,6 @@ ES = Elasticsearch(hosts=[settings.ELASTICSEARCH_URL])
 class ModelESSearch(es_Search):
     """
     * add Django model information to the elasticserach_dsl Search class
-    * simulate an empty Elasticsearch response with 'none()' method that short-circuits execution and returns no data
     """
 
     is_none = False
