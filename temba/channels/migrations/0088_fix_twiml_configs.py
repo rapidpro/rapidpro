@@ -8,10 +8,11 @@ from temba.channels.models import Channel
 
 def update_twiml_configs(apps, schema_editor):
     for channel in Channel.objects.filter(is_active=True, channel_type='TW'):
-        # need to populate auth_token and account_sid from their uppercase versions
-        channel.config['auth_token'] = channel.config['ACCOUNT_TOKEN']
-        channel.config['account_sid'] = channel.config['ACCOUNT_SID']
-        channel.save(update_fields=['config'])
+        if 'ACCOUNT_TOKEN' in channel.config and 'ACCOUNT_SID' in channel.config:
+            # need to populate auth_token and account_sid from their uppercase versions
+            channel.config['auth_token'] = channel.config['ACCOUNT_TOKEN']
+            channel.config['account_sid'] = channel.config['ACCOUNT_SID']
+            channel.save(update_fields=['config'])
 
 
 class Migration(migrations.Migration):

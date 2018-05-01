@@ -885,6 +885,11 @@ DATABASES = {
     'direct': _direct_database_config
 }
 
+# If we are testing, set both our connections as the same, Django seems to get
+# confused on Python 3.6 with transactional tests otherwise
+if TESTING:
+    DATABASES['default'] = _direct_database_config
+
 # -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
