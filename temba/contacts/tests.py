@@ -1794,6 +1794,20 @@ class ContactTest(TembaTest):
             expected_search
         )
 
+        expected_search = copy.deepcopy(base_search)
+        expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
+            'bool': {
+                'must': [
+                    {'exists': {'field': 'urns.path'}},
+                    {'term': {'urns.scheme': 'telegram'}},
+                ]
+            }
+        }}}]
+        self.assertEqual(
+            contact_es_search(self.org, 'telegram != ""').to_dict(),
+            expected_search
+        )
+
         # is set not set
         expected_search = copy.deepcopy(base_search)
         del expected_search['query']['bool']['must']
