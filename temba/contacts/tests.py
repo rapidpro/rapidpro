@@ -6,7 +6,7 @@ import pytz
 import six
 import copy
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -31,7 +31,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll
 from temba.triggers.models import Trigger
-from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
+from temba.utils.dates import datetime_to_ms
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
@@ -298,7 +298,7 @@ class ContactGroupTest(TembaTest):
                 ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
                 ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=182, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=166, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1418,7 +1418,10 @@ class ContactTest(TembaTest):
             self.org, 'joined = 01-03-2018 AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json()
         ))
 
-        # TODO: test with bad user values
+        # non-existent field or attribute
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'credits > 10', contact_json=self.joe.as_search_json()
+        )
 
         with AnonymousOrg(self.org):
 
@@ -2142,162 +2145,6 @@ class ContactTest(TembaTest):
             )
 
             self.assertRaises(SearchException, contact_es_search, self.org, 'id = ""')
-
-    def test_contact_search(self):
-        self.login(self.admin)
-
-        # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_blocked=True)
-
-        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
-        ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
-        ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
-        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
-        ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
-        ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
-        ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
-        ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
-
-        names = ['Trey', 'Mike', 'Paige', 'Fish', "", None]
-        districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
-        wards = ['Kageyo', 'Kabara', 'Bukure']
-        date_format = get_datetime_format(True)[0]
-
-        # create some contacts
-        for i in range(90):
-            name = names[i % len(names)]
-            number = "0788382%s" % str(i).zfill(3)
-            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
-            contact = self.create_contact(name=name, number=number, twitter=twitter)
-            join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format)
-
-            # some field data so we can do some querying
-            contact.set_field(self.user, 'age', str(i + 10))
-            contact.set_field(self.user, 'join_date', str(join_date))
-            contact.set_field(self.user, 'state', "Eastern Province")
-            contact.set_field(self.user, 'home', districts[i % len(districts)])
-            contact.set_field(self.user, 'ward', wards[i % len(wards)])
-
-            if i % 3 == 0:
-                contact.set_field(self.user, 'profession', "Farmer")  # only some contacts have any value for this
-
-            contact.set_field(self.user, 'isureporter', 'yes')
-            contact.set_field(self.user, 'hasbirth', 'no')
-
-        def q(query):
-            qs, _ = Contact.search(self.org, query)
-            return qs.count()
-
-        # implicit property queries (name or URN path)
-        self.assertEqual(q('trey'), 15)
-        self.assertEqual(q('MIKE'), 15)
-        self.assertEqual(q('  paige  '), 15)
-        self.assertEqual(q('0788382011'), 1)
-        self.assertEqual(q('trey 0788382'), 15)
-
-        # name as property
-        self.assertEqual(q('name is "trey"'), 15)
-        self.assertEqual(q('name is mike'), 15)
-        self.assertEqual(q('name = paige'), 15)
-        self.assertEqual(q('name is ""'), 30)  # includes null and blank names
-        self.assertEqual(q('NAME=""'), 30)
-        self.assertEqual(q('name has e'), 45)
-
-        # URN as property
-        self.assertEqual(q('tel is +250788382011'), 1)
-        self.assertEqual(q('tel has 0788382011'), 1)
-        self.assertEqual(q('twitter = tweep_13'), 1)
-        self.assertEqual(q('twitter = ""'), 60)
-        self.assertEqual(q('twitter != ""'), 30)
-        self.assertEqual(q('TWITTER has tweep'), 30)
-
-        # contact field as property
-        self.assertEqual(q('age > 30'), 69)
-        self.assertEqual(q('age >= 30'), 70)
-        self.assertEqual(q('age > 30 and age <= 40'), 10)
-        self.assertEqual(q('AGE < 20'), 10)
-        self.assertEqual(q('age != ""'), 90)
-        self.assertEqual(q('age = ""'), 0)
-
-        self.assertEqual(q('join_date = 1-1-14'), 1)
-        self.assertEqual(q('join_date < 30/1/2014'), 29)
-        self.assertEqual(q('join_date <= 30/1/2014'), 30)
-        self.assertEqual(q('join_date > 30/1/2014'), 60)
-        self.assertEqual(q('join_date >= 30/1/2014'), 61)
-        self.assertEqual(q('join_date != ""'), 90)
-        self.assertEqual(q('join_date = ""'), 0)
-
-        self.assertEqual(q('state is "Eastern Province"'), 90)
-        self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
-        self.assertEqual(q('ward is kageyo'), 30)
-
-        self.assertEqual(q('home is ""'), 0)
-        self.assertEqual(q('profession = ""'), 60)
-        self.assertEqual(q('profession is ""'), 60)
-        self.assertEqual(q('profession != ""'), 30)
-
-        # contact fields beginning with 'is' or 'has'
-        self.assertEqual(q('isureporter = "yes"'), 90)
-        self.assertEqual(q('isureporter = yes'), 90)
-        self.assertEqual(q('isureporter = no'), 0)
-
-        self.assertEqual(q('hasbirth = "no"'), 90)
-        self.assertEqual(q('hasbirth = no'), 90)
-        self.assertEqual(q('hasbirth = yes'), 0)
-
-        # boolean combinations
-        self.assertEqual(q('name is trey or name is mike'), 30)
-        self.assertEqual(q('name is trey and age < 20'), 2)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
-        self.assertEqual(q('name is MIKE and profession = ""'), 15)
-        self.assertEqual(q('profession = doctor or profession = farmer'), 30)  # same field
-        self.assertEqual(q('age = 20 or age = 21'), 2)
-        self.assertEqual(q('join_date = 30/1/2014 or join_date = 31/1/2014'), 2)
-
-        # create contact with no phone number, we'll try searching for it by id
-        contact = self.create_contact(name="Id Contact")
-
-        # non-anon orgs can't search by id (because they never see ids)
-        self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk))  # others may match by id on tel
-
-        with AnonymousOrg(self.org):
-            # still allow name and field searches
-            self.assertEqual(q('trey'), 15)
-            self.assertEqual(q('name is mike'), 15)
-            self.assertEqual(q('age > 30'), 69)
-
-            # don't allow matching on URNs
-            self.assertEqual(q('0788382011'), 0)
-            self.assertEqual(q('tel is +250788382011'), 0)
-            self.assertEqual(q('twitter has blow'), 0)
-            self.assertEqual(q('twitter = ""'), 0)
-
-            # anon orgs can search by id, with or without zero padding
-            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
-            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk)[0])
-
-        # invalid queries
-        self.assertRaises(SearchException, q, '((')
-        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
-        self.assertRaises(SearchException, q, 'name > trey')  # unrecognized non-field operator
-        self.assertRaises(SearchException, q, 'profession > trey')  # unrecognized text-field operator
-        self.assertRaises(SearchException, q, 'age has 4')  # unrecognized decimal-field operator
-        self.assertRaises(SearchException, q, 'age = x')  # unparseable decimal-field comparison
-        self.assertRaises(SearchException, q, 'join_date has 30/1/2014')  # unrecognized date-field operator
-        self.assertRaises(SearchException, q, 'join_date > xxxxx')  # unparseable date-field comparison
-        self.assertRaises(SearchException, q, 'home > kigali')  # unrecognized location-field operator
-        self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
-        self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN
-        self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
-        self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters
-
-    def test_contact_search_is_set(self):
-        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
-        self.joe.set_field(self.admin, 'age', "X")  # creates a value with string_value=X decimal_value=None
-
-        self.assertIn(self.joe, Contact.search(self.org, 'age = ""')[0])
-        self.assertNotIn(self.joe, Contact.search(self.org, 'age != ""')[0])
 
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
@@ -3413,7 +3260,6 @@ class ContactTest(TembaTest):
         rwamagana = AdminBoundary.objects.get(name="Rwamagana")
         rwamagana.update(name="Rwa-magana")
         self.assertEqual("Rwa-magana", rwamagana.name)
-        self.assertTrue(Value.objects.filter(location_value=rwamagana, category="Rwa-magana"))
 
         # assert our read page is correct
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
@@ -4744,7 +4590,7 @@ class ContactTest(TembaTest):
         modified_on = self.joe.modified_on
 
         # set_field should only write to the database if the value changes
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(1):
             self.joe.set_field(self.user, 'abc_1234', 'Joe')
 
         self.joe.refresh_from_db()

@@ -929,18 +929,12 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age")
         self.contact.set_field(self.admin, 'age', 36)
 
-        # insert a duplicate age field, this can happen due to races
-        Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
-
         with self.assertNumQueries(40):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
         # try setting the field again
         self.contact.set_field(self.admin, 'age', 36)
-
-        # only one present now
-        self.assertEqual(Value.objects.filter(contact=self.contact, contact_field=age).count(), 1)
 
         tz = self.org.timezone
         sheet_runs, sheet_contacts = workbook.worksheets
@@ -9164,7 +9158,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=139, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=137, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

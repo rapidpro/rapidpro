@@ -1161,18 +1161,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_group=None):
-        """
-        Performs a search of contacts within a group (system or user)
-        """
-        from .search import contact_search
-
-        if not base_group:
-            base_group = org.cached_all_contacts_group
-
-        return contact_search(org, query, base_group.contacts.all())
-
-    @classmethod
     def create_instance(cls, field_dict):
         """
         Creates or updates a contact from the given field values during an import
