@@ -1599,8 +1599,9 @@ class ContactTest(TembaTest):
                 {'term': {'fields.text': 'unknown'}}
             ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown"')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1612,8 +1613,9 @@ class ContactTest(TembaTest):
                 {'match': {'fields.number': '35'}}
             ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age = 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age = 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1625,8 +1627,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'gt': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age > 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age > 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1638,8 +1641,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'gte': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age >= 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age >= 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1651,8 +1655,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'lt': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age < 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age < 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1664,8 +1669,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'lte': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age <= 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age <= 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1678,8 +1684,9 @@ class ContactTest(TembaTest):
                     {'match': {'fields.datetime': '2018-02-28'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined = "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined = "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1691,8 +1698,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'gt': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined > "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined > "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1704,8 +1712,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'gte': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined >= "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined >= "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1717,8 +1726,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined < "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined < "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1731,8 +1741,9 @@ class ContactTest(TembaTest):
                 ]}
         }}}
         ]
+        actual_search, _ = contact_es_search(self.org, 'joined <= "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined <= "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1745,8 +1756,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.ward.keyword': 'bukure'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
         self.assertEqual(
-            contact_es_search(self.org, 'ward = "Bukure"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1761,8 +1773,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.district.keyword': 'rwamagana'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
         self.assertEqual(
-            contact_es_search(self.org, 'district = "Rwamagana"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
         self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
@@ -1776,8 +1789,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.state.keyword': 'eastern province'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
         self.assertEqual(
-            contact_es_search(self.org, 'state = "Eastern Province"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1794,8 +1808,9 @@ class ContactTest(TembaTest):
                 {'range': {'fields.number': {'gt': '32'}}}
             ]}}}}
         ]
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" AND age > 32')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" AND age > 32').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1816,15 +1831,17 @@ class ContactTest(TembaTest):
             ],
             'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'term': {'name.keyword': 'joe blow'}}]
+        actual_search, _ = contact_es_search(self.org, 'name = "joe Blow"')
         self.assertEqual(
-            contact_es_search(self.org, 'name = "joe Blow"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1837,8 +1854,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'tel = "+250788382011"')
         self.assertEqual(
-            contact_es_search(self.org, 'tel = "+250788382011"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1851,8 +1869,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
         self.assertEqual(
-            contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1864,8 +1883,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1878,8 +1898,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'gender != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1890,8 +1911,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'age = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1904,8 +1926,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'age != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1918,8 +1941,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'joined = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1932,8 +1956,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'joined != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1944,8 +1969,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'ward = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1958,8 +1984,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'ward != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1972,8 +1999,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'district = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1986,8 +2014,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'district != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1998,8 +2027,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'state = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'state = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -2012,8 +2042,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        acutal_search, _ = contact_es_search(self.org, 'state != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'state != ""').to_dict(),
+            acutal_search.to_dict(),
             expected_search
         )
 
@@ -2026,8 +2057,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'tel != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'tel != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -2038,52 +2070,59 @@ class ContactTest(TembaTest):
                 'must': [{'exists': {'field': 'urns.path'}}, {'term': {'urns.scheme': 'twitter'}}],
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'twitter = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'twitter = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'term': {'name': ''}}]
+        actual_search, _ = contact_es_search(self.org, 'name = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'name = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'term': {'name': ''}}]
+        actual_search, _ = contact_es_search(self.org, 'name != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'name != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         with AnonymousOrg(self.org):
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': ['123']}}]
+            actual_search, _ = contact_es_search(self.org, '123')
             self.assertEqual(
-                contact_es_search(self.org, '123').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter != ""')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter != ""').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter = ""')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter = ""').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 

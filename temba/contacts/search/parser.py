@@ -1095,7 +1095,7 @@ def contact_es_search(org, text, base_group=None):
         .params(routing=org.id)
         .query(es_match & es_filter)
         .sort('-modified_on_mu')
-    )
+    ), parsed
 
 
 def extract_fields(org, text):
