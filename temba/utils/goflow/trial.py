@@ -111,7 +111,7 @@ def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s failed" % str(trial['run'].uuid))
+    print("Flowserver trial resume for run %s failed" % str(trial.run.uuid))
 
     logger.error("trial resume in flowserver produced different output", extra={
         'run_id': trial.run.id,
