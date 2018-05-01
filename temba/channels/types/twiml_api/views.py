@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import phonenumbers
-
 from uuid import uuid4
+
+import phonenumbers
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
 
-from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from ...models import Channel
 from ...views import ClaimViewMixin, ALL_COUNTRIES
 
@@ -48,8 +47,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         role = data.get('role')
 
         config = {Channel.CONFIG_SEND_URL: url,
-                  ACCOUNT_SID: data.get('account_sid', None),
-                  ACCOUNT_TOKEN: data.get('account_token', None),
+                  Channel.CONFIG_ACCOUNT_SID: data.get('account_sid', None),
+                  Channel.CONFIG_AUTH_TOKEN: data.get('account_token', None),
                   Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         is_short_code = len(number) <= 6
@@ -85,11 +84,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         # if they didn't set a username or password, generate them, we do this after the addition above
         # because we use the channel id in the configuration
         config = self.object.config
-        if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
-            config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+        if not config.get(Channel.CONFIG_ACCOUNT_SID, None):  # pragma: needs cover
+            config[Channel.CONFIG_ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-        if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
-            config[ACCOUNT_TOKEN] = str(uuid4())
+        if not config.get(Channel.CONFIG_AUTH_TOKEN, None):  # pragma: needs cover
+            config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
 
         self.object.config = config
         self.object.save()

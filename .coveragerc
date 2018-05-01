@@ -27,7 +27,6 @@ omit =
     *settings*,
     *management/commands*
     temba/perf_tests.py
-    temba/celery_autoscaler.py
     temba/wsgi.py
 
 [html]
