@@ -1884,8 +1884,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'telegram != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'telegram != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
