@@ -38,7 +38,7 @@ from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException, get_client, serialize_contact
 from temba.utils.profiler import QueryTracker
-from temba.values.models import Value
+from temba.values.constants import Value
 
 from .flow_migrations import (
     migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8, migrate_to_version_9,

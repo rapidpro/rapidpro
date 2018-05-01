@@ -20,7 +20,7 @@ from functools import reduce
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime, date_to_utc_range
 from temba.utils.es import ModelESSearch
-from temba.values.models import Value
+from temba.values.constants import Value
 from temba.contacts.models import ContactField, ContactURN, Contact, URN_SCHEME_CONFIG
 
 # our index for equality checks on string values is limited to the first 32 characters

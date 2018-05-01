@@ -13,7 +13,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
-from temba.values.models import Value
+from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
 

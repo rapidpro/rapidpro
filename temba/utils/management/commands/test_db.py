@@ -33,7 +33,7 @@ from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
 from temba.utils.dates import ms_to_datetime, datetime_to_ms
-from temba.values.models import Value
+from temba.values.constants import Value
 
 
 # maximum age in days of database content
@@ -419,7 +419,7 @@ class Command(BaseCommand):
 
         # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
-        with DisableTriggersOn(Contact, ContactURN, Value, ContactGroup.contacts.through):
+        with DisableTriggersOn(Contact, ContactURN, ContactGroup.contacts.through):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 

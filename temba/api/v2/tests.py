@@ -26,7 +26,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
-from temba.values.models import Value
+from temba.values.constants import Value
 from uuid import uuid4
 from six.moves.urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent

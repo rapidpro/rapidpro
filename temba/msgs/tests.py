@@ -32,7 +32,7 @@ from temba.utils import dict_to_struct, dict_to_json
 from temba.utils.dates import datetime_to_str, datetime_to_s
 from temba.utils.expressions import get_function_listing
 from temba.utils.queues import push_task, DEFAULT_PRIORITY
-from temba.values.models import Value
+from temba.values.constants import Value
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task, process_message_task
 from .templatetags.sms import as_icon

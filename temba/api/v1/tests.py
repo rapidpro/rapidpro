@@ -24,7 +24,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg, matchers
 from temba.utils.dates import datetime_to_json_date
-from temba.values.models import Value
+from temba.values.constants import Value
 from temba.api.models import APIToken
 from uuid import uuid4
 from .serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
