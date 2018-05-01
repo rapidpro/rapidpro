@@ -47,6 +47,8 @@ services:
       - POSTGRES_DB=rapidpro
     volumes:
       - rapidpro:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
   mage:
    image: rapidpro/mage
    depends_on:

@@ -13,7 +13,7 @@
   .field.webhook-url
     %label{ for:'webhook' }
       -trans "Webhook"
-    <input type="text" id="id_webhook" name="webhook" value="{{ org.get_webhook_url|default_if_none:"" }}" />
+    <input type="text" id="id_webhook" name="webhook_url" value="{{ org.get_webhook_url|default_if_none:"" }}" />
   .field.webhook-headers
 
     %a.expand
