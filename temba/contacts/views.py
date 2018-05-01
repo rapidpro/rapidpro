@@ -153,17 +153,13 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
             from temba.utils.es import ES
 
             try:
-                _, self.parsed_search = Contact.search(org, search_query, group)
-            except SearchException as e:
-                self.search_error = six.text_type(e)
+                search_object, self.parsed_search = contact_es_search(org, search_query, group)
+                es_search = search_object.source(fields=('id', )).using(ES)
 
-            try:
-                es_search = contact_es_search(org, search_query, group).source(fields=('id', )).using(ES)
                 return es_search
 
             except SearchException as e:
                 self.search_error = six.text_type(e)
-                logger.exception("Exception while executing contact query. search_text={}".format(search_query))
 
                 # this should be an empty resultset
                 return Contact.objects.none()

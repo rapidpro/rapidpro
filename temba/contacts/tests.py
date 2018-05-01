@@ -29,7 +29,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.utils.profiler import QueryTracker
@@ -221,10 +221,20 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'age', 21)
         self.mary.set_field(self.admin, 'gender', "female")
 
-        group = ContactGroup.create_dynamic(
-            self.org, self.admin, "Group two",
-            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-        )
+        # create a dynamic group using a query
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+            }}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            group = ContactGroup.create_dynamic(
+                self.org, self.admin, "Group two",
+                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+            )
 
         group.refresh_from_db()
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
@@ -233,7 +243,11 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
         # update group query
-        group.update_query('age > 18')
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            group.update_query('age > 18')
 
         group.refresh_from_db()
         self.assertEqual(group.query, 'age > 18')
@@ -275,10 +289,14 @@ class ContactGroupTest(TembaTest):
         flow = self.get_flow('initialize')
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
 
-        fields = ['total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes', 'name_changes', 'total_editorials_submitted']
-        for key in fields:
-            ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
-            ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
+        with ESMockWithScroll():
+            fields = [
+                'total_calls_made', 'total_emails_sent', 'total_faxes_sent', 'total_letters_mailed', 'address_changes',
+                'name_changes', 'total_editorials_submitted'
+            ]
+            for key in fields:
+                ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
+                ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
         with QueryTracker(assert_query_count=182, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
@@ -300,10 +318,12 @@ class ContactGroupTest(TembaTest):
     def test_get_user_groups(self):
         self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
-        dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
         deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
         deleted.is_active = False
         deleted.save()
+
+        with ESMockWithScroll():
+            dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
 
         self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
         self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {static})
@@ -501,7 +521,8 @@ class ContactGroupCRUDLTest(TembaTest):
         self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
-        self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
+        with ESMockWithScroll():
+            self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
@@ -537,7 +558,12 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
@@ -606,7 +632,13 @@ class ContactGroupCRUDLTest(TembaTest):
             'You cannot create a dynamic group based on "name" or "id".'
         )
 
-        response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
+        # create a dynamic group using a query
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            response = self.client.post(url, dict(name='Frank', query='twitter is "hola"'))
+
         self.assertNoFormErrors(response)
 
         self.dynamic_group.refresh_from_db()
@@ -892,7 +924,9 @@ class ContactTest(TembaTest):
 
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        dynamic_group = self.create_group("Dynamic", query="gender is M")
+        with ESMockWithScroll():
+            dynamic_group = self.create_group("Dynamic", query="gender is M")
+
         self.joe.set_field(self.admin, 'gender', "M")
         self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
@@ -1051,11 +1085,39 @@ class ContactTest(TembaTest):
         # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_NUMBER)
-        has_twitter = self.create_group("Has twitter", query='twitter != ""')
-        no_gender = self.create_group("No gender", query='gender is ""')
-        males = self.create_group("Male", query='gender is M or gender is Male')
-        youth = self.create_group("Male", query='age > 18 or age < 30')
-        joes = self.create_group("Joes", query='twitter = "blow80"')
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            has_twitter = self.create_group("Has twitter", query='twitter != ""')
+
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.billy.id, 'modified_on': self.billy.modified_on.isoformat()
+            }},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.voldemort.id, 'modified_on': self.voldemort.modified_on.isoformat()
+            }}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            no_gender = self.create_group("No gender", query='gender is ""')
+
+        with ESMockWithScroll():
+            males = self.create_group("Male", query='gender is M or gender is Male')
+            youth = self.create_group("Male", query='age > 18 or age < 30')
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            joes = self.create_group("Joes", query='twitter = "blow80"')
 
         self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
@@ -1537,8 +1599,9 @@ class ContactTest(TembaTest):
                 {'term': {'fields.text': 'unknown'}}
             ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown"')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1550,8 +1613,9 @@ class ContactTest(TembaTest):
                 {'match': {'fields.number': '35'}}
             ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age = 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age = 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1563,8 +1627,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'gt': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age > 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age > 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1576,8 +1641,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'gte': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age >= 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age >= 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1589,8 +1655,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'lt': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age < 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age < 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1602,8 +1669,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.number': {'lte': '35'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age <= 35')
         self.assertEqual(
-            contact_es_search(self.org, 'age <= 35').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1616,8 +1684,9 @@ class ContactTest(TembaTest):
                     {'match': {'fields.datetime': '2018-02-28'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined = "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined = "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1629,8 +1698,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'gt': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined > "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined > "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1642,8 +1712,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'gte': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined >= "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined >= "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1655,8 +1726,9 @@ class ContactTest(TembaTest):
                     {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined < "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined < "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1669,8 +1741,9 @@ class ContactTest(TembaTest):
                 ]}
         }}}
         ]
+        actual_search, _ = contact_es_search(self.org, 'joined <= "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'joined <= "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1683,8 +1756,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.ward.keyword': 'bukure'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
         self.assertEqual(
-            contact_es_search(self.org, 'ward = "Bukure"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1699,8 +1773,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.district.keyword': 'rwamagana'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
         self.assertEqual(
-            contact_es_search(self.org, 'district = "Rwamagana"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
         self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
@@ -1714,8 +1789,9 @@ class ContactTest(TembaTest):
                     {'term': {'fields.state.keyword': 'eastern province'}}
                 ]}
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
         self.assertEqual(
-            contact_es_search(self.org, 'state = "Eastern Province"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1732,8 +1808,9 @@ class ContactTest(TembaTest):
                 {'range': {'fields.number': {'gt': '32'}}}
             ]}}}}
         ]
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" AND age > 32')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" AND age > 32').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1754,15 +1831,17 @@ class ContactTest(TembaTest):
             ],
             'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
 
+        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'term': {'name.keyword': 'joe blow'}}]
+        actual_search, _ = contact_es_search(self.org, 'name = "joe Blow"')
         self.assertEqual(
-            contact_es_search(self.org, 'name = "joe Blow"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1775,8 +1854,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'tel = "+250788382011"')
         self.assertEqual(
-            contact_es_search(self.org, 'tel = "+250788382011"').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1789,8 +1869,24 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
         self.assertEqual(
-            contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+            actual_search.to_dict(),
+            expected_search
+        )
+
+        expected_search = copy.deepcopy(base_search)
+        expected_search['query']['bool']['must'] = [{'nested': {'path': 'urns', 'query': {
+            'bool': {
+                'must': [
+                    {'exists': {'field': 'urns.path'}},
+                    {'term': {'urns.scheme': 'telegram'}},
+                ]
+            }
+        }}}]
+        actual_search, _ = contact_es_search(self.org, 'telegram != ""')
+        self.assertEqual(
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1802,8 +1898,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'gender = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1816,8 +1913,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'gender != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'gender != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1828,8 +1926,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'age = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1842,8 +1941,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'age != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'age != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1856,8 +1956,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'joined = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1870,8 +1971,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'joined != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'joined != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1882,8 +1984,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'ward = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1896,8 +1999,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'ward != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'ward != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1910,8 +2014,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'district = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1924,8 +2029,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'district != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'district != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1936,8 +2042,9 @@ class ContactTest(TembaTest):
                 'must': [{'term': {'fields.field': six.text_type(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'state = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'state = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1950,8 +2057,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        acutal_search, _ = contact_es_search(self.org, 'state != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'state != ""').to_dict(),
+            acutal_search.to_dict(),
             expected_search
         )
 
@@ -1964,8 +2072,9 @@ class ContactTest(TembaTest):
                 ]
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'tel != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'tel != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
@@ -1976,52 +2085,59 @@ class ContactTest(TembaTest):
                 'must': [{'exists': {'field': 'urns.path'}}, {'term': {'urns.scheme': 'twitter'}}],
             }
         }}}]
+        actual_search, _ = contact_es_search(self.org, 'twitter = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'twitter = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'term': {'name': ''}}]
+        actual_search, _ = contact_es_search(self.org, 'name = ""')
         self.assertEqual(
-            contact_es_search(self.org, 'name = ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         expected_search = copy.deepcopy(base_search)
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'term': {'name': ''}}]
+        actual_search, _ = contact_es_search(self.org, 'name != ""')
         self.assertEqual(
-            contact_es_search(self.org, 'name != ""').to_dict(),
+            actual_search.to_dict(),
             expected_search
         )
 
         with AnonymousOrg(self.org):
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': ['123']}}]
+            actual_search, _ = contact_es_search(self.org, '123')
             self.assertEqual(
-                contact_es_search(self.org, '123').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter ~ "Blow"').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter != ""')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter != ""').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
             expected_search = copy.deepcopy(base_search)
             expected_search['query']['bool']['must'] = [{'ids': {'values': [-1]}}]
+            actual_search, _ = contact_es_search(self.org, 'twitter = ""')
             self.assertEqual(
-                contact_es_search(self.org, 'twitter = ""').to_dict(),
+                actual_search.to_dict(),
                 expected_search
             )
 
@@ -2100,12 +2216,16 @@ class ContactTest(TembaTest):
         self.assertEqual(q('age >= 30'), 70)
         self.assertEqual(q('age > 30 and age <= 40'), 10)
         self.assertEqual(q('AGE < 20'), 10)
+        self.assertEqual(q('age != ""'), 90)
+        self.assertEqual(q('age = ""'), 0)
 
         self.assertEqual(q('join_date = 1-1-14'), 1)
         self.assertEqual(q('join_date < 30/1/2014'), 29)
         self.assertEqual(q('join_date <= 30/1/2014'), 30)
         self.assertEqual(q('join_date > 30/1/2014'), 60)
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
+        self.assertEqual(q('join_date != ""'), 90)
+        self.assertEqual(q('join_date = ""'), 0)
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
@@ -2184,18 +2304,21 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
-        ContactGroup.create_dynamic(
-            self.org, self.admin, 'simple group',
-            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-        )
-        ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
-        ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
-        ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
-        ContactGroup.create_dynamic(self.org, self.admin, 'Age field is invalid', 'age < "age"')
-        ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
+        with ESMockWithScroll():
+            ContactGroup.create_dynamic(
+                self.org, self.admin, 'simple group',
+                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+            )
+            ContactGroup.create_dynamic(self.org, self.admin, 'cannon fodder', 'age > 18 and gender = "male"')
+            ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+            ContactGroup.create_dynamic(self.org, self.admin, 'Age field is set', 'age != ""')
+            ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
+
+            with self.assertRaises(SearchException):
+                ContactGroup.create_dynamic(self.org, self.admin, 'Age field is invalid', 'age < "age"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(35):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         six.assertCountEqual(
@@ -2217,13 +2340,14 @@ class ContactTest(TembaTest):
         # add a group with members and an empty group
         self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        men = self.create_group("Men", query="gender=M")
         nobody = self.create_group("Nobody", [])
+        with ESMockWithScroll():
+            men = self.create_group("Men", query="gender=M")
 
-        # a group which is being re-evaluated and shouldn't appear in any omnibox results
-        unready = self.create_group("Group being re-evaluated...", query="gender=M")
-        unready.status = ContactGroup.STATUS_EVALUATING
-        unready.save(update_fields=('status',))
+            # a group which is being re-evaluated and shouldn't appear in any omnibox results
+            unready = self.create_group("Group being re-evaluated...", query="gender=M")
+            unready.status = ContactGroup.STATUS_EVALUATING
+            unready.save(update_fields=('status',))
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
         joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
@@ -3316,7 +3440,8 @@ class ContactTest(TembaTest):
 
         # try to push into a dynamic group
         self.login(self.admin)
-        group = self.create_group('Dynamo', query='tel = 325423')
+        with ESMockWithScroll():
+            group = self.create_group('Dynamo', query='tel = 325423')
 
         with self.assertRaises(ValueError):
             post_data = dict()
@@ -4285,7 +4410,8 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         self.create_field('team', "Team")
-        ballers = self.create_group("Ballers", query='team = ballers')
+        with ESMockWithScroll():
+            ballers = self.create_group("Ballers", query='team = ballers')
 
         self.campaign.group = ballers
         self.campaign.save()
@@ -4853,8 +4979,22 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
-            mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+            }}]
+            with ESMockWithScroll(data=mock_es_data):
+                joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
+
+            mock_es_data = [
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+                }},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+                }}
+            ]
+            with ESMockWithScroll(data=mock_es_data):
+                mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact("Mary", "+250783333333")
             self.mary.set_field(self.user, 'gender', "Female")
@@ -4872,8 +5012,22 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, 'joined', '1/1/2014')
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
-            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
-            women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
+            mock_es_data = [
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.joe.id, 'modified_on': self.joe.modified_on.isoformat()
+                }},
+                {'_type': '_doc', '_index': 'dummy_index', '_source': {
+                    'id': self.frank.id, 'modified_on': self.frank.modified_on.isoformat()
+                }}
+            ]
+            with ESMockWithScroll(data=mock_es_data):
+                men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
+
+            mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+                'id': self.mary.id, 'modified_on': self.mary.modified_on.isoformat()
+            }}]
+            with ESMockWithScroll(data=mock_es_data):
+                women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
             joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
@@ -4947,12 +5101,13 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'age', label='Age', value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, 'gender', label='Gender', value_type=Value.TYPE_TEXT)
 
-        ContactGroup.create_dynamic(
-            self.org, self.admin, 'simple group',
-            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-        )
-        ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
-        ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "macklemore"')
+        with ESMockWithScroll():
+            ContactGroup.create_dynamic(
+                self.org, self.admin, 'simple group',
+                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+            )
+            ContactGroup.create_dynamic(self.org, self.admin, 'Empty age field', 'age = ""')
+            ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "macklemore"')
 
         # create some channels of various types
         twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
@@ -5238,19 +5393,28 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search
-        with self.assertNumQueries(40):
-            self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
-            ])
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact2.id}},
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact3.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            with self.assertNumQueries(39):
+                self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                    [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
+                ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(41):
-            self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
-            ])
+        mock_es_data = [
+            {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact.id}}
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            with self.assertNumQueries(40):
+                self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                    [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):

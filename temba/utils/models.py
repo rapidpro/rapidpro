@@ -21,15 +21,18 @@ def generate_uuid():
     return six.text_type(uuid4())
 
 
-def mapEStoDB(model, es_queryset):
+def mapEStoDB(model, es_queryset, only_ids=False):
     """
     Map ElasticSearch results to Django Model objects
     We use object PKs from ElasticSearch result set and select those objects in the database
     """
     pks = [result.id for result in es_queryset]
 
-    # TODO: order_by must be the same as the sort_by on ES, since we are losing the order of results
-    return model.objects.filter(id__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
+    if only_ids:
+        return pks
+    else:
+        # order_by must be the same as the sort_by on ES, since we are losing the order of results
+        return model.objects.filter(id__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
 
 
 class TranslatableField(HStoreField):
