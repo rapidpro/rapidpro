@@ -389,6 +389,11 @@ class FlowTest(TembaTest):
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
 
+    def test_flow_editor_next(self):
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_editor_next', args=[self.flow.uuid]))
+        self.assertContains(response, "id='flow-editor'")
+
     def test_flow_editor(self):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
@@ -4636,7 +4641,9 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        payload = client.request_builder(self.org, int(time.time() * 1000000)).request
+        builder = client.request_builder(self.org, int(time.time() * 1000000))
+        builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
+        payload = builder.request
 
         # add a manual trigger
         payload['trigger'] = {
@@ -4651,7 +4658,9 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        payload = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact).request
+        builder = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact)
+        builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
+        payload = builder.request
         payload['session'] = response.json()['session']
         self.add_message(payload, 'blue')
 

@@ -120,7 +120,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
 FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
-STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
+STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), os.path.join(PROJECT_DIR, '../node_modules/@nyaruka/flow-editor/umd'))
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
@@ -310,8 +310,8 @@ BRANDING = {
         'docs_link': 'http://docs.rapidpro.io',
         'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
-        'splash': '/brands/rapidpro/splash.jpg',
-        'logo': '/brands/rapidpro/logo.png',
+        'splash': 'brands/rapidpro/splash.jpg',
+        'logo': 'brands/rapidpro/logo.png',
         'allow_signups': True,
         'flow_types': ['F', 'V', 'S', 'U'],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
@@ -452,6 +452,7 @@ PERMISSIONS = {
                    'completion',
                    'copy',
                    'editor',
+                   'editor_next',
                    'export',
                    'export_results',
                    'filter',
@@ -511,7 +512,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
         'flows.flow_assets',
-        'msgs.msg_create'
+        'msgs.msg_create',
     ),
     "Alpha": (
     ),
@@ -540,6 +541,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_revisions',
         'flows.flowrun_delete',
+        'flows.flow_editor_next',
         'orgs.org_dashboard',
         'orgs.org_grant',
         'orgs.org_manage',

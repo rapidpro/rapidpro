@@ -41,7 +41,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
-from temba.utils.dates import datetime_to_str
+from temba.utils.dates import datetime_to_str, datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
@@ -210,7 +210,7 @@ class FlowRunCRUDL(SmartCRUDL):
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
-               'upload_action_recording', 'editor', 'results', 'run_table', 'category_counts', 'json',
+               'upload_action_recording', 'editor', 'editor_next', 'results', 'run_table', 'category_counts', 'json',
                'broadcast', 'activity', 'activity_chart', 'filter', 'campaign', 'completion', 'revisions',
                'recent_messages', 'assets', 'upload_media_action')
 
@@ -835,6 +835,20 @@ class FlowCRUDL(SmartCRUDL):
 
             return links
 
+    class EditorNext(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
+        def derive_title(self):
+            return self.object.name
+
+        def get_template_names(self):
+            return "flows/flow_editor_next.haml"
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.EditorNext, self).get_context_data(*args, **kwargs)
+            context['fingerprint'] = datetime_to_ms(datetime.now())
+            return context
+
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
             flows = forms.ModelMultipleChoiceField(Flow.objects.filter(id__lt=0), required=True,
@@ -1133,6 +1147,10 @@ class FlowCRUDL(SmartCRUDL):
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super(FlowCRUDL.Simulate, self).dispatch(*args, **kwargs)
+
         def get(self, request, *args, **kwargs):
             return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
@@ -1156,7 +1174,10 @@ class FlowCRUDL(SmartCRUDL):
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(flow.org, asset_timestamp).asset_server(simulator=True)
+                flow_request = client.request_builder(flow.org, asset_timestamp)
+                flow_request.request['asset_server'] = json_dict.get('asset_server')
+                flow_request.request['assets'] = json_dict.get('assets')
+                # asset_server(simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:

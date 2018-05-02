@@ -36,7 +36,6 @@ window.simStart = ->
     window.updateResults(results)
 
 window.sendUpdate = (postData) ->
-
   request = getRequest()
   request['session'] = window.session
   request['events'] = [{
