@@ -1,3 +1,9 @@
+v3.0.378
+----------
+ * get all possible existing Twilio numbers on the Twilio account
+ * reenable group sends *
+ * remove Value model usage, Contact.search
+
 v3.0.377
 ----------
  * do not allow dupe broadcasts to groups
