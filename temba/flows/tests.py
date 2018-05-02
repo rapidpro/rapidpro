@@ -2135,10 +2135,9 @@ class FlowTest(TembaTest):
         actionset.actions = actions
         actionset.save(update_fields=['actions'])
 
-        # we should fail to copy and redirected to the original flow
+        # we should allow copy of flows with group sends
         response = self.client.post(reverse('flows.flow_copy', args=[self.flow.id]))
-        self.assertIsNone(Flow.objects.filter(org=self.org, name="Copy of %s" % self.flow.name).first())
-        self.assertRedirect(response, reverse('flows.flow_editor', args=[self.flow.uuid]))
+        self.assertIsNotNone(Flow.objects.filter(org=self.org, name="Copy of %s" % self.flow.name).first())
 
     def test_views(self):
         self.create_secondary_org()
@@ -3582,9 +3581,8 @@ class ActionTest(TembaTest):
         self.assertTrue(action.groups)
         self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
 
-        # no longer support sending to groups inside SendAction
-        with self.assertRaises(FlowException):
-            SendAction.from_json(self.org, action.as_json())
+        # support sending to groups inside SendAction
+        SendAction.from_json(self.org, action.as_json())
 
         # test send media to someone else
         run = FlowRun.create(self.flow, self.contact)
