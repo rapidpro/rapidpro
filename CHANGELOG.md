@@ -1,3 +1,7 @@
+v3.0.379
+----------
+ * add v2 editor through /v2 command in simulator
+
 v3.0.378
 ----------
  * get all possible existing Twilio numbers on the Twilio account
