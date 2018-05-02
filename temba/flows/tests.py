@@ -389,6 +389,11 @@ class FlowTest(TembaTest):
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
 
+    def test_flow_editor_next(self):
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_editor_next', args=[self.flow.uuid]))
+        self.assertContains(response, "id='flow-editor'")
+
     def test_flow_editor(self):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
