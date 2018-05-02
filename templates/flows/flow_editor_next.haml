@@ -3,7 +3,7 @@
 -load compress temba i18n
 
 -block page-container
-  #flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/1234", engine:"/flow/simulate/{{object.id}}/"}
+  #flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/{{fingerprint}}", engine:"/flow/simulate/{{object.id}}/"}
 
 -block extra-script
   {{ block.super }}

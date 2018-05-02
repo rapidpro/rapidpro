@@ -41,7 +41,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
-from temba.utils.dates import datetime_to_str
+from temba.utils.dates import datetime_to_str, datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
@@ -862,6 +862,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_template_names(self):
             return "flows/flow_editor_next.haml"
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.EditorNext, self).get_context_data(*args, **kwargs)
+            context['fingerprint'] = datetime_to_ms(datetime.now())
+            return context
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
