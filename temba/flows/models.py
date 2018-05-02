@@ -6479,9 +6479,6 @@ class SendAction(VariableContactAction):
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
 
-        if group_ids:
-            raise FlowException('SendAction no longer allows sending to groups')
-
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg,
                     contacts=contact_ids, groups=group_ids, variables=variables,
                     media=self.media)

@@ -6361,9 +6361,8 @@ class FlowsTest(FlowFileTest):
         # and create another as well
         ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
 
-        # make sure flows with send to groups are disallowed
-        with self.assertRaises(FlowException):
-            self.get_flow('group_send_flow')
+        # fetching a flow with a group send shouldn't throw
+        self.get_flow('group_send_flow')
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
