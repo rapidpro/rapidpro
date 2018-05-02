@@ -97,12 +97,6 @@ class AdminBoundary(MPTTModel, models.Model):
     def update(self, **kwargs):
         AdminBoundary.objects.filter(id=self.id).update(**kwargs)
 
-        # if our name changed, update the category on any of our values
-        name = kwargs.get('name', self.name)
-        if name != self.name:
-            from temba.values.models import Value
-            Value.objects.filter(location_value=self).update(category=name)
-
         # update our object values so that self is up to date
         for key, value in kwargs.items():
             setattr(self, key, value)

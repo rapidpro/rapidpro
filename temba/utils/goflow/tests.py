@@ -11,7 +11,7 @@ from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Label, Msg
 from temba.tests import TembaTest, skip_if_no_flowserver, MockResponse
-from temba.values.models import Value
+from temba.values.constants import Value
 from .client import serialize_field, serialize_label, serialize_channel, get_client, FlowServerException
 from . import trial
 

@@ -38,7 +38,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
 from temba.utils.dates import str_to_datetime
-from temba.values.models import Value
+from temba.values.constants import Value
 from temba.utils.locks import NonBlockingLock
 
 logger = logging.getLogger(__name__)
@@ -763,12 +763,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return six.text_type(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
-        from temba.values.models import Value
-
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
 
-        existing = None
         has_changed = False
 
         # parse into the appropriate value types
@@ -864,45 +861,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     (cursor.execute(
                         "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
                         [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
-
-        # legacy method of setting field
-        if value is None:
-            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
-            value = None
-            has_changed = True
-        else:
-            category = loc_value.name if loc_value else None
-
-            # find the existing value
-            existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
-
-            if existing:
-                # only update the existing value if it will be different
-                if existing.string_value != str_value \
-                        or existing.decimal_value != num_value \
-                        or existing.datetime_value != dt_value \
-                        or existing.location_value != loc_value \
-                        or existing.category != category:
-
-                    existing.string_value = str_value
-                    existing.decimal_value = num_value
-                    existing.datetime_value = dt_value
-                    existing.location_value = loc_value
-                    existing.category = category
-
-                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                                 'location_value', 'category', 'modified_on'])
-                    has_changed = True
-
-                # remove any others on the same field that may exist
-                Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
-
-            # otherwise, create a new value for it
-            else:
-                existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
-                                                string_value=str_value, decimal_value=num_value, datetime_value=dt_value,
-                                                location_value=loc_value, category=category)
-                has_changed = True
 
         # update any groups or campaigns for this contact if not importing
         if has_changed and not importing:
@@ -1201,18 +1159,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
                                                           is_test=True)
         return test_contact
-
-    @classmethod
-    def search(cls, org, query, base_group=None):
-        """
-        Performs a search of contacts within a group (system or user)
-        """
-        from .search import contact_search
-
-        if not base_group:
-            base_group = org.cached_all_contacts_group
-
-        return contact_search(org, query, base_group.contacts.all())
 
     @classmethod
     def create_instance(cls, field_dict):

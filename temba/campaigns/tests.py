@@ -16,7 +16,7 @@ from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision, 
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, ESMockWithScroll
-from temba.values.models import Value
+from temba.values.constants import Value
 from .models import Campaign, CampaignEvent, EventFire
 
 

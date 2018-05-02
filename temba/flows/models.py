@@ -53,7 +53,7 @@ from temba.utils.goflow import trial
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
-from temba.values.models import Value
+from temba.values.constants import Value
 from temba_expressions.utils import tokenize
 from uuid import uuid4
 

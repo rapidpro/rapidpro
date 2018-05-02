@@ -35,7 +35,7 @@ from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
-from temba.values.models import Value
+from temba.values.constants import Value
 from unittest import skipIf
 from uuid import uuid4
 from .http import MockServer
