@@ -73,8 +73,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     def get_existing_numbers(self, org):
         client = org.get_twilio_client()
         if client:
-            twilio_account_numbers = client.phone_numbers.list()
-            twilio_short_codes = client.sms.short_codes.list()
+            twilio_account_numbers = client.phone_numbers.list(page_size=1000)
+            twilio_short_codes = client.sms.short_codes.list(page_size=1000)
 
         numbers = []
         for number in twilio_account_numbers:
