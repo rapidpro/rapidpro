@@ -342,7 +342,7 @@ class TrialTest(TembaTest):
 
         # detected differences should be reported but shouldn't effect normal flow execution
         with patch('temba.utils.goflow.trial.compare_run') as mock_compare_run:
-            mock_compare_run.return_value = {'diff': ['a', 'b']}
+            mock_compare_run.return_value = {'diffs': ['a', 'b']}
 
             run, = favorites.start([], [self.contact], restart_participants=True)
             Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
