@@ -12,7 +12,7 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db.models import Value as DbValue
 from django.db.models.functions import Substr, Concat
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
