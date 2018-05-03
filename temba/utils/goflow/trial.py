@@ -15,6 +15,7 @@ from django.conf import settings
 from django_redis import get_redis_connection
 from .client import get_client, Events
 from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
+from jsondiff import diff as jsondiff
 
 logger = logging.getLogger(__name__)
 
@@ -271,21 +272,27 @@ def compare_run(run, session):
     if not session_run:
         return {'session': "run %s not found" % str(run.uuid)}
 
-    differences = {}
+    rapidpro_run = {
+        'path': reduce_path(run.path),
+        'results': reduce_results(run.results),
+        'events': reduce_events(run.events),
+    }
 
-    path1, path2 = reduce_path(run.path), reduce_path(session_run['path'])
-    if path1 != path2:
-        differences['path'] = path1, path2
+    goflow_run = {
+        'path': reduce_path(session_run['path']),
+        'results': reduce_results(session_run.get('results', {})),
+        'events': reduce_events(session_run.get('events', [])),
+    }
 
-    results1, results2 = reduce_results(run.results), reduce_results(session_run.get('results', {}))
-    if results1 != results2:
-        differences['results'] = results1, results2
+    diffs = jsondiff(rapidpro_run, goflow_run)
+    if not diffs:
+        return None
 
-    events1, events2 = reduce_events(run.events), reduce_events(session_run.get('events', []))
-    if events1 != events2:
-        differences['events'] = events1, events2
-
-    return differences
+    return {
+        'diffs': diffs,
+        'goflow': goflow_run,
+        'rapidpro': rapidpro_run,
+    }
 
 
 def reduce_path(path):

@@ -208,7 +208,7 @@ class TrialTest(TembaTest):
         session['runs'][0]['results']['color']['value'] = 'wrong value'
         session['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
 
-        self.assertEqual(set(trial.compare_run(run, session).keys()), {'path', 'results', 'events'})
+        self.assertTrue(trial.compare_run(run, session)['diffs'])
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
@@ -342,7 +342,7 @@ class TrialTest(TembaTest):
 
         # detected differences should be reported but shouldn't effect normal flow execution
         with patch('temba.utils.goflow.trial.compare_run') as mock_compare_run:
-            mock_compare_run.return_value = {'path': ['a', 'b']}
+            mock_compare_run.return_value = {'diffs': ['a', 'b']}
 
             run, = favorites.start([], [self.contact], restart_participants=True)
             Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
