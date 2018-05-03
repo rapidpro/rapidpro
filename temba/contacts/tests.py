@@ -10,8 +10,6 @@ import copy
 import time
 
 from datetime import date
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
 
@@ -24,7 +22,7 @@ from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
-from smartmin.tests import _CRUDLTest
+from smartmin.tests import _CRUDLTest, SmartminTestMixin
 from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
@@ -36,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll
+from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll, TembaTestMixin
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.profiler import QueryTracker
@@ -5682,51 +5680,12 @@ class PhoneNumberTest(TestCase):
         self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))
 
 
-class ESIntegrationTest(TransactionTestCase):
-
-    def create_user(self, username, group_names=()):
-        # Create a user to run our CRUDL tests
-        user = get_user_model().objects.create_user(username, "%s@nyaruka.com" % username)
-        user.set_password(username)
-        user.save()
-        for group in group_names:
-            user.groups.add(Group.objects.get(name=group))
-        return user
-
-    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
-        """
-        Create a contact in the master test org
-        """
-        urns = []
-        if number:
-            urns.append(URN.from_tel(number))
-        if twitter:
-            urns.append(URN.from_twitter(twitter))
-        if twitterid:
-            urns.append(URN.from_twitterid(twitterid))
-        if urn:
-            urns.append(urn)
-
-        if not name and not urns:  # pragma: no cover
-            raise ValueError("Need a name or URN to create a contact")
-
-        kwargs['name'] = name
-        kwargs['urns'] = urns
-        kwargs['is_test'] = is_test
-
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'user' not in kwargs:
-            kwargs['user'] = self.admin
-
-        return Contact.get_or_create_by_urns(**kwargs)
+class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
 
     def test_ES_contacts_index(self):
+        self.create_anonymous_user()
         self.admin = self.create_user("Administrator")
-
-        user = get_user_model()(username=settings.ANONYMOUS_USER_NAME)
-        user.set_unusable_password()
-        user.save()
+        self.user = self.admin
 
         self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
         self.state1 = AdminBoundary.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
