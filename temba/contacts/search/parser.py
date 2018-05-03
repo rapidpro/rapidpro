@@ -183,7 +183,7 @@ class Condition(QueryNode):
 
                 if self.comparator == '=':
                     return contact_value == query_value
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown text comparator: '%s'") % (self.comparator,))
 
             elif field.value_type == Value.TYPE_NUMBER:
@@ -205,7 +205,7 @@ class Condition(QueryNode):
                     return contact_value < query_value
                 elif self.comparator == '<=':
                     return contact_value <= query_value
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown number comparator: '%s'") % (self.comparator,))
 
             elif field.value_type == Value.TYPE_DATETIME:
@@ -231,7 +231,7 @@ class Condition(QueryNode):
                     return contact_value < utc_range[0]
                 elif self.comparator == '<=':
                     return contact_value < utc_range[1]
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown datetime comparator: '%s'") % (self.comparator,))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
@@ -278,7 +278,7 @@ class Condition(QueryNode):
                     elif self.comparator == '~':
                         if query_value in contact_value:
                             return True
-                    else:  # pragma: no cover
+                    else:
                         raise SearchException(_("Unknown urn scheme comparator: '%s'") % (self.comparator,))
 
             return False
@@ -299,7 +299,7 @@ class Condition(QueryNode):
                 if self.comparator == '=':
                     es_query &= es_Q('term', **{'fields.text': query_value})
 
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown text comparator: '%s'") % (self.comparator,))
 
             elif field.value_type == Value.TYPE_NUMBER:
@@ -315,13 +315,13 @@ class Condition(QueryNode):
                     es_query &= es_Q('range', **{'fields.number': {'lt': query_value}})
                 elif self.comparator == '<=':
                     es_query &= es_Q('range', **{'fields.number': {'lte': query_value}})
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown number comparator: '%s'") % (self.comparator,))
 
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
 
-                if not query_value:  # pragma: no cover
+                if not query_value:
                     raise SearchException(_("Unable to parse the date '%s'") % self.value)
 
                 utc_range = date_to_utc_range(query_value.date(), field.org)
@@ -338,7 +338,7 @@ class Condition(QueryNode):
                     es_query &= es_Q('range', **{'fields.datetime': {'lt': utc_range[0].isoformat()}})
                 elif self.comparator == '<=':
                     es_query &= es_Q('range', **{'fields.datetime': {'lt': utc_range[1].isoformat()}})
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown datetime comparator: '%s'") % (self.comparator,))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
@@ -375,7 +375,7 @@ class Condition(QueryNode):
                 elif self.comparator == '~':
                     field_name = 'name'
                     es_query = es_Q('match', **{field_name: query_value})
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown attribute comparator: '%s'") % (self.comparator,))
             elif field == 'id':
                 es_query = es_Q('ids', **{'values': [query_value]})
@@ -394,7 +394,7 @@ class Condition(QueryNode):
                     es_query &= es_Q('term', **{'urns.path.keyword': query_value})
                 elif self.comparator == '~':
                     es_query &= es_Q('match_phrase', **{'urns.path': query_value})
-                else:  # pragma: no cover
+                else:
                     raise SearchException(_("Unknown scheme comparator: '%s'") % (self.comparator,))
 
                 return es_Q('nested', path='urns', query=es_query)
@@ -551,7 +551,7 @@ class IsSetCondition(Condition):
             is_set = True
         elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
             is_set = False
-        else:  # pragma: no cover
+        else:
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:

@@ -1431,6 +1431,26 @@ class ContactTest(TembaTest):
             SearchException, evaluate_query, self.org, 'credits > 10', contact_json=self.joe.as_search_json()
         )
 
+        # unsupported text operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'gender ~ "cedevita"', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported number operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'age ~ 13', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported date operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'joined ~ 01-03-2018', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported scheme operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'tel > "cedevita"', contact_json=self.joe.as_search_json()
+        )
+
         with AnonymousOrg(self.org):
 
             self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
@@ -5758,6 +5778,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         result = subprocess.call(['./rp-indexer', '-db', database_url, '-rebuild'])
         self.assertEqual(result, 0)
 
+        # give ES some time to publish the results
         time.sleep(5)
 
         self.assertEqual(q('trey'), 15)
