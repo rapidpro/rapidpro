@@ -6,31 +6,82 @@
   %fieldset
     #field-table-container
       %table#field-table
-        %tr
-          %th Name
-          %th Type
-          %th Show
-
-        -for field_fields in contact_fields
+        %thead
           %tr
-            %td.field-label
-              {% render_field field_fields.label %}
+            %th
+            %th Name
+            %th Type
+            %th Show
 
-            %td.field-type
-              {% render_field field_fields.type %}
+        %tbody#draggable-table
+          -for field_fields in contact_fields
+            %tr.draggable-row
+              %td.drag-icon
+                %div.drag-handle.icon.icon-menu
 
-            %td.field-show
-              {% render_field field_fields.show %}
-              {% render_field field_fields.field %}
+              %td.field-label
+                {% render_field field_fields.label %}
+
+              %td.field-type
+                {% render_field field_fields.type %}
+
+              %td.field-show
+                {% render_field field_fields.show %}
+                {% render_field field_fields.field %}
+                {% render_field field_fields.priority %}
 
 
 -block modal-script
+
   :javascript
     $(".smartmin-form select").select2({minimumResultsForSearch: -1, width: 'element'});
+
+    // polyfill for older browsers
+    if (!String.prototype.startsWith) {
+        String.prototype.startsWith = function(search, pos) {
+            return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
+        }
+    }
+
+    $('#draggable-table').sortable({
+        handle: '.drag-handle',
+        // forcePlaceholderSize:true,
+        // dropOnEmpty:false,
+        // containment: 'parent',
+        stop: function (event, ui) {
+          $(ui.item).removeClass('sortable-drag');
+
+           $('#draggable-table > tr').each(function(idx, elem) {
+             // rewrite priority of every element based on the current order of elements
+             var new_idx = 1000 - idx;
+
+             $(elem).find('input[type=hidden]').each(function(idx, in_elem) {
+                if (in_elem.name.startsWith('priority')){
+                    in_elem.value = new_idx;
+                }
+             });
+           });
+
+        },
+        start: function (event, ui) {
+          $(ui.item).addClass('sortable-drag');
+        }
+    });
 
 -block modal-extra-style
   {{block.super}}
   :css
+    .drag-handle {
+      cursor:move;
+      display: block;
+      padding-top:10px;
+    }
+
+    .sortable-drag {
+      opacity: 1;
+      background-color: #f9f9f9;
+    }
+
     .smartmin-form select {
       width: 150px;
       display: inline-block;
@@ -83,4 +134,8 @@
 
     #field-table .controls {
       margin-left: 0px;
+    }
+
+    #field-table td.drag-icon {
+      vertical-align: top;
     }
