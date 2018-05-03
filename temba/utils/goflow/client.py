@@ -49,7 +49,13 @@ class RequestBuilder(object):
         for f in self.org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
 
-        request = request.include_fields().include_groups().include_labels().include_channels(simulator)
+        request = (
+            request.
+            include_fields()
+            .include_groups()
+            .include_labels()
+            .include_channels(simulator)
+        )
         if self.org.country_id:
             request = request.include_country()
 

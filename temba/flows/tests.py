@@ -9243,7 +9243,8 @@ class FlowTriggerTest(TembaTest):
 
 class TypeTest(TembaTest):
 
-    def test_value_types(self):
+    @also_in_flowserver
+    def test_value_types(self, in_flowserver):
 
         contact = self.create_contact("Joe", "+250788373373")
         self.get_flow('type_flow')
