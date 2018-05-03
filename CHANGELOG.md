@@ -1,3 +1,8 @@
+v3.0.380
+----------
+ * update to latest goflow to get location support
+ * better output logs for goflow differences
+
 v3.0.379
 ----------
  * add v2 editor through /v2 command in simulator
