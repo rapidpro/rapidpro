@@ -5188,7 +5188,7 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         from temba.flows.tasks import start_flow_task
-        on_transaction_commit(lambda: start_flow_task.delay(self.id))
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue='flows'))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
