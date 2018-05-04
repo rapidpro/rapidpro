@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0078_create_field_key_index'),
+        ('contacts', '0079_auto_20180502_1624'),
     ]
 
     operations = [
