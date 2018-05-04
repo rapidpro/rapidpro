@@ -414,7 +414,7 @@ class ContactField(SmartModel):
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=0):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -2775,7 +2775,12 @@ class ExportContactsTask(BaseExportTask):
                         field_dict['position'] = i
                         fields.append(field_dict)
 
-        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+        contact_fields_list = (
+            ContactField.objects
+            .filter(org=self.org, is_active=True)
+            .select_related('org')
+            .order_by('-priority', 'pk')
+        )
         for contact_field in contact_fields_list:
             fields.append(dict(field=contact_field,
                                label=contact_field.label,
