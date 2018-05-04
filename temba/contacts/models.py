@@ -414,7 +414,7 @@ class ContactField(SmartModel):
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=0):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -483,6 +483,9 @@ class ContactField(SmartModel):
 
                 if show_in_table is None:
                     show_in_table = False
+
+                if priority is None:
+                    priority = 0
 
                 if not ContactField.is_valid_key(key):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
