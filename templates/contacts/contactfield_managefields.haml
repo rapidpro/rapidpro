@@ -8,12 +8,12 @@
       %table#field-table
         %thead
           %tr
-            %th
+            %th.drag-icon
             %th Name
             %th Type
             %th Show
 
-        %tbody#draggable-table
+        %tbody#draggable-tbody
           -for field_fields in contact_fields
             %tr.draggable-row
               %td.drag-icon
@@ -43,15 +43,16 @@
         }
     }
 
-    $('#draggable-table').sortable({
+    $('#draggable-tbody').sortable({
         handle: '.drag-handle',
         // forcePlaceholderSize:true,
         // dropOnEmpty:false,
         // containment: 'parent',
+        placeholder: "sortable-placeholder",
         stop: function (event, ui) {
-          $(ui.item).removeClass('sortable-drag');
+          $(ui.item).removeClass('sortable-dragging');
 
-           $('#draggable-table > tr').each(function(idx, elem) {
+           $('#draggable-tbody > tr').each(function(idx, elem) {
              // rewrite priority of every element based on the current order of elements
              var new_idx = 1000 - idx;
 
@@ -64,7 +65,7 @@
 
         },
         start: function (event, ui) {
-          $(ui.item).addClass('sortable-drag');
+          $(ui.item).addClass('sortable-dragging');
         }
     });
 
@@ -77,9 +78,37 @@
       padding-top:10px;
     }
 
-    .sortable-drag {
+    .drag-icon:before {
+        content: '';
+        display: block;
+        width: 15px;
+    }
+
+    .sortable-dragging {
       opacity: 1;
       background-color: #f9f9f9;
+      border: 1px solid #dbdfe0 !important;
+      border-radius: 3px;
+      margin: 0px;
+    }
+
+    .draggable-row .icon {
+      display: none;
+    }
+
+    .draggable-row:hover .icon {
+      display: inline-block;
+      color: #cccccc;
+    }
+    .draggable-row:hover {
+      background: #f9f9f9;
+    }
+
+    #draggable-tbody .sortable-placeholder {
+      border-top: 1px solid #dbdfe0;
+      border-bottom: 1px solid #dbdfe0;
+      background-color: #f5f9fa;
+      height: 50px;
     }
 
     .smartmin-form select {
