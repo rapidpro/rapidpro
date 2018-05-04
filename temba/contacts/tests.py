@@ -2,22 +2,27 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
+import subprocess
+
 import pytz
 import six
 import copy
+import time
 
+from datetime import date
 from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
+
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db.models import Value as DbValue
 from django.db.models.functions import Substr, Concat
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
-from smartmin.tests import _CRUDLTest
+from smartmin.tests import _CRUDLTest, SmartminTestMixin
 from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
@@ -29,11 +34,12 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll
+from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll, TembaTestMixin
 from temba.triggers.models import Trigger
-from temba.utils.dates import datetime_to_ms
+from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
+from temba.utils.es import ES
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
@@ -1266,9 +1272,11 @@ class ContactTest(TembaTest):
 
         # evaluator can't be used with Contact attributes (name, id)
         self.assertRaises(
-            ValueError, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json()
+            SearchException, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json()
         )
-        self.assertRaises(ValueError, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json())
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json()
+        )
 
         # test TEXT field type
         self.assertFalse(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
@@ -1423,6 +1431,26 @@ class ContactTest(TembaTest):
             SearchException, evaluate_query, self.org, 'credits > 10', contact_json=self.joe.as_search_json()
         )
 
+        # unsupported text operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'gender ~ "cedevita"', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported number operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'age ~ 13', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported date operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'joined ~ 01-03-2018', contact_json=self.joe.as_search_json()
+        )
+
+        # unsupported scheme operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'tel > "cedevita"', contact_json=self.joe.as_search_json()
+        )
+
         with AnonymousOrg(self.org):
 
             self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
@@ -1438,7 +1466,7 @@ class ContactTest(TembaTest):
 
             # this will be parsed as search for contact id
             self.assertRaises(
-                ValueError, evaluate_query,
+                SearchException, evaluate_query,
                 self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json()
             )
 
@@ -1681,11 +1709,12 @@ class ContactTest(TembaTest):
         # datetime range matches
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
-            'bool': {
-                'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'match': {'fields.datetime': '2018-02-28'}}
-                ]}
+            'bool': {'must': [
+                {'term': {'fields.field': six.text_type(joined.uuid)}},
+                {'range': {'fields.datetime': {
+                    'gte': '2018-02-28T22:00:00+00:00', 'lt': '2018-03-01T22:00:00+00:00'
+                }}}
+            ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'joined = "01-03-2018"')
         self.assertEqual(
@@ -1698,7 +1727,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'range': {'fields.datetime': {'gt': '2018-02-28'}}}
+                    {'range': {'fields.datetime': {'gte': '2018-03-01T22:00:00+00:00'}}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'joined > "01-03-2018"')
@@ -1712,7 +1741,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'range': {'fields.datetime': {'gte': '2018-02-28'}}}
+                    {'range': {'fields.datetime': {'gte': '2018-02-28T22:00:00+00:00'}}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'joined >= "01-03-2018"')
@@ -1726,7 +1755,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
+                    {'range': {'fields.datetime': {'lt': '2018-02-28T22:00:00+00:00'}}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'joined < "01-03-2018"')
@@ -1740,7 +1769,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'range': {'fields.datetime': {'lte': '2018-02-28'}}}
+                    {'range': {'fields.datetime': {'lt': '2018-03-01T22:00:00+00:00'}}}
                 ]}
         }}}
         ]
@@ -1823,7 +1852,7 @@ class ContactTest(TembaTest):
                     {'term': {'fields.field': six.text_type(gender.uuid)}}, {'term': {'fields.text': 'unknown'}}
                 ]}}}}, {'nested': {'path': 'fields', 'query': {'bool': {'must': [
                     {'term': {'fields.field': six.text_type(joined.uuid)}},
-                    {'range': {'fields.datetime': {'lt': '2018-02-28'}}}
+                    {'range': {'fields.datetime': {'lt': '2018-02-28T22:00:00+00:00'}}}
                 ]}}}}
             ],
             'filter': [
@@ -2094,17 +2123,32 @@ class ContactTest(TembaTest):
             expected_search
         )
 
-        expected_search = copy.deepcopy(base_search)
-        expected_search['query']['bool']['must'] = [{'term': {'name': ''}}]
+        expected_search = {'query': {'bool': {
+            'should': [
+                {'bool': {'must_not': [{'exists': {'field': 'name'}}]}}, {'term': {'name.keyword': ''}}
+            ], 'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
+                {'term': {'org_id': self.org.id}},
+                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+            ],
+            'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name = ""')
         self.assertEqual(
             actual_search.to_dict(),
             expected_search
         )
 
-        expected_search = copy.deepcopy(base_search)
-        del expected_search['query']['bool']['must']
-        expected_search['query']['bool']['must_not'] = [{'term': {'name': ''}}]
+        expected_search = {'query': {'bool': {
+            'must_not': [{'term': {'name.keyword': ''}}],
+            'must': [{'exists': {'field': 'name'}}],
+            'filter': [
+                # {'term': {'is_blocked': False}},
+                # {'term': {'is_stopped': False}},
+                {'term': {'org_id': self.org.id}},
+                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+            ],
+        }}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name != ""')
         self.assertEqual(
             actual_search.to_dict(),
@@ -5654,3 +5698,188 @@ class PhoneNumberTest(TestCase):
         self.assertEqual(is_phonenumber('AMAZONS'), (False, None))
         self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
         self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))
+
+
+class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
+
+    def test_ES_contacts_index(self):
+        self.create_anonymous_user()
+        self.admin = self.create_user("Administrator")
+        self.user = self.admin
+
+        self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
+        self.state1 = AdminBoundary.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+
+        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                      brand=settings.DEFAULT_BRAND, created_by=self.admin, modified_by=self.admin)
+
+        self.org.initialize(topup_size=1000)
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.client.login(username=self.admin.username, password=self.admin.username)
+
+        # block the default contacts, these should be ignored in our searches
+        Contact.objects.all().update(is_active=False, is_blocked=True)
+
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+        ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
+        ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
+        ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
+        ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
+        ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
+
+        names = ['Trey', 'Mike', 'Paige', 'Fish', "", None]
+        districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
+        wards = ['Kageyo', 'Kabara', 'Bukure']
+        date_format = get_datetime_format(True)[0]
+
+        # create some contacts
+
+        for i in range(90):
+            name = names[i % len(names)]
+
+            number = "0788382%s" % str(i).zfill(3)
+            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
+            contact = self.create_contact(name=name, number=number, twitter=twitter)
+            join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
+
+            # some field data so we can do some querying
+            contact.set_field(self.admin, 'age', str(i + 10))
+            contact.set_field(self.admin, 'join_date', str(join_date))
+            contact.set_field(self.admin, 'state', "Eastern Province")
+            contact.set_field(self.admin, 'home', districts[i % len(districts)])
+            contact.set_field(self.admin, 'ward', wards[i % len(wards)])
+
+            contact.set_field(self.admin, 'isureporter', 'yes')
+            contact.set_field(self.admin, 'hasbirth', 'no')
+
+            if i % 3 == 0:
+                contact.set_field(self.admin, 'profession', "Farmer")  # only some contacts have any value for this
+
+        def q(query):
+            search_object, _ = contact_es_search(self.org, query, None)
+            return search_object.source(fields=('id',)).using(ES).count()
+
+        db_config = settings.DATABASES['default']
+        database_url = 'postgres://{}:{}@{}/{}?sslmode=disable'.format(
+            db_config['USER'], db_config['PASSWORD'], db_config['HOST'], db_config['NAME']
+        )
+        result = subprocess.call(['./rp-indexer', '-db', database_url, '-rebuild'])
+        self.assertEqual(result, 0)
+
+        # give ES some time to publish the results
+        time.sleep(5)
+
+        self.assertEqual(q('trey'), 15)
+        self.assertEqual(q('MIKE'), 15)
+        self.assertEqual(q('  paige  '), 15)
+        self.assertEqual(q('0788382011'), 1)
+        self.assertEqual(q('trey 0788382'), 15)
+
+        # name as property
+        self.assertEqual(q('name is "trey"'), 15)
+        self.assertEqual(q('name is mike'), 15)
+        self.assertEqual(q('name = paige'), 15)
+        self.assertEqual(q('name != ""'), 60)
+        self.assertEqual(q('NAME = ""'), 30)
+        self.assertEqual(q('name ~ Mi'), 15)
+
+        # URN as property
+        self.assertEqual(q('tel is +250788382011'), 1)
+        self.assertEqual(q('tel has 0788382011'), 1)
+        self.assertEqual(q('twitter = tweep_13'), 1)
+        self.assertEqual(q('twitter = ""'), 60)
+        self.assertEqual(q('twitter != ""'), 30)
+        self.assertEqual(q('TWITTER has tweep'), 30)
+
+        # contact field as property
+        self.assertEqual(q('age > 30'), 69)
+        self.assertEqual(q('age >= 30'), 70)
+        self.assertEqual(q('age > 30 and age <= 40'), 10)
+        self.assertEqual(q('AGE < 20'), 10)
+        self.assertEqual(q('age != ""'), 90)
+        self.assertEqual(q('age = ""'), 0)
+
+        self.assertEqual(q('join_date = 1-1-14'), 1)
+        self.assertEqual(q('join_date < 30/1/2014'), 29)
+        self.assertEqual(q('join_date <= 30/1/2014'), 30)
+        self.assertEqual(q('join_date > 30/1/2014'), 60)
+        self.assertEqual(q('join_date >= 30/1/2014'), 61)
+        self.assertEqual(q('join_date != ""'), 90)
+        self.assertEqual(q('join_date = ""'), 0)
+
+        self.assertEqual(q('state is "Eastern Province"'), 90)
+        self.assertEqual(q('HOME is Kayônza'), 30)
+        self.assertEqual(q('ward is kageyo'), 30)
+
+        self.assertEqual(q('home is ""'), 0)
+        self.assertEqual(q('profession = ""'), 60)
+        self.assertEqual(q('profession is ""'), 60)
+        self.assertEqual(q('profession != ""'), 30)
+
+        # contact fields beginning with 'is' or 'has'
+        self.assertEqual(q('isureporter = "yes"'), 90)
+        self.assertEqual(q('isureporter = yes'), 90)
+        self.assertEqual(q('isureporter = no'), 0)
+
+        self.assertEqual(q('hasbirth = "no"'), 90)
+        self.assertEqual(q('hasbirth = no'), 90)
+        self.assertEqual(q('hasbirth = yes'), 0)
+
+        # boolean combinations
+        self.assertEqual(q('name is trey or name is mike'), 30)
+        self.assertEqual(q('name is trey and age < 20'), 2)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
+        self.assertEqual(q('name is MIKE and profession = ""'), 15)
+        self.assertEqual(q('profession = doctor or profession = farmer'), 30)  # same field
+        self.assertEqual(q('age = 20 or age = 21'), 2)
+        self.assertEqual(q('join_date = 30/1/2014 or join_date = 31/1/2014'), 2)
+
+        # create contact with no phone number, we'll try searching for it by id
+        contact = self.create_contact(name="Id Contact")
+
+        # non-anon orgs can't search by id (because they never see ids)
+        self.assertEqual(q('%d' % contact.pk), 0)  # others may match by id on tel
+
+        with AnonymousOrg(self.org):
+            # still allow name and field searches
+            self.assertEqual(q('trey'), 15)
+            self.assertEqual(q('name is mike'), 15)
+            self.assertEqual(q('age > 30'), 69)
+
+            # don't allow matching on URNs
+            self.assertEqual(q('0788382011'), 0)
+            self.assertEqual(q('tel is +250788382011'), 0)
+            self.assertEqual(q('twitter has tweep'), 0)
+            self.assertEqual(q('twitter = ""'), 0)
+
+            # anon orgs can search by id, with or without zero padding
+            self.assertEqual(q('%d' % contact.pk), 0)
+            self.assertEqual(q('%010d' % contact.pk), 0)
+
+        # invalid queries
+        self.assertRaises(SearchException, q, '((')
+        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
+        self.assertRaises(SearchException, q, 'name > trey')  # unrecognized non-field operator   # ValueError
+        self.assertRaises(SearchException, q, 'profession > trey')  # unrecognized text-field operator   # ValueError
+        self.assertRaises(SearchException, q, 'age has 4')  # unrecognized decimal-field operator   # ValueError
+        self.assertRaises(SearchException, q, 'age = x')  # unparseable decimal-field comparison
+        self.assertRaises(SearchException, q, 'join_date has 30/1/2014')  # unrecognized date-field operator   # ValueError
+        self.assertRaises(SearchException, q, 'join_date > xxxxx')  # unparseable date-field comparison
+        self.assertRaises(SearchException, q, 'home > kigali')  # unrecognized location-field operator
+        self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
+        self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN   # ValueError
+        self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
+        self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters

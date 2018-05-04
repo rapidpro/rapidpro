@@ -30,7 +30,7 @@ def serialize_channel(channel):
 
     return {
         'uuid': str(channel.uuid),
-        'name': six.text_type(channel.get_name()),
+        'name': channel.name,
         'address': channel.address,
         'schemes': channel.schemes,
         'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
