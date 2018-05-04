@@ -45,9 +45,6 @@
 
     $('#draggable-tbody').sortable({
         handle: '.drag-handle',
-        // forcePlaceholderSize:true,
-        // dropOnEmpty:false,
-        // containment: 'parent',
         placeholder: "sortable-placeholder",
         stop: function (event, ui) {
           $(ui.item).removeClass('sortable-dragging');
@@ -62,10 +59,11 @@
                 }
              });
            });
-
         },
         start: function (event, ui) {
           $(ui.item).addClass('sortable-dragging');
+          // since we use a table we need to manually add a div to the sortable.placeholder in order to modify its margin
+          ui.placeholder.html('<td colspan=99><div></div></td>');
         }
     });
 
@@ -100,15 +98,17 @@
       display: inline-block;
       color: #cccccc;
     }
-    .draggable-row:hover {
-      background: #f9f9f9;
-    }
 
-    #draggable-tbody .sortable-placeholder {
+    #draggable-tbody tr.sortable-placeholder {
+        visibility: visible;
+    }
+    #draggable-tbody .sortable-placeholder div {
       border-top: 1px solid #dbdfe0;
       border-bottom: 1px solid #dbdfe0;
       background-color: #f5f9fa;
-      height: 50px;
+      height: 57px;
+      margin-bottom: 10px;
+      margin-top: 0px;
     }
 
     .smartmin-form select {
