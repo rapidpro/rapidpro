@@ -13,20 +13,18 @@ import os
 from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.db import models, connection
-from django.test import override_settings, SimpleTestCase, TestCase
+from django.test import override_settings, TestCase, TransactionTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
+from smartmin.tests import SmartminTestMixin
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
-from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, SystemLabelCount
-from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
@@ -1669,22 +1667,11 @@ class MiddlewareTest(TembaTest):
         self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
-class MakeTestDBTest(SimpleTestCase):
-    """
-    This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
-    """
-    allow_database_queries = True
-
-    def tearDown(self):
-        Msg.objects.all().delete()
-        FlowRun.objects.all().delete()
-        SystemLabelCount.objects.all().delete()
-        Org.objects.all().delete()
-        User.objects.all().delete()
-        Group.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
     def test_command(self):
+        self.create_anonymous_user()
+
         with ESMockWithScroll():
             call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
