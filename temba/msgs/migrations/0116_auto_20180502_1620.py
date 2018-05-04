@@ -8,7 +8,9 @@ SQL_msgs_labels = """
 -- drop the trigger
 DROP TRIGGER IF EXISTS temba_msg_labels_on_truncate_trg ON msgs_msg_labels;
 
-
+-----------------------------------------------------------------------
+--- Trigger procedure to maintain user label counts
+-----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_msg_labels_on_change() RETURNS TRIGGER AS $$
 DECLARE
   is_visible BOOLEAN;

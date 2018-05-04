@@ -9,6 +9,9 @@ SQL = """
 --- Drop the triggers
 DROP TRIGGER IF EXISTS temba_flowrun_truncate_flowruncount on flows_flowrun;
 
+-----------------------------------------------------------------------
+--- Increments or decrements our counts for each exit type
+-----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_update_flowruncount() RETURNS TRIGGER AS $$
 BEGIN
   -- FlowRun being added
