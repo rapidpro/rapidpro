@@ -42,7 +42,7 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).order_by('expires_on')
     FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 

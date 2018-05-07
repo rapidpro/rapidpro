@@ -3322,12 +3322,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                 connection.close()
 
-        run_ids = list(runs.values_list('id', flat=True))
+        run_ids = list(runs[:5000].values_list('id', flat=True))
 
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
+        for id_batch in chunk_list(run_ids, 500):
             now = timezone.now()
 
             # mark all steps in these runs as having been left
