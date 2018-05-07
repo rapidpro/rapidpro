@@ -434,11 +434,11 @@ class Broadcast(models.Model):
 
             # if we are sending to groups and any of them are big, make sure we aren't spamming
             for group in groups:
-                if group.get_member_count() > 10:
+                if group.get_member_count() > 50:
                     bcast_value = '%d_%s' % (group.id, self.text)
 
                     # have we sent this exact message today or yesterday and with this message?
-                    if check_and_mark_in_timerange('bcasts', 3, bcast_value):
+                    if check_and_mark_in_timerange('bcasts', 1, bcast_value):
                         self.status = FAILED
                         self.save(update_fields=['status'])
                         raise Exception("Not sending broadcast %d due to duplicate" % self.id)
