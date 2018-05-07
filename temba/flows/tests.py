@@ -5,28 +5,27 @@ import copy
 import datetime
 import json
 import os
-import pytz
 import re
-import six
 import time
-
 from datetime import timedelta
 from decimal import Decimal
-from django.utils.encoding import force_text
-from mock import patch
-from openpyxl import load_workbook
+from uuid import uuid4
+
+import pytz
+import six
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
-from uuid import uuid4
+from django.utils.encoding import force_text
+from mock import patch
+from openpyxl import load_workbook
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, WebHookResult, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
-from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, get_current_export_version
@@ -35,11 +34,11 @@ from temba.tests import (
     ESMockWithScroll
 )
 from temba.triggers.models import Trigger
+from temba.ussd.models import USSDSession
 from temba.utils.dates import datetime_to_str
 from temba.utils.goflow import FlowServerException, get_client, serialize_contact
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
-
 from .flow_migrations import (
     migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8, migrate_to_version_9,
     migrate_export_to_version_9, migrate_to_version_10_2, migrate_to_version_10_4, migrate_to_version_11_1,
@@ -54,11 +53,10 @@ from .models import (
     HasDistrictTest, HasWardTest, HasEmailTest, SendAction, AddLabelAction, AddToGroupAction, ReplyAction,
     SaveToContactAction, SetLanguageAction, SetChannelAction, EmailAction, StartFlowAction, TriggerFlowAction,
     DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
-    FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException, FlowNodeCount
+    FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException, FlowNodeCount, FlowStartCount
 )
-
-from .views import FlowCRUDL
 from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flowpathcounts
+from .views import FlowCRUDL
 
 
 class FlowTest(TembaTest):
@@ -6595,6 +6593,17 @@ class FlowsTest(FlowFileTest):
 
         # 10 child flow runs should be active waiting for input
         self.assertEqual(FlowRun.objects.filter(flow=child, is_active=True).count(), 10)
+
+        # check our count
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
+        # squash them
+        FlowStartCount.squash()
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
+        # recalculate and try again
+        FlowStartCount.populate_for_start(start)
+        self.assertEqual(FlowStartCount.get_count(start), 10)
 
         # send some input to complete the child flows
         for contact in contacts:
