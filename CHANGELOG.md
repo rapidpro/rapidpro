@@ -1,3 +1,7 @@
+v3.0.382
+----------
+ * rename flow migration
+
 v3.0.381
 ----------
  * limit number of flows exited at once, order by expired_on to encourage index
