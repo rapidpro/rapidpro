@@ -21,18 +21,53 @@ def generate_uuid():
     return six.text_type(uuid4())
 
 
+class ProxyQuerySet(object):
+    """
+    Helper class that mimics the behavior of a Django QuerySet
+
+    The result is cached so we can't chain it as a normal QuerySet, but becuse we defined special methods that are
+    expected by templates and tests we can use it as an evaluated QuerySet
+    """
+
+    def __init__(self, object_list):
+        self.object_list = object_list
+
+    def count(self):
+        return len(self)
+
+    def __iter__(self):
+        return iter(self.object_list)
+
+    def __len__(self):
+        return len(self.object_list)
+
+    def __getitem__(self, item):
+        return self.object_list[item]
+
+
 def mapEStoDB(model, es_queryset, only_ids=False):
     """
     Map ElasticSearch results to Django Model objects
     We use object PKs from ElasticSearch result set and select those objects in the database
     """
-    pks = [result.id for result in es_queryset]
+    pks = (result.id for result in es_queryset)
 
     if only_ids:
         return pks
     else:
-        # order_by must be the same as the sort_by on ES, since we are losing the order of results
-        return model.objects.filter(id__in=pks).order_by('-modified_on').prefetch_related('org', 'all_groups')
+        # prepare the data set
+        pairs = ','.join(six.text_type((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
+
+        if pairs:
+            return model.objects.raw(
+                """SELECT model.*
+                from {} model JOIN (VALUES {}) tmp_resultset (seq, model_id)
+                    ON model.id = tmp_resultset.model_id
+                ORDER BY tmp_resultset.seq
+                """.format(model._meta.db_table, pairs)
+            )
+        else:
+            return model.objects.none()
 
 
 class TranslatableField(HStoreField):

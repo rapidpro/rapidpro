@@ -31,7 +31,7 @@ from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ESPaginationMixin
+from temba.utils.views import BaseActionForm, ConatactListPaginationMixin
 from temba.values.constants import Value
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
@@ -123,7 +123,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -169,16 +169,10 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
             return group.contacts.all().exclude(id__in=test_contact_ids).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
+        context = super(ContactListView, self).get_context_data(**kwargs)
+
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
-        group = self.derive_group()
-
-        # if there isn't a search filtering the queryset, we can replace the count function using ContactGroupCounts
-        if group and 'search' not in self.request.GET:
-            group_count = ContactGroupCount.get_totals([group])
-            self.object_list.count = lambda: group_count[group]
-
-        context = super(ContactListView, self).get_context_data(**kwargs)
 
         folders = [
             dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
