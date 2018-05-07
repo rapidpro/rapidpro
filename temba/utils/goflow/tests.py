@@ -4,12 +4,16 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytz
 
 from datetime import datetime
+from django.test.utils import override_settings
 from mock import patch
 from temba.channels.models import Channel
-from temba.msgs.models import Label
-from temba.tests import TembaTest, MockResponse
-from temba.values.models import Value
+from temba.contacts.models import Contact
+from temba.flows.models import Flow, FlowRun
+from temba.msgs.models import Label, Msg
+from temba.tests import TembaTest, skip_if_no_flowserver, MockResponse
+from temba.values.constants import Value
 from .client import serialize_field, serialize_label, serialize_channel, get_client, FlowServerException
+from . import trial
 
 
 class SerializationTest(TembaTest):
@@ -121,3 +125,228 @@ class ClientTest(TembaTest):
             self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
         self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
+
+
+class TrialTest(TembaTest):
+    def setUp(self):
+        super(TrialTest, self).setUp()
+
+        self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
+
+    def test_is_flow_suitable(self):
+        self.assertTrue(trial.is_flow_suitable(self.get_flow('favorites')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('airtime')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('call_me_maybe')))
+        self.assertFalse(trial.is_flow_suitable(self.get_flow('action_packed')))
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='on')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_trial_throttling(self, mock_report_success, mock_report_failure):
+        action_packed = self.get_flow('action_packed')
+        favorites = self.get_flow('favorites')
+
+        # trying a flow that can't be resumed won't effect throttling
+        action_packed.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        self.assertEqual(mock_report_success.call_count, 0)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        # first resume in a suitable flow will be trialled
+        favorites.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
+
+        # second won't because its too soon
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_message(self, mock_report_success, mock_report_failure):
+        favorites = self.get_flow('favorites')
+
+        run, = favorites.start([], [self.contact])
+
+        # check the reconstructed session for this run
+        session = trial.reconstruct_session(run)
+        self.assertEqual(len(session['runs']), 1)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(favorites.uuid))
+        self.assertEqual(session['contact']['uuid'], str(self.contact.uuid))
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
+
+        # and then resume by replying
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
+                            attachments=['image/jpeg:http://example.com/red.jpg'])
+        run.refresh_from_db()
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        # and then resume by replying again
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "ooh Primus")
+        run.refresh_from_db()
+
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        # simulate session not containing this run
+        self.assertEqual(set(trial.compare_run(run, {'runs': []}).keys()), {'session'})
+
+        # simulate differences in the path, results and events
+        session = trial.reconstruct_session(run)
+        session['runs'][0]['path'][0]['node_uuid'] = 'wrong node'
+        session['runs'][0]['results']['color']['value'] = 'wrong value'
+        session['runs'][0]['events'][0]['msg']['text'] = 'wrong text'
+
+        self.assertTrue(trial.compare_run(run, session)['diffs'])
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_message_in_subflow(self, mock_report_success, mock_report_failure):
+        self.get_flow('subflow')
+        parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
+        child_flow = Flow.objects.get(org=self.org, name='Child Flow')
+
+        # start the parent flow and then trigger the subflow by picking an option
+        parent_flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+
+        # check the reconstructed session for this run
+        session = trial.reconstruct_session(child_run)
+        self.assertEqual(len(session['runs']), 2)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(parent_flow.uuid))
+        self.assertEqual(session['runs'][1]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session['contact']['uuid'], str(self.contact.uuid))
+        self.assertEqual(session['trigger']['type'], 'manual')
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
+
+        # and then resume by replying
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+        child_run.refresh_from_db()
+        parent_run.refresh_from_db()
+
+        # subflow run has completed
+        self.assertIsNotNone(child_run.exited_on)
+        self.assertIsNone(parent_run.exited_on)
+
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_with_expiration_in_subflow(self, mock_report_success, mock_report_failure):
+        self.get_flow('subflow')
+        parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
+
+        # start the parent flow and then trigger the subflow by picking an option
+        parent_flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "color")
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+
+        # resume by expiring the child run
+        child_run.expire()
+        child_run.refresh_from_db()
+        parent_run.refresh_from_db()
+
+        # which should end both our runs
+        self.assertIsNotNone(child_run.exited_on)
+        self.assertIsNotNone(parent_run.exited_on)
+
+        self.assertEqual(mock_report_success.call_count, 2)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_resume_in_triggered_session(self, mock_report_success, mock_report_failure):
+        parent_flow = self.get_flow('action_packed')
+        child_flow = Flow.objects.get(org=self.org, name='Favorite Color')
+
+        parent_flow.start([], [self.contact], restart_participants=True)
+
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Trey Anastasio")
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Male")
+
+        parent_run, child_run = list(FlowRun.objects.order_by('created_on'))
+        child_contact = Contact.objects.get(name="Oprah Winfrey")
+
+        self.assertEqual(parent_run.flow, parent_flow)
+        self.assertEqual(parent_run.contact, self.contact)
+        self.assertEqual(child_run.flow, child_flow)
+        self.assertEqual(child_run.contact, child_contact)
+
+        # check that the run which triggered the child run isn't part of its session, but is part of the trigger
+        session = trial.reconstruct_session(child_run)
+        self.assertEqual(len(session['runs']), 1)
+        self.assertEqual(session['runs'][0]['flow']['uuid'], str(child_flow.uuid))
+        self.assertEqual(session['contact']['uuid'], str(child_contact.uuid))
+        self.assertEqual(session['trigger']['type'], 'flow_action')
+        self.assertNotIn('results', session)
+        self.assertNotIn('events', session)
+
+        with override_settings(FLOW_SERVER_TRIAL='always'):
+            # resume child run with a message
+            Msg.create_incoming(self.channel, 'tel:+12065552121', "red")
+            child_run.refresh_from_db()
+
+        # and it should now be complete
+        self.assertIsNotNone(child_run.exited_on)
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    def test_trial_fault_tolerance(self, mock_report_failure):
+        favorites = self.get_flow('favorites')
+
+        # an exception in maybe_start_resume shouldn't prevent normal flow execution
+        with patch('temba.utils.goflow.trial.reconstruct_session') as mock_reconstruct_session:
+            mock_reconstruct_session.side_effect = ValueError("BOOM")
+
+            run, = favorites.start([], [self.contact])
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # an exception in end_resume also shouldn't prevent normal flow execution
+        with patch('temba.utils.goflow.trial.resume') as mock_resume:
+            mock_resume.side_effect = ValueError("BOOM")
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # detected differences should be reported but shouldn't effect normal flow execution
+        with patch('temba.utils.goflow.trial.compare_run') as mock_compare_run:
+            mock_compare_run.return_value = {'diffs': ['a', 'b']}
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+            self.assertEqual(mock_report_failure.call_count, 1)

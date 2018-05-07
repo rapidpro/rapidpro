@@ -13,22 +13,20 @@ import os
 from celery.app.task import Task
 from decimal import Decimal
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.db import models, connection
-from django.test import override_settings, SimpleTestCase, TestCase
+from django.test import override_settings, TestCase, TransactionTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
+from smartmin.tests import SmartminTestMixin
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
-from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, SystemLabelCount
-from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import TembaTest, matchers
+from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
 from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
@@ -49,6 +47,7 @@ from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
 from .models import JSONAsTextField
+from .locks import NonBlockingLock, LockNotAcquiredException
 
 
 class InitTest(TembaTest):
@@ -1668,23 +1667,13 @@ class MiddlewareTest(TembaTest):
         self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
-class MakeTestDBTest(SimpleTestCase):
-    """
-    This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
-    """
-    allow_database_queries = True
-
-    def tearDown(self):
-        Msg.objects.all().delete()
-        FlowRun.objects.all().delete()
-        SystemLabelCount.objects.all().delete()
-        Org.objects.all().delete()
-        User.objects.all().delete()
-        Group.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
     def test_command(self):
-        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
+        self.create_anonymous_user()
+
+        with ESMockWithScroll():
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
@@ -1862,3 +1851,27 @@ class MatchersTest(TembaTest):
         self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
+
+
+class NonBlockingLockTest(TestCase):
+
+    def test_nonblockinglock(self):
+        with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+            # we are able to get the initial lock
+            self.assertTrue(lock.acquired)
+
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+                # but we are not able to get it the second time
+                self.assertFalse(lock.acquired)
+                # we need to terminate the execution
+                lock.exit_if_not_locked()
+
+        def raise_exception():
+            with NonBlockingLock(redis=get_redis_connection(), name='test_nonblockinglock', timeout=5) as lock:
+                if not lock.acquired:
+                    raise LockNotAcquiredException
+
+                raise Exception
+
+        # any other exceptions are handled as usual
+        self.assertRaises(Exception, raise_exception)

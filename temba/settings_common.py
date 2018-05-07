@@ -120,7 +120,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
 FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
-STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
+STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), os.path.join(PROJECT_DIR, '../node_modules/@nyaruka/flow-editor/umd'))
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
@@ -310,8 +310,8 @@ BRANDING = {
         'docs_link': 'http://docs.rapidpro.io',
         'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
-        'splash': '/brands/rapidpro/splash.jpg',
-        'logo': '/brands/rapidpro/logo.png',
+        'splash': 'brands/rapidpro/splash.jpg',
+        'logo': 'brands/rapidpro/logo.png',
         'allow_signups': True,
         'flow_types': ['F', 'V', 'S', 'U'],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
@@ -452,6 +452,7 @@ PERMISSIONS = {
                    'completion',
                    'copy',
                    'editor',
+                   'editor_next',
                    'export',
                    'export_results',
                    'filter',
@@ -511,7 +512,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
         'flows.flow_assets',
-        'msgs.msg_create'
+        'msgs.msg_create',
     ),
     "Alpha": (
     ),
@@ -540,6 +541,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_revisions',
         'flows.flowrun_delete',
+        'flows.flow_editor_next',
         'orgs.org_dashboard',
         'orgs.org_grant',
         'orgs.org_manage',
@@ -885,6 +887,11 @@ DATABASES = {
     'direct': _direct_database_config
 }
 
+# If we are testing, set both our connections as the same, Django seems to get
+# confused on Python 3.6 with transactional tests otherwise
+if TESTING:
+    DATABASES['default'] = _direct_database_config
+
 # -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
@@ -986,6 +993,10 @@ CELERYBEAT_SCHEDULE = {
     "refresh-jiochat-access-tokens": {
         'task': 'refresh_jiochat_access_tokens',
         'schedule': timedelta(seconds=3600)
+    },
+    "refresh-whatsapp-tokens": {
+        'task': 'refresh_whatsapp_tokens',
+        'schedule': timedelta(hours=24)
     }
 }
 
@@ -1222,6 +1233,7 @@ FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
+FLOW_SERVER_TRIAL = 'off'  # 'on', 'off', or 'always'
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:

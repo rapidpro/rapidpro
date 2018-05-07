@@ -33,7 +33,7 @@ from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
 from temba.utils.dates import ms_to_datetime, datetime_to_ms
-from temba.values.models import Value
+from temba.values.constants import Value
 
 
 # maximum age in days of database content
@@ -419,7 +419,7 @@ class Command(BaseCommand):
 
         # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
-        with DisableTriggersOn(Contact, ContactURN, Value, ContactGroup.contacts.through):
+        with DisableTriggersOn(Contact, ContactURN, ContactGroup.contacts.through):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 
@@ -536,7 +536,6 @@ class Command(BaseCommand):
 
         # now that contacts have pks, bulk create the actual URN, value and group membership objects
         batch_urns = []
-        batch_values = []
         batch_memberships = []
 
         for c in batch:
@@ -549,31 +548,12 @@ class Command(BaseCommand):
             if c['twitter']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
                                             path=c['twitter'], identity=URN.from_twitter(c['twitter'])))
-            if c['gender']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
-                                          string_value=c['gender']))
-            if c['age']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
-                                          string_value=str(c['age']), decimal_value=c['age']))
-            if c['joined']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                          string_value=org.format_datetime(c['joined'], show_time=False), datetime_value=c['joined']))
-            if c['ward']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
-                                          string_value=c['ward'].name, location_value=c['ward']))
-            if c['district']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
-                                          string_value=c['district'].name, location_value=c['district']))
-            if c['state']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
-                                          string_value=c['state'].name, location_value=c['state']))
             for g in c['groups']:
                 batch_memberships.append(ContactGroup.contacts.through(contact=c['object'], contactgroup=g))
 
             batch_urns += c['urns']
 
         ContactURN.objects.bulk_create(batch_urns)
-        Value.objects.bulk_create(batch_values)
         ContactGroup.contacts.through.objects.bulk_create(batch_memberships)
 
     def simulate_activity(self, orgs, num_runs):

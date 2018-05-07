@@ -30,7 +30,8 @@ def audit_runs(max_id=0):  # pragma: no cover
         'unparseable_fields': has_unparseble_fields,
         # 'no_steps_for_active_flow': has_no_steps_for_active_flow,  # not worrying about this for now
         'less_events_than_message_ids': has_less_events_than_message_ids,
-        'step_count_path_length_mismatch': has_step_count_path_length_mismatch
+        'step_count_path_length_mismatch': has_step_count_path_length_mismatch,
+        'has_duplicate_message_events': has_duplicate_message_events,
     }
 
     problem_log = open('run_problems.log', 'w')
@@ -105,6 +106,18 @@ def has_step_count_path_length_mismatch(run):
 
 def has_less_events_than_message_ids(run):
     return len(run.events or []) < len(set(run.message_ids or []))  # events might include purged messages
+
+
+def has_duplicate_message_events(run):
+    seen_msg_uuids = set()
+    for event in (run.events or []):
+        if event['type'] in ('msg_created', 'msg_received'):
+            msg_uuid = event['msg'].get('uuid')
+            if msg_uuid:
+                if msg_uuid in seen_msg_uuids:
+                    return True
+                seen_msg_uuids.add(msg_uuid)
+    return False
 
 
 class Command(BaseCommand):  # pragma: no cover

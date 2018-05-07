@@ -1,3 +1,52 @@
+v3.0.380
+----------
+ * update to latest goflow to get location support
+ * better output logs for goflow differences
+
+v3.0.379
+----------
+ * add v2 editor through /v2 command in simulator
+
+v3.0.378
+----------
+ * get all possible existing Twilio numbers on the Twilio account
+ * reenable group sends *
+ * remove Value model usage, Contact.search
+
+v3.0.377
+----------
+ * do not allow dupe broadcasts to groups
+ * Use ElasticSearch to export contacts and create dynamic groups
+ * remove celery super auto scaler
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add ability to test flow results against goflow
+
+v3.0.376
+----------
+ * remove celery super auto scaler since we don't use it anywhere
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add admin command to help audit ES and DB discrepencies
+
+v3.0.375
+----------
+ * update whatsapp for new API
+ * new index on contacts_contact.fields optimized for space
+
+v3.0.374
+----------
+ * allow reading, just not writing of sends with groups
+ * remove old seaching from contact views
+
+v3.0.373
+----------
+ * optimize group views
+ * don't allow sends to groups to be imported or copied
+ * remove normal junebug, keep only junebug ussd
+ * fix isset/~isset, sort by 'modified_on_mu' in ES
+ * use ES to search for contacts
+
 v3.0.372
 ----------
  * remap sms and status Twilio urls, log people still calling old ones

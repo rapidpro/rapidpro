@@ -24,7 +24,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg, matchers
 from temba.utils.dates import datetime_to_json_date
-from temba.values.models import Value
+from temba.values.constants import Value
 from temba.api.models import APIToken
 from uuid import uuid4
 from .serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
@@ -874,7 +874,7 @@ class APITest(TembaTest):
             self.assertEqual(201, response.status_code)
 
             with patch('temba.flows.models.RuleSet.find_matching_rule') as mock_find_matching_rule:
-                mock_find_matching_rule.return_value = None, None
+                mock_find_matching_rule.return_value = None, None, None
 
                 with self.assertRaises(ValueError):
                     self.postJSON(url, data)

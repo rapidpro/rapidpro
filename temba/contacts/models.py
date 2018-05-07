@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
-import itertools
 import json
 import logging
 import os
@@ -23,6 +22,8 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
+
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
@@ -31,12 +32,14 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_number, chunk_list, get_anonymous_user, on_transaction_commit
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin
+from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, mapEStoDB
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import parse_urn, ParsedURN
-from temba.values.models import Value
+from temba.utils.dates import str_to_datetime
+from temba.values.constants import Value
+from temba.utils.locks import NonBlockingLock
 
 logger = logging.getLogger(__name__)
 
@@ -760,12 +763,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return six.text_type(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
-        from temba.values.models import Value
-
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
 
-        existing = None
         has_changed = False
 
         # parse into the appropriate value types
@@ -861,45 +861,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     (cursor.execute(
                         "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
                         [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_by.id, self.modified_on, self.id]))
-
-        # legacy method of setting field
-        if value is None:
-            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
-            value = None
-            has_changed = True
-        else:
-            category = loc_value.name if loc_value else None
-
-            # find the existing value
-            existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
-
-            if existing:
-                # only update the existing value if it will be different
-                if existing.string_value != str_value \
-                        or existing.decimal_value != num_value \
-                        or existing.datetime_value != dt_value \
-                        or existing.location_value != loc_value \
-                        or existing.category != category:
-
-                    existing.string_value = str_value
-                    existing.decimal_value = num_value
-                    existing.datetime_value = dt_value
-                    existing.location_value = loc_value
-                    existing.category = category
-
-                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                                 'location_value', 'category', 'modified_on'])
-                    has_changed = True
-
-                # remove any others on the same field that may exist
-                Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
-
-            # otherwise, create a new value for it
-            else:
-                existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
-                                                string_value=str_value, decimal_value=num_value, datetime_value=dt_value,
-                                                location_value=loc_value, category=category)
-                has_changed = True
 
         # update any groups or campaigns for this contact if not importing
         if has_changed and not importing:
@@ -1198,18 +1159,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
                                                           is_test=True)
         return test_contact
-
-    @classmethod
-    def search(cls, org, query, base_group=None):
-        """
-        Performs a search of contacts within a group (system or user)
-        """
-        from .search import contact_search
-
-        if not base_group:
-            base_group = org.cached_all_contacts_group
-
-        return contact_search(org, query, base_group.contacts.all())
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -2017,7 +1966,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             try:
                 should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
-            except Exception:
+            except Exception:  # pragma: no cover
                 should_add = False
                 logger.exception("Error evaluating query", exc_info=True)
 
@@ -2571,42 +2520,117 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates the contacts in a dynamic group
         """
-        if self.status == ContactGroup.STATUS_EVALUATING:
-            raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        self.status = ContactGroup.STATUS_EVALUATING
-        self.save(update_fields=('status',))
+        lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
+        lock_timeout = 3600
 
-        new_members, _ = self._get_dynamic_members()
-        new_member_ids = {c.id for c in new_members}
-        existing_member_ids = set(self.contacts.values_list('id', flat=True))
-        to_add = [c for c in new_members if c.id not in existing_member_ids]
-        to_remove = [c for c in self.contacts.only('id') if c.id not in new_member_ids]
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=lock_timeout) as lock:
+            lock.exit_if_not_locked()
 
-        self.contacts.add(*to_add)
-        self.contacts.remove(*to_remove)
+            if self.status == ContactGroup.STATUS_EVALUATING:
+                raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        for changed_contact in itertools.chain(to_add + to_remove):
-            changed_contact.handle_update(group=self)
+            self.status = ContactGroup.STATUS_EVALUATING
+            self.save(update_fields=('status',))
 
-        self.status = ContactGroup.STATUS_READY
-        self.save(update_fields=('status',))
+            new_group_members = set(self._get_dynamic_members())
+            existing_member_ids = set(self.contacts.values_list('id', flat=True))
+
+            to_add_ids = new_group_members.difference(existing_member_ids)
+            to_remove_ids = existing_member_ids.difference(new_group_members)
+
+            # add new contacts to the group
+            for members_chunk in chunk_list(to_add_ids, 1000):
+                to_add = Contact.objects.filter(id__in=members_chunk)
+
+                self.contacts.add(*to_add)
+
+                for changed_contact in to_add:
+                    changed_contact.handle_update(group=self)
+
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=('modified_on', ))
+
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
+
+            # remove contacts from the group that are not in the search
+            for members_chunk in chunk_list(to_remove_ids, 1000):
+                to_remove = Contact.objects.filter(id__in=members_chunk)
+
+                self.contacts.remove(*to_remove)
+
+                for changed_contact in to_remove:
+                    changed_contact.handle_update(group=self)
+
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=('modified_on',))
+
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
+
+            self.status = ContactGroup.STATUS_READY
+            self.save(update_fields=('status', 'modified_on'))
 
     def _get_dynamic_members(self):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
-        from .search import SearchException
-
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        try:
-            qs, parsed = Contact.search(self.org, self.query)
+        from .search import contact_es_search, SearchException, evaluate_query
+        from temba.utils.es import ES, ModelESSearch
 
-            return qs, parsed
-        except SearchException:  # pragma: no cover
-            return Contact.objects.none(), None
+        # get the modified_on of the last synced contact
+        last_synced_contact_search = (
+            ModelESSearch(model=Contact, index='contacts')
+            .params(size=1, routing=self.org.id)
+            .sort('-modified_on_mu')
+            .source(include=['modified_on'])
+            .using(ES)
+            .execute()
+        )
+
+        if len(last_synced_contact_search.hits):
+            last_modifed_on = str_to_datetime(last_synced_contact_search.hits[0].modified_on, tz=timezone.utc)
+        else:
+            # there are no contacts for this org in the ES index
+            last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
+
+        # search the ES
+        try:
+            search_object, _ = contact_es_search(self.org, self.query, None)
+
+            es_search = search_object.source(include=['id']).using(ES).scan()
+            contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
+        except SearchException:
+            logger.exception("Error evaluating query", exc_info=True)
+            raise  # reraise the exception
+
+        # search the database for any new contacts that have been modified after the modified_on
+        db_contacts = (
+            Contact.objects
+            .filter(
+                org_id=self.org.id, modified_on__gt=last_modifed_on, is_test=False, is_active=True, is_blocked=False,
+                is_stopped=False
+            )
+        )
+
+        # check if contacts are members of the new group
+        for contact in db_contacts:
+            should_add = evaluate_query(self.org, self.query, contact_json=contact.as_search_json())
+
+            if should_add is True:
+                contact_ids.add(contact.id)
+
+        db_contacts_count = db_contacts.count()
+        if db_contacts_count > 1000:  # pragma: no cover
+            logger.error('Dynamic group manually evaluating more contacts than expected %s > 1000', db_contacts_count)
+
+        return contact_ids
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
@@ -2756,16 +2780,21 @@ class ExportContactsTask(BaseExportTask):
         return fields, scheme_counts
 
     def write_export(self):
+        from .search import contact_es_search
+        from temba.utils.es import ES
+
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
         if self.search:
-            contacts, _ = Contact.search(self.org, self.search, group)
+            search_object, _ = contact_es_search(self.org, self.search, group)
+
+            es_search = search_object.source(include=['id']).using(ES).scan()
+            contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
         else:
             contacts = group.contacts.all()
-
-        contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
+            contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
         exporter = TableExporter(self, "Contact", [f['label'] for f in fields])

@@ -25,8 +25,8 @@ from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction,
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg
-from temba.values.models import Value
+from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
+from temba.values.constants import Value
 from uuid import uuid4
 from six.moves.urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
@@ -1140,7 +1140,8 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
-        dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
+        with ESMockWithScroll():
+            dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
         response = self.postJSON(url, None, {
@@ -1419,7 +1420,9 @@ class APITest(TembaTest):
 
         group = self.create_group("Testers")
         self.create_field('isdeveloper', "Is developer")
-        self.create_group("Developers", query="isdeveloper = YES")
+
+        with ESMockWithScroll():
+            self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.get_flow('color')
@@ -1812,10 +1815,12 @@ class APITest(TembaTest):
 
         self.create_field('isdeveloper', "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        developers = self.create_group("Developers", query="isdeveloper = YES")
+        with ESMockWithScroll():
+            developers = self.create_group("Developers", query="isdeveloper = YES")
 
-        # a group which is being re-evaluated
-        unready = self.create_group("Big Group", query="isdeveloper=NO")
+            # a group which is being re-evaluated
+            unready = self.create_group("Big Group", query="isdeveloper=NO")
+
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=('status',))
 

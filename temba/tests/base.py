@@ -23,7 +23,9 @@ from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
+from functools import wraps
 from future.moves.html.parser import HTMLParser
+from mock import patch
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, URN
@@ -33,7 +35,7 @@ from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
-from temba.values.models import Value
+from temba.values.constants import Value
 from unittest import skipIf
 from uuid import uuid4
 from .http import MockServer
@@ -97,137 +99,67 @@ class AddFlowServerTestsMeta(type):
     def __new__(mcs, name, bases, dct):
         if settings.FLOW_SERVER_URL:
             new_tests = {}
-            for key, val in six.iteritems(dct):
-                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                    new_tests[key + '_flowserver'] = new_func
+            for key, test_func in six.iteritems(dct):
+                if key.startswith('test_') and getattr(test_func, '_also_in_flowserver', False):
+                    test_without, test_with = mcs._split_test(test_func)
+
+                    new_tests[key] = test_without
+                    new_tests[key + '_flowserver'] = test_with
+
             dct.update(new_tests)
 
         return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
 
+    @staticmethod
+    def _split_test(test_func):
+        """
+        Takes a given test function and returns two test functions - one that will run without the flowserver, and one
+        that will run with the flowserver
+        """
+        old_func = test_func
+        new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(test_func)
 
-class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
-    def setUp(self):
-        self.maxDiff = 4096
-        self.mock_server = mock_server
+        @wraps(old_func)
+        def old_wrapper(*args, **kwargs):
+            kwargs['in_flowserver'] = False
+            return old_func(*args, **kwargs)
 
-        # if we are super verbose, turn on debug for sql queries
-        if self.get_verbosity() > 2:
-            settings.DEBUG = True
+        @wraps(new_func)
+        def new_wrapper(*args, **kwargs):
+            kwargs['in_flowserver'] = True
+            return new_func(*args, **kwargs)
 
-        # make sure we start off without any service users
-        Group.objects.get(name='Service Users').user_set.clear()
+        return old_wrapper, new_wrapper
 
-        self.clear_cache()
 
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+class ESMockWithScroll:
 
-        # create different user types
-        self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User")
-        self.editor = self.create_user("Editor")
-        self.admin = self.create_user("Administrator")
-        self.surveyor = self.create_user("Surveyor")
+    def __init__(self, data=None):
+        self.mock_es = patch('temba.utils.es.ES')
 
-        # setup admin boundaries for Rwanda
-        self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
-        self.state1 = AdminBoundary.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+        self.data = data if data is not None else []
 
-        self.country.update_path()
+    def __enter__(self):
+        patched_object = self.mock_es.start()
 
-        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
-                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
+        patched_object.search.return_value = {
+            "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+            "_scroll_id": '1',
+            'hits': {'hits': self.data}
+        }
+        patched_object.scroll.return_value = {
+            "_shards": {"failed": 0, "successful": 10, "total": 10}, "timed_out": False, "took": 1,
+            "_scroll_id": '1',
+            'hits': {'hits': []}
+        }
 
-        self.org.initialize(topup_size=1000)
+        return patched_object()
 
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.mock_es.stop()
 
-        self.editor.set_org(self.org)
-        self.org.editors.add(self.editor)
 
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
-
-        self.surveyor.set_org(self.org)
-        self.org.surveyors.add(self.surveyor)
-
-        self.superuser.set_org(self.org)
-
-        # welcome topup with 1000 credits
-        self.welcome_topup = self.org.topups.all()[0]
-
-        # a single Android channel
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
-                                      device="Nexus 5X", secret="12345", gcm_id="123")
-
-        # don't cache anon user between tests
-        from temba import utils
-        utils._anon_user = None
-        clear_flow_users()
-
-        # reset our simulation to False
-        Contact.set_simulation(False)
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
-
-    def get_verbosity(self):
-        for s in reversed(inspect.stack()):
-            options = s[0].f_locals.get('options')
-            if isinstance(options, dict):
-                return int(options['verbosity'])
-        return 1
-
-    def explain(self, query):
-        cursor = connection.cursor()
-        cursor.execute('explain %s' % query)
-        plan = cursor.fetchall()
-        indexes = []
-        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
-            index = match.group(1).strip()
-            table = match.group(2).strip()
-            indexes.append((table, index))
-
-        indexes = sorted(indexes, key=lambda i: i[0])
-        return indexes
-
-    def tearDown(self):
-        if self.get_verbosity() > 2:
-            details = []
-            for query in connection.queries:
-                query = query['sql']
-                if 'SAVEPOINT' not in query:
-                    indexes = self.explain(query)
-                    details.append(dict(query=query, indexes=indexes))
-
-            for stat in details:
-                print("")
-                print(stat['query'])
-                for table, index in stat['indexes']:
-                    print('  Index Used: %s.%s' % (table, index))
-
-                if not len(stat['indexes']):
-                    print('  No Index Used')
-
-            settings.DEBUG = False
-
-        from temba.flows.models import clear_flow_users
-        clear_flow_users()
-
-        # clear any unused mock requests
-        self.mock_server.mocked_requests = []
-
+class TembaTestMixin(object):
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and actually hard-code redis to 'localhost' and '10'
@@ -528,6 +460,132 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
 
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
+
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
+
+    def get_verbosity(self):
+        for s in reversed(inspect.stack()):
+            options = s[0].f_locals.get('options')
+            if isinstance(options, dict):
+                return int(options['verbosity'])
+        return 1
+
+    def explain(self, query):
+        cursor = connection.cursor()
+        cursor.execute('explain %s' % query)
+        plan = cursor.fetchall()
+        indexes = []
+        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
+            index = match.group(1).strip()
+            table = match.group(2).strip()
+            indexes.append((table, index))
+
+        indexes = sorted(indexes, key=lambda i: i[0])
+        return indexes
+
+
+@six.add_metaclass(AddFlowServerTestsMeta)
+class TembaTest(TembaTestMixin, SmartminTest):
+    def setUp(self):
+        self.maxDiff = 4096
+        self.mock_server = mock_server
+
+        # if we are super verbose, turn on debug for sql queries
+        if self.get_verbosity() > 2:
+            settings.DEBUG = True
+
+        # make sure we start off without any service users
+        Group.objects.get(name='Service Users').user_set.clear()
+
+        self.clear_cache()
+
+        self.create_anonymous_user()
+
+        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+
+        # create different user types
+        self.non_org_user = self.create_user("NonOrg")
+        self.user = self.create_user("User")
+        self.editor = self.create_user("Editor")
+        self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
+
+        # setup admin boundaries for Rwanda
+        self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)
+        self.state1 = AdminBoundary.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+
+        self.country.update_path()
+
+        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
+
+        self.org.initialize(topup_size=1000)
+
+        # add users to the org
+        self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
+
+        self.superuser.set_org(self.org)
+
+        # welcome topup with 1000 credits
+        self.welcome_topup = self.org.topups.all()[0]
+
+        # a single Android channel
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                                      device="Nexus 5X", secret="12345", gcm_id="123")
+
+        # don't cache anon user between tests
+        from temba import utils
+        utils._anon_user = None
+        clear_flow_users()
+
+        # reset our simulation to False
+        Contact.set_simulation(False)
+
+    def tearDown(self):
+        if self.get_verbosity() > 2:
+            details = []
+            for query in connection.queries:
+                query = query['sql']
+                if 'SAVEPOINT' not in query:
+                    indexes = self.explain(query)
+                    details.append(dict(query=query, indexes=indexes))
+
+            for stat in details:
+                print("")
+                print(stat['query'])
+                for table, index in stat['indexes']:
+                    print('  Index Used: %s.%s' % (table, index))
+
+                if not len(stat['indexes']):
+                    print('  No Index Used')
+
+            settings.DEBUG = False
+
+        from temba.flows.models import clear_flow_users
+        clear_flow_users()
+
+        # clear any unused mock requests
+        self.mock_server.mocked_requests = []
 
 
 class FlowFileTest(TembaTest):

@@ -37,7 +37,7 @@ from temba.msgs.models import SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, \
     FREE_PLAN, NEXMO_UUID, \
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-from temba.tests import TembaTest, MockResponse
+from temba.tests import TembaTest, MockResponse, ESMockWithScroll
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -2274,7 +2274,8 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
+        with ESMockWithScroll():
+            self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
 
     def create_contact_like_mage(self, name, twitter):
         """

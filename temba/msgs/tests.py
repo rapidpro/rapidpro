@@ -2,36 +2,37 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
+from datetime import datetime, timedelta
+
 import pytz
 import six
-
-from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.db import transaction, connection
+from django.test import override_settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from django.db import transaction, connection
-from django.contrib.auth.models import User
-from django.test import override_settings
 from mock import patch
 from openpyxl import load_workbook
-from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT
+
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.locations.models import AdminBoundary
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT, ContactGroup
 from temba.flows.models import RuleSet
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
+from temba.locations.models import AdminBoundary
+from temba.msgs import models
 from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, dict_to_json
 from temba.utils.dates import datetime_to_str, datetime_to_s
-from temba.utils.queues import push_task, DEFAULT_PRIORITY
 from temba.utils.expressions import get_function_listing
-from temba.values.models import Value
-from temba.msgs import models
+from temba.utils.queues import push_task, DEFAULT_PRIORITY
+from temba.values.constants import Value
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task, process_message_task
 from .templatetags.sms import as_icon
@@ -684,6 +685,21 @@ class MsgTest(TembaTest):
 
         self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
         self.assertEqual(response.context['actions'], ['label'])
+
+    def test_footgun(self):
+        # create a bunch of contacts
+        group = ContactGroup.get_or_create(org=self.org, user=self.admin, name="Spam")
+        for i in range(51):
+            (contact, urn) = Contact.get_or_create(org=self.org, urn="tel:+1206779%04d" % i, user=self.admin)
+            group.contacts.add(contact)
+
+        # create a broadcast and send it off
+        bcast = Broadcast.create(self.org, self.admin, "This is my spam message", recipients=[group])
+        bcast.send()
+
+        bcast2 = Broadcast.create(self.org, self.admin, "This is my spam message", recipients=[group])
+        with self.assertRaises(Exception):
+            bcast2.send()
 
     def test_failed(self):
         failed_url = reverse('msgs.msg_failed')
