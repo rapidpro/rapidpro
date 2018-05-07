@@ -5775,7 +5775,10 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         database_url = 'postgres://{}:{}@{}/{}?sslmode=disable'.format(
             db_config['USER'], db_config['PASSWORD'], db_config['HOST'], db_config['NAME']
         )
-        result = subprocess.call(['./rp-indexer', '-db', database_url, '-rebuild'])
+        es_url = 'http://{}'.format(settings.ELASTICSEARCH_URL)
+        result = subprocess.call([
+            './rp-indexer', '-elastic-url', es_url, '-db', database_url, '-rebuild'
+        ])
         self.assertEqual(result, 0)
 
         # give ES some time to publish the results
