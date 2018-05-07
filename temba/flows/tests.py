@@ -6597,6 +6597,10 @@ class FlowsTest(FlowFileTest):
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 10)
 
+        # squash them
+        FlowStartCount.squash()
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
         # recalculate and try again
         FlowStartCount.populate_for_start(start)
         self.assertEqual(FlowStartCount.get_count(start), 10)

@@ -80,7 +80,7 @@ $$ LANGUAGE plpgsql;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0151_auto_20180418_1807'),
+        ('flows', '0152_auto_20180502_1603'),
     ]
 
     operations = [
