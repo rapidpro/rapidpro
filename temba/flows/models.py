@@ -207,7 +207,7 @@ class FlowSession(models.Model):
     def resume_by_input(self, msg_in):
         return self._resume(msg_in=msg_in)
 
-    def resume_by_expired_run(self, expired_run):
+    def resume_by_expired_run(self, expired_run):  # pragma: needs cover
         return self._resume(expired_run=expired_run)
 
     def resume_by_timeout(self):
@@ -240,7 +240,7 @@ class FlowSession(models.Model):
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
             request.add_msg_received(msg_in)
-        elif expired_run:
+        elif expired_run:  # pragma: needs cover
             request.add_run_expired(expired_run)
         elif timeout:
             request.add_wait_timed_out()
@@ -3465,7 +3465,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 return
 
             # resume via flowserver if this run is using the new engine
-            if run.parent.session and run.parent.session.output:
+            if run.parent.session and run.parent.session.output:  # pragma: needs cover
                 session = FlowSession.objects.get(id=run.parent.session.id)
                 return session.resume_by_expired_run(run)
 
@@ -3719,7 +3719,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Utility method to give the serialized value for the passed in value
         """
-        if value is None:
+        if value is None:  # pragma: no cover
             return None
 
         if isinstance(value, datetime):
@@ -3922,9 +3922,6 @@ class FlowStep(models.Model):
 
     def save_rule_match(self, rule, value):
         self.rule_uuid = rule.uuid
-
-        if value is None:
-            value = ''
 
         # format our rule value appropriately
         if isinstance(value, datetime):
