@@ -30,12 +30,6 @@ $$ LANGUAGE plpgsql;
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_update_flowruncount() RETURNS TRIGGER AS $$
 BEGIN
-  -- Table being cleared, reset all counts
-  IF TG_OP = 'TRUNCATE' THEN
-    TRUNCATE flows_flowruncounts;
-    RETURN NULL;
-  END IF;
-
   -- FlowRun being added
   IF TG_OP = 'INSERT' THEN
      -- Is this a test contact, ignore
