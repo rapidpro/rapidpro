@@ -58,7 +58,7 @@ from .models import (
 )
 
 from .views import FlowCRUDL
-from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flowpathcounts
+from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flowpathcounts, check_flow_timeouts_task
 
 
 class FlowTest(TembaTest):
@@ -8658,17 +8658,15 @@ class OrderingTest(FlowFileTest):
 class TimeoutTest(FlowFileTest):
 
     def _update_timeout(self, run, timeout_on):
+        run.refresh_from_db()
         run.timeout_on = timeout_on
         run.save(update_fields=('timeout_on',))
 
         if run.session and run.session.output:
-            output = json.loads(run.session.output)
-            output['wait']['timeout_on'] = datetime_to_str(timeout_on)
-            run.session.output = json.dumps(output)
+            run.session.output['wait']['timeout_on'] = timeout_on.isoformat()
             run.session.save(update_fields=('output',))
 
     def test_disappearing_timeout(self):
-        from temba.flows.tasks import check_flow_timeouts_task
         flow = self.get_flow('timeout')
 
         # start the flow
@@ -8746,7 +8744,6 @@ class TimeoutTest(FlowFileTest):
         self.assertIsNone(run1.timeout_on)
 
     def test_timeout_loop(self):
-        from temba.flows.tasks import check_flow_timeouts_task
         from temba.msgs.tasks import process_run_timeout
         flow = self.get_flow('timeout_loop')
 
@@ -8794,7 +8791,6 @@ class TimeoutTest(FlowFileTest):
         self.assertEqual(last_msg.text, "Cool, got it..")
 
     def test_multi_timeout(self):
-        from temba.flows.tasks import check_flow_timeouts_task
         flow = self.get_flow('multi_timeout')
 
         # start the flow
@@ -8846,8 +8842,8 @@ class TimeoutTest(FlowFileTest):
         self.assertEqual("Thanks, Wilson",
                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
-    def test_timeout(self):
-        from temba.flows.tasks import check_flow_timeouts_task
+    @also_in_flowserver
+    def test_timeout(self, in_flowserver):
         flow = self.get_flow('timeout')
 
         # start the flow
@@ -8905,13 +8901,21 @@ class TimeoutTest(FlowFileTest):
         # run should be complete now
         self.assertFalse(run.is_active)
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertEqual(run.results, {
+            'name': {
+                'name': 'Name',
+                'value': matchers.ISODate(),
+                'category': 'No Response',
+                'node_uuid': matchers.UUID4String(),
+                'created_on': matchers.ISODate()
+            }
+        })
 
         # and we should have sent our message
         self.assertEqual("Don't worry about it , we'll catch up next week.",
                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
     def test_timeout_no_credits(self):
-        from temba.flows.tasks import check_flow_timeouts_task
         flow = self.get_flow('timeout')
 
         # start the flow
@@ -9380,7 +9384,7 @@ class FlowServerTest(TembaTest):
 
         # resume with an incoming message
         msg1 = self.create_msg(direction='I', text="Blue", contact=self.contact)
-        run1.session.resume(msg_in=msg1)
+        run1.session.resume_by_input(msg1)
 
         run1.refresh_from_db()
         self.assertIn('color', run1.results)
@@ -9390,7 +9394,7 @@ class FlowServerTest(TembaTest):
             mock_resume.side_effect = FlowServerException("nope")
 
             msg2 = self.create_msg(direction='I', text="Primus", contact=self.contact)
-            run1.session.resume(msg_in=msg2)
+            run1.session.resume_by_input(msg2)
 
         run1.refresh_from_db()
         self.assertEqual(run1.session.status, 'F')
