@@ -434,7 +434,7 @@ class Broadcast(models.Model):
 
             # if we are sending to groups and any of them are big, make sure we aren't spamming
             for group in groups:
-                if group.get_member_count() > 50:
+                if group.get_member_count() > 30:
                     bcast_value = '%d_%s' % (group.id, self.text)
 
                     # have we sent this exact message today or yesterday and with this message?
