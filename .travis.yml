@@ -6,7 +6,6 @@ sudo:
 
 language: python
 python:
-  - "2.7.11"
   - "3.6.4"
 addons:
   apt:
@@ -28,9 +27,9 @@ before_install:
 
 install:
   # install all Python dependencies
-  - pip install --upgrade pip
+  - travis_retry pip install --upgrade pip
   - pip --version
-  - pip install -r pip-freeze.txt --upgrade
+  - travis_retry pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
   - pip install flake8
 
