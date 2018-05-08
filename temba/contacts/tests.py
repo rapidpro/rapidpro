@@ -43,7 +43,7 @@ from temba.utils.es import ES
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
-from .tasks import squash_contactgroupcounts
+from .tasks import squash_contactgroupcounts, check_elasticsearch_lag
 from .templatetags.contacts import contact_field, activity_icon, history_class
 
 
@@ -519,6 +519,25 @@ class ContactGroupTest(TembaTest):
         self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
 
 
+class ElasticSearchLagTest(TembaTest):
+
+    def test_lag(self):
+        frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith",
+                                              urns=["tel:1234", "twitter:hola"])
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': frank.id, 'modified_on': frank.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertTrue(check_elasticsearch_lag())
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': frank.id, 'modified_on': (frank.modified_on - timedelta(minutes=10)).isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertFalse(check_elasticsearch_lag())
+
+
 class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super(ContactGroupCRUDLTest, self).setUp()
@@ -527,6 +546,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
+
         with ESMockWithScroll():
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
