@@ -20,21 +20,23 @@ class Events(Enum):
     contact_field_changed = 4
     contact_groups_added = 5
     contact_groups_removed = 6
-    contact_property_changed = 7
-    contact_urn_added = 8
-    email_created = 9
-    environment_changed = 10
-    error = 11
-    flow_triggered = 12
-    input_labels_added = 13
-    msg_created = 14
-    msg_received = 15
-    msg_wait = 16
-    nothing_wait = 17
-    run_expired = 18
-    run_result_changed = 19
-    session_triggered = 20
-    webhook_called = 21
+    contact_language_changed = 7
+    contact_name_changed = 8
+    contact_timezone_changed = 9
+    contact_urn_added = 10
+    email_created = 11
+    environment_changed = 12
+    error = 13
+    flow_triggered = 14
+    input_labels_added = 15
+    msg_created = 16
+    msg_received = 17
+    msg_wait = 18
+    nothing_wait = 19
+    run_expired = 20
+    run_result_changed = 21
+    session_triggered = 22
+    webhook_called = 23
 
 
 class RequestBuilder(object):
