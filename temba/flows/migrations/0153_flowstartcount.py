@@ -39,7 +39,6 @@ BEGIN
 
     -- Increment appropriate type
     PERFORM temba_insert_flowruncount(NEW.flow_id, NEW.exit_type, 1);
-    PERFORM temba_insert_flowstartcount(NEW.start_id, 1);
 
   -- FlowRun being removed
   ELSIF TG_OP = 'DELETE' THEN
@@ -49,7 +48,6 @@ BEGIN
      END IF;
 
     PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.exit_type, -1);
-    PERFORM temba_insert_flowstartcount(OLD.start_id, -1);
 
   -- Updating exit type
   ELSIF TG_OP = 'UPDATE' THEN
@@ -60,7 +58,27 @@ BEGIN
 
     PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.exit_type, -1);
     PERFORM temba_insert_flowruncount(NEW.flow_id, NEW.exit_type, 1);
+  END IF;
 
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Increments or decrements our start counts for each exit type
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_update_flowstartcount() RETURNS TRIGGER AS $$
+BEGIN
+  -- FlowRun being added
+  IF TG_OP = 'INSERT' THEN
+    PERFORM temba_insert_flowstartcount(NEW.start_id, 1);
+
+  -- FlowRun being removed
+  ELSIF TG_OP = 'DELETE' THEN
+    PERFORM temba_insert_flowstartcount(OLD.start_id, -1);
+
+  -- Updating exit type
+  ELSIF TG_OP = 'UPDATE' THEN
     PERFORM temba_insert_flowstartcount(OLD.start_id, -1);
     PERFORM temba_insert_flowstartcount(NEW.start_id, 1);
   END IF;
@@ -68,6 +86,12 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER temba_flowrun_update_flowstartcount
+   AFTER INSERT OR DELETE OR UPDATE OF start_id
+   ON flows_flowrun
+   FOR EACH ROW
+   EXECUTE PROCEDURE temba_update_flowstartcount();
 """
 
 
