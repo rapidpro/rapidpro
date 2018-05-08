@@ -1620,7 +1620,7 @@ class ContactTest(TembaTest):
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
             'must': []
-        }}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
+        }}, 'sort': [{'id': {'order': 'desc'}}]}
 
         # text term matches
         expected_search = copy.deepcopy(base_search)
@@ -1861,7 +1861,7 @@ class ContactTest(TembaTest):
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
-            'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
+            'minimum_should_match': 1}}, 'sort': [{'id': {'order': 'desc'}}]}
 
         actual_search, _ = contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
         self.assertEqual(
@@ -2132,7 +2132,7 @@ class ContactTest(TembaTest):
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
-            'minimum_should_match': 1}}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
+            'minimum_should_match': 1}}, 'sort': [{'id': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name = ""')
         self.assertEqual(
             actual_search.to_dict(),
@@ -2148,7 +2148,7 @@ class ContactTest(TembaTest):
                 {'term': {'org_id': self.org.id}},
                 {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
             ],
-        }}, 'sort': [{'modified_on_mu': {'order': 'desc'}}]}
+        }}, 'sort': [{'id': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name != ""')
         self.assertEqual(
             actual_search.to_dict(),
@@ -5316,6 +5316,38 @@ class ContactFieldTest(TembaTest):
                 [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
             ])
 
+    def test_contact_field_list_sort_contactfields(self):
+        url = reverse('contacts.contact_list')
+        self.login(self.admin)
+
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
+            mock_ES.count.return_value = {'count': 1}
+
+            response = self.client.get('%s?sort_desc=%s' % (url, six.text_type(self.contactfield_1.uuid)))
+
+            self.assertEqual(response.context['sort_desc'], six.text_type(self.contactfield_1.uuid))
+            self.assertIsNone(response.context['sort_asc'])
+            self.assertTrue('search' not in response.context)
+
+            response = self.client.get('%s?sort_asc=%s' % (url, six.text_type(self.contactfield_1.uuid)))
+
+            self.assertEqual(response.context['sort_asc'], six.text_type(self.contactfield_1.uuid))
+            self.assertIsNone(response.context['sort_desc'])
+            self.assertTrue('search' not in response.context)
+
+            response = self.client.get('%s?sort_asc=%s' % (url, 'created_on'))
+
+            self.assertEqual(response.context['sort_asc'], 'created_on')
+            self.assertIsNone(response.context['sort_desc'])
+            self.assertTrue('search' not in response.context)
+
+            response = self.client.get('%s?sort_desc=%s&search=Joe' % (url, 'created_on'))
+
+            self.assertEqual(response.context['sort_desc'], 'created_on')
+            self.assertIsNone(response.context['sort_asc'])
+            self.assertTrue('search' in response.context)
+
     def test_contact_field_list(self):
         url = reverse('contacts.contactfield_list')
         self.login(self.admin)
@@ -5775,11 +5807,10 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         database_url = 'postgres://{}:{}@{}/{}?sslmode=disable'.format(
             db_config['USER'], db_config['PASSWORD'], db_config['HOST'], db_config['NAME']
         )
-        es_url = 'http://{}'.format(settings.ELASTICSEARCH_URL)
-        result = subprocess.call([
-            './rp-indexer', '-elastic-url', es_url, '-db', database_url, '-rebuild'
-        ])
-        self.assertEqual(result, 0)
+        result = subprocess.run([
+            './rp-indexer', '-elastic-url', settings.ELASTICSEARCH_URL, '-db', database_url, '-rebuild'
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
 
         # give ES some time to publish the results
         time.sleep(5)
