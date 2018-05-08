@@ -12,7 +12,6 @@ from __future__ import absolute_import, unicode_literals
 
 import warnings
 import copy
-import os
 
 from .settings_common import *  # noqa
 
