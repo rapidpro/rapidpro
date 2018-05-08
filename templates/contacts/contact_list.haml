@@ -7,7 +7,7 @@
     {{current_group.name}}
   -else
     {{title}}
-  
+
 -block page-top
   {% render as page_top %}
     {{block.super}}
@@ -155,10 +155,26 @@
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
-                          {{ field.label }}
+                          %div
+                            {{ field.label }}
+                            -if sort_field == field.uuid|stringformat:'s'
+                              -if sort_desc
+                                %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_asc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              -else
+                                %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_desc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                            -else
+                              %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_desc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
                     %th
                       - if object_list
-                        -trans "Created On"
+                        %div
+                          -trans "Created On"
+                          -if sort_field == 'created_on'
+                            -if sort_desc
+                              %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_asc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            -else
+                              %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_desc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                          -else
+                            %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_desc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
 
                   %tbody
                     - for object in contacts
@@ -229,16 +245,27 @@
 
 -block extra-style
   :css
-
+    tr.contacts th a.icon {
+      visibility: hidden;
+      text-decoration: none;
+    }
+    tr.contacts th:hover a.icon {
+      visibility: visible;
+    }
+    tr.contacts th:hover a.icon.visible {
+      visibility: visible;
+    }
     tr.contacts th {
       font-size:11px;
       height:10px;
       padding:0;
       padding-top:10px;
+      padding-left:14px;
       font-weight:200;
       color: #aaa;
       border:0px solid;
       text-align:center;
+      white-space: nowrap;
     }
 
     td.field {
@@ -284,18 +311,18 @@
     }
     {% endif %}
 
-    
+
     // keeps track if we are on a link or not
     var onLink = false;
 
     {% if org_perms.contacts.contact_update %}
-    
+
     function addContactToGroup(groupId){
       var contactIds = getCheckedIds();
       var groupedIds = getLabeledIds(groupId);
 
       var addGroup = true;
-    
+
       // find the intersection of contactIds and groupedIds
       var contactIdsWithGroup = intersect(contactIds, groupedIds);
 
@@ -306,7 +333,7 @@
       jQuery.ajaxSettings.traditional = true;
       fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true });
     }
-   
+
     {% endif %}
 
     {% if org_perms.contacts.contact_create %}
@@ -334,7 +361,7 @@
       modal.show()
     }
     {% endif %}
-    
+
 
     {% if org_perms.msgs.broadcast_send %}
     $(".send-button").click(function(){

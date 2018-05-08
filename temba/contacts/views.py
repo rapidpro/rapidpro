@@ -141,6 +141,36 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
         redirect = urlquote_plus(self.request.get_full_path())
         return '%s?g=%s&s=%s&redirect=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search, redirect)
 
+    def prepare_sort_field_struct(self):
+        sort_desc = self.request.GET.get('sort_desc', None)
+        sort_asc = self.request.GET.get('sort_asc', None)
+
+        sort_field = sort_asc or sort_desc
+
+        if sort_field is not None:
+            sort_direction = 'asc' if sort_asc else 'desc'
+            if sort_field == 'created_on':
+                return {
+                    'field_type': 'attribute',
+                    'sort_direction': sort_direction,
+                    'field_name': 'created_on'
+                }
+            else:
+                contact_sort_field = ContactField.objects.values('value_type', 'uuid').get(uuid=sort_field)
+                mapping = {
+                    'T': 'text', 'N': 'number', 'D': 'datetime',
+                    'S': 'state.keyword', 'I': 'district.keyword', 'W': 'ward.keyword'
+                }
+                field_leaf = mapping[contact_sort_field['value_type']]
+                return {
+                    'field_type': 'field',
+                    'sort_direction': sort_direction,
+                    'field_path': 'fields.{}'.format(field_leaf),
+                    'field_uuid': six.text_type(contact_sort_field['uuid'])
+                }
+
+        return None
+
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
         group = self.derive_group()
@@ -148,12 +178,15 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
-        if search_query:
+
+        sort_struct = self.prepare_sort_field_struct()
+
+        if search_query or sort_struct:
             from .search import contact_es_search
             from temba.utils.es import ES
 
             try:
-                search_object, self.parsed_search = contact_es_search(org, search_query, group)
+                search_object, self.parsed_search = contact_es_search(org, search_query, group, sort_struct)
                 es_search = search_object.source(fields=('id', )).using(ES)
 
                 return es_search
@@ -190,6 +223,10 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
+
+        context['sort_desc'] = self.request.GET.get('sort_desc', None)
+        context['sort_asc'] = self.request.GET.get('sort_asc', None)
+        context['sort_field'] = self.request.GET.get('sort_desc', None) or self.request.GET.get('sort_asc', None)
 
         # replace search string with parsed search expression
         if self.parsed_search is not None:
