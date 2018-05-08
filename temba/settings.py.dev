@@ -86,9 +86,3 @@ warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
 STATIC_URL = '/sitestatic/'
-
-# -----------------------------------------------------------------------------------
-# Honor env variables in dev environment
-# -----------------------------------------------------------------------------------
-ELASTICSEARCH_URL = os.environ.get('ELASTICSEARCH_URL', "")
-FLOWSERVER_URL = os.environ.get('FLOWSERVER_URL', "")
