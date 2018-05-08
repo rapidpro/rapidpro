@@ -843,13 +843,20 @@ class Flow(TembaModel):
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
                                                       continue_parent=continue_parent)
 
-            if flowserver_trial:
-                if msg and msg.id:
-                    trial.end_resume(flowserver_trial, msg_in=msg)
-                elif expired_child_run:
-                    trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
-
             if handled:
+                analytics.gauge('temba.flowserver_trial.all_resumes')
+
+                if flowserver_trial:
+                    trial_result = None
+
+                    if msg and msg.id:
+                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
+                    elif expired_child_run:
+                        trial_result = trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
+
+                    if trial_result is not None:
+                        analytics.gauge('temba.flowserver_trial.%s' % ('resume_pass' if trial_result else 'resume_fail'))
+
                 return True, msgs
 
         return False, []
