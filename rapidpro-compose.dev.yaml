@@ -20,7 +20,7 @@ services:
       - MANAGEPY_COLLECTSTATIC=on
       - MANAGEPY_COMPRESS=on
       - MANAGEPY_INIT_DB=on
-      - MANAGEPY_MIGRATE=off
+      - MANAGEPY_MIGRATE=on
     volumes:
       - ./static/brands/pulse:/rapidpro/static/brands/pulse
       - ./pulse_settings.dev.py:/rapidpro/temba/settings.py
