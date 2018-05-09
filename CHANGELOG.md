@@ -1,3 +1,9 @@
+v3.0.383
+----------
+ * add canary task for elasticsearch
+ * record metrics about flowserver trial to librarto
+ * allow sorting of contact fields via dragging in manage dialog
+
 v3.0.382
 ----------
  * rename flow migration
