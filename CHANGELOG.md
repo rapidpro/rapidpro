@@ -1,3 +1,7 @@
+v3.0.386
+----------
+ * update start contact migration to work with malformed extra
+
 v3.0.384
 ----------
  * fix not selecting contact id from ES in canary task
