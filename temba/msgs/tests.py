@@ -689,7 +689,7 @@ class MsgTest(TembaTest):
     def test_footgun(self):
         # create a bunch of contacts
         group = ContactGroup.get_or_create(org=self.org, user=self.admin, name="Spam")
-        for i in range(20):
+        for i in range(51):
             (contact, urn) = Contact.get_or_create(org=self.org, urn="tel:+1206779%04d" % i, user=self.admin)
             group.contacts.add(contact)
 

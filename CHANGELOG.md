@@ -1,3 +1,15 @@
+v3.0.382
+----------
+ * rename flow migration
+
+v3.0.381
+----------
+ * limit number of flows exited at once, order by expired_on to encourage index
+ * remove python 2.7 build target in travis
+ * start flow starts in the flows queue vs our global celery one
+ * add flow start count model to track # of runs in a flow start
+ * Always use channel.name for channel assets
+
 v3.0.380
 ----------
  * update to latest goflow to get location support

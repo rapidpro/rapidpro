@@ -944,7 +944,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             context['actions'] = ('label', 'block')
-            context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
+            context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('-priority', 'pk')
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -1401,10 +1401,13 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             contact_fields = []
             for field_idx in range(1, num_fields + 2):
-                contact_field = dict(show='show_%d' % field_idx,
-                                     type='type_%d' % field_idx,
-                                     label='label_%d' % field_idx,
-                                     field='field_%d' % field_idx)
+                contact_field = dict(
+                    show='show_%d' % field_idx,
+                    type='type_%d' % field_idx,
+                    label='label_%d' % field_idx,
+                    field='field_%d' % field_idx,
+                    priority='priority_%d' % field_idx
+                )
                 contact_fields.append(contact_field)
 
             context['contact_fields'] = contact_fields
@@ -1420,7 +1423,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             form.fields.clear()
 
             org = self.request.user.get_org()
-            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
+            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by('-priority', 'pk')
 
             added_fields = []
 
@@ -1431,6 +1434,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
+                added_fields.append(("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=contact_field.priority)))
                 i += 1
 
             # add a last field for the user to add one
@@ -1438,6 +1442,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
+            added_fields.append(("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=0)))
 
             form.fields = OrderedDict(list(form.fields.items()) + added_fields)
 
@@ -1456,15 +1461,22 @@ class ContactFieldCRUDL(SmartCRUDL):
                         field = cleaned_data[key]
                         show_in_table = cleaned_data["show_%s" % idx]
                         value_type = cleaned_data['type_%s' % idx]
+                        priority = cleaned_data['priority_%s' % idx]
 
                         if field == '__new_field':
                             if label:
                                 analytics.track(user.username, 'temba.contactfield_created')
                                 key = ContactField.make_key(label)
-                                ContactField.get_or_create(org, user, key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(
+                                    org, user, key, label, show_in_table=show_in_table, value_type=value_type,
+                                    priority=priority
+                                )
                         else:
                             if label:
-                                ContactField.get_or_create(org, user, field.key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(
+                                    org, user, field.key, label, show_in_table=show_in_table, value_type=value_type,
+                                    priority=priority
+                                )
                             else:
                                 ContactField.hide_field(org, user, field.key)
 

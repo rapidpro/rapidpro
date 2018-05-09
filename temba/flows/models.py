@@ -3333,12 +3333,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                 connection.close()
 
-        run_ids = list(runs.values_list('id', flat=True))
+        run_ids = list(runs[:5000].values_list('id', flat=True))
 
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
+        for id_batch in chunk_list(run_ids, 500):
             now = timezone.now()
 
             # mark all steps in these runs as having been left
@@ -5202,7 +5202,7 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         from temba.flows.tasks import start_flow_task
-        on_transaction_commit(lambda: start_flow_task.delay(self.id))
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue='flows'))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -5228,12 +5228,48 @@ class FlowStart(SmartModel):
 
     def update_status(self):
         # only update our status to complete if we have started as many runs as our total contact count
-        if self.runs.count() == self.contact_count:
+        if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=['status'])
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
+
+
+@six.python_2_unicode_compatible
+class FlowStartCount(SquashableModel):
+    """
+    Maintains count of how many runs a FlowStart has created.
+    """
+    SQUASH_OVER = ('start_id',)
+
+    start = models.ForeignKey(FlowStart, related_name='counts', db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "start_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("start_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.start_id,) * 2
+
+    @classmethod
+    def get_count(cls, start):
+        count = FlowStartCount.objects.filter(start=start).aggregate(count_sum=Sum('count'))['count_sum']
+        return count if count else 0
+
+    @classmethod
+    def populate_for_start(cls, start):
+        FlowStartCount.objects.filter(start=start).delete()
+        return FlowStartCount.objects.create(start=start, count=start.runs.count())
+
+    def __str__(self):  # pragma: needs cover
+        return "FlowStartCount[%d:%d]" % (self.start_id, self.count)
 
 
 @six.python_2_unicode_compatible

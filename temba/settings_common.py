@@ -942,6 +942,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_messages_task',
         'schedule': timedelta(seconds=300)
     },
+    "check-elasticsearch-lag": {
+        'task': 'check_elasticsearch_lag',
+        'schedule': timedelta(seconds=300),
+    },
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
