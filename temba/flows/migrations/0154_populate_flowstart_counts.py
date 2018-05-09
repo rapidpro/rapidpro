@@ -7,7 +7,7 @@ from django.db import migrations
 
 def backfill_flowstart_counts(FlowRun, FlowStart, FlowStartCount):
     # for every start
-    for start_id in FlowStart.objects.all().order_by('id').only('id'):
+    for start_id in FlowStart.objects.all().order_by('id').values_list('id', flat=True):
         count = FlowRun.objects.filter(start_id=start_id).count()
         FlowStartCount.objects.create(start_id=start_id, count=count, is_squashed=True)
         print("start %d populated with %d runs" % (start_id, count))
