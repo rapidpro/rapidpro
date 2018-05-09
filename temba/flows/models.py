@@ -844,7 +844,7 @@ class Flow(TembaModel):
                                                       continue_parent=continue_parent)
 
             if handled:
-                analytics.gauge('temba.flowserver_trial.all_resumes')
+                analytics.gauge('temba.run_resumes')
 
                 if flowserver_trial:
                     trial_result = None
