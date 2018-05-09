@@ -204,7 +204,16 @@ class FlowSession(models.Model):
 
         return runs
 
-    def resume(self, msg_in=None, expired_child_run=None):
+    def resume_by_input(self, msg_in):
+        return self._resume(msg_in=msg_in)
+
+    def resume_by_expired_run(self, expired_run):  # pragma: needs cover
+        return self._resume(expired_run=expired_run)
+
+    def resume_by_timeout(self):
+        return self._resume(timeout=True)
+
+    def _resume(self, msg_in=None, expired_run=None, timeout=False):
         """
         Resumes an existing flow session
         """
@@ -231,8 +240,10 @@ class FlowSession(models.Model):
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
             request.add_msg_received(msg_in)
-        if expired_child_run:  # pragma: needs cover
-            request.add_run_expired(expired_child_run)
+        elif expired_run:  # pragma: needs cover
+            request.add_run_expired(expired_run)
+        elif timeout:
+            request.add_wait_timed_out()
 
         # TODO determine if contact or environment has changed
         # request = request.add_contact_changed(self.contact)
@@ -821,7 +832,7 @@ class Flow(TembaModel):
         # resume via flow server if we have a waiting session for that
         session = FlowSession.get_waiting(contact=msg.contact)
         if session:
-            return session.resume(msg_in=msg)
+            return session.resume_by_input(msg)
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
         for step in steps:
@@ -3453,10 +3464,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
                 return
 
-            # resume via goflow if this run is using the new engine
+            # resume via flowserver if this run is using the new engine
             if run.parent.session and run.parent.session.output:  # pragma: needs cover
                 session = FlowSession.objects.get(id=run.parent.session.id)
-                return session.resume(expired_child_run=run)
+                return session.resume_by_expired_run(run)
 
             ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
                                              flow__org=step.run.org).exclude(flow=None).first()
@@ -3510,6 +3521,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
+        # resume via flowserver if this run is using the new engine
+        if self.session and self.session.output:
+            return self.session.resume_by_timeout()
+
         last_step = FlowStep.get_active_steps_for_contact(self.contact).first()
 
         # this timeout is invalid, clear it
@@ -3704,7 +3719,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Utility method to give the serialized value for the passed in value
         """
-        if value is None:
+        if value is None:  # pragma: no cover
             return None
 
         if isinstance(value, datetime):
@@ -3725,9 +3740,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
             FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
-            FlowRun.RESULT_INPUT: raw_input,
             FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
         }
+
+        if raw_input is not None:
+            results[key][FlowRun.RESULT_INPUT] = raw_input
 
         # if we have a different localized name for our category, save it as well
         if category != category_localized:
@@ -3905,9 +3922,6 @@ class FlowStep(models.Model):
 
     def save_rule_match(self, rule, value):
         self.rule_uuid = rule.uuid
-
-        if value is None:
-            value = ''
 
         # format our rule value appropriately
         if isinstance(value, datetime):
@@ -4116,7 +4130,7 @@ class RuleSet(models.Model):
                 if isinstance(rule.test, TimeoutTest):
                     (result, value) = rule.matches(run, msg, context, orig_text)
                     if result > 0:
-                        return rule, value, six.text_type(msg)
+                        return rule, value, None
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
             header = {}
@@ -6846,8 +6860,9 @@ class TimeoutTest(Test):
         return {'type': TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
 
     def evaluate(self, run, sms, context, text):
+        now = timezone.now()
         if run.timeout_on < timezone.now():
-            return 1, None
+            return 1, now
         else:  # pragma: needs cover
             return 0, None
 
