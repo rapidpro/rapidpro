@@ -2777,13 +2777,24 @@ class ExportContactsTask(BaseExportTask):
                                id=contact_field.id,
                                urn_scheme=None))
 
-        return fields, scheme_counts
+        org_groups = (
+            ContactGroup.user_groups.filter(org=self.org, is_active=True, status=ContactGroup.STATUS_READY)
+            .extra(select={'lower_name': 'lower(name)'})
+            .order_by('lower_name')
+        )
+        group_fields = [
+            dict(label='Contact UUID', key=Contact.UUID, group_id=0, group=None),
+        ]
+        for group in org_groups:
+            group_fields.append(dict(label=group.name, key=None, group_id=group.id, group=group))
+
+        return fields, scheme_counts, group_fields
 
     def write_export(self):
         from .search import contact_es_search
         from temba.utils.es import ES
 
-        fields, scheme_counts = self.get_export_fields_and_schemes()
+        fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
@@ -2797,7 +2808,7 @@ class ExportContactsTask(BaseExportTask):
             contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
+        exporter = TableExporter(self, "Contact", "Contact Groups", [f['label'] for f in fields], [g['label'] for g in group_fields])
 
         current_contact = 0
         start = time.time()
@@ -2817,6 +2828,7 @@ class ExportContactsTask(BaseExportTask):
                 contact = contact_by_id[contact_id]
 
                 values = []
+                group_values = []
                 for col in range(len(fields)):
                     field = fields[col]
 
@@ -2851,8 +2863,22 @@ class ExportContactsTask(BaseExportTask):
 
                     values.append(field_value)
 
+                contact_groups_ids = list(contact.user_groups.filter(is_active=True).values_list('id', flat=True))
+                for col in range(len(group_fields)):
+                    field = group_fields[col]
+
+                    if field['key'] == Contact.UUID:
+                        field_value = contact.uuid
+                    else:
+                        field_value = 'true' if field['group_id'] in contact_groups_ids else 'false'
+
+                    if field_value:
+                        field_value = six.text_type(clean_string(field_value))
+
+                    group_values.append(field_value)
+
                 # write this contact's values
-                exporter.write_row(values)
+                exporter.write_row(values, group_values)
                 current_contact += 1
 
                 # output some status information every 10,000 contacts

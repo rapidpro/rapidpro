@@ -5232,6 +5232,9 @@ class ContactFieldTest(TembaTest):
         contact2.update_urns(self.admin, urns)
 
         group = self.create_group('Poppin Tags', [contact, contact2])
+        group2  = self.create_group("Dynamic", query="tel is 1234")
+        group2.status = ContactGroup.STATUS_EVALUATING
+        group2.save()
 
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
@@ -5249,14 +5252,21 @@ class ContactFieldTest(TembaTest):
             task = ExportContactsTask.objects.all().order_by('-id').first()
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = load_workbook(filename=filename)
-            return workbook.worksheets[0]
+            return workbook.worksheets
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(40):
-            self.assertExcelSheet(request_export(), [
+        with self.assertNumQueries(43):
+            export = request_export()
+
+            self.assertExcelSheet(export[0], [
                 ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+            ])
+            self.assertExcelSheet(export[1], [
+                ["Contact UUID", "Poppin Tags"],
+                [contact2.uuid, "true"],
+                [contact.uuid, "true"],
             ])
 
         # more contacts do not increase the queries
@@ -5265,18 +5275,26 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(40):
-            self.assertExcelSheet(request_export(), [
+        with self.assertNumQueries(45):
+            export = request_export()
+            self.assertExcelSheet(export[0], [
                 ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
                 [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
                 [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", ""],
             ])
+            self.assertExcelSheet(export[1], [
+                ["Contact UUID", "Poppin Tags"],
+                [contact2.uuid, "true"],
+                [contact.uuid, "true"],
+                [contact3.uuid, "false"],
+                [contact4.uuid, "false"]
+            ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(41):
-            self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
+        with self.assertNumQueries(44):
+            self.assertExcelSheet(request_export('?g=%s' % group.uuid)[0], [
                 ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
@@ -5288,8 +5306,8 @@ class ContactFieldTest(TembaTest):
             {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact3.id}}
         ]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(39):
-                self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
+            with self.assertNumQueries(42):
+                self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng')[0], [
                     ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                     [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                     [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
@@ -5300,15 +5318,15 @@ class ContactFieldTest(TembaTest):
             {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact.id}}
         ]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(40):
-                self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
+            with self.assertNumQueries(42):
+                self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid)[0], [
                     ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                     [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
                 ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
-            self.assertExcelSheet(request_export(), [
+            self.assertExcelSheet(request_export()[0], [
                 ["ID", "Contact UUID", "Name", "Language", "First", "Second", "Third"],
                 [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
                 [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "", "One", "", "20-12-2015 08:30"],

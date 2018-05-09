@@ -157,10 +157,12 @@ class TableExporter(object):
     When writing to an Excel sheet, this also takes care of creating different sheets every 1048576
     rows, as again, Excel file only support that many per sheet.
     """
-    def __init__(self, task, sheet_name, columns):
+    def __init__(self, task, sheet_name, extra_sheet_name, columns, extra_columns):
         self.task = task
         self.columns = columns
+        self.extra_columns = extra_columns
         self.sheet_name = sheet_name
+        self.extra_sheet_name = extra_sheet_name
 
         self.current_sheet = 0
         self.current_row = 0
@@ -179,13 +181,14 @@ class TableExporter(object):
 
         # add our sheet
         self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        self.sheet2 = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.extra_sheet = self.workbook.create_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
 
         self.task.append_row(self.sheet, self.columns)
+        self.task.append_row(self.extra_sheet, self.extra_columns)
 
         self.sheet_row = 2
 
-    def write_row(self, values):
+    def write_row(self, values, extra_values):
         """
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
@@ -194,6 +197,7 @@ class TableExporter(object):
             self._add_sheet()
 
         self.task.append_row(self.sheet, values)
+        self.task.append_row(self.extra_sheet, extra_values)
 
         self.sheet_row += 1
 
