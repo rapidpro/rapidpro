@@ -1,3 +1,7 @@
+v3.0.385
+----------
+ * only select start id in flow start migration
+
 v3.0.384
 ----------
  * fix not selecting contact id from ES in canary task
