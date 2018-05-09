@@ -1,3 +1,7 @@
+v3.0.387
+----------
+ * fix flowstarts migration
+
 v3.0.386
 ----------
  * update start contact migration to work with malformed extra
