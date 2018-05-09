@@ -50,7 +50,7 @@ def check_elasticsearch_lag():
             ModelESSearch(model=Contact, index='contacts')
             .params(size=1)
             .sort('-modified_on_mu')
-            .source(include=['modified_on'])
+            .source(include=['modified_on', 'id'])
             .using(ES)
             .execute()
         )
