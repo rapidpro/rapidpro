@@ -8,6 +8,7 @@ import iso8601
 import pytz
 from celery.task import task
 from django.conf import settings
+from django.utils import timezone
 
 from temba.utils.queues import nonoverlapping_task
 from .models import ExportContactsTask, ContactGroupCount, ContactGroup, Contact
@@ -54,18 +55,32 @@ def check_elasticsearch_lag():
             .execute()
         )
 
-        if res['hits']['hits']:
-            es_contact = res['hits']['hits'][0]
+        es_hits = res['hits']['hits']
+        if es_hits:
+            # if we have elastic results, make sure they aren't more than five minutes behind
             db_contact = Contact.objects.filter(is_test=False).order_by('-modified_on').first()
+            es_modified_on = iso8601.parse_date(es_hits[0]['_source']['modified_on'], pytz.utc)
 
-            if db_contact:
-                es_modified_on = iso8601.parse_date(es_contact['_source']['modified_on'], pytz.utc)
+            # no db contact is an error, ES should be empty as well
+            if not db_contact:
+                logger.error("db empty but ElasticSearch has contacts. Newest ES: %s",
+                             es_modified_on)
+                return False
 
-                # check the lag between the two, shouldn't be more than 5 minutes
-                if db_contact.modified_on - es_modified_on > timedelta(minutes=5):
-                    logger.error("drift between ElasticSearch and DB. Newest DB: %s, Newest ES: %s",
-                                 db_contact.modified_on, es_modified_on)
+            #  check the lag between the two, shouldn't be more than 5 minutes
+            if db_contact.modified_on - es_modified_on > timedelta(minutes=5):
+                logger.error("drift between ElasticSearch and DB. Newest DB: %s, Newest ES: %s",
+                             db_contact.modified_on, es_modified_on)
 
-                    return False
+                return False
+
+        else:
+            # we don't have any ES hits, get our oldest db contact, check it is less than five minutes old
+            db_contact = Contact.objects.filter(is_test=False).order_by('modified_on').first()
+            if db_contact and timezone.now() - db_contact.modified_on > timedelta(minutes=5):
+                logger.error("ElasticSearch empty with DB contacts older than five minutes. Oldest DB: %s",
+                             db_contact.modified_on)
+
+                return False
 
     return True

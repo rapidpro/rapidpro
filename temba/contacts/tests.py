@@ -522,6 +522,12 @@ class ContactGroupTest(TembaTest):
 class ElasticSearchLagTest(TembaTest):
 
     def test_lag(self):
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': 10, 'modified_on': timezone.now().isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertFalse(check_elasticsearch_lag())
+
         frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith",
                                               urns=["tel:1234", "twitter:hola"])
 
@@ -535,6 +541,10 @@ class ElasticSearchLagTest(TembaTest):
             'id': frank.id, 'modified_on': (frank.modified_on - timedelta(minutes=10)).isoformat()
         }}]
         with ESMockWithScroll(data=mock_es_data):
+            self.assertFalse(check_elasticsearch_lag())
+
+        Contact.objects.filter(id=frank.id).update(modified_on=timezone.now() - timedelta(minutes=6))
+        with ESMockWithScroll():
             self.assertFalse(check_elasticsearch_lag())
 
 
