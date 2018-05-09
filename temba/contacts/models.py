@@ -373,6 +373,8 @@ class ContactField(SmartModel):
                                   verbose_name="Field Type")
     show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
 
+    priority = models.PositiveIntegerField(default=0)
+
     @classmethod
     def make_key(cls, label):
         """
@@ -412,7 +414,7 @@ class ContactField(SmartModel):
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -459,6 +461,10 @@ class ContactField(SmartModel):
                     field.value_type = value_type
                     changed = True
 
+                if priority is not None and field.priority != priority:
+                    field.priority = priority
+                    changed = True
+
                 if changed:
                     field.modified_by = user
                     field.save()
@@ -478,12 +484,15 @@ class ContactField(SmartModel):
                 if show_in_table is None:
                     show_in_table = False
 
+                if priority is None:
+                    priority = 0
+
                 if not ContactField.is_valid_key(key):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
                                                     show_in_table=show_in_table, value_type=value_type,
-                                                    created_by=user, modified_by=user)
+                                                    created_by=user, modified_by=user, priority=priority)
 
             return field
 
@@ -2769,7 +2778,12 @@ class ExportContactsTask(BaseExportTask):
                         field_dict['position'] = i
                         fields.append(field_dict)
 
-        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+        contact_fields_list = (
+            ContactField.objects
+            .filter(org=self.org, is_active=True)
+            .select_related('org')
+            .order_by('-priority', 'pk')
+        )
         for contact_field in contact_fields_list:
             fields.append(dict(field=contact_field,
                                label=contact_field.label,
