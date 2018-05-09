@@ -5300,7 +5300,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(43):
             export = request_export()
             self.assertExcelSheet(export[0], [
                 ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
