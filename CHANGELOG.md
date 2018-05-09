@@ -1,3 +1,7 @@
+v3.0.384
+----------
+ * fix not selecting contact id from ES in canary task
+
 v3.0.383
 ----------
  * add canary task for elasticsearch
