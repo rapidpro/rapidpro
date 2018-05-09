@@ -44,7 +44,7 @@
     }
 
     $('#draggable-tbody').sortable({
-        handle: '.drag-handle',
+        // handle: '.drag-handle',  // make this row draggable only by the handle
         placeholder: "sortable-placeholder",
         stop: function (event, ui) {
           $(ui.item).removeClass('sortable-dragging');
