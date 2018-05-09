@@ -5266,7 +5266,8 @@ class ContactFieldTest(TembaTest):
         contact2.update_urns(self.admin, urns)
 
         group = self.create_group('Poppin Tags', [contact, contact2])
-        group2 = self.create_group("Dynamic", query="tel is 1234")
+        with ESMockWithScroll():
+            group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()
 
