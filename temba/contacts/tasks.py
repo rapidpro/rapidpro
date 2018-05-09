@@ -60,17 +60,18 @@ def check_elasticsearch_lag():
             # if we have elastic results, make sure they aren't more than five minutes behind
             db_contact = Contact.objects.filter(is_test=False).order_by('-modified_on').first()
             es_modified_on = iso8601.parse_date(es_hits[0]['_source']['modified_on'], pytz.utc)
+            es_id = es_hits[0]['_source']['id']
 
             # no db contact is an error, ES should be empty as well
             if not db_contact:
-                logger.error("db empty but ElasticSearch has contacts. Newest ES: %s",
-                             es_modified_on)
+                logger.error("db empty but ElasticSearch has contacts. Newest ES(id: %d, modified_on: %s)",
+                             es_id, es_modified_on)
                 return False
 
             #  check the lag between the two, shouldn't be more than 5 minutes
             if db_contact.modified_on - es_modified_on > timedelta(minutes=5):
-                logger.error("drift between ElasticSearch and DB. Newest DB: %s, Newest ES: %s",
-                             db_contact.modified_on, es_modified_on)
+                logger.error("drift between ElasticSearch and DB. Newest DB(id: %d, modified_on: %s) Newest ES(id: %d, modified_on: %s)",
+                             db_contact.id, db_contact.modified_on, es_id, es_modified_on)
 
                 return False
 
@@ -78,8 +79,8 @@ def check_elasticsearch_lag():
             # we don't have any ES hits, get our oldest db contact, check it is less than five minutes old
             db_contact = Contact.objects.filter(is_test=False).order_by('modified_on').first()
             if db_contact and timezone.now() - db_contact.modified_on > timedelta(minutes=5):
-                logger.error("ElasticSearch empty with DB contacts older than five minutes. Oldest DB: %s",
-                             db_contact.modified_on)
+                logger.error("ElasticSearch empty with DB contacts older than five minutes. Oldest DB(id: %d, modified_on: %s)",
+                             db_contact.id, db_contact.modified_on)
 
                 return False
 
