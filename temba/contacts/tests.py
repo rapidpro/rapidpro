@@ -43,7 +43,7 @@ from temba.utils.es import ES
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
-from .tasks import squash_contactgroupcounts
+from .tasks import squash_contactgroupcounts, check_elasticsearch_lag
 from .templatetags.contacts import contact_field, activity_icon, history_class
 
 
@@ -64,7 +64,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.org.initialize()
 
         ContactField.get_or_create(self.org, self.user, 'age', "Age", value_type='N')
-        ContactField.get_or_create(self.org, self.user, 'home', "Home", value_type='S')
+        ContactField.get_or_create(self.org, self.user, 'home', "Home", value_type='S', priority=10)
 
     def getCreatePostData(self):
         return dict(name="Joe Brady", urn__tel__0="+250785551212")
@@ -108,6 +108,10 @@ class ContactCRUDLTest(_CRUDLTest):
             self.assertEqual(response.context['search'], 'age = 18')
             self.assertEqual(response.context['save_dynamic_search'], True)
             self.assertIsNone(response.context['search_error'])
+            self.assertEqual(
+                list(response.context['contact_fields'].values_list('label', flat=True)),
+                ['Home', 'Age']
+            )
 
         with patch('temba.utils.es.ES') as mock_ES:
             mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
@@ -519,6 +523,35 @@ class ContactGroupTest(TembaTest):
         self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
 
 
+class ElasticSearchLagTest(TembaTest):
+
+    def test_lag(self):
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': 10, 'modified_on': timezone.now().isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertFalse(check_elasticsearch_lag())
+
+        frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith",
+                                              urns=["tel:1234", "twitter:hola"])
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': frank.id, 'modified_on': frank.modified_on.isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertTrue(check_elasticsearch_lag())
+
+        mock_es_data = [{'_type': '_doc', '_index': 'dummy_index', '_source': {
+            'id': frank.id, 'modified_on': (frank.modified_on - timedelta(minutes=10)).isoformat()
+        }}]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertFalse(check_elasticsearch_lag())
+
+        Contact.objects.filter(id=frank.id).update(modified_on=timezone.now() - timedelta(minutes=6))
+        with ESMockWithScroll():
+            self.assertFalse(check_elasticsearch_lag())
+
+
 class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super(ContactGroupCRUDLTest, self).setUp()
@@ -527,6 +560,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.frank = Contact.get_or_create_by_urns(self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
+
         with ESMockWithScroll():
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
@@ -5093,9 +5127,9 @@ class ContactFieldTest(TembaTest):
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")
 
-        self.contactfield_1 = ContactField.get_or_create(self.org, self.admin, "first", "First")
+        self.contactfield_1 = ContactField.get_or_create(self.org, self.admin, "first", "First", priority=10)
         self.contactfield_2 = ContactField.get_or_create(self.org, self.admin, "second", "Second")
-        self.contactfield_3 = ContactField.get_or_create(self.org, self.admin, "third", "Third")
+        self.contactfield_3 = ContactField.get_or_create(self.org, self.admin, "third", "Third", priority=20)
 
     def test_get_or_create(self):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
@@ -5254,9 +5288,19 @@ class ContactFieldTest(TembaTest):
         # no group specified, so will default to 'All Contacts'
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "Third", "First", "Second"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "", "", "20-12-2015 08:30", "One", ""],
+            ])
+
+        # change the order of the fields
+        self.contactfield_2.priority = 15
+        self.contactfield_2.save()
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export(), [
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
+                [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "", "", "20-12-2015 08:30", "", "One"],
             ])
 
         # more contacts do not increase the queries
@@ -5267,9 +5311,9 @@ class ContactFieldTest(TembaTest):
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "20-12-2015 08:30", "", "One"],
                 [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
                 [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", ""],
             ])
@@ -5277,9 +5321,9 @@ class ContactFieldTest(TembaTest):
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
-                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
                 [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "20-12-2015 08:30", "", "One"],
             ])
 
         # export a search
@@ -5290,7 +5334,7 @@ class ContactFieldTest(TembaTest):
         with ESMockWithScroll(data=mock_es_data):
             with self.assertNumQueries(39):
                 self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
                     [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                     [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", ""],
                 ])
@@ -5302,16 +5346,16 @@ class ContactFieldTest(TembaTest):
         with ESMockWithScroll(data=mock_es_data):
             with self.assertNumQueries(40):
                 self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
-                    [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                    ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
+                    [contact.uuid, "Ben Haggerty", "", "", "+12067799294", "+12062233445", "", "", "20-12-2015 08:30", "", "One"],
                 ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.assertExcelSheet(request_export(), [
-                ["ID", "Contact UUID", "Name", "Language", "First", "Second", "Third"],
+                ["ID", "Contact UUID", "Name", "Language", "Third", "Second", "First"],
                 [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
-                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "", "One", "", "20-12-2015 08:30"],
+                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "", "20-12-2015 08:30", "", "One"],
                 [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", "", ""],
                 [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
             ])
@@ -5425,7 +5469,7 @@ class ContactFieldTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(manage_fields_url)
-        self.assertEqual(len(response.context['form'].fields), 16)
+        self.assertEqual(len(response.context['form'].fields), 20)
 
         post_data = dict()
         for id, field in response.context['form'].fields.items():
@@ -5467,13 +5511,13 @@ class ContactFieldTest(TembaTest):
         self.assertNotIn('form', response.context)
 
         # first field was blank, so it should be inactive
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="first", is_active=True).first())
+        self.assertIsNone(ContactField.objects.filter(org=self.org, key="third", is_active=True).first())
 
         # the second should be renamed
-        self.assertEqual("Number 2", ContactField.objects.filter(org=self.org, key="second", is_active=True).first().label)
+        self.assertEqual("Number 2", ContactField.objects.filter(org=self.org, key="first", is_active=True).first().label)
 
         # the third should have a different type
-        self.assertEqual('N', ContactField.objects.filter(org=self.org, key="third", is_active=True).first().value_type)
+        self.assertEqual('N', ContactField.objects.filter(org=self.org, key="second", is_active=True).first().value_type)
 
         # we should have a fourth field now
         self.assertTrue(ContactField.objects.filter(org=self.org, key='new_field', label="New Field", value_type='T'))
@@ -5512,6 +5556,19 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field key language has invalid characters "
                                                      "or is a reserved field name")
+
+    def test_contactfield_priority(self):
+
+        self.assertEqual(
+            list(ContactField.objects.order_by('-priority', 'pk').values_list('label', flat=True)),
+            ['Third', 'First', 'Second']
+        )
+        # change contactfield priority
+        ContactField.get_or_create(org=self.org, user=self.user, key='first', priority=25)
+        self.assertEqual(
+            list(ContactField.objects.order_by('-priority', 'pk').values_list('label', flat=True)),
+            ['First', 'Third', 'Second']
+        )
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
