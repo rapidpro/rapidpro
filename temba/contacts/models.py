@@ -2830,7 +2830,7 @@ class ExportContactsTask(BaseExportTask):
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
-            batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+            batch_contacts = Contact.objects.filter(id__in=batch_ids).prefetch_related('all_groups').select_related('org')
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
@@ -2877,7 +2877,7 @@ class ExportContactsTask(BaseExportTask):
 
                     values.append(field_value)
 
-                contact_groups_ids = list(contact.user_groups.filter(is_active=True).values_list('id', flat=True))
+                contact_groups_ids = [g.id for g in contact.all_groups.all()]
                 for col in range(len(group_fields)):
                     field = group_fields[col]
 
