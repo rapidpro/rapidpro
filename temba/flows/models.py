@@ -3053,7 +3053,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Name has been updated
         """
         self.contact.name = event['name'] or None
-        self.contact.save(update_fields=('name',))
+        self.contact.save(update_fields=('name', 'modified_on'))
 
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated name to '%s'") % (event['name'] or ""))
@@ -3063,7 +3063,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Language has been updated
         """
         self.contact.language = event['language'] or None
-        self.contact.save(update_fields=('language',))
+        self.contact.save(update_fields=('language', 'modified_on'))
 
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated language to '%s'") % (event['language'] or ""))
