@@ -36,7 +36,8 @@ class Events(Enum):
     run_expired = 20
     run_result_changed = 21
     session_triggered = 22
-    webhook_called = 23
+    wait_timed_out = 23
+    webhook_called = 24
 
 
 class RequestBuilder(object):
@@ -164,6 +165,16 @@ class RequestBuilder(object):
             'type': Events.run_expired.name,
             'created_on': run.exited_on.isoformat(),
             'run_uuid': str(run.uuid),
+        })
+        return self
+
+    def add_wait_timed_out(self):
+        """
+        Notify the engine that the session wait timed out
+        """
+        self.request['events'].append({
+            'type': Events.wait_timed_out.name,
+            'created_on': timezone.now().isoformat()
         })
         return self
 

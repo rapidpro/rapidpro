@@ -204,7 +204,16 @@ class FlowSession(models.Model):
 
         return runs
 
-    def resume(self, msg_in=None, expired_child_run=None):
+    def resume_by_input(self, msg_in):
+        return self._resume(msg_in=msg_in)
+
+    def resume_by_expired_run(self, expired_run):  # pragma: needs cover
+        return self._resume(expired_run=expired_run)
+
+    def resume_by_timeout(self):
+        return self._resume(timeout=True)
+
+    def _resume(self, msg_in=None, expired_run=None, timeout=False):
         """
         Resumes an existing flow session
         """
@@ -231,8 +240,10 @@ class FlowSession(models.Model):
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
             request.add_msg_received(msg_in)
-        if expired_child_run:  # pragma: needs cover
-            request.add_run_expired(expired_child_run)
+        elif expired_run:  # pragma: needs cover
+            request.add_run_expired(expired_run)
+        elif timeout:
+            request.add_wait_timed_out()
 
         # TODO determine if contact or environment has changed
         # request = request.add_contact_changed(self.contact)
@@ -821,7 +832,7 @@ class Flow(TembaModel):
         # resume via flow server if we have a waiting session for that
         session = FlowSession.get_waiting(contact=msg.contact)
         if session:
-            return session.resume(msg_in=msg)
+            return session.resume_by_input(msg)
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
         for step in steps:
@@ -843,13 +854,20 @@ class Flow(TembaModel):
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
                                                       continue_parent=continue_parent)
 
-            if flowserver_trial:
-                if msg and msg.id:
-                    trial.end_resume(flowserver_trial, msg_in=msg)
-                elif expired_child_run:
-                    trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
-
             if handled:
+                analytics.gauge('temba.run_resumes')
+
+                if flowserver_trial:
+                    trial_result = None
+
+                    if msg and msg.id:
+                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
+                    elif expired_child_run:
+                        trial_result = trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
+
+                    if trial_result is not None:
+                        analytics.gauge('temba.flowserver_trial.%s' % ('resume_pass' if trial_result else 'resume_fail'))
+
                 return True, msgs
 
         return False, []
@@ -3320,12 +3338,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                 connection.close()
 
-        run_ids = list(runs.values_list('id', flat=True))
+        run_ids = list(runs[:5000].values_list('id', flat=True))
 
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
+        for id_batch in chunk_list(run_ids, 500):
             now = timezone.now()
 
             # mark all steps in these runs as having been left
@@ -3451,10 +3469,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
                 return
 
-            # resume via goflow if this run is using the new engine
+            # resume via flowserver if this run is using the new engine
             if run.parent.session and run.parent.session.output:  # pragma: needs cover
                 session = FlowSession.objects.get(id=run.parent.session.id)
-                return session.resume(expired_child_run=run)
+                return session.resume_by_expired_run(run)
 
             ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
                                              flow__org=step.run.org).exclude(flow=None).first()
@@ -3508,6 +3526,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
+        # resume via flowserver if this run is using the new engine
+        if self.session and self.session.output:
+            return self.session.resume_by_timeout()
+
         last_step = FlowStep.get_active_steps_for_contact(self.contact).first()
 
         # this timeout is invalid, clear it
@@ -3702,7 +3724,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Utility method to give the serialized value for the passed in value
         """
-        if value is None:
+        if value is None:  # pragma: no cover
             return None
 
         if isinstance(value, datetime):
@@ -3723,9 +3745,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             FlowRun.RESULT_NODE_UUID: node_uuid,
             FlowRun.RESULT_CATEGORY: category,
             FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
-            FlowRun.RESULT_INPUT: raw_input,
             FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
         }
+
+        if raw_input is not None:
+            results[key][FlowRun.RESULT_INPUT] = raw_input
 
         # if we have a different localized name for our category, save it as well
         if category != category_localized:
@@ -3903,9 +3927,6 @@ class FlowStep(models.Model):
 
     def save_rule_match(self, rule, value):
         self.rule_uuid = rule.uuid
-
-        if value is None:
-            value = ''
 
         # format our rule value appropriately
         if isinstance(value, datetime):
@@ -4114,7 +4135,7 @@ class RuleSet(models.Model):
                 if isinstance(rule.test, TimeoutTest):
                     (result, value) = rule.matches(run, msg, context, orig_text)
                     if result > 0:
-                        return rule, value, six.text_type(msg)
+                        return rule, value, None
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
             header = {}
@@ -5186,7 +5207,7 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         from temba.flows.tasks import start_flow_task
-        on_transaction_commit(lambda: start_flow_task.delay(self.id))
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue='flows'))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -5212,12 +5233,48 @@ class FlowStart(SmartModel):
 
     def update_status(self):
         # only update our status to complete if we have started as many runs as our total contact count
-        if self.runs.count() == self.contact_count:
+        if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=['status'])
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
+
+
+@six.python_2_unicode_compatible
+class FlowStartCount(SquashableModel):
+    """
+    Maintains count of how many runs a FlowStart has created.
+    """
+    SQUASH_OVER = ('start_id',)
+
+    start = models.ForeignKey(FlowStart, related_name='counts', db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "start_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("start_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.start_id,) * 2
+
+    @classmethod
+    def get_count(cls, start):
+        count = FlowStartCount.objects.filter(start=start).aggregate(count_sum=Sum('count'))['count_sum']
+        return count if count else 0
+
+    @classmethod
+    def populate_for_start(cls, start):
+        FlowStartCount.objects.filter(start=start).delete()
+        return FlowStartCount.objects.create(start=start, count=start.runs.count())
+
+    def __str__(self):  # pragma: needs cover
+        return "FlowStartCount[%d:%d]" % (self.start_id, self.count)
 
 
 @six.python_2_unicode_compatible
@@ -6808,8 +6865,9 @@ class TimeoutTest(Test):
         return {'type': TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
 
     def evaluate(self, run, sms, context, text):
+        now = timezone.now()
         if run.timeout_on < timezone.now():
-            return 1, None
+            return 1, now
         else:  # pragma: needs cover
             return 0, None
 

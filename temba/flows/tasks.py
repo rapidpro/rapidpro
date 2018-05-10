@@ -11,7 +11,7 @@ from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowStartCount
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowCategoryCount, FlowPathRecentRun
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
@@ -42,7 +42,7 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).order_by('expires_on')
     FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
@@ -141,6 +141,7 @@ def squash_flowruncounts():
     FlowRunCount.squash()
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
+    FlowStartCount.squash()
 
 
 @task(track_started=True, name="deactivate_flow_runs_task")
