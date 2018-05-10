@@ -60,11 +60,11 @@ def mapEStoDB(model, es_queryset, only_ids=False):
 
         if pairs:
             return model.objects.raw(
-                """SELECT model.*
-                from {} model JOIN (VALUES {}) tmp_resultset (seq, model_id)
+                f"""SELECT model.*
+                from {model._meta.db_table} AS model JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
                     ON model.id = tmp_resultset.model_id
                 ORDER BY tmp_resultset.seq
-                """.format(model._meta.db_table, pairs)
+                """
             )
         else:
             return model.objects.none()
