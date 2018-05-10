@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
@@ -2792,9 +2793,7 @@ class ExportContactsTask(BaseExportTask):
                                urn_scheme=None))
 
         org_groups = (
-            ContactGroup.user_groups.filter(org=self.org, is_active=True, status=ContactGroup.STATUS_READY)
-            .extra(select={'lower_name': 'lower(name)'})
-            .order_by('lower_name')
+            ContactGroup.user_groups.filter(org=self.org, is_active=True, status=ContactGroup.STATUS_READY).order_by(Lower('name'))
         )
         group_fields = [
             dict(label='Contact UUID', key=Contact.UUID, group_id=0, group=None),
