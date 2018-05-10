@@ -57,7 +57,7 @@ before_script:
   - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
 
     # prepare rp-indexer binary
-  - RPINDEXER_VERSION=1.0.20
+  - RPINDEXER_VERSION=1.0.22
   - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
   - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 

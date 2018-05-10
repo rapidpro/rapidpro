@@ -464,7 +464,7 @@ class Command(BaseCommand):
                     if c['age'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
                             'text': six.text_type(c['age']),
-                            'decimal': six.text_type(c['age'])
+                            'number': six.text_type(c['age'])
                         }
                     if c['joined'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
