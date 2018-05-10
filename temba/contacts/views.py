@@ -16,7 +16,7 @@ from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
-from django.db.models.functions import Upper
+from django.db.models.functions import Upper, Lower
 from django.http import HttpResponseRedirect, HttpResponse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -804,7 +804,7 @@ class ContactCRUDL(SmartCRUDL):
             contact = self.object
 
             # the users group membership
-            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+            context['contact_groups'] = contact.user_groups.order_by(Lower('name'))
 
             # event fires
             event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
