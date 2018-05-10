@@ -155,26 +155,41 @@
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
-                          %div
-                            {{ field.label }}
-                            -if sort_field == field.uuid|stringformat:'s'
-                              -if sort_direction == 'desc'
-                                %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_on={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                              -else
-                                %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                          -if sort_field == field.uuid|stringformat:'s'
+                            -if sort_direction == 'desc'
+                              %a{href:"?sort_on={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                %div
+                                  {{ field.label }}
+                                  %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                             -else
-                              %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %a{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                %div
+                                  {{ field.label }}
+                                  %span.sort.icon.icon-arrow-up5.sort-desc.visible
+                          -else
+                            %a{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                {{ field.label }}
+                                %span.sort.icon.icon-arrow-down-2.sort-desc
                     %th
                       - if object_list
-                        %div
-                          -trans "Created On"
-                          -if sort_field == 'created_on'
-                            -if sort_direction == 'desc'
-                              %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                            -else
-                              %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+
+                        -if sort_field == 'created_on'
+                          -if sort_direction == 'desc'
+                            %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Created On"
+                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                           -else
-                            %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Created On"
+                                %span.sort.icon.icon-arrow-up5.sort-desc.visible
+                        -else
+                          %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %div
+                              -trans "Created On"
+                              %span.sort.icon.icon-arrow-down-2.sort-desc
 
                   %tbody
                     - for object in contacts
@@ -245,14 +260,22 @@
 
 -block extra-style
   :css
-    tr.contacts th a.icon {
+    tr.contacts th a span.icon {
       visibility: hidden;
       text-decoration: none;
+      font-size: 14px;
+      margin-top: -1px;
     }
-    tr.contacts th:hover a.icon {
+    tr.contacts th a {
+      text-decoration: none;
+      font-weight:200;
+      color: #aaa;
+    }
+    tr.contacts th:hover a span.icon {
       visibility: visible;
+      font-size: 14px;
     }
-    tr.contacts th:hover a.icon.visible {
+    tr.contacts th a span.icon.visible {
       visibility: visible;
     }
     tr.contacts th {
