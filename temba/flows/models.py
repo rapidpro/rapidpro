@@ -3048,27 +3048,25 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             quoted_addresses = ['"%s"' % elt for elt in addresses]
             ActionLog.info(self, _("\"%s\" would be sent to %s") % (event['body'], ", ".join(quoted_addresses)))
 
-    def apply_contact_property_changed(self, event, msg_in):
+    def apply_contact_name_changed(self, event, msg_in):
         """
-        Name or language being updated
+        Name has been updated
         """
-        prop = event['property']
-        value = event['value']
-        update_fields = []
-
-        if prop == "language":
-            self.contact.language = value or None
-            update_fields.append('language')
-        elif prop == "name":
-            self.contact.name = value
-            update_fields.append("name")
-        else:  # pragma: no cover
-            raise ValueError("Unknown property to update on contact: %s" % prop)
-
-        self.contact.save(update_fields=update_fields)
+        self.contact.name = event['name'] or None
+        self.contact.save(update_fields=('name', 'modified_on'))
 
         if self.contact.is_test:  # pragma: no cover
-            ActionLog.create(self, _("Updated %s to '%s'") % (prop, value))
+            ActionLog.create(self, _("Updated name to '%s'") % (event['name'] or ""))
+
+    def apply_contact_language_changed(self, event, msg_in):
+        """
+        Language has been updated
+        """
+        self.contact.language = event['language'] or None
+        self.contact.save(update_fields=('language', 'modified_on'))
+
+        if self.contact.is_test:  # pragma: no cover
+            ActionLog.create(self, _("Updated language to '%s'") % (event['language'] or ""))
 
     def apply_contact_urn_added(self, event, msg_in):
         """
