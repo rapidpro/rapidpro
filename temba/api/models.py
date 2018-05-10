@@ -231,7 +231,8 @@ class WebHookEvent(SmartModel):
             'flow': dict(name=flow.name, uuid=flow.uuid, revision=flow.revisions.order_by('revision').last().revision),
             'path': run.path,
             'results': run.results,
-            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
+            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat()),
+            'org': org.id
         }
 
         if msg and msg.id > 0:
@@ -365,7 +366,15 @@ class WebHookEvent(SmartModel):
                     attachments=[a.url for a in msg.get_attachments()],
                     time=json_time,
                     status=msg.status,
-                    direction=msg.direction)
+                    direction=msg.direction,
+                    org=org.id)
+
+        step = msg.steps.all().first()
+
+        if step:
+            flow = step.run.flow
+            data['flow'] = flow.uuid
+            data['revision'] = flow.revisions.order_by('revision').last().revision
 
         hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data,
                                         created_by=api_user, modified_by=api_user)
