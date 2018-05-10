@@ -11,6 +11,7 @@ import six
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -31,7 +32,7 @@ from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ConatactListPaginationMixin
+from temba.utils.views import BaseActionForm, ContactListPaginationMixin
 from temba.values.constants import Value
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
@@ -123,7 +124,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -141,35 +142,45 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
         redirect = urlquote_plus(self.request.get_full_path())
         return '%s?g=%s&s=%s&redirect=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search, redirect)
 
-    def prepare_sort_field_struct(self):
-        sort_desc = self.request.GET.get('sort_desc', None)
-        sort_asc = self.request.GET.get('sort_asc', None)
+    @staticmethod
+    def prepare_sort_field_struct(sort_on):
+        if not sort_on:
+            return None, None, None
 
-        sort_field = sort_asc or sort_desc
+        if sort_on[0] == '-':
+            sort_direction = 'desc'
+            sort_field = sort_on[1:]
+        else:
+            sort_direction = 'asc'
+            sort_field = sort_on
 
-        if sort_field is not None:
-            sort_direction = 'asc' if sort_asc else 'desc'
-            if sort_field == 'created_on':
-                return {
-                    'field_type': 'attribute',
-                    'sort_direction': sort_direction,
-                    'field_name': 'created_on'
-                }
-            else:
+        if sort_field == 'created_on':
+
+            return sort_field, sort_direction, {
+                'field_type': 'attribute',
+                'sort_direction': sort_direction,
+                'field_name': 'created_on'
+            }
+        else:
+            try:
                 contact_sort_field = ContactField.objects.values('value_type', 'uuid').get(uuid=sort_field)
-                mapping = {
-                    'T': 'text', 'N': 'number', 'D': 'datetime',
-                    'S': 'state.keyword', 'I': 'district.keyword', 'W': 'ward.keyword'
-                }
-                field_leaf = mapping[contact_sort_field['value_type']]
-                return {
-                    'field_type': 'field',
-                    'sort_direction': sort_direction,
-                    'field_path': 'fields.{}'.format(field_leaf),
-                    'field_uuid': six.text_type(contact_sort_field['uuid'])
-                }
+            except ValidationError:
+                return None, None, None
+            except ContactField.DoesNotExist:
+                return None, None, None
 
-        return None
+            mapping = {
+                'T': 'text', 'N': 'number', 'D': 'datetime',
+                'S': 'state_keyword', 'I': 'district_keyword', 'W': 'ward_keyword'
+            }
+            field_leaf = mapping[contact_sort_field['value_type']]
+
+            return sort_field, sort_direction, {
+                'field_type': 'field',
+                'sort_direction': sort_direction,
+                'field_path': 'fields.{}'.format(field_leaf),
+                'field_uuid': six.text_type(contact_sort_field['uuid'])
+            }
 
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
@@ -179,7 +190,12 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
 
-        sort_struct = self.prepare_sort_field_struct()
+        sort_on = self.request.GET.get('sort_on', None)
+
+        if sort_on is not None:
+            self.sort_field, self.sort_direction, sort_struct = self.prepare_sort_field_struct(sort_on)
+        else:
+            self.sort_field, self.sort_direction, sort_struct = (None, None, None)
 
         if search_query or sort_struct:
             from .search import contact_es_search
@@ -224,9 +240,8 @@ class ContactListView(ConatactListPaginationMixin, OrgPermsMixin, SmartListView)
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
 
-        context['sort_desc'] = self.request.GET.get('sort_desc', None)
-        context['sort_asc'] = self.request.GET.get('sort_asc', None)
-        context['sort_field'] = self.request.GET.get('sort_desc', None) or self.request.GET.get('sort_asc', None)
+        context['sort_direction'] = self.sort_direction
+        context['sort_field'] = self.sort_field
 
         # replace search string with parsed search expression
         if self.parsed_search is not None:

@@ -24,6 +24,8 @@ from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest, SmartminTestMixin
 from smartmin.csv_imports.models import ImportTask
+
+from temba.contacts.views import ContactListView
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -1819,7 +1821,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(ward.uuid)}},
-                    {'term': {'fields.ward.keyword': 'bukure'}}
+                    {'term': {'fields.ward_keyword': 'bukure'}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
@@ -1836,7 +1838,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(district.uuid)}},
-                    {'term': {'fields.district.keyword': 'rwamagana'}}
+                    {'term': {'fields.district_keyword': 'rwamagana'}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
@@ -1852,7 +1854,7 @@ class ContactTest(TembaTest):
             'bool': {
                 'must': [
                     {'term': {'fields.field': six.text_type(state.uuid)}},
-                    {'term': {'fields.state.keyword': 'eastern province'}}
+                    {'term': {'fields.state_keyword': 'eastern province'}}
                 ]}
         }}}]
         actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
@@ -5360,6 +5362,93 @@ class ContactFieldTest(TembaTest):
                 [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
             ])
 
+    def test_prepare_sort_field_struct(self):
+        ward = ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type=Value.TYPE_WARD)
+        district = ContactField.get_or_create(
+            self.org, self.admin, 'district', "Home District", value_type=Value.TYPE_DISTRICT
+        )
+        state = ContactField.get_or_create(
+            self.org, self.admin, 'state', "Home Stat", value_type=Value.TYPE_STATE
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='created_on'),
+            ('created_on', 'asc', {'field_type': 'attribute', 'sort_direction': 'asc', 'field_name': 'created_on'})
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='-created_on'),
+            ('created_on', 'desc', {'field_type': 'attribute', 'sort_direction': 'desc', 'field_name': 'created_on'})
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(six.text_type(self.contactfield_1.uuid))),
+            (six.text_type(self.contactfield_1.uuid), 'asc', {
+                'field_type': 'field', 'sort_direction': 'asc', 'field_path': 'fields.text',
+                'field_uuid': six.text_type(self.contactfield_1.uuid)
+            })
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(self.contactfield_1.uuid))),
+            (six.text_type(self.contactfield_1.uuid), 'desc', {
+                'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.text',
+                'field_uuid': six.text_type(self.contactfield_1.uuid)
+            })
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(self.contactfield_1.uuid))),
+            (six.text_type(self.contactfield_1.uuid), 'desc', {
+                'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.text',
+                'field_uuid': six.text_type(self.contactfield_1.uuid)
+            })
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(ward.uuid))),
+            (six.text_type(ward.uuid), 'desc', {
+                'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.ward_keyword',
+                'field_uuid': six.text_type(ward.uuid)
+            })
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(district.uuid))),
+            (six.text_type(district.uuid), 'desc', {
+                'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.district_keyword',
+                'field_uuid': six.text_type(district.uuid)
+            })
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(six.text_type(state.uuid))),
+            (six.text_type(state.uuid), 'asc', {
+                'field_type': 'field', 'sort_direction': 'asc', 'field_path': 'fields.state_keyword',
+                'field_uuid': six.text_type(state.uuid)
+            })
+        )
+
+        # test with nullish values
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on=None), (None, None, None)
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on=''), (None, None, None)
+        )
+
+        # test with non uuid value
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='abc'), (None, None, None)
+        )
+
+        # test with unknown contact field
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on='22084b5a-3ad3-4dc6-a857-91fb3f20eb57'),
+            (None, None, None)
+        )
+
     def test_contact_field_list_sort_contactfields(self):
         url = reverse('contacts.contact_list')
         self.login(self.admin)
@@ -5368,28 +5457,28 @@ class ContactFieldTest(TembaTest):
             mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
             mock_ES.count.return_value = {'count': 1}
 
-            response = self.client.get('%s?sort_desc=%s' % (url, six.text_type(self.contactfield_1.uuid)))
+            response = self.client.get('%s?sort_on=%s' % (url, six.text_type(self.contactfield_1.uuid)))
 
-            self.assertEqual(response.context['sort_desc'], six.text_type(self.contactfield_1.uuid))
-            self.assertIsNone(response.context['sort_asc'])
+            self.assertEqual(response.context['sort_field'], six.text_type(self.contactfield_1.uuid))
+            self.assertEqual(response.context['sort_direction'], 'asc')
             self.assertTrue('search' not in response.context)
 
-            response = self.client.get('%s?sort_asc=%s' % (url, six.text_type(self.contactfield_1.uuid)))
+            response = self.client.get('%s?sort_on=-%s' % (url, six.text_type(self.contactfield_1.uuid)))
 
-            self.assertEqual(response.context['sort_asc'], six.text_type(self.contactfield_1.uuid))
-            self.assertIsNone(response.context['sort_desc'])
+            self.assertEqual(response.context['sort_field'], six.text_type(self.contactfield_1.uuid))
+            self.assertEqual(response.context['sort_direction'], 'desc')
             self.assertTrue('search' not in response.context)
 
-            response = self.client.get('%s?sort_asc=%s' % (url, 'created_on'))
+            response = self.client.get('%s?sort_on=%s' % (url, 'created_on'))
 
-            self.assertEqual(response.context['sort_asc'], 'created_on')
-            self.assertIsNone(response.context['sort_desc'])
+            self.assertEqual(response.context['sort_field'], 'created_on')
+            self.assertEqual(response.context['sort_direction'], 'asc')
             self.assertTrue('search' not in response.context)
 
-            response = self.client.get('%s?sort_desc=%s&search=Joe' % (url, 'created_on'))
+            response = self.client.get('%s?sort_on=-%s&search=Joe' % (url, 'created_on'))
 
-            self.assertEqual(response.context['sort_desc'], 'created_on')
-            self.assertIsNone(response.context['sort_asc'])
+            self.assertEqual(response.context['sort_field'], 'created_on')
+            self.assertEqual(response.context['sort_direction'], 'desc')
             self.assertTrue('search' in response.context)
 
     def test_contact_field_list(self):
@@ -5819,11 +5908,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # block the default contacts, these should be ignored in our searches
         Contact.objects.all().update(is_active=False, is_blocked=True)
 
-        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+        age = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
         ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
-        ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
+        ward = ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
         ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
@@ -5974,3 +6063,37 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN   # ValueError
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
         self.assertRaises(SearchException, q, 'data=“not empty”')  # unicode “,” are not accepted characters
+
+        # test contact_search_list
+        url = reverse('contacts.contact_list')
+        self.login(self.admin)
+
+        response = self.client.get('%s?sort_on=%s' % (url, 'created_on'))
+        self.assertEqual(response.context['contacts'][0].name, 'Trey')  # first contact in the set
+        self.assertEqual(
+            response.context['contacts'][0].fields[six.text_type(age.uuid)],
+            {'text': '10', 'number': '10'}
+        )
+
+        response = self.client.get('%s?sort_on=-%s' % (url, 'created_on'))
+        self.assertEqual(response.context['contacts'][0].name, None)  # last contact in the set
+        self.assertEqual(
+            response.context['contacts'][0].fields[six.text_type(age.uuid)],
+            {'text': '99', 'number': '99'}
+        )
+
+        response = self.client.get('%s?sort_on=-%s' % (url, six.text_type(ward.uuid)))
+        self.assertEqual(
+            response.context['contacts'][0].fields[six.text_type(ward.uuid)], {
+                'district': 'Rwanda > Eastern Province > Gatsibo', 'state': 'Rwanda > Eastern Province',
+                'text': 'Kageyo', 'ward': 'Rwanda > Eastern Province > Gatsibo > Kageyo'
+            }
+        )
+
+        response = self.client.get('%s?sort_on=%s' % (url, six.text_type(ward.uuid)))
+        self.assertEqual(
+            response.context['contacts'][0].fields[six.text_type(ward.uuid)], {
+                'district': 'Rwanda > Eastern Province > Rwamagana', 'state': 'Rwanda > Eastern Province',
+                'text': 'Bukure', 'ward': 'Rwanda > Eastern Province > Rwamagana > Bukure'
+            }
+        )

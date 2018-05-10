@@ -158,23 +158,23 @@
                           %div
                             {{ field.label }}
                             -if sort_field == field.uuid|stringformat:'s'
-                              -if sort_desc
-                                %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_asc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              -if sort_direction == 'desc'
+                                %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_on={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
                               -else
-                                %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_desc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
                             -else
-                              %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_desc={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
                     %th
                       - if object_list
                         %div
                           -trans "Created On"
                           -if sort_field == 'created_on'
-                            -if sort_desc
-                              %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_asc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            -if sort_direction == 'desc'
+                              %a.sort.icon.icon-arrow-down-2.sort-asc.visible{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                             -else
-                              %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_desc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %a.sort.icon.icon-arrow-up5.sort-desc.visible{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                           -else
-                            %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_desc=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %a.sort.icon.icon-arrow-down-2.sort-desc{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
 
                   %tbody
                     - for object in contacts

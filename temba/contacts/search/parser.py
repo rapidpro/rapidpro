@@ -354,7 +354,7 @@ class Condition(QueryNode):
                     raise SearchException(_("Unknown location type: '%s'") % (field.value_type, ))
 
                 if self.comparator == '=':
-                    field_name += '.keyword'
+                    field_name += '_keyword'
                     es_query &= es_Q('term', **{field_name: query_value})
                 else:
                     raise SearchException(_("Unsupported comparator '%s' for location field") % self.comparator)

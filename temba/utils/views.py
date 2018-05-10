@@ -168,11 +168,11 @@ class ContactListPaginator(Paginator):
         return super(ContactListPaginator, self)._get_page(*new_args, **kwargs)
 
 
-class ConatactListPaginationMixin(object):
+class ContactListPaginationMixin(object):
     paginator_class = ContactListPaginator
 
     def paginate_queryset(self, queryset, page_size):
-        paginator, page, new_queryset, is_paginated = super(ConatactListPaginationMixin, self).paginate_queryset(queryset, page_size)
+        paginator, page, new_queryset, is_paginated = super(ContactListPaginationMixin, self).paginate_queryset(queryset, page_size)
 
         if isinstance(queryset, ModelESSearch):
             model_queryset = ProxyQuerySet([obj for obj in mapEStoDB(self.model, new_queryset)])
