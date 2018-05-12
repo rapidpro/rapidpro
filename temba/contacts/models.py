@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction, IntegrityError, connection
 from django.db.models import Count, Max, Q, Sum
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from itertools import chain
@@ -2791,13 +2792,22 @@ class ExportContactsTask(BaseExportTask):
                                id=contact_field.id,
                                urn_scheme=None))
 
-        return fields, scheme_counts
+        org_groups = (
+            ContactGroup.user_groups.filter(org=self.org, is_active=True, status=ContactGroup.STATUS_READY).order_by(Lower('name'))
+        )
+        group_fields = [
+            dict(label='Contact UUID', key=Contact.UUID, group_id=0, group=None),
+        ]
+        for group in org_groups:
+            group_fields.append(dict(label=group.name, key=None, group_id=group.id, group=group))
+
+        return fields, scheme_counts, group_fields
 
     def write_export(self):
         from .search import contact_es_search
         from temba.utils.es import ES
 
-        fields, scheme_counts = self.get_export_fields_and_schemes()
+        fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
@@ -2811,7 +2821,7 @@ class ExportContactsTask(BaseExportTask):
             contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
+        exporter = TableExporter(self, "Contact", "Contact Groups", [f['label'] for f in fields], [g['label'] for g in group_fields])
 
         current_contact = 0
         start = time.time()
@@ -2819,7 +2829,7 @@ class ExportContactsTask(BaseExportTask):
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
-            batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+            batch_contacts = Contact.objects.filter(id__in=batch_ids).prefetch_related('all_groups').select_related('org')
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
@@ -2831,6 +2841,7 @@ class ExportContactsTask(BaseExportTask):
                 contact = contact_by_id[contact_id]
 
                 values = []
+                group_values = []
                 for col in range(len(fields)):
                     field = fields[col]
 
@@ -2865,8 +2876,22 @@ class ExportContactsTask(BaseExportTask):
 
                     values.append(field_value)
 
+                contact_groups_ids = [g.id for g in contact.all_groups.all()]
+                for col in range(len(group_fields)):
+                    field = group_fields[col]
+
+                    if field['key'] == Contact.UUID:
+                        field_value = contact.uuid
+                    else:
+                        field_value = 'true' if field['group_id'] in contact_groups_ids else 'false'
+
+                    if field_value:
+                        field_value = six.text_type(clean_string(field_value))
+
+                    group_values.append(field_value)
+
                 # write this contact's values
-                exporter.write_row(values)
+                exporter.write_row(values, group_values)
                 current_contact += 1
 
                 # output some status information every 10,000 contacts
