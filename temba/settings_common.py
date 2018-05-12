@@ -228,6 +228,7 @@ INSTALLED_APPS = (
     'timezone_field',
 
     # temba apps
+    'temba.archives',
     'temba.assets',
     'temba.auth_tweaks',
     'temba.api',
