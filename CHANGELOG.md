@@ -1,3 +1,7 @@
+v3.0.389
+----------
+ * add archive model, migrations
+
 v3.0.388
 ----------
  * Make ContactField header clickable when sorting
