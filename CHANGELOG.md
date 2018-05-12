@@ -1,3 +1,12 @@
+v3.0.388
+----------
+ * Make ContactField header clickable when sorting
+ * Add first python2 incompatible code change
+ * Add contact groups sheet on contact exports
+ * Remove contact export as CSV
+ * Update to latest goflow
+ * Fix test_db contact fields serialization
+
 v3.0.387
 ----------
  * fix flowstarts migration

@@ -365,7 +365,7 @@ class Command(BaseCommand):
                 if g['query']:
                     group = ContactGroup.create_dynamic(org, user, g['name'], g['query'])
                 else:
-                    group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
+                    group = ContactGroup.create_static(org, user, g['name'])
                 group.member = g['member']
                 group.count = 0
                 org.cache['groups'].append(group)
@@ -464,7 +464,7 @@ class Command(BaseCommand):
                     if c['age'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
                             'text': six.text_type(c['age']),
-                            'decimal': six.text_type(c['age'])
+                            'number': six.text_type(c['age'])
                         }
                     if c['joined'] is not None:
                         c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
