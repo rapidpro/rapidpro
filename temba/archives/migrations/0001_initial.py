@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('end_date', models.DateField(help_text='The ending modified_on date for records in this archive (exclusive)')),
                 ('record_count', models.IntegerField(default=0, help_text='The number of records in this archive')),
                 ('archive_size', models.IntegerField(default=0, help_text='The size of this archive in bytes (after gzipping)')),
-                ('archive_hash', models.TextField(help_text='The SHA-256 hash of this archive (after gzipping)')),
+                ('archive_hash', models.TextField(help_text='The md5 hash of this archive (after gzipping)')),
                 ('archive_url', models.URLField(help_text='The full URL for this archive')),
                 ('is_purged', models.BooleanField(default=False, help_text='Whether the records in this archive have been purged from the database')),
                 ('build_time', models.IntegerField(help_text='The number of milliseconds it took to build and upload this archive')),

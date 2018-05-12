@@ -1,7 +1,6 @@
 from django.db import models
 
 from gettext import gettext as _
-from temba.orgs.models import Org
 from django.utils import timezone
 
 
@@ -16,7 +15,7 @@ class Archive(models.Model):
         (TYPE_SESSION, _("Session")),
     )
 
-    org = models.ForeignKey(Org, db_constraint=False,
+    org = models.ForeignKey('orgs.Org', db_constraint=False,
                             help_text="The org this archive is for")
     archive_type = models.CharField(choices=TYPE_CHOICES, max_length=16,
                                     help_text="The type of record this is an archive for")
@@ -31,7 +30,7 @@ class Archive(models.Model):
 
     archive_size = models.IntegerField(default=0,
                                        help_text="The size of this archive in bytes (after gzipping)")
-    archive_hash = models.TextField(help_text="The SHA-256 hash of this archive (after gzipping)")
+    archive_hash = models.TextField(help_text="The md5 hash of this archive (after gzipping)")
     archive_url = models.URLField(help_text="The full URL for this archive")
 
     is_purged = models.BooleanField(default=False,
