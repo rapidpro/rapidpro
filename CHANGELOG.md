@@ -1,3 +1,8 @@
+v3.0.390
+----------
+ * Disable webhook calls during flowserver trials
+ * Use FlowRun.events for recent messages rollovers
+
 v3.0.389
 ----------
  * add archive model, migrations
