@@ -16,7 +16,7 @@ from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 
-from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT, ContactGroup
 from temba.flows.models import RuleSet
 from temba.locations.models import AdminBoundary
@@ -25,7 +25,7 @@ from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLER_QUEUE, MSG_EVENT
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.orgs.models import Language, Debit, Org
+from temba.orgs.models import Language, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, dict_to_json
@@ -34,7 +34,7 @@ from temba.utils.expressions import get_function_listing
 from temba.utils.queues import push_task, DEFAULT_PRIORITY
 from temba.values.constants import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task, process_message_task
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, process_message_task
 from .templatetags.sms import as_icon
 
 
@@ -1426,119 +1426,6 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
         self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
-
-    def test_purge(self):
-        today = timezone.now().date()
-        long_ago = timezone.now() - timedelta(days=100)
-
-        # we have two purgeable orgs
-        self.create_secondary_org(topup_size=1)
-        Org.objects.update(is_purgeable=True)
-
-        # and one non-purgeable
-        admin3 = self.create_user("Administrator3")
-        org3 = Org.objects.create(name="Hoarders", timezone="Africa/Kampala", brand='rapidpro.io',
-                                  created_by=admin3, modified_by=admin3)
-
-        # create an old broadcast which is a response to an incoming message
-        incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe], created_on=long_ago)
-        broadcast1.send(trigger_send=False, response_to=incoming)
-
-        # create an old broadcast which is to several contacts
-        broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy], created_on=long_ago)
-        broadcast2.send(trigger_send=False)
-
-        # print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
-
-        # create a recent broadcast to same contacts
-        broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
-        broadcast3.send(trigger_send=False)
-
-        # create an old broadcast for the other purgeable org
-        Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
-        hans = self.create_contact("Hans", "1234567")
-        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans], created_on=long_ago)
-        broadcast4.send(trigger_send=False)
-
-        # and one for the non-purgeable org
-        Channel.create(org3, admin3, 'HU', 'A', name="Test Channel 3", address="+250785551314")
-        george = self.create_contact("George", "1234568")
-        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george], created_on=long_ago)
-        broadcast5.send(trigger_send=False)
-
-        # mark all outgoing messages as sent except broadcast #2 to Joe
-        Msg.objects.filter(direction='O').update(status='S')
-        broadcast2.msgs.filter(contact=self.joe).update(status='F')
-
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 8)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
-
-        purge_broadcasts_task()
-
-        # check that all old broadcasts were purged
-        for bcast in [broadcast1, broadcast2, broadcast4]:
-            bcast.refresh_from_db()
-            self.assertTrue(bcast.purged)
-            self.assertFalse(bcast.msgs.all())
-
-        # but not the recent one
-        broadcast3.refresh_from_db()
-        self.assertFalse(broadcast3.purged)
-        self.assertTrue(broadcast3.msgs.all())
-
-        # check incoming message is still there
-        incoming.refresh_from_db()
-        self.assertFalse(incoming.responses.all())
-
-        # check debits were created for the deleted messages
-        debit1 = Debit.objects.get(topup__org=self.org)
-        self.assertEqual(debit1.amount, 5)
-
-        debit2 = Debit.objects.get(topup__org=self.org2)
-        self.assertEqual(debit2.amount, 1)
-
-        # check the recipient records for broadcast #2
-        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.joe).purged_status, FAILED)
-        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.frank).purged_status, SENT)
-        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.kevin).purged_status, SENT)
-        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.lucy).purged_status, SENT)
-
-        # check system label counts have been updated
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 0)
-
-        # but daily channel counts should be unchanged
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
-
-        # messages for non-purgeable org should be unaffected
-        self.assertEqual(Msg.objects.filter(org=org3).count(), 1)
-        self.assertEqual(Broadcast.objects.filter(org=org3, purged=True).count(), 0)
-
-        # create another old broadcast
-        broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy],
-                                      created_on=timezone.now() - timedelta(days=100))
-        broadcast5.send(trigger_send=False)
-
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
-
-        purge_broadcasts_task()
-
-        broadcast5.refresh_from_db()
-        self.assertTrue(broadcast5.purged)
-
-        # check debits were created and squashed
-        self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 9)
-
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 0)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
 
     def test_clear_old_msg_external_ids(self):
         last_month = timezone.now() - timedelta(days=31)
