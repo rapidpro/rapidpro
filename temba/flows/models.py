@@ -3419,12 +3419,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update and do_save:
             self.save(update_fields=('responded', 'message_ids', 'events'))
 
-    def get_message_ids(self):
-        """
-        Gets all the messages associated with this run
-        """
-        return self.message_ids or []
-
     def get_messages(self):
         """
         Gets all the messages associated with this run
@@ -4627,24 +4621,19 @@ class FlowPathRecentRun(models.Model):
         if limit:
             recent = recent[:limit]
 
-        # batch fetch all the messages for these runs
-        message_ids = set()
-        for r in recent:
-            message_ids.update(r.run.get_message_ids())
-        msgs = {m.id: m for m in Msg.objects.filter(id__in=message_ids).only('id', 'text', 'created_on')}
-
         results = []
         for r in recent:
-            # find the most recent message in the run when this visit happened
-            msg = None
-            for msg_id in reversed(r.run.get_message_ids()):
-                msg = msgs.get(msg_id)
-                if msg and msg.created_on < r.visited_on:
-                    break
+            msg_event = None
+            # find the most recent message event in the run when this visit happened
+            for event in reversed(r.run.events):
+                if event['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name):
+                    if iso8601.parse_date(event['created_on']) <= r.visited_on:
+                        msg_event = event
+                        break
 
             results.append({
                 'run': r.run,
-                'text': msg.text if msg else "",
+                'text': msg_event['msg']['text'] if msg_event else "",
                 'visited_on': r.visited_on
             })
 
