@@ -94,11 +94,14 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
 
         if trial.differences:
             report_failure(trial)
+            return False
         else:
             report_success(trial)
+            return True
 
     except Exception as e:
         logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), six.text_type(e)), exc_info=True)
+        return False
 
 
 def report_success(trial):  # pragma: no cover
@@ -128,7 +131,7 @@ def resume(org, session, msg_in=None, expired_child_run=None):
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server()
+    request = client.request_builder(org, asset_timestamp).asset_server().set_config('disable_webhooks', True)
 
     if settings.TESTING:
         request.include_all()

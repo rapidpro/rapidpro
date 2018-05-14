@@ -1,3 +1,46 @@
+v3.0.389
+----------
+ * add archive model, migrations
+
+v3.0.388
+----------
+ * Make ContactField header clickable when sorting
+ * Add first python2 incompatible code change
+ * Add contact groups sheet on contact exports
+ * Remove contact export as CSV
+ * Update to latest goflow
+ * Fix test_db contact fields serialization
+
+v3.0.387
+----------
+ * fix flowstarts migration
+
+v3.0.386
+----------
+ * update start contact migration to work with malformed extra
+
+v3.0.384
+----------
+ * fix not selecting contact id from ES in canary task
+
+v3.0.383
+----------
+ * add canary task for elasticsearch
+ * record metrics about flowserver trial to librarto
+ * allow sorting of contact fields via dragging in manage dialog
+
+v3.0.382
+----------
+ * rename flow migration
+
+v3.0.381
+----------
+ * limit number of flows exited at once, order by expired_on to encourage index
+ * remove python 2.7 build target in travis
+ * start flow starts in the flows queue vs our global celery one
+ * add flow start count model to track # of runs in a flow start
+ * Always use channel.name for channel assets
+
 v3.0.380
 ----------
  * update to latest goflow to get location support

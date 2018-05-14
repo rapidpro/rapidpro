@@ -20,21 +20,24 @@ class Events(Enum):
     contact_field_changed = 4
     contact_groups_added = 5
     contact_groups_removed = 6
-    contact_property_changed = 7
-    contact_urn_added = 8
-    email_created = 9
-    environment_changed = 10
-    error = 11
-    flow_triggered = 12
-    input_labels_added = 13
-    msg_created = 14
-    msg_received = 15
-    msg_wait = 16
-    nothing_wait = 17
-    run_expired = 18
-    run_result_changed = 19
-    session_triggered = 20
-    webhook_called = 21
+    contact_language_changed = 7
+    contact_name_changed = 8
+    contact_timezone_changed = 9
+    contact_urn_added = 10
+    email_created = 11
+    environment_changed = 12
+    error = 13
+    flow_triggered = 14
+    input_labels_added = 15
+    msg_created = 16
+    msg_received = 17
+    msg_wait = 18
+    nothing_wait = 19
+    run_expired = 20
+    run_result_changed = 21
+    session_triggered = 22
+    wait_timed_out = 23
+    webhook_called = 24
 
 
 class RequestBuilder(object):
@@ -42,7 +45,7 @@ class RequestBuilder(object):
         self.client = client
         self.org = org
         self.base_assets_url = base_assets_url
-        self.request = {'assets': [], 'events': []}
+        self.request = {'assets': [], 'events': [], 'config': {}}
 
     def include_all(self, simulator=False):
         request = self
@@ -165,6 +168,16 @@ class RequestBuilder(object):
         })
         return self
 
+    def add_wait_timed_out(self):
+        """
+        Notify the engine that the session wait timed out
+        """
+        self.request['events'].append({
+            'type': Events.wait_timed_out.name,
+            'created_on': timezone.now().isoformat()
+        })
+        return self
+
     def asset_server(self, simulator=False):
         type_urls = {
             'flow': '%s/flow/{uuid}/' % self.base_assets_url,
@@ -178,6 +191,10 @@ class RequestBuilder(object):
             type_urls['location_hierarchy'] = '%s/location_hierarchy/' % self.base_assets_url
 
         self.request['asset_server'] = {'type_urls': type_urls}
+        return self
+
+    def set_config(self, name, value):
+        self.request['config'][name] = value
         return self
 
     def start_manual(self, contact, flow, params=None):

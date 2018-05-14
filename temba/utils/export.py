@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import csv
 import gc
 import six
 import time
@@ -157,11 +156,12 @@ class TableExporter(object):
     When writing to an Excel sheet, this also takes care of creating different sheets every 1048576
     rows, as again, Excel file only support that many per sheet.
     """
-    def __init__(self, task, sheet_name, columns):
+    def __init__(self, task, sheet_name, extra_sheet_name, columns, extra_columns):
         self.task = task
         self.columns = columns
-        self.is_csv = len(self.columns) > BaseExportTask.MAX_EXCEL_COLS
+        self.extra_columns = extra_columns
         self.sheet_name = sheet_name
+        self.extra_sheet_name = extra_sheet_name
 
         self.current_sheet = 0
         self.current_row = 0
@@ -171,48 +171,34 @@ class TableExporter(object):
         else:  # pragma: no cover
             self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
 
-        # if this is a csv file, create our csv writer and write our header
-        if self.is_csv:
-            self.writer = csv.writer(self.file, quoting=csv.QUOTE_ALL)
-            if six.PY2:  # pragma: no cover
-                self.writer.writerow([s.encode('utf-8') for s in columns])
-            else:  # pragma: no cover
-                self.writer.writerow(columns)
-
-        # otherwise, just open a workbook, initializing the first sheet
-        else:
-            self.workbook = Workbook(write_only=True)
-            self.sheet_number = 0
-            self._add_sheet()
+        self.workbook = Workbook(write_only=True)
+        self.sheet_number = 0
+        self._add_sheet()
 
     def _add_sheet(self):
         self.sheet_number += 1
 
         # add our sheet
         self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.extra_sheet = self.workbook.create_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
 
         self.task.append_row(self.sheet, self.columns)
+        self.task.append_row(self.extra_sheet, self.extra_columns)
 
         self.sheet_row = 2
 
-    def write_row(self, values):
+    def write_row(self, values, extra_values):
         """
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
-        if self.is_csv:
-            if six.PY2:  # pragma: no cover
-                self.writer.writerow([s.encode('utf-8') for s in values])
-            else:  # pragma: no cover
-                self.writer.writerow(values)
+        # time for a new sheet? do it
+        if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
+            self._add_sheet()
 
-        else:
-            # time for a new sheet? do it
-            if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
-                self._add_sheet()
+        self.task.append_row(self.sheet, values)
+        self.task.append_row(self.extra_sheet, extra_values)
 
-            self.task.append_row(self.sheet, values)
-
-            self.sheet_row += 1
+        self.sheet_row += 1
 
     def save_file(self):
         """
@@ -224,9 +210,8 @@ class TableExporter(object):
             self.file.close()
             self.file = open(self.file.name, 'rb+')
 
-        if not self.is_csv:
-            print("Writing Excel workbook...")
-            self.workbook.save(self.file)
+        print("Writing Excel workbook...")
+        self.workbook.save(self.file)
 
         self.file.flush()
-        return self.file, ('csv' if self.is_csv else 'xlsx')
+        return self.file, 'xlsx'

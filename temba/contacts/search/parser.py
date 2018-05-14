@@ -354,7 +354,7 @@ class Condition(QueryNode):
                     raise SearchException(_("Unknown location type: '%s'") % (field.value_type, ))
 
                 if self.comparator == '=':
-                    field_name += '.keyword'
+                    field_name += '_keyword'
                     es_query &= es_Q('term', **{field_name: query_value})
                 else:
                     raise SearchException(_("Unsupported comparator '%s' for location field") % self.comparator)
@@ -834,13 +834,33 @@ def evaluate_query(org, text, contact_json=dict):
     return parsed.evaluate(org, contact_json)
 
 
-def contact_es_search(org, text, base_group=None):
+def contact_es_search(org, text, base_group=None, sort_struct=None):
     """
     Returns ES query
     """
 
     if not base_group:
         base_group = org.cached_all_contacts_group
+
+    if not sort_struct:
+        sort_field = '-id'
+    else:
+        if sort_struct['field_type'] == 'field':
+            sort_field = {
+                sort_struct['field_path']: {
+                    "order": sort_struct['sort_direction'],
+                    "nested": {
+                        "path": "fields",
+                        "filter": {
+                            "term": {"fields.field": sort_struct['field_uuid']}
+                        }
+                    }
+                }
+            }
+        else:
+            sort_field = {
+                sort_struct['field_name']: {"order": sort_struct['sort_direction']}
+            }
 
     es_filter = es_Q('bool', filter=[
         # es_Q('term', is_blocked=False),
@@ -849,14 +869,18 @@ def contact_es_search(org, text, base_group=None):
         es_Q('term', groups=six.text_type(base_group.uuid))
     ])
 
-    parsed = parse_query(text, as_anon=org.is_anon)
-    es_match = parsed.as_elasticsearch(org)
+    if text:
+        parsed = parse_query(text, as_anon=org.is_anon)
+        es_match = parsed.as_elasticsearch(org)
+    else:
+        parsed = None
+        es_match = es_Q()
 
     return (
         ModelESSearch(model=Contact, index='contacts')
         .params(routing=org.id)
         .query(es_match & es_filter)
-        .sort('-modified_on_mu')
+        .sort(sort_field)
     ), parsed
 
 

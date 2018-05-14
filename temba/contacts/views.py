@@ -11,11 +11,12 @@ import six
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
-from django.db.models.functions import Upper
+from django.db.models.functions import Upper, Lower
 from django.http import HttpResponseRedirect, HttpResponse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -31,7 +32,7 @@ from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ESPaginationMixin
+from temba.utils.views import BaseActionForm, ContactListPaginationMixin
 from temba.values.constants import Value
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME
@@ -123,7 +124,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -141,6 +142,46 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
         redirect = urlquote_plus(self.request.get_full_path())
         return '%s?g=%s&s=%s&redirect=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search, redirect)
 
+    @staticmethod
+    def prepare_sort_field_struct(sort_on):
+        if not sort_on:
+            return None, None, None
+
+        if sort_on[0] == '-':
+            sort_direction = 'desc'
+            sort_field = sort_on[1:]
+        else:
+            sort_direction = 'asc'
+            sort_field = sort_on
+
+        if sort_field == 'created_on':
+
+            return sort_field, sort_direction, {
+                'field_type': 'attribute',
+                'sort_direction': sort_direction,
+                'field_name': 'created_on'
+            }
+        else:
+            try:
+                contact_sort_field = ContactField.objects.values('value_type', 'uuid').get(uuid=sort_field)
+            except ValidationError:
+                return None, None, None
+            except ContactField.DoesNotExist:
+                return None, None, None
+
+            mapping = {
+                'T': 'text', 'N': 'number', 'D': 'datetime',
+                'S': 'state_keyword', 'I': 'district_keyword', 'W': 'ward_keyword'
+            }
+            field_leaf = mapping[contact_sort_field['value_type']]
+
+            return sort_field, sort_direction, {
+                'field_type': 'field',
+                'sort_direction': sort_direction,
+                'field_path': 'fields.{}'.format(field_leaf),
+                'field_uuid': six.text_type(contact_sort_field['uuid'])
+            }
+
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
         group = self.derive_group()
@@ -148,12 +189,20 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
-        if search_query:
+
+        sort_on = self.request.GET.get('sort_on', None)
+
+        if sort_on is not None:
+            self.sort_field, self.sort_direction, sort_struct = self.prepare_sort_field_struct(sort_on)
+        else:
+            self.sort_field, self.sort_direction, sort_struct = (None, None, None)
+
+        if search_query or sort_struct:
             from .search import contact_es_search
             from temba.utils.es import ES
 
             try:
-                search_object, self.parsed_search = contact_es_search(org, search_query, group)
+                search_object, self.parsed_search = contact_es_search(org, search_query, group, sort_struct)
                 es_search = search_object.source(fields=('id', )).using(ES)
 
                 return es_search
@@ -169,16 +218,10 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
             return group.contacts.all().exclude(id__in=test_contact_ids).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
+        context = super(ContactListView, self).get_context_data(**kwargs)
+
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
-        group = self.derive_group()
-
-        # if there isn't a search filtering the queryset, we can replace the count function using ContactGroupCounts
-        if group and 'search' not in self.request.GET:
-            group_count = ContactGroupCount.get_totals([group])
-            self.object_list.count = lambda: group_count[group]
-
-        context = super(ContactListView, self).get_context_data(**kwargs)
 
         folders = [
             dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
@@ -196,6 +239,9 @@ class ContactListView(ESPaginationMixin, OrgPermsMixin, SmartListView):
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
+
+        context['sort_direction'] = self.sort_direction
+        context['sort_field'] = self.sort_field
 
         # replace search string with parsed search expression
         if self.parsed_search is not None:
@@ -758,7 +804,7 @@ class ContactCRUDL(SmartCRUDL):
             contact = self.object
 
             # the users group membership
-            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+            context['contact_groups'] = contact.user_groups.order_by(Lower('name'))
 
             # event fires
             event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
@@ -944,7 +990,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             context['actions'] = ('label', 'block')
-            context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
+            context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('-priority', 'pk')
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -1401,10 +1447,13 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             contact_fields = []
             for field_idx in range(1, num_fields + 2):
-                contact_field = dict(show='show_%d' % field_idx,
-                                     type='type_%d' % field_idx,
-                                     label='label_%d' % field_idx,
-                                     field='field_%d' % field_idx)
+                contact_field = dict(
+                    show='show_%d' % field_idx,
+                    type='type_%d' % field_idx,
+                    label='label_%d' % field_idx,
+                    field='field_%d' % field_idx,
+                    priority='priority_%d' % field_idx
+                )
                 contact_fields.append(contact_field)
 
             context['contact_fields'] = contact_fields
@@ -1420,7 +1469,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             form.fields.clear()
 
             org = self.request.user.get_org()
-            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
+            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by('-priority', 'pk')
 
             added_fields = []
 
@@ -1431,6 +1480,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
+                added_fields.append(("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=contact_field.priority)))
                 i += 1
 
             # add a last field for the user to add one
@@ -1438,6 +1488,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
+            added_fields.append(("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=0)))
 
             form.fields = OrderedDict(list(form.fields.items()) + added_fields)
 
@@ -1456,15 +1507,22 @@ class ContactFieldCRUDL(SmartCRUDL):
                         field = cleaned_data[key]
                         show_in_table = cleaned_data["show_%s" % idx]
                         value_type = cleaned_data['type_%s' % idx]
+                        priority = cleaned_data['priority_%s' % idx]
 
                         if field == '__new_field':
                             if label:
                                 analytics.track(user.username, 'temba.contactfield_created')
                                 key = ContactField.make_key(label)
-                                ContactField.get_or_create(org, user, key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(
+                                    org, user, key, label, show_in_table=show_in_table, value_type=value_type,
+                                    priority=priority
+                                )
                         else:
                             if label:
-                                ContactField.get_or_create(org, user, field.key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(
+                                    org, user, field.key, label, show_in_table=show_in_table, value_type=value_type,
+                                    priority=priority
+                                )
                             else:
                                 ContactField.hide_field(org, user, field.key)
 
