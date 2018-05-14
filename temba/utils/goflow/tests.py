@@ -350,3 +350,23 @@ class TrialTest(TembaTest):
             self.assertEqual(len(run.path), 4)
 
             self.assertEqual(mock_report_failure.call_count, 1)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL='always')
+    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.utils.goflow.trial.report_success')
+    def test_webhook_mocking(self, mock_report_success, mock_report_failure):
+        # checks that we got a mocked response back from the webhook call
+        def failure(t):
+            self.assertEqual(t.differences['diffs'], {'results': {'webhook_2': {'value': 'MOCKED'}}})
+
+        mock_report_failure.side_effect = failure
+
+        flow = self.get_flow('dual_webhook')
+
+        flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, 'tel:+12065552020', "Bob")
+
+        # trial fails due to differing webhook result
+        self.assertEqual(mock_report_success.call_count, 0)
+        self.assertEqual(mock_report_failure.call_count, 1)
