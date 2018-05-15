@@ -564,6 +564,8 @@ GROUP_PERMISSIONS = {
         'api.webhookevent_list',
         'api.webhookevent_read',
 
+        'archives.archive.*',
+
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',
 

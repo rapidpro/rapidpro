@@ -2,17 +2,19 @@ from django.db import models
 
 from gettext import gettext as _
 from django.utils import timezone
+from temba.utils import sizeof_fmt
 
 
 class Archive(models.Model):
-    TYPE_MSG = 'msg'
-    TYPE_FLOWRUN = 'flowrun'
-    TYPE_SESSION = 'session'
+    TYPE_MSG = 'messages'
+    TYPE_FLOWRUN = 'runs'
+
+    PERIOD_MONTHLY = 'monthly'
+    PERIOD_DAILY = 'daily'
 
     TYPE_CHOICES = (
         (TYPE_MSG, _("Message")),
-        (TYPE_FLOWRUN, _("Flow Runs")),
-        (TYPE_SESSION, _("Session")),
+        (TYPE_FLOWRUN, _("Run"))
     )
 
     org = models.ForeignKey('orgs.Org', db_constraint=False,
@@ -36,3 +38,11 @@ class Archive(models.Model):
     is_purged = models.BooleanField(default=False,
                                     help_text="Whether the records in this archive have been purged from the database")
     build_time = models.IntegerField(help_text="The number of milliseconds it took to build and upload this archive")
+
+    def archive_size_display(self):
+        return sizeof_fmt(self.archive_size)
+
+    def archive_period(self):
+        if (self.end_date - self.start_date).days > 1:
+            return Archive.PERIOD_MONTHLY
+        return Archive.PERIOD_DAILY
