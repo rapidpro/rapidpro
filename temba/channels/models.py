@@ -940,7 +940,7 @@ class Channel(TembaModel):
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
-            for call in IVRCall.objects.filter(channel=self):
+            for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
                 call.close()
 
         # save off our org and gcm id before nullifying
