@@ -10,6 +10,26 @@ from librato_bg import Client
 _librato = None
 
 
+# provide a utility method to initialize our analytics (called from our main urls.py)
+def init_analytics():
+    import analytics
+
+    analytics.send = settings.IS_PROD
+    analytics.debug = not settings.IS_PROD
+
+    analytics_key = getattr(settings, 'SEGMENT_IO_KEY', '')
+
+    if settings.IS_PROD and not analytics_key:
+        raise ValueError('SEGMENT.IO analytics key is required for production')  # pragma: no cover
+
+    analytics.write_key = analytics_key
+
+    librato_user = getattr(settings, 'LIBRATO_USER', None)
+    librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
+    if librato_user and librato_token:  # pragma: needs cover
+        init_librato(librato_user, librato_token)
+
+
 def init_librato(user, token):
     global _librato
     _librato = Client(user, token)  # pragma: needs cover
