@@ -1645,6 +1645,7 @@ class Msg(models.Model):
 
         with transaction.atomic():
             Debit.objects.bulk_create(debits_to_create)
+            Debit.squash()
 
             # delete messages in batches to avoid long locks
             for msg_batch in chunk_list(msgs, 1000):
