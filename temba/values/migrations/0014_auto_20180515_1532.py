@@ -5,6 +5,14 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 
+SQL = """
+DROP INDEX values_value_contact_field_location_not_null;
+DROP INDEX values_value_field_datetime_value_not_null;
+DROP INDEX values_value_field_decimal_value_not_null;
+DROP INDEX values_value_field_string_value_concat_new;
+"""
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -12,6 +20,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(SQL),
         migrations.RemoveField(
             model_name='value',
             name='contact',
