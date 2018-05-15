@@ -4831,9 +4831,7 @@ class FlowsTest(FlowFileTest):
         recent = FlowPathRecentRun.get_recent([action_set1.exit_uuid], rule_set1.uuid)
         self.assertEqual(len(recent), 1)
         self.assertEqual(recent[0]['run'], run)
-
-        # TODO currently not working in new engine
-        # self.assertEqual(recent[0]['text'], "What is your favorite color?")
+        self.assertEqual(recent[0]['text'], "What is your favorite color?")
 
         msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "I like red",
                                    attachments=['image/jpeg:http://example.com/test.jpg'])
