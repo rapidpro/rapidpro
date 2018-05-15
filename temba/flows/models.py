@@ -3419,7 +3419,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((goflow.Events.msg_received, goflow.Events.msg_created))
+        return self.get_events_of_type((goflow.Events.msg_received.name, goflow.Events.msg_created.name))
 
     def get_messages(self):
         """
