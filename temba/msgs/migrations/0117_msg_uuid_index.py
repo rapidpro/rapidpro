@@ -6,7 +6,7 @@ from django.db import migrations
 
 
 SQL = """
-CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (response_to_id) WHERE uuid IS NOT NULL;
+CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (uuid) WHERE uuid IS NOT NULL;
 """
 
 

@@ -115,7 +115,7 @@ CREATE INDEX msgs_msg_responded_to_not_null
 ON msgs_msg (response_to_id)
 WHERE response_to_id IS NOT NULL;
 
-CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (response_to_id) WHERE uuid IS NOT NULL;
+CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (uuid) WHERE uuid IS NOT NULL;
 
 CREATE INDEX msgs_msg_visibility_type_created_id_where_inbound
 ON msgs_msg(org_id, visibility, msg_type, created_on DESC, id DESC)
