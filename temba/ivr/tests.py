@@ -210,7 +210,7 @@ class IVRTests(FlowFileTest):
 
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
-        flow.start([], [contact])
+        run, = flow.start([], [contact])
         call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         # after a call is picked up, twilio will call back to our server
@@ -282,17 +282,12 @@ class IVRTests(FlowFileTest):
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
 
-        from temba.flows.models import FlowStep
+        # should have 4 steps and 4 messages
         steps = FlowStep.objects.all()
+        run.refresh_from_db()
         self.assertEqual(4, steps.count())
-
-        # each of our steps should have exactly one message
-        for step in steps:
-            self.assertEqual(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
-
-        # each message should have exactly one step
-        for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+        self.assertEqual(len(run.path), 4)
+        self.assertEqual(len(run.get_messages()), 4)
 
         # run same flow in simulator
         Contact.set_simulation(True)
@@ -343,7 +338,7 @@ class IVRTests(FlowFileTest):
 
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
-        flow.start([], [contact])
+        run, = flow.start([], [contact])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
@@ -445,17 +440,12 @@ class IVRTests(FlowFileTest):
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
 
-        from temba.flows.models import FlowStep
+        # should have 4 steps and 4 messages
         steps = FlowStep.objects.all()
+        run.refresh_from_db()
         self.assertEqual(4, steps.count())
-
-        # each of our steps should have exactly one message
-        for step in steps:
-            self.assertEqual(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
-
-        # each message should have exactly one step
-        for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+        self.assertEqual(len(run.path), 4)
+        self.assertEqual(len(run.get_messages()), 4)
 
         # create a valid call first
         flow.start([], [contact], restart_participants=True)
@@ -995,7 +985,7 @@ class IVRTests(FlowFileTest):
         # now pretend we are a normal caller
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         Contact.set_simulation(False)
-        flow.start([], [eric], restart_participants=True)
+        run, = flow.start([], [eric], restart_participants=True)
 
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
@@ -1047,8 +1037,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(6, messages.count())
         self.assertEqual(7, self.org.get_credits_used())
 
+        run.refresh_from_db()
         for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
+            self.assertIn(msg, run.get_messages())
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
@@ -1111,26 +1102,23 @@ class IVRTests(FlowFileTest):
         msg = self.create_msg(direction=INCOMING, contact=eric, text="callme")
 
         # make sure if we are started with a message we still create a normal voice run
-        flow.start([], [eric], restart_participants=True, start_msg=msg)
+        run, = flow.start([], [eric], restart_participants=True, start_msg=msg)
+        run.refresh_from_db()
 
         # we should have an outbound ivr call now, and no steps yet
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertIsNotNone(call)
-        self.assertEqual(0, FlowStep.objects.all().count())
+        self.assertEqual(len(run.path), 0)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # should have two flow steps (the outgoing messages, and the step to handle the response)
-        steps = FlowStep.objects.all().order_by('pk')
-
-        # the first step has exactly one message which is an outgoing IVR message
-        self.assertEqual(1, steps.first().messages.all().count())
-        self.assertEqual(1, steps.first().messages.filter(direction=IVRCall.OUTGOING, msg_type=IVR).count())
-
-        # the next step shouldn't have any messages yet since they haven't pressed anything
-        self.assertEqual(0, steps[1].messages.all().count())
+        out = Msg.objects.get(direction=IVRCall.OUTGOING, msg_type=IVR)
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
+        self.assertIn(out, run.get_messages())
 
         # try updating our status to completed for a test contact
         Contact.set_simulation(True)

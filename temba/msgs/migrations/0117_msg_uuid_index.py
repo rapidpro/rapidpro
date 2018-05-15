@@ -12,6 +12,8 @@ CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (response_to_id) WH
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ('msgs', '0116_auto_20180502_1620'),
     ]
