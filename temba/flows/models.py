@@ -3849,14 +3849,14 @@ class FlowStep(models.Model):
                                                    msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:  # pragma: needs cover
-                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = run.get_last_msg(direction=INCOMING)
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = run.get_last_msg(direction=INCOMING)
 
             for action in actions:
                 context = flow.build_expressions_context(run.contact, last_incoming)
