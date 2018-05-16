@@ -4633,6 +4633,7 @@ class SimulationTest(FlowFileTest):
                 replies.append(event['msg']['text'])
         return replies
 
+    @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)
     def test_simulation(self):
         flow = self.get_flow('favorites')
