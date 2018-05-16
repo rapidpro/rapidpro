@@ -21,6 +21,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
@@ -44,6 +45,9 @@ USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = 'test-data/nigeria.bin'
+
+# number of each type of archive to create
+ARCHIVES = 50
 
 # organization names are generated from these components
 ORG_NAMES = (
@@ -98,8 +102,8 @@ FLOWS = (
 
 # contact names are generated from these components
 CONTACT_NAMES = (
-    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
-    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
+    ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
+    ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
 CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
@@ -183,6 +187,7 @@ class Command(BaseCommand):
         self.create_groups(orgs)
         self.create_labels(orgs)
         self.create_flows(orgs)
+        self.create_archives(orgs)
         self.create_contacts(orgs, locations, num_contacts)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
@@ -334,6 +339,47 @@ class Command(BaseCommand):
                 Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
                                        address=c['address'], schemes=[c['scheme']],
                                        created_by=user, modified_by=user)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
+    def create_archives(self, orgs):
+        """
+        Creates archives for each org
+        """
+        self._log("Creating %d archives... " % (len(orgs) * ARCHIVES * 3))
+
+        MAX_RECORDS_PER_DAY = 3000000
+
+        def create_archive(max_records, start):
+            record_count = random.randint(0, max_records)
+            archive_size = record_count * 20
+            archive_hash = uuid.uuid4().hex
+
+            archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                          f'{type[0]}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
+
+            Archive.objects.create(org=org, archive_type=type[0],
+                                   archive_url=archive_url, start_date=start, end_date=end,
+                                   archive_size=archive_size, archive_hash=archive_hash,
+                                   record_count=record_count, build_time=record_count / 123)
+
+        for org in orgs:
+            for type in Archive.TYPE_CHOICES:
+                end = timezone.now()
+
+                # daily archives up until now
+                for idx in range(0, end.day - 2):
+                    end = (end - timedelta(days=1))
+                    start = (end - timedelta(days=1))
+                    create_archive(MAX_RECORDS_PER_DAY, start)
+
+                # month archives before that
+                end = timezone.now()
+                for idx in range(0, ARCHIVES):
+                    # last day of the previous month
+                    end = end.replace(day=1) - timedelta(days=1)
+                    start = end.replace(day=1)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
