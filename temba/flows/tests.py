@@ -720,20 +720,20 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
 
-        c1_run1_msg1 = Msg.objects.get(steps__run=contact1_run1, text="This is the first message.")
-        c1_run1_msg2 = Msg.objects.get(steps__run=contact1_run1, text="This is the second message.")
+        c1_run1_msg1 = contact1_run1.get_messages().get(text="This is the first message.")
+        c1_run1_msg2 = contact1_run1.get_messages().get(text="This is the second message.")
 
-        c2_run1_msg1 = Msg.objects.get(steps__run=contact2_run1, text="This is the first message.")
-        c2_run1_msg2 = Msg.objects.get(steps__run=contact2_run1, text="This is the second message.")
+        c2_run1_msg1 = contact2_run1.get_messages().get(text="This is the first message.")
+        c2_run1_msg2 = contact2_run1.get_messages().get(text="This is the second message.")
 
-        c3_run1_msg1 = Msg.objects.get(steps__run=contact3_run1, text="This is the first message.")
-        c3_run1_msg2 = Msg.objects.get(steps__run=contact3_run1, text="This is the second message.")
+        c3_run1_msg1 = contact3_run1.get_messages().get(text="This is the first message.")
+        c3_run1_msg2 = contact3_run1.get_messages().get(text="This is the second message.")
 
-        c1_run2_msg1 = Msg.objects.get(steps__run=contact1_run2, text="This is the first message.")
-        c1_run2_msg2 = Msg.objects.get(steps__run=contact1_run2, text="This is the second message.")
+        c1_run2_msg1 = contact1_run2.get_messages().get(text="This is the first message.")
+        c1_run2_msg2 = contact1_run2.get_messages().get(text="This is the second message.")
 
-        c2_run2_msg1 = Msg.objects.get(steps__run=contact2_run2, text="This is the first message.")
-        c2_run2_msg2 = Msg.objects.get(steps__run=contact2_run2, text="This is the second message.")
+        c2_run2_msg1 = contact2_run2.get_messages().get(text="This is the first message.")
+        c2_run2_msg2 = contact2_run2.get_messages().get(text="This is the second message.")
 
         self.assertExcelRow(sheet_msgs, 1, [c1_run1_msg1.contact.uuid, "+250788382382", "Eric",
                                             c1_run1_msg1.created_on, "OUT",
@@ -887,9 +887,9 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
 
-        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
-        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
-        contact1_out3 = Msg.objects.get(steps__run=contact1_run1, text__startswith="I love orange too")
+        contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
+        contact1_out2 = contact1_run1.get_messages().get(text="That is a funny color. Try again.")
+        contact1_out3 = contact1_run1.get_messages().get(text__startswith="I love orange too")
 
         self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
                                             contact1_out1.created_on, "OUT",
@@ -1002,39 +1002,6 @@ class FlowTest(TembaTest):
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
         self.assertEqual(len(list(sheet_msgs.columns)), 7)
 
-    def test_export_results_list_messages_once(self):
-        contact1_run1 = self.flow.start([], [self.contact])[0]
-
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="Red")
-        Flow.find_and_handle(contact1_in1)
-
-        contact1_run1_rs = FlowStep.objects.filter(run=contact1_run1, step_type='R')
-        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
-        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
-
-        # consider msg is also on the second step too to test it is not exported in two rows
-        contact1_run1_rs.last().messages.add(contact1_in1)
-
-        tz = self.org.timezone
-        workbook = self.export_flow_results(self.flow)
-
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
-
-        self.assertEqual(len(list(sheet_msgs.rows)), 4)  # header + 2 msgs
-
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
-
-        self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
-                                            contact1_out1.created_on, "OUT",
-                                            "What is your favorite color?", "Test Channel"], tz)
-
-        self.assertExcelRow(sheet_msgs, 2, [contact1_run1.contact.uuid, "+250788382382", "Eric",
-                                            contact1_in1.created_on, 'IN', "Red", "Test Channel"], tz)
-
-        self.assertExcelRow(sheet_msgs, 3, [contact1_out2.contact.uuid, "+250788382382", "Eric",
-                                            contact1_out2.created_on, "OUT",
-                                            "That is a funny color. Try again.", "Test Channel"], tz)
-
     def test_export_results_remove_control_characters(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
 
@@ -1082,7 +1049,7 @@ class FlowTest(TembaTest):
                                             run.created_on, run.exited_on,
                                             "Blue", "blue", "blue"], tz)
 
-        out1 = Msg.objects.get(steps__run=run, text="What is your favorite color?")
+        out1 = run.get_messages().get(text="What is your favorite color?")
 
         self.assertExcelRow(sheet_msgs, 1, [run.contact.uuid, "+250788382382", "Eric", out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
@@ -2687,8 +2654,6 @@ class FlowTest(TembaTest):
         # both msgs should be of type FLOW
         self.assertEqual(msg_in.msg_type, 'F')
         self.assertEqual(msg_out.msg_type, 'F')
-
-        self.assertEqual({int(m) for m in run.message_ids}, {msg_in.id, msg_out.id})
 
         run_msgs = run.get_messages().order_by('created_on')
         self.assertEqual(list(run_msgs), [msg_in, msg_out])
@@ -8431,7 +8396,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=298, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=238, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -8442,16 +8407,6 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEqual(1, Broadcast.objects.all().count())
-        broadcast = Broadcast.objects.get()
-
-        # ensure that our flowsteps all have the broadcast set on them
-        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
-            self.assertEqual(broadcast, step.broadcasts.all().get())
-
-        # make sure that adding a msg more than once doesn't blow up
-        step.run.add_messages(list(step.messages.all()), step=step)
-        self.assertEqual(step.messages.all().count(), 2)
-        self.assertEqual(step.broadcasts.all().count(), 1)
 
         # our stopped contact should have only received one msg before blowing up
         self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
@@ -9176,7 +9131,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=137, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=127, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
