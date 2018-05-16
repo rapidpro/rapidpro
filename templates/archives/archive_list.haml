@@ -21,7 +21,7 @@
     - if type.0 == selected
       {{ type.1 }}
     - else
-      %a{href:'?search={{type.0}}'}<
+      %a{href:'/archive/{{type.0}}/'}<
         {{type.1}}
     - if not forloop.last
       |
@@ -62,9 +62,8 @@
   -else
 
     -blocktrans
-      Archives are created after 90 days of inactivity for flow runs, messages, and broadcasts. Check back later to
-      see a list of all archives for your Organization.
-
+      No archives found. Archives are created after 90 days of inactivity for messages and flow runs. Check back later to
+      see a list of all archives.
 
 
   - block paginator

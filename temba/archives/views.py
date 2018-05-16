@@ -17,8 +17,19 @@ class ArchiveCRUDL(SmartCRUDL):
         search_fields = ('archive_type',)
         paginate_by = 250
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^%s/(.*)/$' % path
+
+        def get_archive_type(self):
+            return self.request.path.split('/')[-2]
+
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
+
+            # filter by our archive type
+            queryset = queryset.filter(archive_type=self.get_archive_type())
+
             # org users see archives for their org, superuser sees all
             if not self.request.user.is_superuser:
                 org = self.request.user.get_org()
@@ -26,7 +37,7 @@ class ArchiveCRUDL(SmartCRUDL):
             return queryset
 
         def derive_title(self):
-            archive_type = self.request.GET.get('search', Archive.TYPE_MSG)
+            archive_type = self.get_archive_type()
             for choice in Archive.TYPE_CHOICES:
                 if (archive_type == choice[0]):
                     return f'{choice[1]} {self.title}'
@@ -35,5 +46,5 @@ class ArchiveCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['archive_types'] = Archive.TYPE_CHOICES
-            context['selected'] = self.request.GET.get('search', Archive.TYPE_MSG)
+            context['selected'] = self.get_archive_type()
             return context
