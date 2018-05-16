@@ -3413,7 +3413,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the events of the given type associated with this run
         """
-        if not self.events:
+        if not self.events:  # pragma: no cover
             return []
 
         type_names = [t.name for t in event_types]
