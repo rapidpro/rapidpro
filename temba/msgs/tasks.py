@@ -2,16 +2,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import logging
-import six
 import time
 import json
 
 from celery.task import task
-from collections import defaultdict
 from datetime import timedelta
 from django.core.cache import cache
-from django.db import transaction, connection
-from django.db.models import Count
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django_redis import get_redis_connection
@@ -20,7 +16,7 @@ from temba.channels.models import ChannelEvent, CHANNEL_EVENT
 from temba.utils import json_date_to_datetime, chunk_list, analytics
 from temba.utils.mage import handle_new_message, handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
-from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
+from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, LabelCount, SystemLabelCount
 
 logger = logging.getLogger(__name__)
@@ -345,94 +341,6 @@ def handle_event_task():
             raise Exception("Unexpected event type: %s" % event_task)
     finally:
         complete_task(HANDLE_EVENT_TASK, org_id)
-
-
-@nonoverlapping_task(track_started=True, name='purge_broadcasts_task', time_limit=60 * 60 * 24 * 7)
-def purge_broadcasts_task():
-    """
-    Looks for broadcasts older than 90 days and marks their messages as purged
-    """
-    from temba.orgs.models import Debit, Org
-
-    purge_before = timezone.now() - timedelta(days=90)  # 90 days ago
-
-    print("[PURGE] Starting purge broadcasts task...")
-
-    # determine which orgs are purgeable
-    purgeable_orgs = list(Org.objects.filter(is_purgeable=True))
-
-    # determine which broadcasts are old
-    purge_ids = list(Broadcast.objects.filter(org__in=purgeable_orgs, created_on__lt=purge_before,
-                                              purged=False).values_list('pk', flat=True))
-    bcasts_purged = 0
-    msgs_deleted = 0
-
-    print("[PURGE] Found %d broadcasts created before %s..." % (len(purge_ids), purge_before))
-
-    for batch_ids in chunk_list(purge_ids, 1000):
-        batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
-        batch_message_ids = []  # all the message ids in these broadcasts
-        batch_contact_ids_by_status = defaultdict(list)
-        batch_topup_counts = defaultdict(int)  # message counts per topup in these broadcasts
-
-        with transaction.atomic():
-
-            # get the topup message counts and message ids for these broadcasts
-            for broadcast in batch_broadcasts:
-                topup_counts = broadcast.msgs.values('topup_id').annotate(count=Count('topup_id'))
-                for tc in topup_counts:
-                    if tc['topup_id']:
-                        batch_topup_counts[tc['topup_id']] += tc['count']
-
-                for msg_id, msg_bcast, msg_status, contact_id in list(broadcast.msgs.values_list('id', 'broadcast', 'status', 'contact')):
-                    batch_message_ids.append(msg_id)
-                    batch_contact_ids_by_status[(msg_bcast, msg_status)].append(contact_id)
-
-            print("[PURGE] Gathered topup counts and message list (%d topups, %d messages)" % (len(batch_topup_counts), len(batch_message_ids)))
-
-            # create debit objects for each topup
-            for topup_id, msg_count in six.iteritems(batch_topup_counts):
-                Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
-
-            print("[PURGE] Created debits for each topup (%d debits)" % len(batch_topup_counts))
-
-            # update the broadcast recipient records with the statuses of the messages we're about to delete
-            non_sent_recipients = 0
-            for (msg_bcast, msg_status), contact_ids in six.iteritems(batch_contact_ids_by_status):
-                for contact_ids_batch in chunk_list(contact_ids, 1000):
-                    recipients = BroadcastRecipient.objects.filter(broadcast=msg_bcast, contact_id__in=contact_ids_batch)
-                    recipients.update(purged_status=msg_status)
-
-                non_sent_recipients += len(contact_ids)
-
-            print("[PURGE] Updated broadcast recipients with non-sent status (%d recipients)" % non_sent_recipients)
-
-            # delete messages in batches to avoid long locks
-            for msg_ids_batch in chunk_list(batch_message_ids, 1000):
-                # manually delete to avoid slow and unnecessary checks on related fields like response_to
-                cursor = connection.cursor()
-
-                msg_ids = tuple(msg_ids_batch)
-
-                cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
-                cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
-                cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
-
-            print("[PURGE] Deleted messages (%d messages)" % len(batch_message_ids))
-
-            # mark these broadcasts as purged
-            batch_broadcasts.update(purged=True)
-
-            print("[PURGE] Updated broadcasts as purged (%d broadcasts)" % len(batch_ids))
-
-        bcasts_purged += len(batch_ids)
-        msgs_deleted += len(batch_message_ids)
-
-        print("[PURGE] Purged %d of %d broadcasts (%d messages deleted)" % (bcasts_purged, len(purge_ids), msgs_deleted))
-
-    Debit.squash()
-
-    print("[PURGE] Finished purging %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")

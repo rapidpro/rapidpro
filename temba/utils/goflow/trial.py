@@ -131,7 +131,7 @@ def resume(org, session, msg_in=None, expired_child_run=None):
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server()
+    request = client.request_builder(org, asset_timestamp).asset_server().set_config('disable_webhooks', True)
 
     if settings.TESTING:
         request.include_all()
