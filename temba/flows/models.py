@@ -3413,7 +3413,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return [e for e in self.events if e['type'] in event_types]
+        return [e for e in self.events if e['type'] in event_types] if self.events else []
 
     def get_msg_events(self):
         """
