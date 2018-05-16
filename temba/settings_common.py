@@ -957,10 +957,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
     },
-    "purge-broadcasts": {
-        'task': 'purge_broadcasts_task',
-        'schedule': crontab(hour=1, minute=0),
-    },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
         'schedule': crontab(hour=2, minute=0),

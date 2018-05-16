@@ -30,7 +30,7 @@ def serialize_channel(channel):
 
     return {
         'uuid': str(channel.uuid),
-        'name': channel.name,
+        'name': channel.name or "",
         'address': channel.address,
         'schemes': channel.schemes,
         'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
@@ -38,7 +38,7 @@ def serialize_channel(channel):
 
 
 def serialize_channel_ref(channel):
-    return {'uuid': str(channel.uuid), 'name': channel.name}
+    return {'uuid': str(channel.uuid), 'name': channel.name or ""}
 
 
 def serialize_contact(contact):

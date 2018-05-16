@@ -94,15 +94,6 @@ def track_user(self):  # pragma: no cover
     if not self.is_authenticated() or self.is_anonymous():
         return True
 
-    # never track nyaruka email accounts
-    if 'nyaruka' in self.email:
-        return False
-
-    # never track nyaruka org
-    org = self.get_org()
-    if org and org.name and 'nyaruka' in org.name.lower():
-        return False
-
     return True
 
 
