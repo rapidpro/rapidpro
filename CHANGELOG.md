@@ -1,3 +1,7 @@
+v3.0.393
+----------
+ * Drop values_value
+
 v3.0.392
 ----------
  * Remove broadcast purging
