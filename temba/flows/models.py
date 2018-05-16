@@ -45,7 +45,7 @@ from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOIN
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
-from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str
+from temba.utils.dates import str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -1062,7 +1062,6 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(':', 1)[1]
 
-        step.save_rule_match(result_rule, result_value)
         ruleset.save_run_value(run, result_rule, result_value, result_input)
 
         # output the new value if in the simulator
@@ -2024,9 +2023,8 @@ class Flow(TembaModel):
 
         if previous_step:
             previous_step.left_on = arrived_on
-            previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
+            previous_step.save(update_fields=('left_on', 'next_uuid'))
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2034,8 +2032,7 @@ class Flow(TembaModel):
 
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=exit_uuid)
+            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -3932,18 +3929,6 @@ class FlowStep(models.Model):
 
     def release(self):
         self.delete()
-
-    def save_rule_match(self, rule, value):
-        self.rule_uuid = rule.uuid
-
-        # format our rule value appropriately
-        if isinstance(value, datetime):
-            (date_format, time_format) = get_datetime_format(self.run.flow.org.get_dayfirst())
-            self.rule_value = datetime_to_str(value, tz=self.run.flow.org.timezone, format=time_format, ms=False)
-        else:
-            self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
-
-        self.save(update_fields=('rule_uuid', 'rule_value'))
 
     def get_node(self):
         """
