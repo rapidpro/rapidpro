@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import iso8601
 import json
 import locale
 import resource
@@ -13,7 +14,7 @@ from django.db import transaction
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
-from .dates import json_date_to_datetime, datetime_to_json_date, datetime_decoder
+from .dates import datetime_to_json_date, datetime_decoder
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -88,7 +89,7 @@ class DictStruct(object):
         for field in datetime_fields:
             value = self._values.get(field, None)
             if value:
-                self._values[field] = json_date_to_datetime(value)
+                self._values[field] = iso8601.parse_date(value)
 
         self._initialized = True
 

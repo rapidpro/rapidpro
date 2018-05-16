@@ -202,16 +202,6 @@ def datetime_to_json_date(dt, micros=False):
     return (as_str if micros else as_str[:-3]) + 'Z'
 
 
-def json_date_to_datetime(date_str):
-    """
-    Parses a datetime from a JSON string value
-    """
-    iso_format = '%Y-%m-%dT%H:%M:%S.%f'
-    if date_str.endswith('Z'):
-        iso_format += 'Z'
-    return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
-
-
 def datetime_to_s(dt):
     """
     Converts a datetime to a fractional second epoch
@@ -266,11 +256,7 @@ def datetime_decoder(d):
     for k, v in pairs:
         if isinstance(v, six.string_types):
             try:
-                # The %f format code is only supported in Python >= 2.6.
-                # For Python <= 2.5 strip off microseconds
-                # v = datetime.datetime.strptime(v.rsplit('.', 1)[0],
-                #     '%Y-%m-%dT%H:%M:%S')
-                v = json_date_to_datetime(v)
+                v = iso8601.parse_date(v)
             except ValueError:
                 pass
         elif isinstance(v, (dict, list)):

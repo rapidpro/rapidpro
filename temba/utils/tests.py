@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import copy
 import datetime
+import iso8601
 import json
 import pycountry
 import pytz
@@ -29,8 +30,8 @@ from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
-from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
-from . import chunk_list, get_country_code_by_name, voicexml, json_date_to_datetime
+from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage
+from . import chunk_list, get_country_code_by_name, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
 from .dates import str_to_datetime, str_to_time, date_to_utc_range, datetime_to_ms, ms_to_datetime, datetime_to_epoch
@@ -166,18 +167,6 @@ class DatesTest(TembaTest):
         self.assertEqual(datetime_to_ms(d2), 1388624645000)
         self.assertEqual(ms_to_datetime(1388624645000), d2.astimezone(pytz.utc))
 
-    def test_datetime_to_json_date(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_json_date(d1), '2014-01-02T03:04:05.000Z')
-        self.assertEqual(json_date_to_datetime('2014-01-02T03:04:05.000Z'), d1)
-        self.assertEqual(json_date_to_datetime('2014-01-02T03:04:05.000'), d1)
-
-        tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5))
-        self.assertEqual(datetime_to_json_date(d2), '2014-01-02T01:04:05.000Z')
-        self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000Z'), d2.astimezone(pytz.utc))
-        self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000'), d2.astimezone(pytz.utc))
-
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
@@ -189,7 +178,7 @@ class DatesTest(TembaTest):
         self.assertEqual(datetime_to_str(d2.date()), '2014-01-02T00:00:00.000000Z')  # no ms
 
     def test_datetime_to_epoch(self):
-        dt = json_date_to_datetime('2014-01-02T01:04:05.000Z')
+        dt = iso8601.parse_date('2014-01-02T01:04:05.000Z')
         self.assertEqual(1388624645, datetime_to_epoch(dt))
 
     def test_str_to_datetime(self):

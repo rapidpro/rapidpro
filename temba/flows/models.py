@@ -45,7 +45,7 @@ from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOIN
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
-from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
+from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -3824,7 +3824,7 @@ class FlowStep(models.Model):
         Creates a new flow step from the given Surveyor step JSON
         """
         node = json_obj['node']
-        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
+        arrived_on = iso8601.parse_date(json_obj['arrived_on'])
 
         # find the previous step
         prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
