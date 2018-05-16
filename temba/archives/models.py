@@ -35,8 +35,8 @@ class Archive(models.Model):
     record_count = models.IntegerField(default=0,
                                        help_text="The number of records in this archive")
 
-    archive_size = models.IntegerField(default=0,
-                                       help_text="The size of this archive in bytes (after gzipping)")
+    archive_size = models.BigIntegerField(default=0,
+                                          help_text="The size of this archive in bytes (after gzipping)")
     archive_hash = models.TextField(help_text="The md5 hash of this archive (after gzipping)")
     archive_url = models.URLField(help_text="The full URL for this archive")
 
