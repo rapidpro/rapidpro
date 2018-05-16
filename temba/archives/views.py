@@ -30,13 +30,7 @@ class ArchiveCRUDL(SmartCRUDL):
             queryset = super().get_queryset(**kwargs)
 
             # filter by our archive type
-            queryset = queryset.filter(archive_type=self.get_archive_type())
-
-            # org users see archives for their org, superuser sees all
-            if not self.request.user.is_superuser:
-                org = self.request.user.get_org()
-                queryset = queryset.filter(org=org)
-            return queryset
+            return queryset.filter(archive_type=self.get_archive_type())
 
         def derive_title(self):
             archive_type = self.get_archive_type()
