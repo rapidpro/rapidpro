@@ -1,3 +1,7 @@
+v3.0.392
+----------
+ * Remove broadcast purging
+
 v3.0.391
 ----------
  * remove reference to nyaruka for trackings users
