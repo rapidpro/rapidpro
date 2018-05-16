@@ -3419,6 +3419,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update and do_save:
             self.save(update_fields=('responded', 'message_ids', 'events'))
 
+    def get_events_of_type(self, event_types):
+        """
+        Gets all the events of the given type associated with this run
+        """
+        if not self.events:  # pragma: no cover
+            return []
+
+        type_names = [t.name for t in event_types]
+        return [e for e in self.events if e['type'] in type_names]
+
+    def get_msg_events(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return self.get_events_of_type((goflow.Events.msg_received, goflow.Events.msg_created))
+
     def get_messages(self):
         """
         Gets all the messages associated with this run
@@ -4625,11 +4641,10 @@ class FlowPathRecentRun(models.Model):
         for r in recent:
             msg_event = None
             # find the most recent message event in the run when this visit happened
-            for event in reversed(r.run.events):
-                if event['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name):
-                    if iso8601.parse_date(event['created_on']) <= r.visited_on:
-                        msg_event = event
-                        break
+            for event in reversed(r.run.get_msg_events()):
+                if iso8601.parse_date(event['created_on']) <= r.visited_on:
+                    msg_event = event
+                    break
 
             results.append({
                 'run': r.run,
@@ -5032,13 +5047,8 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         Writes out any messages associated with the given run
         """
-        for event in run.events:
-            if event['type'] == goflow.Events.msg_received.name:
-                msg_direction = "IN"
-            elif event['type'] == goflow.Events.msg_created.name:
-                msg_direction = "OUT"
-            else:  # pragma: no cover
-                continue
+        for event in run.get_msg_events():
+            msg_direction = "IN" if event['type'] == goflow.Events.msg_received.name else "OUT"
 
             msg = event['msg']
             msg_text = msg.get('text', "")
