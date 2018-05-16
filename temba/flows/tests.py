@@ -2655,8 +2655,6 @@ class FlowTest(TembaTest):
         self.assertEqual(msg_in.msg_type, 'F')
         self.assertEqual(msg_out.msg_type, 'F')
 
-        self.assertEqual({int(m) for m in run.message_ids}, {msg_in.id, msg_out.id})
-
         run_msgs = run.get_messages().order_by('created_on')
         self.assertEqual(list(run_msgs), [msg_in, msg_out])
 

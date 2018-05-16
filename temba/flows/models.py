@@ -2060,7 +2060,7 @@ class Flow(TembaModel):
 
         if msgs:
             run.add_messages(msgs, do_save=False)
-            update_fields += ['message_ids', 'responded', 'events']
+            update_fields += ['responded', 'events']
 
         run.current_node_uuid = run.path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=update_fields)
@@ -2942,16 +2942,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             msgs_to_send, run_messages = run.apply_events(run_events, msg_in)
 
-        # attach any messages to this run
-        if not run.message_ids:
-            run.message_ids = []
-        if msg_in:
-            run.message_ids.append(msg_in.id)
-        for m in run_messages:
-            run.message_ids.append(m.id)
-        if run.message_ids:
-            run.save(update_fields=('message_ids',))
-
         return run, msgs_to_send
 
     def apply_events(self, events, msg_in=None):
@@ -3359,8 +3349,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Associates the given messages with this run
         """
-        if self.message_ids is None:
-            self.message_ids = []
         if self.events is None:
             self.events = []
 
@@ -3385,7 +3373,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if str(msg.uuid) in existing_msg_uuids:
                 continue
 
-            self.message_ids.append(msg.id)
             self.events.append({
                 'type': goflow.Events.msg_received.name if msg.direction == INCOMING else goflow.Events.msg_created.name,
                 'created_on': msg.created_on.isoformat(),
@@ -3407,7 +3394,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     self.responded = True
 
         if needs_update and do_save:
-            self.save(update_fields=('responded', 'message_ids', 'events'))
+            self.save(update_fields=('responded', 'events'))
 
     def get_events_of_type(self, event_types):
         """
