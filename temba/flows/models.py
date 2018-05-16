@@ -45,7 +45,7 @@ from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOIN
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
-from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
+from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -3908,99 +3908,6 @@ class FlowStep(models.Model):
 
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-    @classmethod
-    def from_json(cls, json_obj, flow, run):
-        """
-        Creates a new flow step from the given Surveyor step JSON
-        """
-        node = json_obj['node']
-        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
-
-        # find the previous step
-        prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
-
-        # figure out which exit was taken by that step
-        exit_uuid = None
-        if prev_step:
-            if prev_step.step_type == cls.TYPE_RULE_SET:
-                exit_uuid = prev_step.rule_uuid
-            else:
-                prev_node = prev_step.get_node()
-                if prev_node:
-                    exit_uuid = prev_node.exit_uuid
-
-        # generate the messages for this step
-        msgs = []
-        if node.is_ruleset():
-            incoming = None
-            if node.is_pause():
-                # if a msg was sent to this ruleset, create it
-                if json_obj['rule']:
-
-                    media = None
-                    if 'media' in json_obj['rule']:
-                        media = json_obj['rule']['media']
-                        (media_type, url) = media.split(':', 1)
-
-                        # store the non-typed url in the value and text
-                        json_obj['rule']['value'] = url
-                        json_obj['rule']['text'] = url
-
-                    # if we received a message
-                    incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   attachments=[media] if media else None,
-                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
-                                                   channel=None, urn=None)
-            else:  # pragma: needs cover
-                incoming = run.get_last_msg(direction=INCOMING)
-
-            if incoming:
-                msgs.append(incoming)
-        else:
-            actions = Action.from_json_array(flow.org, json_obj['actions'])
-
-            last_incoming = run.get_last_msg(direction=INCOMING)
-
-            for action in actions:
-                context = flow.build_expressions_context(run.contact, last_incoming)
-                msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
-
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=exit_uuid)
-
-        # if a rule was picked on this ruleset
-        if node.is_ruleset() and json_obj['rule']:
-            rule_uuid = json_obj['rule']['uuid']
-            rule_value = json_obj['rule']['value']
-
-            # update the value if we have an existing ruleset
-            ruleset = RuleSet.objects.filter(flow=flow, uuid=node.uuid).first()
-            if ruleset:
-                rule = None
-                for r in ruleset.get_rules():
-                    if r.uuid == rule_uuid:
-                        rule = r
-                        break
-
-                if not rule:
-                    # the user updated the rules try to match the new rules
-                    msg = Msg(org=run.org, contact=run.contact, text=json_obj['rule']['text'], id=0)
-                    rule, value, result_input = ruleset.find_matching_rule(step, run, msg)
-
-                    if not rule:
-                        raise ValueError("No such rule with UUID %s" % rule_uuid)
-
-                    rule_uuid = rule.uuid
-                    rule_value = value
-
-                ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
-
-            # update our step with our rule details
-            step.rule_uuid = rule_uuid
-            step.rule_value = rule_value
-            step.save(update_fields=('rule_uuid', 'rule_value'))
-
-        return step
 
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
