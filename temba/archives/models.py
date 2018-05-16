@@ -1,3 +1,7 @@
+import boto3
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.db import models
 
 from gettext import gettext as _
@@ -6,6 +10,7 @@ from temba.utils import sizeof_fmt
 
 
 class Archive(models.Model):
+    DOWNLOAD_EXPIRES = 600
     TYPE_MSG = 'messages'
     TYPE_FLOWRUN = 'runs'
 
@@ -46,3 +51,22 @@ class Archive(models.Model):
         if (self.end_date - self.start_date).days > 1:
             return Archive.PERIOD_MONTHLY
         return Archive.PERIOD_DAILY
+
+    def get_s3_location(self):
+        url_parts = urlparse(self.archive_url)
+        return dict(Bucket=url_parts.netloc.split('.')[0], Key=url_parts.path[1:])
+
+    def get_download_link(self):
+        session = boto3.Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+        s3 = session.client('s3')
+
+        s3_params = {
+            **self.get_s3_location(),
+            # force browser to download and not uncompress our gzipped files
+            'ResponseContentDisposition': 'attachment;',
+            'ResponseContentType': 'application/octet',
+            'ResponseContentEncoding': 'none',
+        }
+
+        return s3.generate_presigned_url('get_object', Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)

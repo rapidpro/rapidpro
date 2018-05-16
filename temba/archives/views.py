@@ -1,5 +1,6 @@
+from django.http import HttpResponseRedirect
 from gettext import gettext as _
-from smartmin.views import SmartCRUDL, SmartListView
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 from temba.orgs.views import OrgPermsMixin
 from .models import Archive
 
@@ -7,7 +8,7 @@ from .models import Archive
 class ArchiveCRUDL(SmartCRUDL):
 
     model = Archive
-    actions = ('list',)
+    actions = ('list', 'read')
     permissions = True
 
     class List(OrgPermsMixin, SmartListView):
@@ -19,7 +20,8 @@ class ArchiveCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/(.*)/$' % path
+            archive_types = (choice[0] for choice in Archive.TYPE_CHOICES)
+            return r'^%s/(%s)/$' % (path, '|'.join(archive_types))
 
         def get_archive_type(self):
             return self.request.path.split('/')[-2]
@@ -48,3 +50,7 @@ class ArchiveCRUDL(SmartCRUDL):
             context['archive_types'] = Archive.TYPE_CHOICES
             context['selected'] = self.get_archive_type()
             return context
+
+    class Read(OrgPermsMixin, SmartReadView):
+        def render_to_response(self, context, **response_kwargs):
+            return HttpResponseRedirect(self.get_object().get_download_link())

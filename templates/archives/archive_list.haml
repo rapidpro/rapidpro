@@ -43,7 +43,7 @@
       - for archive in object_list
         %tr.archive-row
           %td
-            %a{href:""}
+            %a{href:"{% url 'archives.archive_read' archive.id %}"}
               {{archive.archive_hash}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}
@@ -55,10 +55,11 @@
             -else
               {{archive.start_date|date:"F Y"}}
           %td.archive-icon
-            -if archive.archive_period == 'daily'
-              %span.icon.icon-docs-2
-            -else
-              %span.icon.icon-box
+            %a{href:"{% url 'archives.archive_read' archive.id %}"}
+              -if archive.archive_period == 'daily'
+                %span.icon.icon-docs-2
+              -else
+                %span.icon.icon-box
   -else
 
     -blocktrans
