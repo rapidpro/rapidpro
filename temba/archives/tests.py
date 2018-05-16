@@ -61,7 +61,7 @@ class ArchiveViewTest(TembaTest):
         url = response.get('Location')
 
         self.assertEqual(302, response.status_code)
-        self.assertTrue(f'https://s3-bucket.s3.amazonaws.com/my/{archive.archive_hash}?'
-                        f'response-content-disposition=attachment%3B&'
-                        f'response-content-type=application%2Foctet&'
-                        f'response-content-encoding=none' in url)
+        self.assertIn(f'https://s3-bucket.s3.amazonaws.com/my/{archive.archive_hash}?'
+                      f'response-content-disposition=attachment%3B&'
+                      f'response-content-type=application%2Foctet&'
+                      f'response-content-encoding=none', url)
