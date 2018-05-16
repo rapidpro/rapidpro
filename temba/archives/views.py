@@ -37,7 +37,6 @@ class ArchiveCRUDL(SmartCRUDL):
             for choice in Archive.TYPE_CHOICES:
                 if (archive_type == choice[0]):
                     return f'{choice[1]} {self.title}'
-            return self.title
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

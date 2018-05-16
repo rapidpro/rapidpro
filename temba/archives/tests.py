@@ -2,12 +2,17 @@ from uuid import uuid4
 from temba.tests import TembaTest
 from django.core.urlresolvers import reverse
 from .models import Archive
-from datetime import date
+from datetime import date, timedelta
 
 
 class ArchiveViewTest(TembaTest):
 
-    def create_archive(self, idx):
+    def create_archive(self, idx, start_date=None, end_date=None):
+
+        if not start_date:
+            start_date = date(2018, idx, 1)
+            end_date = date(2018, idx + 1, 1) - timedelta(days=1)
+
         archive_hash = uuid4().hex
         return Archive.objects.create(
             archive_type=Archive.TYPE_MSG if idx % 2 == 0 else Archive.TYPE_FLOWRUN,
@@ -15,8 +20,8 @@ class ArchiveViewTest(TembaTest):
             archive_hash=archive_hash,
             archive_url=f'http://s3-bucket.aws.com/my/{archive_hash}',
             record_count=123456789 * idx,
-            start_date=date(2018, 1, idx),
-            end_date=date(2018, 2, idx),
+            start_date=start_date,
+            end_date=end_date,
             build_time=idx * 123,
             org=self.org
         )
@@ -35,11 +40,15 @@ class ArchiveViewTest(TembaTest):
         for idx in range(1, 10):
             self.create_archive((idx))
 
+        # create a daily archive
+        archive = self.create_archive(1, start_date=date(2018, 2, 1), end_date=(date(2018, 2, 2)))
+        self.assertEqual(Archive.PERIOD_DAILY, archive.archive_period())
+
         self.login(self.admin)
 
         # make sure we have the right number of each
         response = self.client.get(reverse('archives.archive_list', args=['runs']))
-        self.assertEqual(5, response.context['object_list'].count())
+        self.assertEqual(6, response.context['object_list'].count())
 
         response = self.client.get(reverse('archives.archive_list', args=['messages']))
         self.assertEqual(4, response.context['object_list'].count())
