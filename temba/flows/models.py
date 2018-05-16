@@ -3233,14 +3233,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 "errors": []
             }
         """
-        path = self.get_path()
         msgs = []
 
         for step_dict in step_dicts:
             node = step_dict['node']
-            arrived_on = json_date_to_datetime(step_dict['arrived_on'])
+            arrived_on = iso8601.parse_date(step_dict['arrived_on'])
 
-            prev_step = path[-1] if path else None
+            prev_step = self.path[-1] if self.path else None
             if prev_step:
                 # was the previous step an actionset that we need to complete with an exit UUID ?
                 prev_action_set = self.flow.action_sets.filter(uuid=prev_step[FlowRun.PATH_NODE_UUID]).first()
@@ -3262,7 +3261,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         rule_input = rule_dict['text']
                         rule_media = None
 
-                    path.append({
+                    self.path.append({
+                        FlowRun.PATH_STEP_UUID: str(uuid4()),
                         FlowRun.PATH_NODE_UUID: node.uuid,
                         FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                         FlowRun.PATH_EXIT_UUID: exit_uuid
@@ -3288,7 +3288,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         if not rule:
                             # the user updated the rules try to match the new rules
                             msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                            rule, value = ruleset.find_matching_rule(None, self, msg)
+                            rule, value, rule_input = ruleset.find_matching_rule(None, self, msg)
                             if not rule:
                                 raise ValueError("No such rule with UUID %s" % exit_uuid)
 
@@ -3296,14 +3296,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
                         ruleset.save_run_value(self, rule, rule_value, rule_input)
                 else:
-                    path.append({
+                    self.path.append({
+                        FlowRun.PATH_STEP_UUID: str(uuid4()),
                         FlowRun.PATH_NODE_UUID: node.uuid,
                         FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                     })
 
             # node is an actionset
             else:
-                path.append({
+                self.path.append({
+                    FlowRun.PATH_STEP_UUID: str(uuid4()),
                     FlowRun.PATH_NODE_UUID: node.uuid,
                     FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()
                 })
@@ -3317,8 +3319,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
                     self.add_messages(msgs)
 
-        self.current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
-        self.path = json.dumps(path)
+        self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
         self.save(update_fields=('path', 'current_node_uuid'))
 
     @classmethod
