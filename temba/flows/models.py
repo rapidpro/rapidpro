@@ -3753,7 +3753,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-@six.python_2_unicode_compatible
 class FlowStep(models.Model):
     """
     A contact's visit to a node in a flow (rule set or action set)
@@ -3935,9 +3934,6 @@ class FlowStep(models.Model):
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
         else:  # pragma: needs cover
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
-
-    def __str__(self):
-        return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
 
 @six.python_2_unicode_compatible
