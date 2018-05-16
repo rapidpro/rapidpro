@@ -134,6 +134,12 @@ class ZenviaHandler(CourierHandler):
     courier_name = 'courier.zv'
 
 
+class MessangiHandler(CourierHandler):
+    channel_name = "Messangi"
+    courier_url = r'^mg/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.mg'
+
+
 class MtargetHandler(CourierHandler):
     channel_name = "Mtarget"
     courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
