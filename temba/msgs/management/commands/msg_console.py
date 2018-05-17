@@ -5,7 +5,6 @@ import cmd
 
 from colorama import init as colorama_init, Fore, Style
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 from temba.contacts.models import Contact, URN
 from temba.orgs.models import Org
 from temba.msgs.models import Msg, OUTGOING
@@ -112,8 +111,7 @@ class MessageConsole(cmd.Cmd):
         """
         urn = self.contact.get_urn()
 
-        incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path),
-                                       line, date=timezone.now(), org=self.org)
+        incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path), line, org=self.org)
 
         self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (six.text_type(urn), incoming.text))
 

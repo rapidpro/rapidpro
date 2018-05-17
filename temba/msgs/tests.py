@@ -299,6 +299,12 @@ class MsgTest(TembaTest):
         must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
 
+        # test create_outgoing with sent_on in the past
+        t = datetime(2018, 5, 17, 17, 29, 30, 0, pytz.UTC)
+        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello at time", channel=self.channel, sent_on=t)
+        self.assertEqual(msg.sent_on, t)
+        self.assertGreater(msg.created_on, msg.sent_on)
+
     def test_contact_queue_flushing(self):
 
         # change our channel type to one that uses the queue
@@ -359,6 +365,12 @@ class MsgTest(TembaTest):
         # test that invalid chars are stripped from message text
         msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
         self.assertEqual(msg5.text, "Don't be null!")
+
+        # test create_incoming with a sent_on value
+        t = datetime(2018, 5, 17, 17, 29, 30, 0, pytz.UTC)
+        msg = Msg.create_incoming(self.channel, "tel:250788382382", "It's going well", sent_on=t)
+        self.assertEqual(msg.sent_on, t)
+        self.assertGreater(msg.created_on, msg.sent_on)
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])

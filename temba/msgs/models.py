@@ -1100,11 +1100,11 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, quick_replies=None):
+              send_all=False, sent_on=None, quick_replies=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 msg_type=msg_type or self.msg_type, sent_on=sent_on, all_urns=send_all,
                                  high_priority=True, quick_replies=quick_replies)
 
     def update(self, cmd):
@@ -1253,7 +1253,7 @@ class Msg(models.Model):
             return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
+    def create_incoming(cls, channel, urn, text, user=None, sent_on=None, org=None, contact=None,
                         status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, connection=None):
 
         from temba.api.models import WebHookEvent
@@ -1265,9 +1265,6 @@ class Msg(models.Model):
 
         if not user:
             user = get_anonymous_user()
-
-        if not date:
-            date = timezone.now()  # no date?  set it to now
 
         contact_urn = None
         if not contact:
@@ -1286,7 +1283,7 @@ class Msg(models.Model):
         if text:
             text = clean_string(text[:cls.MAX_TEXT_LEN])
 
-        existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
+        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1304,7 +1301,7 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        sent_on=date,
+                        sent_on=sent_on,
                         created_on=now,
                         modified_on=now,
                         queued_on=now,
@@ -1332,7 +1329,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, sent_on)
 
         return msg
 
@@ -1383,7 +1380,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
+                        created_on=None, sent_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None, uuid=None):
 
         if not org or not user:  # pragma: no cover
@@ -1516,6 +1513,9 @@ class Msg(models.Model):
                         attachments=evaluated_attachments,
                         metadata=metadata,
                         connection=connection)
+
+        if sent_on:
+            msg_args['sent_on'] = sent_on
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id

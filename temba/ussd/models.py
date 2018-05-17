@@ -72,7 +72,7 @@ class USSDSession(ChannelSession):
     def handle_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, connection=self,
+            channel=self.channel, org=self.org, urn=urn, text=content or '', sent_on=date, connection=self,
             msg_type=USSD, external_id=message_id)
 
     def handle_sync(self):  # pragma: needs cover
