@@ -64,6 +64,14 @@ def format_number(val):
     return val
 
 
+def sizeof_fmt(num, suffix='b'):
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Y', suffix)
+
+
 def get_dict_from_cursor(cursor):
     """
     Returns all rows from a cursor as a dict

@@ -257,7 +257,7 @@ def datetime_decoder(d):
         if isinstance(v, six.string_types):
             try:
                 v = iso8601.parse_date(v)
-            except ValueError:
+            except iso8601.ParseError:
                 pass
         elif isinstance(v, (dict, list)):
             v = datetime_decoder(v)  # pragma: no cover

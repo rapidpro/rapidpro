@@ -83,15 +83,13 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.started_on, datetime)
 
         # message created and sent out
-        msg = Msg.objects.get()
-
-        self.assertEqual(flow.get_steps().get().messages.get().text, msg.text)
+        self.assertIsNotNone(Msg.objects.filter(direction='O').first())
 
         return flow
 
     def test_async_content_handling(self):
         # start off a PUSH session
-        flow = self.test_push_async_start()
+        self.test_push_async_start()
 
         # send an incoming message through the channel
         session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
@@ -104,22 +102,18 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
 
         # there should be 3 messages
-        self.assertEqual(Msg.objects.count(), 3)
+        run = FlowRun.objects.get()
+        msg1, msg2, msg3 = run.get_messages().order_by('id')
 
-        # lets check the steps and incoming and outgoing messages
-        # first step has 1 outgoing and the answer
-        msgs = flow.get_steps().first().messages.order_by('id')
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(msgs[0].direction, OUTGOING)
-        self.assertEqual(msgs[0].text, u'What would you like to read about?')
-        self.assertEqual(msgs[1].direction, INCOMING)
-        self.assertEqual(msgs[1].text, u'1')
+        # check the incoming and outgoing messages
+        self.assertEqual(msg1.direction, OUTGOING)
+        self.assertEqual(msg1.text, 'What would you like to read about?')
 
-        # second step sent out the next message and waits for response
-        msgs = flow.get_steps().last().messages.order_by('id')
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0].direction, OUTGOING)
-        self.assertEqual(msgs[0].text, u'Thank you!')
+        self.assertEqual(msg2.direction, INCOMING)
+        self.assertEqual(msg2.text, '1')
+
+        self.assertEqual(msg3.direction, OUTGOING)
+        self.assertEqual(msg3.text, 'Thank you!')
 
     def test_expiration(self):
         # start off a PUSH session
