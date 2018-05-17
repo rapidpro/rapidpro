@@ -767,6 +767,8 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
 
+    purged = models.NullBooleanField(help_text=_("If this message is being purged"))
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -1654,6 +1656,7 @@ class Msg(models.Model):
                 msg_ids = tuple([m.id for m in msg_batch])
                 cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
                 cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('UPDATE msgs_msg SET purged = True WHERE id IN %s', params=[msg_ids])
                 cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
 
     @classmethod

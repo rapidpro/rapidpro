@@ -52,6 +52,28 @@ class MsgTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+    def test_deletes(self):
+
+        # create some incoming messages
+        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
+        msg2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "ignore joe, he's a liar")
+
+        # we've used two credits
+        self.assertEqual(2, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 2)
+
+        # a hard delete on a message should reduce credits used
+        msg1.delete()
+        self.assertEqual(1, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
+
+        # a purge delete on a message should keep credits the same
+        msg2.purged = True
+        msg2.save(update_fields=('purged',))
+        msg2.delete()
+        self.assertEqual(0, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
+
     def test_get_sync_commands(self):
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
         msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
@@ -1461,7 +1483,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
 
-        self.assertEqual(self.org.get_credits_used(), 10)
+        self.assertEqual(self.org._calculate_credits_used()[0], 10)
         self.assertEqual(self.org.get_credits_remaining(), 990)
 
         # purge all  messages except msg_in2
@@ -1475,7 +1497,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(debit1.amount, 9)
 
         # so credit usage remains the same
-        self.assertEqual(self.org.get_credits_used(), 10)
+        self.assertEqual(self.org._calculate_credits_used()[0], 10)
         self.assertEqual(self.org.get_credits_remaining(), 990)
 
         # check system label counts have been updated
