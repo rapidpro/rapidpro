@@ -1,3 +1,8 @@
+v3.0.394
+----------
+ * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
+ * Stop saving message associations with steps
+
 v3.0.393
 ----------
  * Drop values_value
