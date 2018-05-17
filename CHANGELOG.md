@@ -1,3 +1,7 @@
+v3.0.395
+----------
+ * Don't blow up if msg event has uuid="None"
+
 v3.0.394
 ----------
  * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
