@@ -29,7 +29,6 @@ def audit_runs(max_id=0):  # pragma: no cover
     problem_finders = {
         'unparseable_fields': has_unparseble_fields,
         # 'no_steps_for_active_flow': has_no_steps_for_active_flow,  # not worrying about this for now
-        'less_events_than_message_ids': has_less_events_than_message_ids,
         'step_count_path_length_mismatch': has_step_count_path_length_mismatch,
         'has_duplicate_message_events': has_duplicate_message_events,
     }
@@ -102,10 +101,6 @@ def has_step_count_path_length_mismatch(run):
         return False
 
     return min(len(run.path), 100) != min(run.num_steps, 100)  # take path trimming into account
-
-
-def has_less_events_than_message_ids(run):
-    return len(run.events or []) < len(set(run.message_ids or []))  # events might include purged messages
 
 
 def has_duplicate_message_events(run):
