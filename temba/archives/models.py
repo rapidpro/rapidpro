@@ -40,7 +40,6 @@ class Archive(models.Model):
                               help_text="The period category for this archive since the start date")
 
     start_date = models.DateField(help_text="The starting modified_on date for records in this archive (inclusive")
-    end_date = models.DateField(help_text="The ending modified_on date for records in this archive (exclusive)")
 
     record_count = models.IntegerField(default=0,
                                        help_text="The number of records in this archive")
@@ -58,11 +57,6 @@ class Archive(models.Model):
 
     def archive_size_display(self):
         return sizeof_fmt(self.archive_size)
-
-    def archive_period(self):
-        if (self.end_date - self.start_date).days > 1:
-            return Archive.PERIOD_MONTHLY
-        return Archive.PERIOD_DAILY
 
     def get_s3_location(self):
         url_parts = urlparse(self.archive_url)

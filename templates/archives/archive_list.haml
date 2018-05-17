@@ -50,13 +50,13 @@
           %td.archive-size.cell
             {{archive.archive_size_display}}
           %td.archive-period.cell
-            -if archive.archive_period == 'daily'
+            -if archive.period == 'D'
               {{archive.start_date|date:"M j, Y"}}
             -else
               {{archive.start_date|date:"F Y"}}
           %td.archive-icon
             %a{href:"{% url 'archives.archive_read' archive.id %}"}
-              -if archive.archive_period == 'daily'
+              -if archive.period == 'D'
                 %span.icon.icon-docs-2
               -else
                 %span.icon.icon-box
