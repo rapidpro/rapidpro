@@ -54,6 +54,10 @@ AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
 STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
 
+# keys to access s3
+AWS_ACCESS_KEY_ID = 'aws_access_key_id'
+AWS_SECRET_ACCESS_KEY = 'aws_secret_access_key'
+
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
 # timezone as the operating system.
@@ -564,6 +568,8 @@ GROUP_PERMISSIONS = {
         'api.webhookevent_list',
         'api.webhookevent_read',
 
+        'archives.archive.*',
+
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',
 
@@ -950,10 +956,6 @@ CELERYBEAT_SCHEDULE = {
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
-    },
-    "purge-broadcasts": {
-        'task': 'purge_broadcasts_task',
-        'schedule': crontab(hour=1, minute=0),
     },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',

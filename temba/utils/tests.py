@@ -30,7 +30,7 @@ from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 
 from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage, datetime_to_json_date
-from . import chunk_list, get_country_code_by_name, voicexml, json_date_to_datetime
+from . import chunk_list, get_country_code_by_name, voicexml, json_date_to_datetime, sizeof_fmt
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
 from .dates import str_to_datetime, str_to_time, date_to_utc_range, datetime_to_ms, ms_to_datetime, datetime_to_epoch
@@ -85,6 +85,16 @@ class InitTest(TembaTest):
 
             self.assertEqual('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==',
                              decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
+
+    def test_sizeof_fmt(self):
+        self.assertEqual('512.0 b', sizeof_fmt(512))
+        self.assertEqual('1.0 Kb', sizeof_fmt(1024))
+        self.assertEqual('1.0 Mb', sizeof_fmt(1024**2))
+        self.assertEqual('1.0 Gb', sizeof_fmt(1024**3))
+        self.assertEqual('1.0 Tb', sizeof_fmt(1024**4))
+        self.assertEqual('1.0 Pb', sizeof_fmt(1024**5))
+        self.assertEqual('1.0 Eb', sizeof_fmt(1024**6))
+        self.assertEqual('1.0 Zb', sizeof_fmt(1024**7))
 
     def test_str_to_bool(self):
         self.assertFalse(str_to_bool(None))

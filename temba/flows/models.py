@@ -3526,7 +3526,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        msg_uuids = [e['msg']['uuid'] for e in self.get_msg_events() if e['msg'].get('uuid')]
+        # need a data migration to go fix some old message events with uuid="None", until then filter them out
+        msg_uuids = []
+        for e in self.get_msg_events():
+            msg_uuid = e['msg'].get('uuid')
+            if msg_uuid and msg_uuid != 'None':
+                msg_uuids.append(msg_uuid)
 
         return Msg.objects.filter(uuid__in=msg_uuids)
 

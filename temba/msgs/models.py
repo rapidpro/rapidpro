@@ -14,7 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -27,7 +27,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
-from temba.orgs.models import Org, TopUp, Language
+from temba.orgs.models import Org, TopUp, Debit, Language
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, on_transaction_commit, dict_to_json, get_anonymous_user
 from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_s
@@ -1627,6 +1627,34 @@ class Msg(models.Model):
 
         # remove labels
         self.labels.clear()
+
+    @classmethod
+    def bulk_purge(cls, msgs):
+        """
+        Purges the given messages
+        """
+        debits_to_create = []
+        topup_counts = msgs.values('topup_id').annotate(count=Count('topup_id'))
+
+        # figure out which topups needs debits added to them
+        for tc in topup_counts:
+            topup_id = tc['topup_id']
+            msg_count = tc['count']
+            if tc['topup_id'] and msg_count:
+                debits_to_create.append(Debit(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE))
+
+        with transaction.atomic():
+            Debit.objects.bulk_create(debits_to_create)
+            Debit.squash()
+
+            # delete messages in batches to avoid long locks
+            for msg_batch in chunk_list(msgs, 1000):
+                # manually delete to avoid slow and unnecessary checks on related fields like response_to
+                cursor = connection.cursor()
+                msg_ids = tuple([m.id for m in msg_batch])
+                cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
 
     @classmethod
     def apply_action_label(cls, user, msgs, label, add):
