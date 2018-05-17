@@ -37,7 +37,7 @@ class Archive(models.Model):
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text="When this archive was created")
     period = models.CharField(max_length=1, choices=PERIOD_CHOICES, default=DAY,
-                              help_text="The period category for this archive since the start date")
+                              help_text="The length of time this archive covers")
 
     start_date = models.DateField(help_text="The starting modified_on date for records in this archive (inclusive")
 
@@ -53,7 +53,8 @@ class Archive(models.Model):
                                     help_text="Whether the records in this archive have been purged from the database")
     build_time = models.IntegerField(help_text="The number of milliseconds it took to build and upload this archive")
 
-    rollup = models.ForeignKey('archives.Archive', null=True, help_text=_("The rollup archive for this month"))
+    rollup = models.ForeignKey('archives.Archive', null=True, on_delete=models.SET_NULL,
+                               help_text=_("The rollup archive for this month"))
 
     def archive_size_display(self):
         return sizeof_fmt(self.archive_size)
