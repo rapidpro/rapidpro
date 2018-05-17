@@ -834,21 +834,24 @@ class Flow(TembaModel):
         if session:
             return session.resume_by_input(msg)
 
-        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
-        for step in steps:
-            flow = step.run.flow
+        for run in FlowRun.get_active_for_contact(msg.contact):
+            flow = run.flow
             flow.ensure_current_version()
-            destination = Flow.get_node(flow, step.step_uuid, step.step_type)
+
+            last_step = run.path[-1]
+            destination = Flow.get_node(flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
+            step_obj = run.steps.order_by('id').last()
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                step.run.set_completed(final_step=step)
+                run.set_completed(final_step=step_obj)
                 Msg.mark_handled(msg)
                 return True, []
 
-            flowserver_trial = trial.maybe_start_resume(step.run)
+            flowserver_trial = trial.maybe_start_resume(run)
 
-            (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
+            (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
@@ -2852,6 +2855,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     def clear_cached_child(self):
         if 'cached_child' in self.__dict__:
             del self.__dict__['cached_child']
+
+    @classmethod
+    def get_active_for_contact(cls, contact):
+        runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
+
+        # don't consider voice runs, those are interactive
+        runs = runs.exclude(flow__flow_type=Flow.VOICE)
+
+        # real contacts don't deal with archived flows
+        if not contact.is_test:
+            runs = runs.filter(flow__is_archived=False)
+
+        return runs.select_related('flow', 'contact', 'flow__org', 'connection').order_by('-id')
 
     @classmethod
     def create_or_update_from_goflow(cls, session, contact, run_output, run_events, wait, msg_in):
