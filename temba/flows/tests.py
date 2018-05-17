@@ -3,16 +3,16 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import copy
 import datetime
+import iso8601
 import json
 import os
+import pytz
 import re
+import six
 import time
+
 from datetime import timedelta
 from decimal import Decimal
-from uuid import uuid4
-
-import pytz
-import six
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
@@ -20,7 +20,6 @@ from django.utils import timezone
 from django.utils.encoding import force_text
 from mock import patch
 from openpyxl import load_workbook
-
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, WebHookResult, Resthook
 from temba.channels.models import Channel, ChannelEvent
@@ -44,6 +43,7 @@ from .flow_migrations import (
     migrate_export_to_version_9, migrate_to_version_10_2, migrate_to_version_10_4, migrate_to_version_11_1,
     migrate_to_version_11_2, map_actions
 )
+from uuid import uuid4
 from .models import (
     Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
     RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user, FlowCategoryCount,
@@ -2654,8 +2654,6 @@ class FlowTest(TembaTest):
         # both msgs should be of type FLOW
         self.assertEqual(msg_in.msg_type, 'F')
         self.assertEqual(msg_out.msg_type, 'F')
-
-        self.assertEqual({int(m) for m in run.message_ids}, {msg_in.id, msg_out.id})
 
         run_msgs = run.get_messages().order_by('created_on')
         self.assertEqual(list(run_msgs), [msg_in, msg_out])
@@ -6704,16 +6702,18 @@ class FlowsTest(FlowFileTest):
 
         # check that our run is expired
         run = flow.runs.all()[0]
+
         self.assertFalse(run.is_active)
+        self.assertEqual(run.expires_on, iso8601.parse_date(run.path[-1]['arrived_on']) + timedelta(minutes=5))
 
         # we will be starting a new run now, since the other expired
         self.assertEqual("I don't know that color. Try again.",
                          self.send_message(flow, "Michael Jordan", restart_participants=True))
         self.assertEqual(2, flow.runs.count())
 
-        previous_expiration = run.expires_on
+        now = timezone.now()
         run.update_expiration(None)
-        self.assertTrue(run.expires_on > previous_expiration)
+        self.assertGreater(run.expires_on, now + timedelta(minutes=5))
 
     def test_parsing(self):
         # test a preprocess url

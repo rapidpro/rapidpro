@@ -1,4 +1,9 @@
-v3.0.394
+v3.0.396
+----------
+ * Use run path instead of steps to recalculate run expirations
+ * Stop writing to FlowRun.message_ids
+
+v3.0.395
 ----------
  * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
  * Stop saving message associations with steps
