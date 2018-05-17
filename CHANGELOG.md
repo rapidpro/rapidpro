@@ -1,3 +1,16 @@
+v3.0.393
+----------
+ * Drop values_value
+
+v3.0.392
+----------
+ * Remove broadcast purging
+
+v3.0.391
+----------
+ * remove reference to nyaruka for trackings users
+ * fix test decoration to work when no flow server configured
+
 v3.0.390
 ----------
  * Disable webhook calls during flowserver trials

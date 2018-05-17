@@ -1138,7 +1138,7 @@ class APITest(TembaTest):
         jaqen = Contact.objects.filter(name=None, language=None).order_by('-pk').first()
         self.assertEqual(set(jaqen.urns.all()), set())
         self.assertEqual(set(jaqen.user_groups.all()), set())
-        self.assertEqual(set(jaqen.values.all()), set())
+        self.assertIsNone(jaqen.fields)
 
         with ESMockWithScroll():
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")

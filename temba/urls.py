@@ -20,6 +20,7 @@ js_info_dict = {
 urlpatterns = [
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
+    url(r'^', include('temba.archives.urls')),
     url(r'^', include('temba.contacts.urls')),
     url(r'^', include('temba.orgs.urls')),
     url(r'^', include('temba.schedules.urls')),
@@ -92,15 +93,6 @@ def track_user(self):  # pragma: no cover
     # always track them if they haven't logged in
     if not self.is_authenticated() or self.is_anonymous():
         return True
-
-    # never track nyaruka email accounts
-    if 'nyaruka' in self.email:
-        return False
-
-    # never track nyaruka org
-    org = self.get_org()
-    if org and org.name and 'nyaruka' in org.name.lower():
-        return False
 
     return True
 

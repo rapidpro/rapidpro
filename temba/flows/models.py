@@ -937,7 +937,7 @@ class Flow(TembaModel):
                     path = []
 
             elif destination.get_step_type() == FlowStep.TYPE_ACTION_SET:
-                result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
+                result = Flow.handle_actionset(destination, step, run, msg, started_flows)
                 add_to_path(path, destination.uuid)
 
                 # USSD check for session end
@@ -982,7 +982,7 @@ class Flow(TembaModel):
         return handled, msgs
 
     @classmethod
-    def handle_actionset(cls, actionset, step, run, msg, started_flows, is_test_contact=False):
+    def handle_actionset(cls, actionset, step, run, msg, started_flows):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
@@ -991,7 +991,7 @@ class Flow(TembaModel):
 
         # actually execute all the actions in our actionset
         msgs = actionset.execute_actions(run, msg, started_flows)
-        run.add_messages(msgs, step=step)
+        run.add_messages(msgs)
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -1026,7 +1026,7 @@ class Flow(TembaModel):
                     extra['flow'] = message_context.get('flow', {})
 
                     if msg_in.id:
-                        run.add_messages([msg_in], step=step)
+                        run.add_messages([msg_in])
                         run.update_expiration(timezone.now())
 
                     if flow:
@@ -1055,7 +1055,7 @@ class Flow(TembaModel):
 
         # add the message to our step
         if msg_in.id:
-            run.add_messages([msg_in], step=step)
+            run.add_messages([msg_in])
             run.update_expiration(timezone.now())
 
         if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
@@ -1095,7 +1095,7 @@ class Flow(TembaModel):
         context = run.flow.build_expressions_context(run.contact, msg)
         msgs = action.execute(run, context, ruleset.uuid, msg)
 
-        run.add_messages(msgs, step=step)
+        run.add_messages(msgs)
 
         return dict(handled=True, destination=None, step=step, msgs=msgs)
 
@@ -2059,7 +2059,7 @@ class Flow(TembaModel):
         update_fields = ['path', 'current_node_uuid']
 
         if msgs:
-            run.add_messages(msgs, step=step, do_save=False)
+            run.add_messages(msgs, do_save=False)
             update_fields += ['message_ids', 'responded', 'events']
 
         run.current_node_uuid = run.path[-1][FlowRun.PATH_NODE_UUID]
@@ -3355,7 +3355,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
-    def add_messages(self, msgs, step, do_save=True):
+    def add_messages(self, msgs, do_save=True):
         """
         Associates the given messages with this run
         """
@@ -3366,10 +3366,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # find the path step these messages belong to
         path_step = self.path[-1]
-
-        # whilst we still have step objects, we can use them to check we're adding messages to the correct step
-        if path_step['node_uuid'] != step.step_uuid:  # pragma: no cover
-            raise ValueError("Trying to add messages to a step which doesn't exist in the run path")
 
         existing_msg_uuids = set()
         for e in self.events:
@@ -3400,12 +3396,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing_msg_uuids.add(str(msg.uuid))
             needs_update = True
 
-            step.messages.add(msg)
-
-            # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-            if msg.broadcast_id:
-                step.broadcasts.add(msg.broadcast)
-
             # incoming non-IVR messages won't have a type yet so update that
             if not msg.msg_type or msg.msg_type == INBOX:
                 msg.msg_type = FLOW
@@ -3419,11 +3409,30 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if needs_update and do_save:
             self.save(update_fields=('responded', 'message_ids', 'events'))
 
+    def get_events_of_type(self, event_types):
+        """
+        Gets all the events of the given type associated with this run
+        """
+        if not self.events:  # pragma: no cover
+            return []
+
+        type_names = [t.name for t in event_types]
+
+        return [e for e in self.events if e['type'] in type_names]
+
+    def get_msg_events(self):
+        """
+        Gets all the messages associated with this run
+        """
+        return self.get_events_of_type((goflow.Events.msg_received, goflow.Events.msg_created))
+
     def get_messages(self):
         """
         Gets all the messages associated with this run
         """
-        return Msg.objects.filter(id__in=self.message_ids) if self.message_ids else Msg.objects.none()
+        msg_uuids = [e['msg']['uuid'] for e in self.get_msg_events() if e['msg'].get('uuid')]
+
+        return Msg.objects.filter(uuid__in=msg_uuids)
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -3757,7 +3766,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-@six.python_2_unicode_compatible
 class FlowStep(models.Model):
     """
     A contact's visit to a node in a flow (rule set or action set)
@@ -3846,14 +3854,14 @@ class FlowStep(models.Model):
                                                    msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:  # pragma: needs cover
-                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = run.get_last_msg(direction=INCOMING)
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = run.get_last_msg(direction=INCOMING)
 
             for action in actions:
                 context = flow.build_expressions_context(run.contact, last_incoming)
@@ -3939,9 +3947,6 @@ class FlowStep(models.Model):
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
         else:  # pragma: needs cover
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
-
-    def __str__(self):
-        return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
 
 @six.python_2_unicode_compatible
@@ -4625,11 +4630,10 @@ class FlowPathRecentRun(models.Model):
         for r in recent:
             msg_event = None
             # find the most recent message event in the run when this visit happened
-            for event in reversed(r.run.events):
-                if event['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name):
-                    if iso8601.parse_date(event['created_on']) <= r.visited_on:
-                        msg_event = event
-                        break
+            for event in reversed(r.run.get_msg_events()):
+                if iso8601.parse_date(event['created_on']) <= r.visited_on:
+                    msg_event = event
+                    break
 
             results.append({
                 'run': r.run,
@@ -5032,13 +5036,8 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         Writes out any messages associated with the given run
         """
-        for event in run.events:
-            if event['type'] == goflow.Events.msg_received.name:
-                msg_direction = "IN"
-            elif event['type'] == goflow.Events.msg_created.name:
-                msg_direction = "OUT"
-            else:  # pragma: no cover
-                continue
+        for event in run.get_msg_events():
+            msg_direction = "IN" if event['type'] == goflow.Events.msg_received.name else "OUT"
 
             msg = event['msg']
             msg_text = msg.get('text', "")
