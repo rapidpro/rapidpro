@@ -102,7 +102,8 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
 
         # there should be 3 messages
-        msg1, msg2, msg3 = Msg.objects.order_by('id')
+        run = FlowRun.objects.get()
+        msg1, msg2, msg3 = run.get_messages().order_by('id')
 
         # check the incoming and outgoing messages
         self.assertEqual(msg1.direction, OUTGOING)
