@@ -13,7 +13,7 @@ class ArchiveCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Archive")
-        fields = ('archive_type', 'archive_url', 'start_date', 'period', 'record_count', 'archive_size')
+        fields = ('archive_type', 'url', 'start_date', 'period', 'record_count', 'size')
         default_order = ('-period', '-start_date', 'archive_type')
         search_fields = ('archive_type',)
         paginate_by = 250

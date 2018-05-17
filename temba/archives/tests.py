@@ -16,9 +16,9 @@ class ArchiveViewTest(TembaTest):
         archive_hash = uuid4().hex
         return Archive.objects.create(
             archive_type=Archive.TYPE_MSG if idx % 2 == 0 else Archive.TYPE_FLOWRUN,
-            archive_size=100000 * idx,
-            archive_hash=archive_hash,
-            archive_url=f'http://s3-bucket.aws.com/my/{archive_hash}',
+            size=100000 * idx,
+            hash=archive_hash,
+            url=f'http://s3-bucket.aws.com/my/{archive_hash}',
             record_count=123456789 * idx,
             start_date=start_date,
             period=period,
@@ -60,7 +60,7 @@ class ArchiveViewTest(TembaTest):
         url = response.get('Location')
 
         self.assertEqual(302, response.status_code)
-        self.assertIn(f'https://s3-bucket.s3.amazonaws.com/my/{archive.archive_hash}?'
+        self.assertIn(f'https://s3-bucket.s3.amazonaws.com/my/{archive.hash}?'
                       f'response-content-disposition=attachment%3B&'
                       f'response-content-type=application%2Foctet&'
                       f'response-content-encoding=none', url)

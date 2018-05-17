@@ -57,10 +57,10 @@ class Archive(models.Model):
                                help_text=_("The rollup archive for this month"))
 
     def archive_size_display(self):
-        return sizeof_fmt(self.archive_size)
+        return sizeof_fmt(self.size)
 
     def get_s3_location(self):
-        url_parts = urlparse(self.archive_url)
+        url_parts = urlparse(self.url)
         return dict(Bucket=url_parts.netloc.split('.')[0], Key=url_parts.path[1:])
 
     def get_download_link(self):

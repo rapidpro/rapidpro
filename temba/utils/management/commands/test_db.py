@@ -364,8 +364,8 @@ class Command(BaseCommand):
                               f'{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz'
 
             Archive.objects.create(org=org, archive_type=type[0],
-                                   archive_url=archive_url, start_date=start, period=period,
-                                   archive_size=archive_size, archive_hash=archive_hash,
+                                   url=archive_url, start_date=start, period=period,
+                                   size=archive_size, hash=archive_hash,
                                    record_count=record_count, build_time=record_count / 123)
 
         for org in orgs:
