@@ -29,12 +29,12 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest, matchers, ESMockWithScroll
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_number, json_to_dict, dict_to_struct, dict_to_json, str_to_bool, percentage
+from . import format_number, dict_to_struct, dict_to_json, str_to_bool, percentage
 from . import chunk_list, get_country_code_by_name, voicexml, sizeof_fmt
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
 from .dates import str_to_datetime, str_to_time, date_to_utc_range, datetime_to_ms, ms_to_datetime, datetime_to_epoch
-from .dates import datetime_to_str
+from .dates import datetime_to_str, datetime_to_json_date
 from .email import send_simple_email, is_valid_address
 from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
@@ -602,11 +602,7 @@ class JsonTest(TembaTest):
         # encode it
         encoded = dict_to_json(source)
 
-        # now decode it back out
-        decoded = json_to_dict(encoded)
-
-        # should be the same as our source
-        self.assertDictEqual(source, decoded)
+        self.assertEqual(json.loads(encoded), {'name': "Date Test", 'age': 10, 'now': datetime_to_json_date(now)})
 
         # test the same using our object mocking
         mock = dict_to_struct('Mock', json.loads(encoded), ['now'])
@@ -617,12 +613,6 @@ class JsonTest(TembaTest):
 
         # encode it
         encoded = dict_to_json(source)
-
-        # now decode it back out
-        decoded = json_to_dict(encoded)
-
-        # should be the same as our source
-        self.assertDictEqual(source, decoded)
 
         # test the same using our object mocking
         mock = dict_to_struct('Mock', json.loads(encoded), ['now'])

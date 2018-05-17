@@ -14,7 +14,7 @@ from django.db import transaction
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
-from .dates import datetime_to_json_date, datetime_decoder
+from .dates import datetime_to_json_date
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -170,14 +170,6 @@ def dict_to_json(dictionary):
     Converts a dictionary to JSON, taking care of converting dates as needed.
     """
     return json.dumps(dictionary, cls=DateTimeJsonEncoder)
-
-
-def json_to_dict(json_string):
-    """
-    Converts an incoming json string to a Python dictionary trying to detect datetime fields and convert them
-    to Python objects. (you shouldn't do this with untrusted input)
-    """
-    return json.loads(json_string, object_hook=datetime_decoder)
 
 
 def splitting_getlist(request, name, default=None):

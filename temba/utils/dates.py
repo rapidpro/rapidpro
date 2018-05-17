@@ -243,31 +243,6 @@ def date_to_utc_range(d, org):
     return utc_midnight, utc_midnight + datetime.timedelta(days=1)
 
 
-def datetime_decoder(d):
-    """
-    Looks through strings in a dictionary trying to find things that look like date or
-    datetimes and converting them back to datetimes.
-    """
-    if isinstance(d, list):
-        pairs = enumerate(d)  # pragma: no cover
-    elif isinstance(d, dict):
-        pairs = d.items()
-    result = []
-    for k, v in pairs:
-        if isinstance(v, six.string_types):
-            try:
-                v = iso8601.parse_date(v)
-            except iso8601.ParseError:
-                pass
-        elif isinstance(v, (dict, list)):
-            v = datetime_decoder(v)  # pragma: no cover
-        result.append((k, v))
-    if isinstance(d, list):
-        return [x[1] for x in result]  # pragma: no cover
-    elif isinstance(d, dict):
-        return dict(result)
-
-
 def _atoi(s):
     try:
         return int(s)
