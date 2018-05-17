@@ -1239,9 +1239,6 @@ class FlowCRUDL(SmartCRUDL):
                 steps.delete()
                 FlowRun.objects.filter(contact=test_contact).delete()
 
-                # reset all contact fields values
-                test_contact.values.all().delete()
-
                 # reset the name for our test contact too
                 test_contact.fields = {}
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)

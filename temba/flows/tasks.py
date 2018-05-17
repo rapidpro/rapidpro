@@ -33,7 +33,7 @@ def update_run_expirations_task(flow_id):
     """
     for run in FlowRun.objects.filter(flow_id=flow_id, is_active=True):
         if run.path:
-            last_arrived_on = iso8601.parse_date(run.path[0]['arrived_on'])
+            last_arrived_on = iso8601.parse_date(run.path[-1]['arrived_on'])
             run.update_expiration(last_arrived_on)
 
     # force an expiration update

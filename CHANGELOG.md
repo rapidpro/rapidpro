@@ -1,3 +1,16 @@
+v3.0.395
+----------
+ * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
+ * Stop saving message associations with steps
+
+v3.0.393
+----------
+ * Drop values_value
+
+v3.0.392
+----------
+ * Remove broadcast purging
+
 v3.0.391
 ----------
  * remove reference to nyaruka for trackings users
