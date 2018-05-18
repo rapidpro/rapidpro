@@ -345,7 +345,6 @@ class URN(object):
         return cls.from_parts(JIOCHAT_SCHEME, path)
 
 
-@six.python_2_unicode_compatible
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
@@ -523,7 +522,6 @@ NEW_CONTACT_VARIABLE = "@new_contact"
 MAX_HISTORY = 50
 
 
-@six.python_2_unicode_compatible
 class Contact(RequireUpdateFieldsMixin, TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -2090,7 +2088,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return self.get_display()
 
 
-@six.python_2_unicode_compatible
 class ContactURN(models.Model):
     """
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
@@ -2293,7 +2290,6 @@ class UserContactGroupManager(models.Manager):
                                                                           is_active=True)
 
 
-@six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
@@ -2687,7 +2683,6 @@ class ContactGroup(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed

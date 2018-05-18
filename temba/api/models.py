@@ -75,7 +75,6 @@ class SSLPermission(BasePermission):  # pragma: no cover
             return True
 
 
-@six.python_2_unicode_compatible
 class Resthook(SmartModel):
     """
     Represents a hook that a user creates on an organization. Outside apps can integrate by subscribing
@@ -593,7 +592,6 @@ class WebHookResult(SmartModel):
         return 200 <= self.status_code < 300
 
 
-@six.python_2_unicode_compatible
 class APIToken(models.Model):
     """
     Our API token, ties in orgs

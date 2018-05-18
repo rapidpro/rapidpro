@@ -244,7 +244,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
 
@@ -1283,7 +1282,6 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 
-@six.python_2_unicode_compatible
 class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions

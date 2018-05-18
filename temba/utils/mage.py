@@ -8,7 +8,6 @@ import six
 from temba.utils import analytics
 
 
-@six.python_2_unicode_compatible
 class MageError(Exception):  # pragma: needs cover
     def __init__(self, caused_by=None, error_code=None):
         self.caused_by = caused_by

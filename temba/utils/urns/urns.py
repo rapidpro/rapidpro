@@ -15,7 +15,6 @@ ESCAPES = {
 }
 
 
-@six.python_2_unicode_compatible
 class ParsedURN(object):
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme

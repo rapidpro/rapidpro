@@ -83,7 +83,6 @@ def get_dict_from_cursor(cursor):
     ]
 
 
-@six.python_2_unicode_compatible
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries

@@ -3,7 +3,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import geojson
 import logging
-import six
 
 from django.contrib.gis.db import models
 from django.db.models.functions import Concat
@@ -26,7 +25,6 @@ class GeometryManager(models.GeoManager):
         return super(GeometryManager, self).get_queryset()
 
 
-@six.python_2_unicode_compatible
 class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)

@@ -17,7 +17,6 @@ from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
 
 
-@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -421,7 +420,6 @@ class CampaignEvent(TembaModel):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
-@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")

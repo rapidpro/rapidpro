@@ -25,7 +25,6 @@ TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$', flags=regex.V0)
 CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+', flags=regex.V0)
 
 
-@six.python_2_unicode_compatible
 class SearchException(Exception):
     """
     Exception class for unparseable search queries
@@ -37,7 +36,6 @@ class SearchException(Exception):
         return force_text(self.message)
 
 
-@six.python_2_unicode_compatible
 class ContactQuery(object):
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
@@ -137,7 +135,6 @@ class QueryNode(object):
         pass
 
 
-@six.python_2_unicode_compatible
 class Condition(QueryNode):
     COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
 
@@ -604,7 +601,6 @@ class IsSetCondition(Condition):
             raise SearchException(_("Unrecognized contact field type '%s'") % (prop_type, ))
 
 
-@six.python_2_unicode_compatible
 class BoolCombination(QueryNode):
     """
     A combination of two or more conditions using an AND or OR logical operation
@@ -692,7 +688,6 @@ class BoolCombination(QueryNode):
         return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
 
 
-@six.python_2_unicode_compatible
 class SinglePropCombination(BoolCombination):
     """
     A special case combination where all conditions are on the same property and so may be optimized to query the value

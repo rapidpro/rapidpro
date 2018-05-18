@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import calendar
-import six
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -11,7 +10,6 @@ from django.utils import timezone
 from smartmin.models import SmartModel
 
 
-@six.python_2_unicode_compatible
 class Schedule(SmartModel):
     """
     Describes a point in the future to execute some action. These are used to schedule Broadcasts

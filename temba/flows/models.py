@@ -109,7 +109,6 @@ class FlowPropsCache(Enum):
     category_nodes = 2
 
 
-@six.python_2_unicode_compatible
 class FlowSession(models.Model):
     """
     A contact's session with the flow engine
@@ -317,7 +316,6 @@ class FlowSession(models.Model):
         return six.text_type(self.contact)
 
 
-@six.python_2_unicode_compatible
 class Flow(TembaModel):
     UUID = 'uuid'
     ENTRY = 'entry'
@@ -3960,7 +3958,6 @@ class FlowStep(models.Model):
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
 
-@six.python_2_unicode_compatible
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
@@ -4318,7 +4315,6 @@ class RuleSet(models.Model):
             return "RuleSet: %s" % (self.uuid,)
 
 
-@six.python_2_unicode_compatible
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -4571,7 +4567,6 @@ class FlowCategoryCount(SquashableModel):
         return "%s: %s" % (self.category_name, self.count)
 
 
-@six.python_2_unicode_compatible
 class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
@@ -4719,7 +4714,6 @@ class FlowNodeCount(SquashableModel):
         return {six.text_type(t[0]): t[1] for t in totals if t[1]}
 
 
-@six.python_2_unicode_compatible
 class FlowRunCount(SquashableModel):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
@@ -5087,7 +5081,6 @@ class ResultsExportAssetStore(BaseExportAssetStore):
     extensions = ('xlsx',)
 
 
-@six.python_2_unicode_compatible
 class ActionLog(models.Model):
     """
     Log of an event that occurred whilst executing a flow in the simulator
@@ -5147,7 +5140,6 @@ class ActionLog(models.Model):
         return self.text
 
 
-@six.python_2_unicode_compatible
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
     STATUS_STARTING = 'S'
@@ -5240,7 +5232,6 @@ class FlowStart(SmartModel):
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
-@six.python_2_unicode_compatible
 class FlowStartCount(SquashableModel):
     """
     Maintains count of how many runs a FlowStart has created.
@@ -5276,7 +5267,6 @@ class FlowStartCount(SquashableModel):
         return "FlowStartCount[%d:%d]" % (self.start_id, self.count)
 
 
-@six.python_2_unicode_compatible
 class FlowLabel(models.Model):
     org = models.ForeignKey(Org)
 
