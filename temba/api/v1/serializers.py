@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import phonenumbers
@@ -11,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
+from temba.flows.models import Flow, FlowRun, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
 from temba.orgs.models import get_current_export_version
@@ -595,14 +593,7 @@ class FlowRunWriteSerializer(WriteSerializer):
                 return self.ruleset
 
             def is_pause(self):
-                from temba.flows.models import RuleSet
                 return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
-
-            def get_step_type(self):
-                if self.is_ruleset():
-                    return FlowStep.TYPE_RULE_SET
-                else:
-                    return FlowStep.TYPE_ACTION_SET
 
         steps = data.get('steps')
         revision = data.get('revision', data.get('version'))
@@ -670,13 +661,12 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not run or run.submitted_by != self.submitted_by_obj:
             run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
 
-        step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
+        run.update_from_surveyor(steps)
 
         if completed:
-            final_step = step_objs[len(step_objs) - 1] if step_objs else None
             completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
 
-            run.set_completed(final_step, completed_on=completed_on)
+            run.set_completed(None, completed_on=completed_on)
         else:
             run.save(update_fields=('modified_on',))
 

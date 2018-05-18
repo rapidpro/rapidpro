@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
+import iso8601
 import json
 import locale
 import resource
@@ -13,7 +12,7 @@ from django.db import transaction
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
-from .dates import json_date_to_datetime, datetime_to_json_date, datetime_decoder
+from .dates import datetime_to_json_date
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -96,7 +95,7 @@ class DictStruct(object):
         for field in datetime_fields:
             value = self._values.get(field, None)
             if value:
-                self._values[field] = json_date_to_datetime(value)
+                self._values[field] = iso8601.parse_date(value)
 
         self._initialized = True
 
@@ -169,14 +168,6 @@ def dict_to_json(dictionary):
     Converts a dictionary to JSON, taking care of converting dates as needed.
     """
     return json.dumps(dictionary, cls=DateTimeJsonEncoder)
-
-
-def json_to_dict(json_string):
-    """
-    Converts an incoming json string to a Python dictionary trying to detect datetime fields and convert them
-    to Python objects. (you shouldn't do this with untrusted input)
-    """
-    return json.loads(json_string, object_hook=datetime_decoder)
 
 
 def splitting_getlist(request, name, default=None):

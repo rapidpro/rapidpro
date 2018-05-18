@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import subprocess
@@ -2535,10 +2533,13 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[10]['obj'].text, "Inbound message 0")
             self.assertEqual(activity[11]['obj'].text, "Very old inbound message")
 
-            # if a broadcast is purged, it appears in place of the message
+            # make our broadcast look like an old purged broadcast
             bcast = Broadcast.objects.get()
+            for msg in bcast.msgs.all():
+                BroadcastRecipient.objects.create(contact=msg.contact, broadcast=bcast, purged_status=msg.status)
+
             bcast.purged = True
-            bcast.save()
+            bcast.save(update_fields=('purged',))
             bcast.msgs.all().delete()
 
             recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()

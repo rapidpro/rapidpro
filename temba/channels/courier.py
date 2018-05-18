@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import time
 import json
 from django_redis import get_redis_connection

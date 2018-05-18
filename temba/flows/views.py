@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
+import iso8601
 import json
 import logging
 import regex
@@ -1081,8 +1080,7 @@ class FlowCRUDL(SmartCRUDL):
             if modified_on:
                 id = self.request.GET['id']
 
-                from temba.utils import json_date_to_datetime
-                modified_on = json_date_to_datetime(modified_on)
+                modified_on = iso8601.parse_date(modified_on)
                 runs = runs.filter(modified_on__lte=modified_on).exclude(id__gte=id)
 
             # we grab one more than our page to denote whether there's more to get

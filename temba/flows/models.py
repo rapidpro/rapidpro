@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iso8601
 import itertools
@@ -45,7 +43,7 @@ from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOIN
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
-from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
+from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -3210,6 +3208,118 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return attachments
 
+    def update_from_surveyor(self, step_dicts):
+        """
+        Updates this run with the given Surveyor step JSON. For example an actionset might generate a step like:
+            {
+                "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
+                "arrived_on": "2015-08-25T11:59:30.088Z",
+                "actions": [{"msg":"Hi Joe","type":"reply"}],
+                "errors": []
+            }
+        Whereas a ruleset might generate a step like:
+            {
+                "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
+                "arrived_on": "2015-08-25T11:59:30.088Z",
+                "rule": {
+                    "uuid": "7b2fa286-5ef0-4c6a-a770-45dd65384b50",
+                    "text": "I like blue",
+                    "value": "blue",
+                    "category": "Blue",
+                    "media": null
+                },
+                "errors": []
+            }
+        """
+        msgs = []
+
+        for step_dict in step_dicts:
+            node = step_dict['node']
+            arrived_on = iso8601.parse_date(step_dict['arrived_on'])
+
+            prev_step = self.path[-1] if self.path else None
+            if prev_step:
+                # was the previous step an actionset that we need to complete with an exit UUID ?
+                prev_action_set = self.flow.action_sets.filter(uuid=prev_step[FlowRun.PATH_NODE_UUID]).first()
+                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
+                    prev_step[FlowRun.PATH_EXIT_UUID] = str(prev_action_set.exit_uuid)
+
+            if node.is_ruleset():
+                rule_dict = step_dict.get('rule')
+                if rule_dict:
+                    exit_uuid = step_dict['rule']['uuid']
+
+                    if 'media' in rule_dict:
+                        rule_media = rule_dict['media']
+                        (media_type, url) = rule_media.split(':', 1)
+                        rule_value = url
+                        rule_input = url
+                    else:
+                        rule_value = rule_dict['value']
+                        rule_input = rule_dict['text']
+                        rule_media = None
+
+                    self.path.append({
+                        FlowRun.PATH_STEP_UUID: str(uuid4()),
+                        FlowRun.PATH_NODE_UUID: node.uuid,
+                        FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
+                        FlowRun.PATH_EXIT_UUID: exit_uuid
+                    })
+
+                    # if a msg was sent to this ruleset, create it
+                    if node.is_pause():
+                        incoming = Msg.create_incoming(org=self.org, contact=self.contact, text=rule_input,
+                                                       attachments=[rule_media] if rule_media else None,
+                                                       msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                       channel=None, urn=None)
+                        self.add_messages([incoming])
+
+                    ruleset = self.flow.rule_sets.filter(uuid=str(node.uuid)).first()
+                    if ruleset:
+                        # look for an exact rule match by UUID
+                        rule = None
+                        for r in ruleset.get_rules():
+                            if r.uuid == exit_uuid:
+                                rule = r
+                                break
+
+                        if not rule:
+                            # the user updated the rules try to match the new rules
+                            msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
+                            rule, value, rule_input = ruleset.find_matching_rule(None, self, msg)
+                            if not rule:
+                                raise ValueError("No such rule with UUID %s" % exit_uuid)
+
+                            rule_value = value
+
+                        ruleset.save_run_value(self, rule, rule_value, rule_input)
+                else:
+                    self.path.append({
+                        FlowRun.PATH_STEP_UUID: str(uuid4()),
+                        FlowRun.PATH_NODE_UUID: node.uuid,
+                        FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
+                    })
+
+            # node is an actionset
+            else:
+                self.path.append({
+                    FlowRun.PATH_STEP_UUID: str(uuid4()),
+                    FlowRun.PATH_NODE_UUID: node.uuid,
+                    FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat()
+                })
+
+                actions = Action.from_json_array(self.org, step_dict['actions'])
+
+                last_incoming = self.get_messages().filter(direction=INCOMING).order_by('-pk').first()
+
+                for action in actions:
+                    context = self.flow.build_expressions_context(self.contact, last_incoming)
+                    msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
+                    self.add_messages(msgs)
+
+        self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
+        self.save(update_fields=('path', 'current_node_uuid'))
+
     @classmethod
     def create(cls, flow, contact, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
@@ -3801,99 +3911,6 @@ class FlowStep(models.Model):
 
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-    @classmethod
-    def from_json(cls, json_obj, flow, run):
-        """
-        Creates a new flow step from the given Surveyor step JSON
-        """
-        node = json_obj['node']
-        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
-
-        # find the previous step
-        prev_step = cls.objects.filter(run=run).order_by('-left_on').first()
-
-        # figure out which exit was taken by that step
-        exit_uuid = None
-        if prev_step:
-            if prev_step.step_type == cls.TYPE_RULE_SET:
-                exit_uuid = prev_step.rule_uuid
-            else:
-                prev_node = prev_step.get_node()
-                if prev_node:
-                    exit_uuid = prev_node.exit_uuid
-
-        # generate the messages for this step
-        msgs = []
-        if node.is_ruleset():
-            incoming = None
-            if node.is_pause():
-                # if a msg was sent to this ruleset, create it
-                if json_obj['rule']:
-
-                    media = None
-                    if 'media' in json_obj['rule']:
-                        media = json_obj['rule']['media']
-                        (media_type, url) = media.split(':', 1)
-
-                        # store the non-typed url in the value and text
-                        json_obj['rule']['value'] = url
-                        json_obj['rule']['text'] = url
-
-                    # if we received a message
-                    incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   attachments=[media] if media else None,
-                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
-                                                   channel=None, urn=None)
-            else:  # pragma: needs cover
-                incoming = run.get_last_msg(direction=INCOMING)
-
-            if incoming:
-                msgs.append(incoming)
-        else:
-            actions = Action.from_json_array(flow.org, json_obj['actions'])
-
-            last_incoming = run.get_last_msg(direction=INCOMING)
-
-            for action in actions:
-                context = flow.build_expressions_context(run.contact, last_incoming)
-                msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
-
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, exit_uuid=exit_uuid)
-
-        # if a rule was picked on this ruleset
-        if node.is_ruleset() and json_obj['rule']:
-            rule_uuid = json_obj['rule']['uuid']
-            rule_value = json_obj['rule']['value']
-
-            # update the value if we have an existing ruleset
-            ruleset = RuleSet.objects.filter(flow=flow, uuid=node.uuid).first()
-            if ruleset:
-                rule = None
-                for r in ruleset.get_rules():
-                    if r.uuid == rule_uuid:
-                        rule = r
-                        break
-
-                if not rule:
-                    # the user updated the rules try to match the new rules
-                    msg = Msg(org=run.org, contact=run.contact, text=json_obj['rule']['text'], id=0)
-                    rule, value, result_input = ruleset.find_matching_rule(step, run, msg)
-
-                    if not rule:
-                        raise ValueError("No such rule with UUID %s" % rule_uuid)
-
-                    rule_uuid = rule.uuid
-                    rule_value = value
-
-                ruleset.save_run_value(run, rule, rule_value, json_obj['rule']['text'])
-
-            # update our step with our rule details
-            step.rule_uuid = rule_uuid
-            step.rule_value = rule_value
-            step.save(update_fields=('rule_uuid', 'rule_value'))
-
-        return step
 
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import pytz
@@ -654,6 +652,7 @@ class APITest(TembaTest):
                 }
             }
         ])
+        self.assertEqual(str(run.current_node_uuid), color_prompt.uuid)
 
         # outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
