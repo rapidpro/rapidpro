@@ -1,3 +1,10 @@
+v3.0.397
+----------
+ * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts
+ * Rework run_audit command to check JSON fields and not worry about steps
+ * Replace json_date_to_datetime with iso8601.parse_date
+ * Stepless surveyor runs
+
 v3.0.396
 ----------
  * Use run path instead of steps to recalculate run expirations

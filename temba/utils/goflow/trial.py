@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 """
 Temporary functionality to help us try running some flows against a flowserver instance and comparing the results, path
