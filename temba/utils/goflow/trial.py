@@ -76,7 +76,7 @@ def maybe_start_resume(run):
         pass
 
     try:
-        print("Starting flowserver trial resume for run %s" % str(run.uuid))
+        print("Starting flowserver trial resume for run %s in flow '%s'" % (str(run.uuid), run.flow.name))
         return ResumeTrial(run)
 
     except Exception as e:
@@ -108,14 +108,14 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print("Flowserver trial resume for run %s succeeded" % str(trial.run.uuid))
+    print("Flowserver trial resume for run %s in flow '%s' succeeded" % (str(trial.run.uuid), trial.run.flow.name))
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s failed" % str(trial.run.uuid))
+    print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
 
     logger.error("trial resume in flowserver produced different output", extra={
         'run_id': trial.run.id,

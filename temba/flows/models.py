@@ -863,10 +863,10 @@ class Flow(TembaModel):
                 if flowserver_trial:
                     trial_result = None
 
-                    if msg and msg.id:
-                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
-                    elif expired_child_run:
+                    if expired_child_run:
                         trial_result = trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
+                    elif msg and msg.id:
+                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
 
                     if trial_result is not None:
                         analytics.gauge('temba.flowserver_trial.%s' % ('resume_pass' if trial_result else 'resume_fail'))
@@ -3583,35 +3583,32 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             FlowRun.bulk_exit(FlowRun.objects.filter(id=run.parent_id), FlowRun.EXIT_TYPE_INTERRUPTED)
             return
 
-        # resume via flowserver if this run is using the new engine
-        if run.parent.session and run.parent.session.output:  # pragma: needs cover
-            session = FlowSession.objects.get(id=run.parent.session.id)
-            return session.resume_by_expired_run(run)
-
-        msgs = []
-
         last_step = run.parent.path[-1]
         ruleset = RuleSet.objects.filter(uuid=last_step[FlowRun.PATH_NODE_UUID], ruleset_type=RuleSet.TYPE_SUBFLOW,
                                          flow__org=run.org).exclude(flow=None).first()
 
-        if ruleset:
-            # use the last incoming message on the parent
-            msg = run.parent.get_last_msg()
+        # can't resume from a ruleset that no longer exists
+        if not ruleset:
+            return []
 
-            # if we are routing back to the parent before a msg was sent, we need a placeholder
-            if not msg:
-                msg = Msg()
-                msg.id = 0
-                msg.text = ''
-                msg.org = run.org
-                msg.contact = run.contact
+        # resume via flowserver if this run is using the new engine
+        if run.parent.session and run.parent.session.output:
+            session = FlowSession.objects.get(id=run.parent.session.id)
+            return session.resume_by_expired_run(run)
 
-            expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        # need a placeholder msg
+        msg = Msg()
+        msg.id = 0
+        msg.text = ''
+        msg.org = run.org
+        msg.contact = run.contact
 
-            # finally, trigger our parent flow
-            (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                   resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
-                                                   expired_child_run=expired_child_run)
+        expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+
+        # finally, trigger our parent flow
+        (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
+                                               resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
+                                               expired_child_run=expired_child_run)
 
         return msgs
 
