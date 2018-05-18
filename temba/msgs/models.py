@@ -1266,6 +1266,9 @@ class Msg(models.Model):
         if not user:
             user = get_anonymous_user()
 
+        if not sent_on:
+            sent_on = timezone.now()  # no sent_on date?  set it to now
+
         contact_urn = None
         if not contact:
             contact, contact_urn = Contact.get_or_create(org, urn, channel, user=user)
@@ -1283,6 +1286,7 @@ class Msg(models.Model):
         if text:
             text = clean_string(text[:cls.MAX_TEXT_LEN])
 
+        # don't create duplicate messages
         existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction='I').first()
         if existing:
             return existing

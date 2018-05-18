@@ -624,7 +624,7 @@ def sync(request, channel_id):
                             URN.normalize(URN.from_tel(tel), channel.country.code)
 
                             if 'msg' in cmd:
-                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], sent_on=date)
                                 if msg:
                                     extra = dict(msg_id=msg.id)
                         except ValueError:

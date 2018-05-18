@@ -662,7 +662,7 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].contact, self.joe)
         self.assertEqual(out_msgs[0].contact_urn, None)
         self.assertEqual(out_msgs[0].text, "What is your favorite color?")
-        self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
+        self.assertEqual(out_msgs[0].sent_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
