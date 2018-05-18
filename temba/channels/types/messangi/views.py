@@ -5,6 +5,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
+
+from temba.channels.types.messangi import MessangiType
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -33,10 +35,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             raise Exception(_("No org for this user, cannot claim"))
 
         config = {
-            Channel.CONFIG_MESSANGI_PUBLIC_KEY: data['public_key'],
-            Channel.CONFIG_MESSANGI_PRIVATE_KEY: data['private_key'],
-            Channel.CONFIG_MESSANGI_CARRIER_ID: data['carrier_id'],
-            Channel.CONFIG_MESSANGI_INSTANCE_ID: data['instance_id'],
+            MessangiType.CONFIG_PUBLIC_KEY: data['public_key'],
+            MessangiType.CONFIG_PRIVATE_KEY: data['private_key'],
+            MessangiType.CONFIG_CARRIER_ID: data['carrier_id'],
+            MessangiType.CONFIG_INSTANCE_ID: data['instance_id'],
         }
 
         self.object = Channel.create(org, user, 'JM', 'MG', name="Messangi: %s" % data['shortcode'],
