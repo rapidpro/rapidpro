@@ -414,17 +414,13 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
+             partial_recipients=None, run_map=None, high_priority=False):
         """
-        Sends this broadcast by creating outgoing messages for each recipient.
+        Sends this broadcast by creating outgoing messages for each recipient. Returns the ids of the created messages.
         """
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
-
-        # cannot ask for sending by us AND specify a created on, blow up in that case
-        if trigger_send and created_on:  # pragma: no cover
-            raise ValueError("Cannot trigger send and specify a created_on, breaks creating batches")
 
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
@@ -470,9 +466,7 @@ class Broadcast(models.Model):
         batch_recipients = []
         existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
-        # if they didn't pass in a created on, create one ourselves
-        if not created_on:
-            created_on = timezone.now()
+        all_created_msg_ids = []
 
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
@@ -526,7 +520,6 @@ class Broadcast(models.Model):
                                           high_priority=high_priority,
                                           insert_object=False,
                                           attachments=[media] if media else None,
-                                          created_on=created_on,
                                           quick_replies=quick_replies)
 
             except UnreachableException:
@@ -544,26 +537,29 @@ class Broadcast(models.Model):
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-                Msg.objects.bulk_create(batch)
+                batch_created_msgs = Msg.objects.bulk_create(batch)
+                batch_created_msg_ids = [m.id for m in batch_created_msgs]
+                all_created_msg_ids += batch_created_msg_ids
+
                 RelatedRecipient.objects.bulk_create(batch_recipients)
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
-
-                    # increment our created on so we can load our next batch
-                    created_on = created_on + timedelta(seconds=1)
+                    self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
                 batch = []
                 batch_recipients = []
 
         # commit any remaining objects
         if batch:
-            Msg.objects.bulk_create(batch)
+            batch_created_msgs = Msg.objects.bulk_create(batch)
+            batch_created_msg_ids = [m.id for m in batch_created_msgs]
+            all_created_msg_ids += batch_created_msg_ids
+
             RelatedRecipient.objects.bulk_create(batch_recipients)
 
             if trigger_send:
-                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -571,6 +567,8 @@ class Broadcast(models.Model):
         if not partial_recipients:
             self.status = QUEUED if len(recipients) > 0 else SENT
             self.save(update_fields=('status',))
+
+        return all_created_msg_ids
 
     def update(self):
         """

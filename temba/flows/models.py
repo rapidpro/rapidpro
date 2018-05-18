@@ -1903,14 +1903,13 @@ class Flow(TembaModel):
                 # provide the broadcast with a partial recipient list
                 partial_recipients = list(), batch_contacts
 
-                # create the sms messages
-                created_on = timezone.now()
-                broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, created_on=created_on,
-                               partial_recipients=partial_recipients, run_map=run_map)
+                # create the messages
+                msg_ids = broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
+                                         response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
+                                         partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel', 'contact_urn'):
+                for msg in Msg.objects.filter(id__in=msg_ids).select_related('channel', 'contact_urn'):
                     msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
