@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='archive',
             name='rollup',
-            field=models.ForeignKey(help_text='The rollup archive for this month', null=True, on_delete=django.db.models.deletion.SET_NULL, to='archives.Archive'),
+            field=models.ForeignKey(help_text='The archive we were rolled up into, if any', null=True, on_delete=django.db.models.deletion.SET_NULL, to='archives.Archive'),
         ),
         migrations.AddField(
             model_name='archive',
