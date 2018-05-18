@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from celery.task import task
 from django_redis import get_redis_connection
 from django.core.exceptions import ObjectDoesNotExist
