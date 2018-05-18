@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from temba.channels.views import AuthenticatedExternalClaimView
 
 
