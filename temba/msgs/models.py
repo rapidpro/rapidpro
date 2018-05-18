@@ -1382,7 +1382,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, sent_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
+                        sent_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None, uuid=None):
 
         if not org or not user:  # pragma: no cover
@@ -1417,10 +1417,6 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date? set it to now
-        if not created_on:
-            created_on = timezone.now()
-
         # evaluate expressions in the text and attachments if a context was provided
         if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
@@ -1454,7 +1450,7 @@ class Msg(models.Model):
                                            attachments=evaluated_attachments,
                                            text=text,
                                            direction=OUTGOING,
-                                           created_on__gte=created_on - timedelta(minutes=10))
+                                           created_on__gte=timezone.now() - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1472,7 +1468,7 @@ class Msg(models.Model):
                                                     channel=channel,
                                                     text=text,
                                                     direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(hours=24)).count()
+                                                    created_on__gte=timezone.now() - timedelta(hours=24)).count()
                 if same_msg_count >= 10:  # pragma: needs cover
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
@@ -1504,8 +1500,8 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        created_on=created_on,
-                        modified_on=created_on,
+                        created_on=timezone.now(),
+                        modified_on=timezone.now(),
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
