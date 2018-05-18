@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.core.urlresolvers import reverse
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask

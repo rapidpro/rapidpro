@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from celery.task import task
 from temba.contacts.models import ContactURN
 from temba.utils.mage import handle_new_contact
