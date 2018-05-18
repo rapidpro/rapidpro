@@ -459,12 +459,8 @@ class Broadcast(models.Model):
 
             recipients = set(recipients)
 
-        RelatedRecipient = Broadcast.recipients.through
-
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
-        batch_recipients = []
-        existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         all_created_msg_ids = []
 
@@ -530,33 +526,23 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
 
-                # if this isn't an existing recipient, add it as one
-                if msg.contact_id not in existing_recipients:
-                    existing_recipients.add(msg.contact_id)
-                    batch_recipients.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
-
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 batch_created_msgs = Msg.objects.bulk_create(batch)
                 batch_created_msg_ids = [m.id for m in batch_created_msgs]
                 all_created_msg_ids += batch_created_msg_ids
 
-                RelatedRecipient.objects.bulk_create(batch_recipients)
-
                 # send any messages
                 if trigger_send:
                     self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
                 batch = []
-                batch_recipients = []
 
         # commit any remaining objects
         if batch:
             batch_created_msgs = Msg.objects.bulk_create(batch)
             batch_created_msg_ids = [m.id for m in batch_created_msgs]
             all_created_msg_ids += batch_created_msg_ids
-
-            RelatedRecipient.objects.bulk_create(batch_recipients)
 
             if trigger_send:
                 self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))

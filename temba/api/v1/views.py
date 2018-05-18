@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import iso8601
 import six
+
 from six.moves.urllib.parse import urlencode
 
 from django import forms
@@ -19,7 +21,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import splitting_getlist, str_to_bool
-from temba.utils.dates import json_date_to_datetime
 from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, FlowReadSerializer
@@ -273,7 +274,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         before = self.request.query_params.get('before', None)
         if before:
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(modified_on__lte=before)
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
@@ -281,7 +282,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         after = self.request.query_params.get('after', None)
         if after:
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(modified_on__gte=after)
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
@@ -677,7 +678,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         before = self.request.query_params.get('before', None)
         if before:  # pragma: needs cover
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(created_on__lte=before)
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -685,7 +686,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         after = self.request.query_params.get('after', None)
         if after:  # pragma: needs cover
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(created_on__gte=after)
             except Exception:
                 queryset = queryset.filter(pk=-1)
