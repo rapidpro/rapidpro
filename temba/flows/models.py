@@ -3004,7 +3004,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         msg = event['msg']
         urn = self.contact.urns.filter(identity=URN.identity(msg['urn'])).first()
         channel = self.org.channels.filter(uuid=msg['channel']['uuid']).first()
-        created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
         attachments = self._resolve_attachments(msg.get('attachments', []))
@@ -3016,7 +3015,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             quick_replies=msg.get('quick_replies', []),
             channel=channel,
             high_priority=self.session.responded,
-            created_on=created_on,
             response_to=msg_in if msg_in and msg_in.id else None,
             uuid=msg['uuid']
         )

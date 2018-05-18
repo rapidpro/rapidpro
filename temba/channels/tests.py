@@ -509,15 +509,17 @@ class ChannelTest(TembaTest):
 
         # but put it in the past
         msg.delete()
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test",
-                                  created_on=timezone.now() - timedelta(hours=3))
+        with patch('django.utils.timezone.now', return_value=timezone.now() - timedelta(hours=3)):
+            Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test")
+
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send",
-                                          created_on=timezone.now() - timedelta(hours=2))
+        with patch('django.utils.timezone.now', return_value=timezone.now() - timedelta(hours=2)):
+            success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send")
+
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
         success_msg.save()
@@ -744,7 +746,8 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message', created_on=two_hours_ago)
+        with patch('django.utils.timezone.now', return_value=two_hours_ago):
+            Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
