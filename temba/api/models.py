@@ -122,7 +122,7 @@ class Resthook(SmartModel):
         return dict(text=self.slug, id=self.slug)
 
     def __str__(self):  # pragma: needs cover
-        return six.text_type(self.slug)
+        return str(self.slug)
 
 
 class ResthookSubscriber(SmartModel):
@@ -227,7 +227,7 @@ class WebHookEvent(SmartModel):
             'flow': dict(name=flow.name, uuid=flow.uuid),
             'path': run.path,
             'results': run.results,
-            'run': dict(uuid=six.text_type(run.uuid), created_on=run.created_on.isoformat())
+            'run': dict(uuid=str(run.uuid), created_on=run.created_on.isoformat())
         }
 
         if msg and msg.id > 0:
@@ -301,7 +301,7 @@ class WebHookEvent(SmartModel):
             traceback.print_exc()
 
             webhook_event.status = cls.STATUS_FAILED
-            message = "Error calling webhook: %s" % six.text_type(e)
+            message = "Error calling webhook: %s" % str(e)
 
         finally:
             webhook_event.save(update_fields=('status',))
@@ -356,7 +356,7 @@ class WebHookEvent(SmartModel):
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=msg.contact.uuid,
                     contact_name=msg.contact.name,
-                    urn=six.text_type(msg.contact_urn),
+                    urn=str(msg.contact_urn),
                     text=msg.text,
                     attachments=[a.url for a in msg.get_attachments()],
                     time=json_time,
@@ -395,7 +395,7 @@ class WebHookEvent(SmartModel):
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
-                    urn=six.text_type(call.contact_urn),
+                    urn=str(call.contact_urn),
                     extra=call.extra,
                     occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data,
@@ -507,13 +507,13 @@ class WebHookEvent(SmartModel):
                 except ValueError as e:
                     # we were unable to make anything of the body, that's ok though because
                     # get a 200, so just save our error for posterity
-                    result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % six.text_type(e)
+                    result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % str(e)
 
         except Exception as e:
             # we had an error, log it
             self.status = self.STATUS_ERRORED
             result['request_time'] = time.time() - start
-            result['message'] = "Error when delivering event - %s" % six.text_type(e)
+            result['message'] = "Error when delivering event - %s" % str(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
         self.try_count += 1
@@ -620,7 +620,7 @@ class APIToken(models.Model):
             role = cls.get_default_role(org, user)
 
         if not role:
-            raise ValueError("User '%s' has no suitable role for API usage" % six.text_type(user))
+            raise ValueError("User '%s' has no suitable role for API usage" % str(user))
         elif role.name not in cls.ROLE_GRANTED_TO:
             raise ValueError("Role %s is not valid for API usage" % role.name)
 

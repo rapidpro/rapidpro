@@ -1,6 +1,3 @@
-
-import six
-
 from django.db.models import Prefetch
 from mptt.utils import get_cached_trees
 from six.moves.urllib.parse import urlencode
@@ -76,7 +73,7 @@ def serialize_environment(org):
     return {
         'date_format': "DD-MM-YYYY" if org.date_format == 'D' else "MM-DD-YYYY",
         'time_format': "tt:mm",
-        'timezone': six.text_type(org.timezone),
+        'timezone': str(org.timezone),
         'languages': languages
     }
 

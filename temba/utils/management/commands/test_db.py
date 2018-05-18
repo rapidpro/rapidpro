@@ -502,35 +502,35 @@ class Command(BaseCommand):
                     c['fields_as_json'] = {}
 
                     if c['gender'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['gender'].uuid)] = {
-                            'text': six.text_type(c['gender'])
+                        c['fields_as_json'][str(org.cache['fields']['gender'].uuid)] = {
+                            'text': str(c['gender'])
                         }
                     if c['age'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
-                            'text': six.text_type(c['age']),
-                            'number': six.text_type(c['age'])
+                        c['fields_as_json'][str(org.cache['fields']['age'].uuid)] = {
+                            'text': str(c['age']),
+                            'number': str(c['age'])
                         }
                     if c['joined'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
+                        c['fields_as_json'][str(org.cache['fields']['joined'].uuid)] = {
                             'text': org.format_datetime(c['joined'], show_time=False),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
                     if location:
                         c['fields_as_json'].update({
-                            six.text_type(org.cache['fields']['ward'].uuid): {
-                                'text': six.text_type(c['ward'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['ward'].uuid): {
+                                'text': str(c['ward'].path.split(' > ')[-1]),
                                 'ward': c['ward'].path,
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['district'].uuid): {
-                                'text': six.text_type(c['district'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['district'].uuid): {
+                                'text': str(c['district'].path.split(' > ')[-1]),
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['state'].uuid): {
-                                'text': six.text_type(c['state'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['state'].uuid): {
+                                'text': str(c['state'].path.split(' > ')[-1]),
                                 'state': c['state'].path
                             }
                         })
@@ -690,7 +690,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, six.text_type(urn), text)
+                    Msg.create_incoming(channel, str(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -709,7 +709,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, six.text_type(urn), text)
+                Msg.create_incoming(channel, str(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob

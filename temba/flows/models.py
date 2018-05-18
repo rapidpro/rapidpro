@@ -311,7 +311,7 @@ class FlowSession(models.Model):
         return runs
 
     def __str__(self):  # pragma: no cover
-        return six.text_type(self.contact)
+        return str(self.contact)
 
 
 class Flow(TembaModel):
@@ -440,7 +440,7 @@ class Flow(TembaModel):
         """
         Creates a special 'single message' flow
         """
-        name = 'Single Message (%s)' % six.text_type(uuid4())
+        name = 'Single Message (%s)' % str(uuid4())
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
         flow.update_single_message_flow(message, base_language)
         return flow
@@ -461,7 +461,7 @@ class Flow(TembaModel):
         flow.version_number = '11.2'
         flow.save(update_fields=('version_number',))
 
-        entry_uuid = six.text_type(uuid4())
+        entry_uuid = str(uuid4())
         definition = {
             'version': flow.version_number,
             'entry': entry_uuid,
@@ -522,8 +522,8 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
-        version_str = six.text_type(to_check)
-        version = six.text_type(version)
+        version_str = str(to_check)
+        version = str(version)
         for ver in Flow.VERSIONS:
             if ver == version_str and version != ver:
                 return True
@@ -680,7 +680,7 @@ class Flow(TembaModel):
             if saved_media_url and ':' in saved_media_url:
                 text = saved_media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(call.channel, six.text_type(call.contact_urn),
+            msg = Msg.create_incoming(call.channel, str(call.contact_urn),
                                       text, status=PENDING, msg_type=IVR,
                                       attachments=[saved_media_url] if saved_media_url else None,
                                       connection=run.connection)
@@ -1002,7 +1002,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg_in, started_flows, resume_parent_run=False, resume_after_timeout=False):
         msgs_out = []
-        result_input = six.text_type(msg_in)
+        result_input = str(msg_in)
 
         if ruleset.is_ussd() and run.connection_interrupted:
             result_rule, result_value = ruleset.find_interrupt_rule(step, run, msg_in)
@@ -1127,7 +1127,7 @@ class Flow(TembaModel):
     @classmethod
     def get_versions_before(cls, version_number):
         versions = []
-        version_str = six.text_type(version_number)
+        version_str = str(version_number)
         for ver in Flow.VERSIONS:
             if version_str != ver:
                 versions.append(ver)
@@ -1138,7 +1138,7 @@ class Flow(TembaModel):
     @classmethod
     def get_versions_after(cls, version_number):
         versions = []
-        version_str = six.text_type(version_number)
+        version_str = str(version_number)
         for ver in reversed(Flow.VERSIONS):
             if version_str != ver:
                 versions.insert(0, ver)
@@ -1280,7 +1280,7 @@ class Flow(TembaModel):
             .annotate(total=Count('current_node_uuid'))
         )
 
-        return {six.text_type(t['current_node_uuid']): t['total'] for t in totals if t['total']}
+        return {str(t['current_node_uuid']): t['total'] for t in totals if t['total']}
 
     def get_segment_counts(self, contact=None):
         """
@@ -2634,7 +2634,7 @@ class Flow(TembaModel):
             raise e
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
-            logger.exception(six.text_type(e))
+            logger.exception(str(e))
             traceback.print_exc()
             raise e
 
@@ -3059,7 +3059,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         New URN being added to the contact
         """
         user = get_flow_user(self.org)
-        urns = [six.text_type(urn) for urn in self.contact.urns.order_by('-priority')]
+        urns = [str(urn) for urn in self.contact.urns.order_by('-priority')]
         urns.append(event['urn'])
 
         # don't really update URNs on test contacts
@@ -3420,7 +3420,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         elif fields is None:
             return "", count + 1
         else:  # pragma: no cover
-            raise ValueError("Unsupported type %s in extra" % six.text_type(type(fields)))
+            raise ValueError("Unsupported type %s in extra" % str(type(fields)))
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
@@ -3835,7 +3835,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         elif isinstance(value, AdminBoundary):
             return value.path
         else:
-            return six.text_type(value)
+            return str(value)
 
     def save_run_result(self, name, node_uuid, category, category_localized, raw_value, raw_input):
         # slug our name
@@ -4256,7 +4256,7 @@ class RuleSet(models.Model):
                     (result, value) = rule.matches(run, msg, context, text)
                     if result:
                         # treat category as the base category
-                        return rule, value, six.text_type(msg)
+                        return rule, value, str(msg)
             finally:
                 if msg:
                     msg.text = orig_text
@@ -4709,7 +4709,7 @@ class FlowNodeCount(SquashableModel):
     @classmethod
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list('node_uuid').annotate(replies=Sum('count')))
-        return {six.text_type(t[0]): t[1] for t in totals if t[1]}
+        return {str(t[0]): t[1] for t in totals if t[1]}
 
 
 class FlowRunCount(SquashableModel):
@@ -5968,7 +5968,7 @@ class UssdAction(ReplyAction):
             org = run.flow.org
 
             # TODO: this will be arbitrary unless UI is changed to maintain consistent uuids
-            uuid = ruleset.config.get(cls.UUID, six.text_type(uuid4()))
+            uuid = ruleset.config.get(cls.UUID, str(uuid4()))
 
             # define languages
             base_language = run.flow.base_language
@@ -6334,7 +6334,7 @@ class SaveToContactAction(Action):
         elif field == 'tel_e164':
             label = 'Phone Number'
         elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            label = six.text_type(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
+            label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -6416,7 +6416,7 @@ class SaveToContactAction(Action):
                     ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
-                urns = [six.text_type(urn) for urn in contact.urns.all()]
+                urns = [str(urn) for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 # don't really update URNs on test contacts

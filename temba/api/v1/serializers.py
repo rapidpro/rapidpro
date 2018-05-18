@@ -195,7 +195,7 @@ class ContactReadSerializer(ReadSerializer):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [six.text_type(urn) for urn in obj.get_urns()]
+        return [str(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
@@ -736,7 +736,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     normalized = URN.normalize(urn, country)
                 except ValueError as e:  # pragma: needs cover
-                    raise serializers.ValidationError(six.text_type(e))
+                    raise serializers.ValidationError(str(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)

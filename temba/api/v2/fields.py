@@ -28,7 +28,7 @@ def validate_translations(value, base_language, max_length):
 
     for lang, trans in six.iteritems(value):
         if not isinstance(lang, six.string_types) or (lang != 'base' and len(lang) > 3):
-            raise serializers.ValidationError("Language code %s is not valid." % six.text_type(lang))
+            raise serializers.ValidationError("Language code %s is not valid." % str(lang))
         if not isinstance(trans, six.string_types):
             raise serializers.ValidationError("Translations must be strings.")
         if len(trans) > max_length:
@@ -102,7 +102,7 @@ class URNField(serializers.CharField):
         if self.context['org'].is_anon:
             return None
         else:
-            return six.text_type(obj)
+            return str(obj)
 
     def to_internal_value(self, data):
         return validate_urn(data)

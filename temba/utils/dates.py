@@ -1,10 +1,8 @@
-
 import calendar
 import datetime
 import iso8601
 import pytz
 import regex
-import six
 
 from django.utils import timezone
 
@@ -68,7 +66,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     # remove whitespace any trailing period
-    date_str = six.text_type(date_str).strip().rstrip('.')
+    date_str = str(date_str).strip().rstrip('.')
 
     # try first as full ISO string
     if FULL_ISO8601_REGEX.match(date_str):

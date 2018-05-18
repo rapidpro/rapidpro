@@ -1432,7 +1432,7 @@ class APITest(TembaTest):
         self.create_msg(direction='I', contact=contact4, text="Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
-        response = self.postJSON(url, None, {'contacts': [six.text_type(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
+        response = self.postJSON(url, None, {'contacts': [str(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
         self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
@@ -2054,7 +2054,7 @@ class APITest(TembaTest):
             'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
-            'urn': six.text_type(msg.contact_urn),
+            'urn': str(msg.contact_urn),
             'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
@@ -2811,7 +2811,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [start2, start1])
         self.assertEqual(response.json()['results'][0], {
             'id': start2.id,
-            'uuid': six.text_type(start2.uuid),
+            'uuid': str(start2.uuid),
             'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
             'contacts': [
                 {'uuid': self.joe.uuid, 'name': 'Joe Blow'},

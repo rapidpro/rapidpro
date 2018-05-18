@@ -1,6 +1,5 @@
 import json
 import requests
-import six
 
 from temba.utils import analytics
 
@@ -11,7 +10,7 @@ class MageError(Exception):  # pragma: needs cover
         self.error_code = error_code
 
     def __str__(self):
-        return 'Caused by %s' % six.text_type(self.caused_by) if self.caused_by else 'Status code %d' % self.error_code
+        return 'Caused by %s' % str(self.caused_by) if self.caused_by else 'Status code %d' % self.error_code
 
 
 class MageClient(object):  # pragma: needs cover

@@ -111,7 +111,7 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return six.text_type(ParsedURN(scheme, path, query=query, fragment=display))
+        return str(ParsedURN(scheme, path, query=query, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -218,7 +218,7 @@ class URN(object):
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        norm_path = six.text_type(path).strip()
+        norm_path = str(path).strip()
 
         if scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
@@ -230,7 +230,7 @@ class URN(object):
 
         elif scheme == TWITTERID_SCHEME:
             if display:
-                display = six.text_type(display).strip().lower()
+                display = str(display).strip().lower()
                 if display and display[0] == '@':
                     display = display[1:]
 
@@ -586,7 +586,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return get_cacheable_attr(self, '_user_groups', lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED))
 
     def as_json(self):
-        obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
+        obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -707,7 +707,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        return self.fields.get(six.text_type(field.uuid)) if self.fields else None
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
     def get_field_serialized(self, field):
         """
@@ -766,7 +766,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
             return value.name
         else:
-            return six.text_type(value)
+            return str(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
         # make sure this field exists
@@ -781,7 +781,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         else:
             # parse as all value data types
-            str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
+            str_value = str(value)[:Value.MAX_VALUE_LEN]
             dt_value = self.org.parse_datetime(value)
             num_value = self.org.parse_number(value)
             loc_value = None
@@ -813,7 +813,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 else:
                     loc_value = None
 
-        field_uuid = six.text_type(field.uuid)
+        field_uuid = str(field.uuid)
         if self.fields is None:
             self.fields = {}
 
@@ -1201,7 +1201,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if not value:
                 continue
 
-            value = six.text_type(value)
+            value = str(value)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
@@ -1428,7 +1428,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for cell in row:
                 cell_value = cls.normalize_value(cell)
                 if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
-                    cell_value = six.text_type(cell_value)
+                    cell_value = str(cell_value)
                 row_data.append(cell_value)
 
             line_number += 1
@@ -1924,7 +1924,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -2845,7 +2845,7 @@ class ExportContactsTask(BaseExportTask):
                     elif field['key'] == Contact.LANGUAGE:
                         field_value = contact.language
                     elif field['key'] == Contact.ID:
-                        field_value = six.text_type(contact.id)
+                        field_value = str(contact.id)
                     elif field['urn_scheme'] is not None:
                         contact_urns = contact.get_urns()
                         scheme_urns = []
@@ -2865,7 +2865,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = ''
 
                     if field_value:
-                        field_value = six.text_type(clean_string(field_value))
+                        field_value = str(clean_string(field_value))
 
                     values.append(field_value)
 
@@ -2879,7 +2879,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = 'true' if field['group_id'] in contact_groups_ids else 'false'
 
                     if field_value:
-                        field_value = six.text_type(clean_string(field_value))
+                        field_value = str(clean_string(field_value))
 
                     group_values.append(field_value)
 

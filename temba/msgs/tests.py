@@ -1,9 +1,7 @@
-
 import json
-from datetime import datetime, timedelta
-
 import pytz
-import six
+
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
@@ -329,7 +327,7 @@ class MsgTest(TembaTest):
         msg = Msg.create_incoming(self.channel, "tel:250788382382", "Yes, 3.")
 
         self.assertEqual(msg.text, "Yes, 3.")
-        self.assertEqual(six.text_type(msg), "Yes, 3.")
+        self.assertEqual(str(msg), "Yes, 3.")
 
         # Can't send incoming messages
         with self.assertRaises(Exception):
@@ -345,7 +343,7 @@ class MsgTest(TembaTest):
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
         contact.save(update_fields=('is_blocked',))
-        ignored_msg = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "My msg should be archived")
+        ignored_msg = Msg.create_incoming(self.channel, str(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(ignored_msg.status, HANDLED)
@@ -487,7 +485,7 @@ class MsgTest(TembaTest):
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
-        joe_tel = six.text_type(self.joe.get_urn(TEL_SCHEME))
+        joe_tel = str(self.joe.get_urn(TEL_SCHEME))
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
@@ -610,7 +608,7 @@ class MsgTest(TembaTest):
 
         # messages from test contact are not included in the inbox
         test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_incoming(self.channel, six.text_type(test_contact.get_urn()), 'Bla Blah')
+        Msg.create_incoming(self.channel, str(test_contact.get_urn()), 'Bla Blah')
 
         response = self.client.get(inbox_url)
         self.assertEqual(Msg.objects.all().count(), 7)
@@ -659,9 +657,9 @@ class MsgTest(TembaTest):
     def test_flows(self):
         url = reverse('msgs.msg_flow')
 
-        msg1 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 1", msg_type='F')
-        msg2 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 2", msg_type='F')
-        msg3 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 3", msg_type='F')
+        msg1 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 1", msg_type='F')
+        msg2 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 2", msg_type='F')
+        msg3 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 3", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -2145,19 +2143,19 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
-        in_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
+        in_call = ChannelEvent.create(self.channel, str(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
-        in_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
+        in_miss = ChannelEvent.create(self.channel, str(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
-        out_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
+        out_call = ChannelEvent.create(self.channel, str(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT, timezone.now(), {})
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
-        out_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
+        out_miss = ChannelEvent.create(self.channel, str(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 

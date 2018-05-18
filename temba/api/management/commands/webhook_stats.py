@@ -160,4 +160,4 @@ class Command(BaseCommand):  # pragma: no cover
             return url
 
     def _num_style(self, v):
-        return self.style.NOTICE(six.text_type(v))
+        return self.style.NOTICE(str(v))

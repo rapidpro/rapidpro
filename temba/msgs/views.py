@@ -39,27 +39,27 @@ def send_message_auto_complete_processor(request):
         org = request.user.get_org()
 
     if org:
-        completions.append(dict(name='contact', display=six.text_type(_("Contact Name"))))
-        completions.append(dict(name='contact.first_name', display=six.text_type(_("Contact First Name"))))
-        completions.append(dict(name='contact.groups', display=six.text_type(_("Contact Groups"))))
-        completions.append(dict(name='contact.language', display=six.text_type(_("Contact Language"))))
-        completions.append(dict(name='contact.name', display=six.text_type(_("Contact Name"))))
-        completions.append(dict(name='contact.tel', display=six.text_type(_("Contact Phone"))))
-        completions.append(dict(name='contact.tel_e164', display=six.text_type(_("Contact Phone - E164"))))
-        completions.append(dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))))
+        completions.append(dict(name='contact', display=str(_("Contact Name"))))
+        completions.append(dict(name='contact.first_name', display=str(_("Contact First Name"))))
+        completions.append(dict(name='contact.groups', display=str(_("Contact Groups"))))
+        completions.append(dict(name='contact.language', display=str(_("Contact Language"))))
+        completions.append(dict(name='contact.name', display=str(_("Contact Name"))))
+        completions.append(dict(name='contact.tel', display=str(_("Contact Phone"))))
+        completions.append(dict(name='contact.tel_e164', display=str(_("Contact Phone - E164"))))
+        completions.append(dict(name='contact.uuid', display=str(_("Contact UUID"))))
 
-        completions.append(dict(name="date", display=six.text_type(_("Current Date and Time"))))
-        completions.append(dict(name="date.now", display=six.text_type(_("Current Date and Time"))))
-        completions.append(dict(name="date.today", display=six.text_type(_("Current Date"))))
-        completions.append(dict(name="date.tomorrow", display=six.text_type(_("Tomorrow's Date"))))
-        completions.append(dict(name="date.yesterday", display=six.text_type(_("Yesterday's Date"))))
+        completions.append(dict(name="date", display=str(_("Current Date and Time"))))
+        completions.append(dict(name="date.now", display=str(_("Current Date and Time"))))
+        completions.append(dict(name="date.today", display=str(_("Current Date"))))
+        completions.append(dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))))
+        completions.append(dict(name="date.yesterday", display=str(_("Yesterday's Date"))))
 
         for scheme, label in ContactURN.SCHEME_CHOICES:
             if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
-                completions.append(dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label))))
+                completions.append(dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label))))
 
         for field in org.contactfields.filter(is_active=True).order_by('label'):
-            display = six.text_type(_("Contact Field: %(label)s")) % {'label': field.label}
+            display = str(_("Contact Field: %(label)s")) % {'label': field.label}
             completions.append(dict(name="contact.%s" % str(field.key), display=display))
 
     function_completions = get_function_listing()
@@ -81,7 +81,7 @@ class SendMessageForm(Form):
         valid = super(SendMessageForm, self).is_valid()
         if valid:
             if ('step_node' not in self.data or not self.data['step_node']) and ('omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0):
-                self.errors['__all__'] = self.error_class([six.text_type(_("At least one recipient is required"))])
+                self.errors['__all__'] = self.error_class([str(_("At least one recipient is required"))])
                 return False
         return valid
 

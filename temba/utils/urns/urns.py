@@ -20,11 +20,11 @@ class ParsedURN(object):
         self.fragment = fragment
 
     def __str__(self):
-        s = escape(six.text_type(self.scheme)) + ":" + escape(six.text_type(self.path))
+        s = escape(str(self.scheme)) + ":" + escape(str(self.path))
         if self.query:
-            s += "?" + escape(six.text_type(self.query))
+            s += "?" + escape(str(self.query))
         if self.fragment:
-            s += "#" + escape(six.text_type(self.fragment))
+            s += "#" + escape(str(self.fragment))
         return s
 
 

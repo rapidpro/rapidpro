@@ -483,7 +483,7 @@ class EventFire(Model):
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
             field = event.relative_to
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
 
             contacts = (
                 event.campaign.group.contacts
@@ -530,7 +530,7 @@ class EventFire(Model):
             )
             for event in events:
                 field = event.relative_to
-                field_uuid = six.text_type(field.uuid)
+                field_uuid = str(field.uuid)
 
                 contacts = (
                     event.campaign.group.contacts

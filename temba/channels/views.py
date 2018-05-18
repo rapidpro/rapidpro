@@ -948,7 +948,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
         except Exception as e:  # pragma: needs cover
             import traceback
             traceback.print_exc()
-            message = six.text_type(e)
+            message = str(e)
             if message:
                 form._errors['phone_number'] = form.error_class([message])
             else:
@@ -1392,15 +1392,15 @@ class ChannelCRUDL(SmartCRUDL):
             context = super(ChannelCRUDL.Claim, self).get_context_data(**kwargs)
             user = self.request.user
 
-            twilio_countries = [six.text_type(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
+            twilio_countries = [str(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
 
             twilio_countries_str = ', '.join(twilio_countries[:-1])
-            twilio_countries_str += ' ' + six.text_type(_('or')) + ' ' + twilio_countries[-1]
+            twilio_countries_str += ' ' + str(_('or')) + ' ' + twilio_countries[-1]
 
             context['twilio_countries'] = twilio_countries_str
 
             org = user.get_org()
-            context['org_timezone'] = six.text_type(org.timezone)
+            context['org_timezone'] = str(org.timezone)
 
             context['brand'] = org.get_branding()
 
