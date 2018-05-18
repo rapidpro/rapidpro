@@ -3578,42 +3578,40 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             run.parent.responded = True
             run.parent.save(update_fields=['responded'])
 
+        # if our child was interrupted, so shall we be
+        if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == run.parent.contact_id:
+            FlowRun.bulk_exit(FlowRun.objects.filter(id=run.parent_id), FlowRun.EXIT_TYPE_INTERRUPTED)
+            return
+
+        # resume via flowserver if this run is using the new engine
+        if run.parent.session and run.parent.session.output:  # pragma: needs cover
+            session = FlowSession.objects.get(id=run.parent.session.id)
+            return session.resume_by_expired_run(run)
+
         msgs = []
 
-        steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-        step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+        last_step = run.parent.path[-1]
+        ruleset = RuleSet.objects.filter(uuid=last_step[FlowRun.PATH_NODE_UUID], ruleset_type=RuleSet.TYPE_SUBFLOW,
+                                         flow__org=run.org).exclude(flow=None).first()
 
-        if step:
-            # if our child was interrupted, so shall we be
-            if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
-                FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
-                return
+        if ruleset:
+            # use the last incoming message on the parent
+            msg = run.parent.get_last_msg()
 
-            # resume via flowserver if this run is using the new engine
-            if run.parent.session and run.parent.session.output:  # pragma: needs cover
-                session = FlowSession.objects.get(id=run.parent.session.id)
-                return session.resume_by_expired_run(run)
+            # if we are routing back to the parent before a msg was sent, we need a placeholder
+            if not msg:
+                msg = Msg()
+                msg.id = 0
+                msg.text = ''
+                msg.org = run.org
+                msg.contact = run.contact
 
-            ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
-                                             flow__org=step.run.org).exclude(flow=None).first()
-            if ruleset:
-                # use the last incoming message on this step
-                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+            expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
-                # if we are routing back to the parent before a msg was sent, we need a placeholder
-                if not msg:
-                    msg = Msg()
-                    msg.id = 0
-                    msg.text = ''
-                    msg.org = run.org
-                    msg.contact = run.contact
-
-                expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
-
-                # finally, trigger our parent flow
-                (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
-                                                       expired_child_run=expired_child_run)
+            # finally, trigger our parent flow
+            (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
+                                                   resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
+                                                   expired_child_run=expired_child_run)
 
         return msgs
 
