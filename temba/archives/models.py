@@ -54,7 +54,7 @@ class Archive(models.Model):
     build_time = models.IntegerField(help_text="The number of milliseconds it took to build and upload this archive")
 
     rollup = models.ForeignKey('archives.Archive', null=True, on_delete=models.SET_NULL,
-                               help_text=_("The rollup archive for this month"))
+                               help_text=_("The archive we were rolled up into, if any"))
 
     def archive_size_display(self):
         return sizeof_fmt(self.size)
