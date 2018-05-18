@@ -3645,18 +3645,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.session and self.session.output:
             return self.session.resume_by_timeout()
 
-        last_step = FlowStep.get_active_steps_for_contact(self.contact).first()
+        run = FlowRun.get_active_for_contact(self.contact).first()
 
         # this timeout is invalid, clear it
-        if not last_step or last_step.run != self:
+        if not run or not run.path:
             self.timeout_on = None
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
-        node = last_step.get_node()
+        last_step = run.path[-1]
+        node = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
 
         # only continue if we are at a ruleset with a timeout
-        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
+        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > iso8601.parse_date(last_step[FlowRun.PATH_ARRIVED_ON]):
             timeout = node.get_timeout()
 
             # if our current node doesn't have a timeout, but our timeout is still right, then the ruleset
@@ -3921,27 +3922,6 @@ class FlowStep(models.Model):
 
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-    @classmethod
-    def get_active_steps_for_contact(cls, contact, step_type=None):
-
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                        left_on=None)
-
-        # don't consider voice steps, those are interactive
-        steps = steps.exclude(run__flow__flow_type=Flow.VOICE)
-
-        # real contacts don't deal with archived flows
-        if not contact.is_test:
-            steps = steps.filter(run__flow__is_archived=False)
-
-        if step_type:
-            steps = steps.filter(step_type=step_type)
-
-        steps = steps.order_by('-pk')
-
-        # optimize lookups
-        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__connection')
 
     def release(self):
         self.delete()
