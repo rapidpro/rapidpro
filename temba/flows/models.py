@@ -3592,7 +3592,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             return []
 
         # resume via flowserver if this run is using the new engine
-        if run.parent.session and run.parent.session.output:
+        if run.parent.session and run.parent.session.output:  # pragma: needs cover
             session = FlowSession.objects.get(id=run.parent.session.id)
             return session.resume_by_expired_run(run)
 
@@ -3648,7 +3648,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         run = FlowRun.get_active_for_contact(self.contact).first()
 
         # this timeout is invalid, clear it
-        if not run or not run.path:
+        if run != self:
             self.timeout_on = None
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
@@ -3925,15 +3925,6 @@ class FlowStep(models.Model):
 
     def release(self):
         self.delete()
-
-    def get_node(self):
-        """
-        Returns the node (i.e. a RuleSet or ActionSet) associated with this step
-        """
-        if self.step_type == FlowStep.TYPE_RULE_SET:
-            return RuleSet.objects.filter(uuid=self.step_uuid).first()
-        else:  # pragma: needs cover
-            return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
 
 @six.python_2_unicode_compatible
