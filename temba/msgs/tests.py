@@ -375,7 +375,6 @@ class MsgTest(TembaTest):
         partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
         broadcast.send(True, partial_recipients=partial_recipients)
 
-        self.assertEqual(1, broadcast.recipients.all().count())
         self.assertEqual(2, broadcast.msgs.all().count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778899').count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
@@ -387,7 +386,6 @@ class MsgTest(TembaTest):
         partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
         broadcast.send(True, partial_recipients=partial_recipients)
 
-        self.assertEqual(1, broadcast.recipients.all().count())
         self.assertEqual(2, broadcast.msgs.all().count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778899').count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
@@ -431,12 +429,6 @@ class MsgTest(TembaTest):
 
         broadcast.refresh_from_db()
         self.assertEqual(1, broadcast.recipient_count)
-
-        # send it
-        broadcast.send()
-
-        # assert that recipient is set
-        self.assertEqual(set(broadcast.recipients.all()), {self.joe})
 
     def test_outbox(self):
         self.login(self.admin)
@@ -1010,7 +1002,6 @@ class BroadcastTest(TembaTest):
             broadcast.send()
 
             self.assertEqual(broadcast.get_message_count(), 3)
-            self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin})
         finally:
             msgs_models.BATCH_SIZE = orig_batch_size
 
@@ -1026,13 +1017,9 @@ class BroadcastTest(TembaTest):
         self.assertEqual('I', broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
 
-        # no recipients created yet, done when we send
-        self.assertEqual(set(broadcast.recipients.all()), set())
-
         broadcast.send(trigger_send=False)
         self.assertEqual('Q', broadcast.status)
         self.assertEqual(broadcast.get_message_count(), 4)
-        self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
         # after calling send, all messages are queued
         self.assertEqual(broadcast.status, 'Q')
