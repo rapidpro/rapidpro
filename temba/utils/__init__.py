@@ -1,10 +1,8 @@
-
 import datetime
 import iso8601
 import json
 import locale
 import resource
-import six
 
 from decimal import Decimal
 from django.conf import settings
@@ -54,7 +52,7 @@ def format_number(val):
 
     # convert our decimal to a value without exponent
     val = val.quantize(Decimal(1)) if val == val.to_integral() else val.normalize()
-    val = six.text_type(val)
+    val = str(val)
 
     if '.' in val:
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
@@ -81,7 +79,6 @@ def get_dict_from_cursor(cursor):
     ]
 
 
-@six.python_2_unicode_compatible
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries

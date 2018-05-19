@@ -502,7 +502,7 @@ class OrgCRUDL(SmartCRUDL):
             except Exception as e:
                 # this is an unexpected error, report it to sentry
                 logger = logging.getLogger(__name__)
-                logger.error('Exception on app import: %s' % six.text_type(e), exc_info=True)
+                logger.error('Exception on app import: %s' % str(e), exc_info=True)
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 

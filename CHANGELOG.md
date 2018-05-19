@@ -1,3 +1,7 @@
+v3.0.398
+----------
+ * Add period, rollup fields to archive
+
 v3.0.397
 ----------
  * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts

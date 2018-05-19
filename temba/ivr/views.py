@@ -1,6 +1,4 @@
-
 import json
-import six
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -129,15 +127,15 @@ class CallHandler(View):
             if not has_event and call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
-                    event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                    event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                     if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
                         ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
 
                         # TODO: what's special here that this needs to be different?
-                        return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                        return JsonResponse(json.loads(str(response)), safe=False)
 
                     ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
-                    return HttpResponse(six.text_type(response), content_type="text/xml; charset=utf-8")
+                    return HttpResponse(str(response), content_type="text/xml; charset=utf-8")
             else:
 
                 if call.status == IVRCall.COMPLETED:

@@ -14,7 +14,6 @@ from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
 
 
-@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -418,7 +417,6 @@ class CampaignEvent(TembaModel):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
-@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -485,7 +483,7 @@ class EventFire(Model):
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
             field = event.relative_to
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
 
             contacts = (
                 event.campaign.group.contacts
@@ -532,7 +530,7 @@ class EventFire(Model):
             )
             for event in events:
                 field = event.relative_to
-                field_uuid = six.text_type(field.uuid)
+                field_uuid = str(field.uuid)
 
                 contacts = (
                     event.campaign.group.contacts

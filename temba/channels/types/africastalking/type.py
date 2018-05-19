@@ -1,5 +1,3 @@
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.africastalking.views import ClaimView
@@ -61,7 +59,7 @@ class AfricasTalkingType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["Africa/Nairobi", "Africa/Kampala", "Africa/Lilongwe"]
+        return org.timezone and str(org.timezone) in ["Africa/Nairobi", "Africa/Kampala", "Africa/Lilongwe"]
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

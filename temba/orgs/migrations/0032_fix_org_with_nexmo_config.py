@@ -1,8 +1,5 @@
 import json
-from uuid import uuid4
-
 import nexmo as nx
-import six
 
 from django.conf import settings
 from django.core.cache import cache
@@ -10,6 +7,7 @@ from django.db import migrations
 from django.urls import reverse
 from temba.ivr.clients import NexmoClient
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
+from uuid import uuid4
 
 
 def update_nexmo_config(Org):
@@ -61,7 +59,7 @@ def update_nexmo_config(Org):
                 for channel in org_nexmo_channels:
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
-                    nexmo_client.update_nexmo_number(six.text_type(channel.country), channel.address,
+                    nexmo_client.update_nexmo_number(str(channel.country), channel.address,
                                                      'https://%s%s' % (settings.HOSTNAME, mo_path),
                                                      app_id)
 
@@ -81,7 +79,7 @@ def update_nexmo_config(Org):
                 print("Migrations successfully updated nexmo config for Org %d" % org.pk)
 
             except Exception as e:
-                print("Migrations failed to update nexmo config for org %d with error %s" % (org.pk, six.text_type(e)))
+                print("Migrations failed to update nexmo config for org %d with error %s" % (org.pk, str(e)))
                 failed_orgs.add(org.pk)
 
         print("Migrations finished updating nexmo config UPDATED: %d orgs , FAILED: %d orgs" % (len(updated_orgs), len(failed_orgs)))

@@ -3,7 +3,6 @@ import iso8601
 import json
 import logging
 import regex
-import six
 import time
 import traceback
 
@@ -535,7 +534,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
-            generated_uuid = six.text_type(uuid4())
+            generated_uuid = str(uuid4())
             path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
                                           generated_uuid)
             return JsonResponse(dict(path=path))
@@ -704,19 +703,19 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='contact', display=six.text_type(_('Contact Name'))),
-                dict(name='contact.first_name', display=six.text_type(_('Contact First Name'))),
-                dict(name='contact.groups', display=six.text_type(_('Contact Groups'))),
-                dict(name='contact.language', display=six.text_type(_('Contact Language'))),
-                dict(name='contact.mailto', display=six.text_type(_('Contact Email Address'))),
-                dict(name='contact.name', display=six.text_type(_('Contact Name'))),
-                dict(name='contact.tel', display=six.text_type(_('Contact Phone'))),
-                dict(name='contact.tel_e164', display=six.text_type(_('Contact Phone - E164'))),
-                dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
-                dict(name='new_contact', display=six.text_type(_('New Contact')))
+                dict(name='contact', display=str(_('Contact Name'))),
+                dict(name='contact.first_name', display=str(_('Contact First Name'))),
+                dict(name='contact.groups', display=str(_('Contact Groups'))),
+                dict(name='contact.language', display=str(_('Contact Language'))),
+                dict(name='contact.mailto', display=str(_('Contact Email Address'))),
+                dict(name='contact.name', display=str(_('Contact Name'))),
+                dict(name='contact.tel', display=str(_('Contact Phone'))),
+                dict(name='contact.tel_e164', display=str(_('Contact Phone - E164'))),
+                dict(name='contact.uuid', display=str(_("Contact UUID"))),
+                dict(name='new_contact', display=str(_('New Contact')))
             ]
 
-            contact_variables += [dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label)))
+            contact_variables += [dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label)))
                                   for scheme, label in ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in
                                   org.get_schemes(Channel.ROLE_SEND)]
 
@@ -724,20 +723,20 @@ class FlowCRUDL(SmartCRUDL):
                                   ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
-                dict(name='date', display=six.text_type(_('Current Date and Time'))),
-                dict(name='date.now', display=six.text_type(_('Current Date and Time'))),
-                dict(name='date.today', display=six.text_type(_('Current Date'))),
-                dict(name='date.tomorrow', display=six.text_type(_("Tomorrow's Date"))),
-                dict(name='date.yesterday', display=six.text_type(_("Yesterday's Date")))
+                dict(name='date', display=str(_('Current Date and Time'))),
+                dict(name='date.now', display=str(_('Current Date and Time'))),
+                dict(name='date.today', display=str(_('Current Date'))),
+                dict(name='date.tomorrow', display=str(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=str(_("Yesterday's Date")))
             ]
 
             flow_variables = [
-                dict(name='channel', display=six.text_type(_('Sent to'))),
-                dict(name='channel.name', display=six.text_type(_('Sent to'))),
-                dict(name='channel.tel', display=six.text_type(_('Sent to'))),
-                dict(name='channel.tel_e164', display=six.text_type(_('Sent to'))),
-                dict(name='step', display=six.text_type(_('Sent to'))),
-                dict(name='step.value', display=six.text_type(_('Sent to')))
+                dict(name='channel', display=str(_('Sent to'))),
+                dict(name='channel.name', display=str(_('Sent to'))),
+                dict(name='channel.tel', display=str(_('Sent to'))),
+                dict(name='channel.tel_e164', display=str(_('Sent to'))),
+                dict(name='step', display=str(_('Sent to'))),
+                dict(name='step.value', display=str(_('Sent to')))
             ]
 
             parent_variables = [dict(name='parent.%s' % v['name'], display=v['display']) for v in contact_variables]
@@ -746,7 +745,7 @@ class FlowCRUDL(SmartCRUDL):
             child_variables = [dict(name='child.%s' % v['name'], display=v['display']) for v in contact_variables]
             child_variables += [dict(name='child.%s' % v['name'], display=v['display']) for v in flow_variables]
 
-            flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
+            flow_variables.append(dict(name='flow', display=str(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
 
@@ -1281,7 +1280,7 @@ class FlowCRUDL(SmartCRUDL):
                                                     status=status)
                     else:
                         Msg.create_incoming(None,
-                                            six.text_type(test_contact.get_urn(TEL_SCHEME)),
+                                            str(test_contact.get_urn(TEL_SCHEME)),
                                             new_message,
                                             attachments=[media] if media else None,
                                             org=user.get_org(),

@@ -159,7 +159,6 @@ class BroadcastRecipient(models.Model):
         db_table = 'msgs_broadcast_recipients'
 
 
-@six.python_2_unicode_compatible
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -617,7 +616,6 @@ class Attachment(object):
         return self.content_type == other.content_type and self.url == other.url
 
 
-@six.python_2_unicode_compatible
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
@@ -1158,8 +1156,8 @@ class Msg(models.Model):
 
     def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        value = six.text_type(self)
-        attachments = {six.text_type(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
+        value = str(self)
+        attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
         return {
             '__default__': value,
@@ -1211,7 +1209,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
+                    text=self.text, urn_path=self.contact_urn.path, urn=str(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1801,7 +1799,6 @@ class UserLabelManager(models.Manager):
         return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-@six.python_2_unicode_compatible
 class Label(TembaModel):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
@@ -1838,7 +1835,7 @@ class Label(TembaModel):
             raise ValueError("Invalid label name: %s" % name)
 
         if folder and not folder.is_folder():  # pragma: needs cover
-            raise ValueError("%s is not a label folder" % six.text_type(folder))
+            raise ValueError("%s is not a label folder" % str(folder))
 
         label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
@@ -1958,7 +1955,7 @@ class Label(TembaModel):
 
     def __str__(self):
         if self.folder:
-            return "%s > %s" % (six.text_type(self.folder), self.name)
+            return "%s > %s" % (str(self.folder), self.name)
         return self.name
 
     class Meta:
@@ -2106,7 +2103,7 @@ class ExportMessagesTask(BaseExportTask):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
 
         self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
         self.append_row(current_messages_sheet, fields)
@@ -2124,7 +2121,7 @@ class ExportMessagesTask(BaseExportTask):
 
             if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
-                current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
+                current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
 
                 self.append_row(current_messages_sheet, fields)
                 self.set_sheet_column_widths(current_messages_sheet, fields_col_width)

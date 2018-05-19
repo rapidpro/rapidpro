@@ -115,7 +115,7 @@ class ContactGroupForm(forms.ModelForm):
             raise e
 
         except Exception as e:
-            raise forms.ValidationError(six.text_type(e))
+            raise forms.ValidationError(str(e))
 
     class Meta:
         fields = '__all__'
@@ -177,7 +177,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 'field_type': 'field',
                 'sort_direction': sort_direction,
                 'field_path': 'fields.{}'.format(field_leaf),
-                'field_uuid': six.text_type(contact_sort_field['uuid'])
+                'field_uuid': str(contact_sort_field['uuid'])
             }
 
     def get_queryset(self, **kwargs):
@@ -206,7 +206,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return es_search
 
             except SearchException as e:
-                self.search_error = six.text_type(e)
+                self.search_error = str(e)
 
                 # this should be an empty resultset
                 return Contact.objects.none()
@@ -713,7 +713,7 @@ class ContactCRUDL(SmartCRUDL):
         def post_save(self, task):
             # configure import params with current org and timezone
             org = self.derive_org()
-            params = dict(org_id=org.id, timezone=six.text_type(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
+            params = dict(org_id=org.id, timezone=str(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
             params_dump = json.dumps(params)
             ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
 
@@ -1427,7 +1427,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
             for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[3], label=six.text_type(config[1])))
+                sorted_results.insert(0, dict(key=config[3], label=str(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))
 
