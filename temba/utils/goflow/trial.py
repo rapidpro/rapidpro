@@ -78,7 +78,7 @@ def maybe_start_resume(run):
         return ResumeTrial(run)
 
     except Exception as e:
-        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), six.text_type(e)), exc_info=True)
+        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), str(e)), exc_info=True)
         return None
 
 
@@ -98,7 +98,7 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             return True
 
     except Exception as e:
-        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), six.text_type(e)), exc_info=True)
+        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True)
         return False
 
 

@@ -1,5 +1,3 @@
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
@@ -43,4 +41,4 @@ class StartType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["Europe/Kiev"]
+        return org.timezone and str(org.timezone) in ["Europe/Kiev"]

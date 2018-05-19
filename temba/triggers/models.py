@@ -1,5 +1,4 @@
 import regex
-import six
 
 from django.conf import settings
 from django.db import models
@@ -16,7 +15,6 @@ from temba.orgs.models import Org
 from temba_expressions.utils import tokenize
 
 
-@six.python_2_unicode_compatible
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire

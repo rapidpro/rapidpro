@@ -1,5 +1,3 @@
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.globe.views import ClaimView
@@ -42,7 +40,7 @@ class GlobeType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['Asia/Manila']
+        return org.timezone and str(org.timezone) in ['Asia/Manila']
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

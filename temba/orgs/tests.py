@@ -178,7 +178,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", six.text_type(org.country))
+        self.assertEqual("Rwanda", str(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid
@@ -2039,13 +2039,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)

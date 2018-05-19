@@ -1,7 +1,5 @@
-
 import json
 import pytz
-import six
 
 from datetime import datetime, timedelta
 from django.contrib.auth.models import Group
@@ -1041,7 +1039,7 @@ class APITest(TembaTest):
         self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        contact_urns = [six.text_type(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
+        contact_urns = [str(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
         self.assertEqual(["tel:+250788123456", "twitter:drdre"], contact_urns)
         self.assertEqual("Dr Dre", contact.name)
         self.assertEqual(self.org, contact.org)
@@ -1156,7 +1154,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([six.text_type(u) for u in jay_z.urns.all()], ['tel:+250785555555'])
+        self.assertEqual([str(u) for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()

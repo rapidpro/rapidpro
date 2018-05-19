@@ -1,6 +1,3 @@
-
-import six
-
 from celery.task import task
 from django_redis import get_redis_connection
 from twython import Twython
@@ -66,7 +63,7 @@ def resolve_twitter_ids():
 
             except Exception as e:
                 # if this wasn't an exception caused by not finding any of the users, then break
-                if six.text_type(e).find("No user matches") < 0:
+                if str(e).find("No user matches") < 0:
                     # exit, we'll try again later
                     print("exiting resolve_twitter_ids due to exception: %s" % e)
                     break

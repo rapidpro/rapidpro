@@ -1,6 +1,5 @@
 import json
 import pytz
-import six
 import time
 
 from datetime import datetime, timedelta
@@ -237,7 +236,7 @@ class ScheduleTest(TembaTest):
         sched_date = tz.localize(datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0))
 
         schedule.update_schedule(sched_date)
-        self.assertEqual('2013-01-04 23:15:00-05:00', six.text_type(schedule.next_fire))
+        self.assertEqual('2013-01-04 23:15:00-05:00', str(schedule.next_fire))
 
     def test_update_near_day_boundary(self):
 
@@ -266,7 +265,7 @@ class ScheduleTest(TembaTest):
         sched = Schedule.objects.get(pk=sched.pk)
 
         # 11pm in NY should be 4am UTC the next day
-        self.assertEqual('2050-01-04 04:00:00+00:00', six.text_type(sched.next_fire))
+        self.assertEqual('2050-01-04 04:00:00+00:00', str(sched.next_fire))
 
         # a time in the past
         start_date = datetime(2010, 1, 3, 23, 45, 0, 0)
@@ -281,4 +280,4 @@ class ScheduleTest(TembaTest):
         sched = Schedule.objects.get(pk=sched.pk)
 
         # next fire should fall at the right hour and minute
-        self.assertIn('04:45:00+00:00', six.text_type(sched.next_fire))
+        self.assertIn('04:45:00+00:00', str(sched.next_fire))

@@ -1,5 +1,3 @@
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
@@ -48,4 +46,4 @@ class ZenviaType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['America/Sao_Paulo']
+        return org.timezone and str(org.timezone) in ['America/Sao_Paulo']

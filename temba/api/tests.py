@@ -1,5 +1,4 @@
 import json
-import six
 
 from datetime import timedelta
 from django.conf import settings
@@ -38,7 +37,7 @@ class APITokenTest(TembaTest):
         self.assertEqual(token1.user, self.admin)
         self.assertEqual(token1.role, self.admins_group)
         self.assertTrue(token1.key)
-        self.assertEqual(six.text_type(token1), token1.key)
+        self.assertEqual(str(token1), token1.key)
 
         # tokens for different roles with same user should differ
         token2 = APIToken.get_or_create(self.org, self.admin, self.admins_group)
@@ -155,7 +154,7 @@ class WebHookTest(TembaTest):
 
             data = parse_qs(prepared_request.body)
             self.assertEqual('+250788123123', data['phone'][0])
-            self.assertEqual(six.text_type(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
+            self.assertEqual(str(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEqual(self.joe.uuid, data['contact'][0])
             self.assertEqual(self.joe.name, data['contact_name'][0])
             self.assertEqual(call.pk, int(data['call'][0]))
@@ -265,7 +264,7 @@ class WebHookTest(TembaTest):
         data = json.loads(prepared_request.body)
 
         self.assertEqual(data['channel'], {'uuid': str(self.channel.uuid), 'name': self.channel.name})
-        self.assertEqual(data['contact'], {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))})
+        self.assertEqual(data['contact'], {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': str(self.joe.get_urn('tel'))})
         self.assertEqual(data['flow'], {'uuid': str(flow.uuid), 'name': flow.name})
         self.assertEqual(data['input'], {
             'urn': 'tel:+250788123123',
@@ -301,7 +300,7 @@ class WebHookTest(TembaTest):
         # make sure our contact still has a URN
         self.assertEqual(
             event.data['contact'],
-            {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))}
+            {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': str(self.joe.get_urn('tel'))}
         )
 
         # make sure we don't have an input
@@ -542,7 +541,7 @@ class WebHookTest(TembaTest):
 
             data = parse_qs(prepared_request.body)
             self.assertEqual(self.joe.get_urn(TEL_SCHEME).path, data['phone'][0])
-            self.assertEqual(six.text_type(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
+            self.assertEqual(str(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEqual(self.joe.uuid, data['contact'][0])
             self.assertEqual(self.joe.name, data['contact_name'][0])
             self.assertEqual(sms.pk, int(data['sms'][0]))

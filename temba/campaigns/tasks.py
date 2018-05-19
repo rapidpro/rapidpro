@@ -52,7 +52,7 @@ def check_campaigns_task():
 
                     queued_fires.set_queued(queued_fire_ids)
                 except Exception:  # pragma: no cover
-                    fire_ids_str = ','.join(six.text_type(f) for f in queued_fire_ids)
+                    fire_ids_str = ','.join(str(f) for f in queued_fire_ids)
                     logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 

@@ -611,8 +611,8 @@ class FlowTest(TembaTest):
         context = self.flow.build_expressions_context(self.contact, incoming)
         self.assertTrue(context['flow'])
         self.assertEqual("color: orange", context['flow']['__default__'])
-        self.assertEqual("orange", six.text_type(context['flow']['color']['__default__']))
-        self.assertEqual("orange", six.text_type(context['flow']['color']['value']))
+        self.assertEqual("orange", str(context['flow']['color']['__default__']))
+        self.assertEqual("orange", str(context['flow']['color']['value']))
         self.assertEqual("Orange", context['flow']['color']['category'])
         self.assertEqual("orange", context['flow']['color']['text'])
         self.assertIsNotNone(context['flow']['color']['time'])
@@ -654,7 +654,7 @@ class FlowTest(TembaTest):
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_runs, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "",
+        self.assertExcelRow(sheet_runs, 1, [self.contact.uuid, str(self.contact.id), "Eric", "",
                                             run1.created_on, run1.exited_on,
                                             "Orange", "orange", "orange"], self.org.timezone)
 
@@ -663,11 +663,11 @@ class FlowTest(TembaTest):
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "",
+        self.assertExcelRow(sheet_contacts, 1, [self.contact.uuid, str(self.contact.id), "Eric", "",
                                                 "Orange", "orange", "orange"], self.org.timezone)
 
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"])
-        self.assertExcelRow(sheet_msgs, 2, [self.contact.uuid, six.text_type(self.contact.id), "Eric",
+        self.assertExcelRow(sheet_msgs, 2, [self.contact.uuid, str(self.contact.id), "Eric",
                                             msg.created_on, "IN",
                                             "orange", "Test Channel"], self.org.timezone)
 
@@ -4578,7 +4578,7 @@ class SimulationTest(FlowFileTest):
             'created_on': timezone.now().isoformat(),
             'msg': {
                 'text': text,
-                'uuid': six.text_type(uuid4()),
+                'uuid': str(uuid4()),
                 'urn': 'tel:+12065551212',
                 'created_on': timezone.now().isoformat(),
             }
@@ -4982,7 +4982,7 @@ class FlowsTest(FlowFileTest):
 
             # flowserver's created_on isn't necessarily the same as what we store in the database
             self.assertEqual({'uuid', 'created_on'}, set(payload['run'].keys()))
-            self.assertEqual(six.text_type(run.uuid), payload['run']['uuid'])
+            self.assertEqual(str(run.uuid), payload['run']['uuid'])
 
             # make sure things don't sneak into our path format unintentionally
             # first item in the path should have uuid, node, arrived, and exit
@@ -5244,7 +5244,7 @@ class FlowsTest(FlowFileTest):
         assertCount(counts, 'beer', 'Turbo King', 3)
 
         # test tostring
-        six.text_type(FlowCategoryCount.objects.all().first())
+        str(FlowCategoryCount.objects.all().first())
 
         # and if we delete our runs, things zero out
         FlowRun.objects.all().delete()
@@ -6632,7 +6632,7 @@ class FlowsTest(FlowFileTest):
         first_expires = first_run.expires_on
 
         # make sure __str__ works
-        six.text_type(first_run)
+        str(first_run)
 
         time.sleep(1)
 

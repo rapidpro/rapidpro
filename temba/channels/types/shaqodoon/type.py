@@ -1,5 +1,3 @@
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.shaqodoon.views import ClaimView
@@ -43,7 +41,7 @@ class ShaqodoonType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['Africa/Mogadishu']
+        return org.timezone and str(org.timezone) in ['Africa/Mogadishu']
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

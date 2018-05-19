@@ -102,7 +102,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context['org'].is_anon:
             return None
         else:
-            return [six.text_type(urn) for urn in obj.urns.all()]
+            return [str(urn) for urn in obj.urns.all()]
 
     class Meta:
         model = Broadcast
@@ -315,7 +315,7 @@ class ChannelReadSerializer(ReadSerializer):
     device = serializers.SerializerMethodField()
 
     def get_country(self, obj):
-        return six.text_type(obj.country) if obj.country else None
+        return str(obj.country) if obj.country else None
 
     def get_device(self, obj):
         if obj.channel_type != Channel.TYPE_ANDROID:
@@ -353,7 +353,7 @@ class ContactReadSerializer(ReadSerializer):
         if self.context['org'].is_anon or not obj.is_active:
             return []
 
-        return [six.text_type(urn) for urn in obj.get_urns()]
+        return [str(urn) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:

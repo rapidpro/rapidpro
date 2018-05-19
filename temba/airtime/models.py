@@ -1,7 +1,6 @@
 import hashlib
 import json
 import requests
-import six
 import time
 
 from django.conf import settings
@@ -242,7 +241,7 @@ class AirtimeTransfer(SmartModel):
             traceback.print_exc()
 
             airtime.status = AirtimeTransfer.FAILED
-            message = "Error transferring airtime: %s" % six.text_type(e)
+            message = "Error transferring airtime: %s" % str(e)
 
         finally:
             airtime.message = message

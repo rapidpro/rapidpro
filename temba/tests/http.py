@@ -1,5 +1,4 @@
 import json
-import six
 
 from cgi import parse_header, parse_multipart
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -56,7 +55,6 @@ class MockServer(HTTPServer):
     Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
     and provides a mechanism for mocking requests to particular URLs
     """
-    @six.python_2_unicode_compatible
     class Request(object):
         def __init__(self, method, path, content, content_type, status):
             self.method = method

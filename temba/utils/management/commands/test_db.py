@@ -348,17 +348,22 @@ class Command(BaseCommand):
 
         MAX_RECORDS_PER_DAY = 3000000
 
-        def create_archive(max_records, start):
+        def create_archive(max_records, start, period):
             record_count = random.randint(0, max_records)
             archive_size = record_count * 20
             archive_hash = uuid.uuid4().hex
 
-            archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
-                          f'{type[0]}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
+            if period == Archive.DAY:
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
+            else:
+
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz'
 
             Archive.objects.create(org=org, archive_type=type[0],
-                                   archive_url=archive_url, start_date=start, end_date=end,
-                                   archive_size=archive_size, archive_hash=archive_hash,
+                                   url=archive_url, start_date=start, period=period,
+                                   size=archive_size, hash=archive_hash,
                                    record_count=record_count, build_time=record_count / 123)
 
         for org in orgs:
@@ -369,7 +374,7 @@ class Command(BaseCommand):
                 for idx in range(0, end.day - 2):
                     end = (end - timedelta(days=1))
                     start = (end - timedelta(days=1))
-                    create_archive(MAX_RECORDS_PER_DAY, start)
+                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.DAY)
 
                 # month archives before that
                 end = timezone.now()
@@ -377,7 +382,7 @@ class Command(BaseCommand):
                     # last day of the previous month
                     end = end.replace(day=1) - timedelta(days=1)
                     start = end.replace(day=1)
-                    create_archive(MAX_RECORDS_PER_DAY * 30, start)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.MONTH)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -502,35 +507,35 @@ class Command(BaseCommand):
                     c['fields_as_json'] = {}
 
                     if c['gender'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['gender'].uuid)] = {
-                            'text': six.text_type(c['gender'])
+                        c['fields_as_json'][str(org.cache['fields']['gender'].uuid)] = {
+                            'text': str(c['gender'])
                         }
                     if c['age'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
-                            'text': six.text_type(c['age']),
-                            'number': six.text_type(c['age'])
+                        c['fields_as_json'][str(org.cache['fields']['age'].uuid)] = {
+                            'text': str(c['age']),
+                            'number': str(c['age'])
                         }
                     if c['joined'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
+                        c['fields_as_json'][str(org.cache['fields']['joined'].uuid)] = {
                             'text': org.format_datetime(c['joined'], show_time=False),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
                     if location:
                         c['fields_as_json'].update({
-                            six.text_type(org.cache['fields']['ward'].uuid): {
-                                'text': six.text_type(c['ward'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['ward'].uuid): {
+                                'text': str(c['ward'].path.split(' > ')[-1]),
                                 'ward': c['ward'].path,
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['district'].uuid): {
-                                'text': six.text_type(c['district'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['district'].uuid): {
+                                'text': str(c['district'].path.split(' > ')[-1]),
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['state'].uuid): {
-                                'text': six.text_type(c['state'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['state'].uuid): {
+                                'text': str(c['state'].path.split(' > ')[-1]),
                                 'state': c['state'].path
                             }
                         })
@@ -690,7 +695,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, six.text_type(urn), text)
+                    Msg.create_incoming(channel, str(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -709,7 +714,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, six.text_type(urn), text)
+                Msg.create_incoming(channel, str(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob
