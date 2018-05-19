@@ -4654,9 +4654,9 @@ class SimulationTest(FlowFileTest):
 
         # check the activity, we should only see simulation for ourselves
         simulation = response.json()
-        for count in six.itervalues(simulation['activity']):
+        for count in simulation['activity'].values():
             self.assertEqual(1, count)
-        for count in six.itervalues(simulation['visited']):
+        for count in simulation['visited'].values():
             self.assertEqual(1, count)
 
         self.assertEqual(len(json_dict.keys()), 6)
