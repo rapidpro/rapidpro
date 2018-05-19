@@ -26,7 +26,7 @@ def validate_translations(value, base_language, max_length):
     if base_language not in value:
         raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
-    for lang, trans in six.iteritems(value):
+    for lang, trans in value.items():
         if not isinstance(lang, six.string_types) or (lang != 'base' and len(lang) > 3):
             raise serializers.ValidationError("Language code %s is not valid." % str(lang))
         if not isinstance(trans, six.string_types):

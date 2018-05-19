@@ -1,6 +1,4 @@
-
 import json
-import six
 import time
 
 from django.core.management.base import BaseCommand
@@ -50,7 +48,7 @@ def audit_runs(max_id=0):  # pragma: no cover
             break
 
         for run in run_batch:
-            for problem_name, problem_finder in six.iteritems(problem_finders):
+            for problem_name, problem_finder in problem_finders.items():
                 if problem_finder(run):
                     msg = "Run #%d for flow #%d has problem: %s" % (run.id, run.flow.id, problem_name)
                     print("   ! %s" % msg)

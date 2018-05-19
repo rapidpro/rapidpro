@@ -4988,7 +4988,7 @@ class FlowsTest(FlowFileTest):
             # first item in the path should have uuid, node, arrived, and exit
             self.assertEqual(set(payload['path'][0].keys()), {'uuid', 'node_uuid', 'arrived_on', 'exit_uuid'})
 
-            for key, value in six.iteritems(results):
+            for key, value in results.items():
                 result = payload['results'].get(key)
                 self.assertEqual(value, result.get('value'))
 

@@ -79,7 +79,7 @@ class StringDictField(serializers.DictField):
     def to_internal_value(self, data):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
-            for key, val in six.iteritems(data):
+            for key, val in data.items():
                 if not isinstance(key, six.string_types) or not isinstance(val, six.string_types):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
