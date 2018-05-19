@@ -1,10 +1,8 @@
-
 import json
 import logging
-from datetime import datetime
-
 import pytz
-import six
+
+from datetime import datetime
 from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -108,7 +106,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
                 response.hangup()
-                return HttpResponse(six.text_type(response))
+                return HttpResponse(str(response))
 
             org = channel.org
 
@@ -140,7 +138,7 @@ class TWIMLCallHandler(BaseChannelHandler):
 
                     FlowRun.create(flow, contact, session=session, connection=call)
                     response = Flow.handle_call(call)
-                    return HttpResponse(six.text_type(response))
+                    return HttpResponse(str(response))
 
                 else:
 
@@ -157,7 +155,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                     Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
-                    return HttpResponse(six.text_type(response))
+                    return HttpResponse(str(response))
 
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
@@ -300,9 +298,9 @@ class NexmoCallHandler(BaseChannelHandler):
                 FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
 
-                event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                 ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
-                return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                return JsonResponse(json.loads(str(response)), safe=False)
             else:
                 # we don't have an inbound trigger to deal with this call.
                 response = channel.generate_ivr_response()
@@ -317,7 +315,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                 # either way, we need to hangup now
-                return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                return JsonResponse(json.loads(str(response)), safe=False)
 
 
 class MageHandler(BaseChannelHandler):

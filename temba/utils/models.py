@@ -16,7 +16,7 @@ from uuid import uuid4
 
 
 def generate_uuid():
-    return six.text_type(uuid4())
+    return str(uuid4())
 
 
 class ProxyQuerySet(object):
@@ -54,7 +54,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
         return pks
     else:
         # prepare the data set
-        pairs = ','.join(six.text_type((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
+        pairs = ','.join(str((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
 
         if pairs:
             return model.objects.raw(
