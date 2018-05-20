@@ -2011,7 +2011,7 @@ class MsgIterator(six.Iterator):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
+        for i in range(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:

@@ -1095,7 +1095,7 @@ class ModelsTest(TembaTest):
 
     def test_chunk_list(self):
         curr = 0
-        for chunk in chunk_list(six.moves.xrange(100), 7):
+        for chunk in chunk_list(range(100), 7):
             batch_curr = curr
             for item in chunk:
                 self.assertEqual(item, curr)
