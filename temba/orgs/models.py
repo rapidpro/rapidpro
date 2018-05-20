@@ -1486,7 +1486,7 @@ class Org(SmartModel):
                     break
 
             # update items in the database with their new topups
-            for topup, items in six.iteritems(new_topup_items):
+            for topup, items in new_topup_items.items():
                 msg_ids = [item.id for item in items if isinstance(item, Msg)]
                 Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
@@ -1783,7 +1783,7 @@ class Org(SmartModel):
             for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
                 campaigns_by_group[campaign.group].append(campaign)
 
-        for c, deps in six.iteritems(dependencies):
+        for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
                     if isinstance(d, ContactGroup):
@@ -1796,7 +1796,7 @@ class Org(SmartModel):
                 dependencies[trigger] = {trigger.flow}
 
         # make dependencies symmetric, i.e. if A depends on B, B depends on A
-        for c, deps in six.iteritems(dependencies.copy()):
+        for c, deps in dependencies.copy().items():
             for d in deps:
                 dependencies[d].add(c)
 

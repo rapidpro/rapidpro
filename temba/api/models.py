@@ -1,7 +1,6 @@
 import hmac
 import json
 import requests
-import six
 import time
 import uuid
 
@@ -671,7 +670,7 @@ class APIToken(models.Model):
 
         if group:
             role_names = []
-            for role_name, granted_to in six.iteritems(cls.ROLE_GRANTED_TO):
+            for role_name, granted_to in cls.ROLE_GRANTED_TO.items():
                 if group.name in granted_to:
                     role_names.append(role_name)
 

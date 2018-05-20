@@ -1,6 +1,3 @@
-
-import six
-
 from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
@@ -122,7 +119,7 @@ class USSDSession(ChannelSession):
                 connection = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
                                                             .get(external_id=external_id)
                 created = False
-                for k, v in six.iteritems(defaults):
+                for k, v in defaults.items():
                     setattr(connection, k, v() if callable(v) else v)
                 connection.save()
             except cls.DoesNotExist:
@@ -132,7 +129,7 @@ class USSDSession(ChannelSession):
                 created = True
         else:
             defaults.update(dict(external_id=external_id))
-            for key, value in six.iteritems(defaults):
+            for key, value in defaults.items():
                 setattr(connection, key, value)
             connection.save()
             created = None

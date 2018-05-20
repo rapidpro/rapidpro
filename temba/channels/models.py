@@ -463,7 +463,7 @@ class Channel(TembaModel):
     @classmethod
     def get_types(cls):
         from .types import TYPES
-        return six.itervalues(TYPES)
+        return TYPES.values()
 
     @classmethod
     def get_by_category(cls, org, category):

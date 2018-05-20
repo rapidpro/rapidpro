@@ -1,7 +1,5 @@
-
 import iso8601
 import json
-import six
 
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -469,7 +467,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         if custom_fields is not None:
-            for key, value in six.iteritems(custom_fields):
+            for key, value in custom_fields.items():
                 self.instance.set_field(self.context['user'], key, value)
 
         # update our groups
@@ -700,7 +698,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
+        return {k: convert_result(r) for k, r in obj.results.items()}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)

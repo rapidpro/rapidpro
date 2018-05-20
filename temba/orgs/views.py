@@ -2,7 +2,6 @@ import itertools
 import json
 import logging
 import nexmo
-import six
 import requests
 
 from collections import OrderedDict
@@ -173,7 +172,7 @@ class ModalMixin(SmartFormView):
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
 
-        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.GET) if k != '_']
+        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in self.request.GET.items() if k != '_']
         context['action_url'] = self.request.path + "?" + ("&".join(pairs))
 
         return context
@@ -1682,7 +1681,7 @@ class OrgCRUDL(SmartCRUDL):
             context['form'] = self.form
             context['step'] = self.get_step()
 
-            for key, field in six.iteritems(self.form.fields):
+            for key, field in self.form.fields.items():
                 context[key] = field
 
             return context

@@ -43,7 +43,7 @@ class LoggingResource(Resource):  # pragma: no cover
         data = kwargs.get('data')
         if data is not None:
             udata = {}
-            for k, v in six.iteritems(data):
+            for k, v in data.items():
                 key = k.encode('utf-8')
                 if isinstance(v, (list, tuple, set)):
                     udata[key] = [encode_atom(x) for x in v]

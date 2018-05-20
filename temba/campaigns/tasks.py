@@ -1,5 +1,4 @@
 import logging
-import six
 
 from celery.task import task
 from collections import defaultdict
@@ -37,7 +36,7 @@ def check_campaigns_task():
     queued_fires = QueueRecord('queued_event_fires')
 
     # create queued tasks
-    for flow_id, fire_ids in six.iteritems(fire_ids_by_flow_id):
+    for flow_id, fire_ids in fire_ids_by_flow_id.items():
         flow = flows_by_id[flow_id]
 
         # create sub-batches no no single task is too big

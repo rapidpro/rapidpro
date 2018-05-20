@@ -77,7 +77,7 @@ class TranslatableField(HStoreField):
             self.max_length = max_length
 
         def __call__(self, value):
-            for lang, translation in six.iteritems(value):
+            for lang, translation in value.items():
                 if lang != 'base' and len(lang) != 3:
                     raise ValidationError("'%s' is not a valid language code." % lang)
                 if len(translation) > self.max_length:
