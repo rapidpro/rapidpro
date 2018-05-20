@@ -5537,7 +5537,7 @@ class ContactFieldTest(TembaTest):
 
         # find our favorite_cat contact field
         favorite_cat = None
-        for key, value in six.iteritems(post_data):
+        for key, value in post_data.items():
             if value == 'Favorite Cat':
                 favorite_cat = key
         self.assertIsNotNone(favorite_cat)

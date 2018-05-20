@@ -6,7 +6,6 @@ and events with what the current engine produces.
 
 import json
 import logging
-import six
 import time
 
 from django.conf import settings
@@ -313,7 +312,7 @@ def reduce_results(results):
     """
     Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
     """
-    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in six.iteritems(results)}
+    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in results.items()}
 
 
 def reduce_events(events):
@@ -333,4 +332,4 @@ def reduce_events(events):
 
 
 def copy_keys(d, keys):
-    return {k: v for k, v in six.iteritems(d) if k in keys}
+    return {k: v for k, v in d.items() if k in keys}

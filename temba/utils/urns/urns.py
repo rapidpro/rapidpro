@@ -1,5 +1,3 @@
-import six
-
 from enum import Enum
 
 # Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
@@ -83,6 +81,6 @@ def escape(s):
 
 
 def unescape(s):
-    for ch, esc in six.iteritems(ESCAPES):
+    for ch, esc in ESCAPES.items():
         s = s.replace(esc, ch, -1)
     return s

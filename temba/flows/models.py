@@ -1210,7 +1210,7 @@ class Flow(TembaModel):
                 result['total'] += count['count']
             results[count['result_key']] = result
 
-        for k, v in six.iteritems(results):
+        for k, v in results.items():
             for cat in results[k]['categories']:
                 if (results[k]['total']):
                     cat['pct'] = float(cat['count']) / float(results[k]['total'])
@@ -1390,7 +1390,7 @@ class Flow(TembaModel):
                 if 'recording' in action:
                     # if its a localized
                     if isinstance(action['recording'], dict):
-                        for lang, url in six.iteritems(action['recording']):
+                        for lang, url in action['recording'].items():
                             path = copy_recording(url, 'recordings/%d/%d/steps/%s.wav' % (self.org.pk, self.pk, action['uuid']))
                             action['recording'][lang] = path
                     else:
@@ -2671,11 +2671,11 @@ class Flow(TembaModel):
                         fields.update(collector.get_contact_fields(recipient))
 
                 if action.TYPE in ('reply', 'send', 'say'):
-                    for lang, msg in six.iteritems(action.msg):
+                    for lang, msg in action.msg.items():
                         fields.update(collector.get_contact_fields(msg))
 
                     if hasattr(action, 'media'):
-                        for lang, text in six.iteritems(action.media):
+                        for lang, text in action.media.items():
                             fields.update(collector.get_contact_fields(text))
 
                     if hasattr(action, 'variables'):
@@ -2714,7 +2714,7 @@ class Flow(TembaModel):
                 for rule in rules:
                     if hasattr(rule.test, 'test'):
                         if type(rule.test.test) == dict:
-                            for lang, text in six.iteritems(rule.test.test):
+                            for lang, text in rule.test.test.items():
                                 fields.update(collector.get_contact_fields(text))
                         # voice rules are not localized
                         elif isinstance(rule.test.test, six.string_types):
@@ -2958,7 +2958,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         all_run_messages = []
 
         for event in events:
-            # print("⚡ %s %s" % (event['type'], json.dumps({k: v for k, v in six.iteritems(event) if k != 'type'})))
+            # print("⚡ %s %s" % (event['type'], json.dumps({k: v for k, v in event.items() if k != 'type'})))
 
             apply_func = getattr(self, 'apply_%s' % event['type'], None)
             if apply_func:
@@ -2984,7 +2984,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         text = {}
         media = {}
         quick_replies = {}
-        for lang, translation in six.iteritems(event['translations']):
+        for lang, translation in event['translations'].items():
             text[lang] = translation.get('text', "")
             attachments = self._resolve_attachments(translation.get('attachments', []))
             quick_replies[lang] = translation.get('quick_replies', [])
@@ -3371,7 +3371,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         context = {}
         default_lines = []
 
-        for key, result in six.iteritems(self.results):
+        for key, result in self.results.items():
             context[key] = result_wrapper(result)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
@@ -5969,13 +5969,13 @@ class UssdAction(ReplyAction):
 
     def add_menu_to_msg(self, rules):
         # start with a new line
-        self.msg = {language: localised_msg + '\n' for language, localised_msg in six.iteritems(self.msg)}
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.items()}
 
         # add menu to the msg
         for rule in rules:
             if rule.get('label'):  # filter "other" and "interrupted"
                 self.msg = {language: localised_msg + ": ".join(
-                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in six.iteritems(self.msg)}
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.items()}
 
 
 class VariableContactAction(Action):

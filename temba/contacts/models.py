@@ -1117,7 +1117,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             urn_objects = existing_orphan_urns.copy()
 
             # add all new URNs
-            for raw, normalized in six.iteritems(urns_to_create):
+            for raw, normalized in urns_to_create.items():
                 urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
                 urn_objects[raw] = urn
 

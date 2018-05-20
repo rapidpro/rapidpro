@@ -1,11 +1,9 @@
-
 import base64
 import hashlib
 import hmac
 import json
 import phonenumbers
 import pytz
-import six
 import time
 import requests
 
@@ -38,7 +36,7 @@ from twilio import TwilioRestException
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
 
-COUNTRIES_NAMES = {key: value for key, value in six.iteritems(COUNTRIES)}
+COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES['GB'] = _("United Kingdom")
 COUNTRIES_NAMES['US'] = _("United States")
 

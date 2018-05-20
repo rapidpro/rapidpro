@@ -4654,9 +4654,9 @@ class SimulationTest(FlowFileTest):
 
         # check the activity, we should only see simulation for ourselves
         simulation = response.json()
-        for count in six.itervalues(simulation['activity']):
+        for count in simulation['activity'].values():
             self.assertEqual(1, count)
-        for count in six.itervalues(simulation['visited']):
+        for count in simulation['visited'].values():
             self.assertEqual(1, count)
 
         self.assertEqual(len(json_dict.keys()), 6)
@@ -4988,7 +4988,7 @@ class FlowsTest(FlowFileTest):
             # first item in the path should have uuid, node, arrived, and exit
             self.assertEqual(set(payload['path'][0].keys()), {'uuid', 'node_uuid', 'arrived_on', 'exit_uuid'})
 
-            for key, value in six.iteritems(results):
+            for key, value in results.items():
                 result = payload['results'].get(key)
                 self.assertEqual(value, result.get('value'))
 
