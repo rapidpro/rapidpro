@@ -95,7 +95,7 @@ class AddFlowServerTestsMeta(type):
     """
     def __new__(mcs, name, bases, dct):
         new_tests = {}
-        for key, test_func in six.iteritems(dct):
+        for key, test_func in dct.items():
             if key.startswith('test_') and getattr(test_func, '_also_in_flowserver', False):
                 test_without, test_with = mcs._split_test(test_func)
 
@@ -181,7 +181,7 @@ class TembaTestMixin(object):
         handle.close()
 
         if substitutions:
-            for k, v in six.iteritems(substitutions):
+            for k, v in substitutions.items():
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
@@ -407,7 +407,7 @@ class TembaTestMixin(object):
             self.assertEqual(mock_request.data, data)
 
         # check any provided header values
-        for key, val in six.iteritems(headers):
+        for key, val in headers.items():
             self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
 
     def assertAllRequestsMade(self):

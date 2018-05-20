@@ -1,7 +1,5 @@
-
 import iso8601
 import itertools
-import six
 
 from django import forms
 from django.contrib.auth import authenticate, login
@@ -298,7 +296,7 @@ class BaseAPIView(generics.GenericAPIView):
         Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
         """
         lookup_values = {}
-        for param, field in six.iteritems(self.lookup_params):
+        for param, field in self.lookup_params.items():
             if param in self.request.query_params:
                 param_value = self.request.query_params[param]
 

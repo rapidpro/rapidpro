@@ -37,7 +37,7 @@ def translate(translations, preferred_langs):
         if lang in translations:
             return translations[lang]
 
-    return six.next(six.itervalues(translations))
+    return six.next(translations.values())
 
 
 def serialize_message(msg):
