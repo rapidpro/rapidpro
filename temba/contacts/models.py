@@ -1,4 +1,3 @@
-
 import datetime
 import json
 import logging
@@ -6,7 +5,6 @@ import os
 import phonenumbers
 import pytz
 import regex
-import six
 import time
 import uuid
 import iso8601
@@ -1389,7 +1387,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def normalize_value(cls, val):
-        if isinstance(val, six.string_types):
+        if isinstance(val, str):
             return SmartModel.normalize_value(val)
         return val
 
@@ -1857,7 +1855,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Gets the highest priority matching URN for this contact. Schemes may be a single scheme or a set/list/tuple
         """
-        if isinstance(schemes, six.string_types):
+        if isinstance(schemes, str):
             schemes = (schemes,)
 
         urns = self.get_urns()

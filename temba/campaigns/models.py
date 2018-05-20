@@ -1,5 +1,4 @@
 import json
-import six
 
 from datetime import timedelta
 from django.db import models
@@ -218,7 +217,6 @@ class Campaign(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
@@ -268,7 +266,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        if isinstance(message, six.string_types):
+        if isinstance(message, str):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             message = {base_language: message}
 

@@ -412,7 +412,7 @@ class Channel(TembaModel):
 
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
-        if isinstance(channel_type, six.string_types):
+        if isinstance(channel_type, str):
             channel_type = cls.get_type_from_code(channel_type)
 
         if schemes:
