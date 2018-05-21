@@ -1,8 +1,6 @@
-
 import copy
 import json
 import regex
-import six
 from uuid import uuid4
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
@@ -387,7 +385,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
 
     def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
         # deal with case of having only a string and no name
-        if isinstance(ele, six.string_types) and create_dict:
+        if isinstance(ele, str) and create_dict:
             # variable references should just stay put
             if len(ele) > 0 and ele[0] == '@':
                 return ele
@@ -518,7 +516,7 @@ def migrate_to_version_8(json_flow, flow=None):
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
     def migrate_node(node):
-        if isinstance(node, six.string_types):
+        if isinstance(node, str):
             return migrate_template(node)
         if isinstance(node, list):
             for n in range(len(node)):

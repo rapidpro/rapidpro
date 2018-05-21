@@ -7,7 +7,6 @@ import pycountry
 import random
 import re
 import regex
-import six
 import stripe
 import traceback
 
@@ -1060,7 +1059,7 @@ class Org(SmartModel):
         """
         # while technically we could resolve a full boundary path without a country, our policy is that
         # if you don't have a country set then you don't have locations
-        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, six.string_types) else None
+        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, str) else None
 
     def parse_location(self, location_string, level, parent=None):
         """
@@ -1070,7 +1069,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, str):
             return []
 
         boundary = None

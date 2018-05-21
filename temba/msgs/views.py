@@ -1,6 +1,4 @@
-
 import json
-import six
 
 from datetime import date, timedelta
 from django import forms
@@ -140,7 +138,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         if 'search' not in self.request.GET:
             if isinstance(label, Label) and not label.is_folder():
                 self.object_list.count = lambda: label.get_visible_count()
-            elif isinstance(label, six.string_types):
+            elif isinstance(label, str):
                 self.object_list.count = lambda: counts[label]
 
         context = super(InboxView, self).get_context_data(**kwargs)

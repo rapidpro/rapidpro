@@ -1,6 +1,4 @@
-
 import re
-import six
 
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, send_mail, get_connection as get_smtp_connection
@@ -58,7 +56,7 @@ def send_simple_email(recipients, subject, body, from_email=None):
     if from_email is None:
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
 
-    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
+    recipient_list = [recipients] if isinstance(recipients, str) else recipients
 
     send_temba_email(subject, body, None, from_email, recipient_list)
 
@@ -77,7 +75,7 @@ def send_custom_smtp_email(recipients, subject, body, from_email, smtp_host, smt
     :param smtp_password: SMTP password
     :param use_tls: Whether to use TLS
     """
-    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
+    recipient_list = [recipients] if isinstance(recipients, str) else recipients
 
     if smtp_port is not None:
         smtp_port = int(smtp_port)
@@ -101,7 +99,7 @@ def send_template_email(recipients, subject, template, context, branding):
 
     # brands are allowed to give us a from address
     from_email = branding.get('from_email', getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io'))
-    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
+    recipient_list = [recipients] if isinstance(recipients, str) else recipients
 
     html_template = loader.get_template(template + ".html")
     text_template = loader.get_template(template + ".txt")

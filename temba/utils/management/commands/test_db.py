@@ -1,10 +1,8 @@
-
 import json
 import math
 import pytz
 import random
 import resource
-import six
 import sys
 import time
 import uuid
@@ -473,7 +471,7 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch_num = 1
-            for index_batch in chunk_list(six.moves.xrange(num_contacts), self.batch_size):
+            for index_batch in chunk_list(range(num_contacts), self.batch_size):
                 batch = []
 
                 # generate flat representations and contact objects for this batch

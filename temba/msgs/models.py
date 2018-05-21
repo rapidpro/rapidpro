@@ -236,7 +236,7 @@ class Broadcast(models.Model):
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
                quick_replies=None, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
-        if isinstance(text, six.string_types):
+        if isinstance(text, str):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             text = {base_language: text}
 
@@ -1528,7 +1528,7 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, six.string_types):
+        elif isinstance(recipient, str):
             scheme, path, query, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
@@ -2011,7 +2011,7 @@ class MsgIterator(six.Iterator):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
+        for i in range(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
