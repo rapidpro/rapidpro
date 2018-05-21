@@ -3272,7 +3272,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         if not rule:
                             # the user updated the rules try to match the new rules
                             msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                            rule, value, rule_input = ruleset.find_matching_rule(None, self, msg)
+                            rule, value, rule_input = ruleset.find_matching_rule(self, msg)
                             if not rule:
                                 raise ValueError("No such rule with UUID %s" % exit_uuid)
 
