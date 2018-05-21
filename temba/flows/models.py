@@ -1897,14 +1897,13 @@ class Flow(TembaModel):
                 # provide the broadcast with a partial recipient list
                 partial_recipients = list(), batch_contacts
 
-                # create the sms messages
-                created_on = timezone.now()
-                broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, created_on=created_on,
-                               partial_recipients=partial_recipients, run_map=run_map)
+                # create the messages
+                msg_ids = broadcast.send(expressions_context=expressions_context_base, trigger_send=False,
+                                         response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
+                                         partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel', 'contact_urn'):
+                for msg in Msg.objects.filter(id__in=msg_ids).select_related('channel', 'contact_urn'):
                     msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
@@ -2999,7 +2998,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         msg = event['msg']
         urn = self.contact.urns.filter(identity=URN.identity(msg['urn'])).first()
         channel = self.org.channels.filter(uuid=msg['channel']['uuid']).first()
-        created_on = iso8601.parse_date(event['created_on'])
         user = get_flow_user(self.org)
 
         attachments = self._resolve_attachments(msg.get('attachments', []))
@@ -3011,7 +3009,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             quick_replies=msg.get('quick_replies', []),
             channel=channel,
             high_priority=self.session.responded,
-            created_on=created_on,
             response_to=msg_in if msg_in and msg_in.id else None,
             uuid=msg['uuid']
         )
@@ -3266,7 +3263,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     if node.is_pause():
                         incoming = Msg.create_incoming(org=self.org, contact=self.contact, text=rule_input,
                                                        attachments=[rule_media] if rule_media else None,
-                                                       msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                       msg_type=FLOW, status=HANDLED, sent_on=arrived_on,
                                                        channel=None, urn=None)
                         self.add_messages([incoming])
 
@@ -5909,21 +5906,21 @@ class ReplyAction(Action):
 
             if offline_on:
                 context = None
-                created_on = offline_on
+                sent_on = offline_on
             else:
-                created_on = None
+                sent_on = None
 
             if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, expressions_context=context,
                                     connection=run.connection, msg_type=self.MSG_TYPE, quick_replies=quick_replies,
-                                    attachments=attachments, send_all=self.send_all, created_on=created_on)
+                                    attachments=attachments, send_all=self.send_all, sent_on=sent_on)
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
                 high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, expressions_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           quick_replies=quick_replies, created_on=created_on, all_urns=self.send_all,
+                                           quick_replies=quick_replies, sent_on=sent_on, all_urns=self.send_all,
                                            high_priority=high_priority)
         return replies
 

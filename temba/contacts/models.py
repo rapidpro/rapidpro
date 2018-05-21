@@ -2052,10 +2052,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, expressions_context=None, connection=None,
-             quick_replies=None, attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
+             quick_replies=None, attachments=None, msg_type=None, sent_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
-        status = SENT if created_on else PENDING
+        status = SENT if sent_on else PENDING
 
         if all_urns:
             recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
@@ -2068,7 +2068,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, expressions_context=expressions_context,
                                           connection=connection, attachments=attachments, msg_type=msg_type or INBOX,
-                                          status=status, quick_replies=quick_replies, created_on=created_on,
+                                          status=status, quick_replies=quick_replies, sent_on=sent_on,
                                           high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
