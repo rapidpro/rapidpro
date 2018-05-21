@@ -818,7 +818,7 @@ class Flow(TembaModel):
                 return True
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None, voice_response=None,
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None, allow_trial=True,
                         triggered_start=False, resume_parent_run=False, expired_child_run=None,
                         resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
@@ -845,7 +845,7 @@ class Flow(TembaModel):
                 Msg.mark_handled(msg)
                 return True, []
 
-            flowserver_trial = trial.maybe_start_resume(run)
+            flowserver_trial = trial.maybe_start_resume(run) if allow_trial else None
 
             (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
@@ -3603,12 +3603,17 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             msg.org = run.org
             msg.contact = run.contact
 
-        expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+            allow_trial = True
+            expired_child_run = run
+        else:
+            allow_trial = False
+            expired_child_run = None
 
         # finally, trigger our parent flow
         (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
                                                resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
-                                               expired_child_run=expired_child_run)
+                                               expired_child_run=expired_child_run, allow_trial=allow_trial)
 
         return msgs
 
