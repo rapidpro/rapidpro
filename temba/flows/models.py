@@ -41,7 +41,7 @@ from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOIN
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
-from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str
+from temba.utils.dates import str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -686,10 +686,11 @@ class Flow(TembaModel):
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
         # find out where we last left off
-        step = run.steps.all().order_by('-arrived_on').first()
+        last_step = run.path[-1] if run.path else None
+        step_obj = run.steps.all().order_by('-arrived_on').first()
 
         # if we are just starting the flow, create our first step
-        if not step:
+        if not last_step:
             # lookup our entry node
             destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
             if not destination:
@@ -697,11 +698,17 @@ class Flow(TembaModel):
 
             # and add our first step for our run
             if destination:
-                step = flow.add_step(run, destination, [])
+                step_obj = flow.add_step(run, destination, [])
+        else:
+            destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
+        if not destination:  # pragma: no cover
+            voice_response.hangup()
+            run.set_completed(final_step=step_obj)
+            return voice_response
 
         # go and actually handle wherever we are in the flow
-        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
+        (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -713,15 +720,16 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed(final_step=step)
+            run.set_completed(final_step=step_obj)
 
         return voice_response
 
     @classmethod
     def wrap_voice_response_with_input(cls, call, run, voice_response):
         """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
-        step = run.steps.all().order_by('-pk').first()
-        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        last_step = run.path[-1]
+        destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
         if isinstance(destination, RuleSet):
             response = call.channel.generate_ivr_response()
             callback = 'https://%s%s' % (run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
@@ -816,7 +824,7 @@ class Flow(TembaModel):
                 return True
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None, voice_response=None,
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None, allow_trial=True,
                         triggered_start=False, resume_parent_run=False, expired_child_run=None,
                         resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
@@ -828,21 +836,24 @@ class Flow(TembaModel):
         if session:
             return session.resume_by_input(msg)
 
-        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
-        for step in steps:
-            flow = step.run.flow
+        for run in FlowRun.get_active_for_contact(msg.contact):
+            flow = run.flow
             flow.ensure_current_version()
-            destination = Flow.get_node(flow, step.step_uuid, step.step_type)
+
+            last_step = run.path[-1]
+            destination = Flow.get_node(flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
+            step_obj = run.steps.order_by('id').last()
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                step.run.set_completed(final_step=step)
+                run.set_completed(final_step=step_obj)
                 Msg.mark_handled(msg)
                 return True, []
 
-            flowserver_trial = trial.maybe_start_resume(step.run)
+            flowserver_trial = trial.maybe_start_resume(run) if allow_trial else None
 
-            (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
+            (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
@@ -854,10 +865,10 @@ class Flow(TembaModel):
                 if flowserver_trial:
                     trial_result = None
 
-                    if msg and msg.id:
-                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
-                    elif expired_child_run:
+                    if expired_child_run:
                         trial_result = trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
+                    elif msg and msg.id:
+                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
 
                     if trial_result is not None:
                         analytics.gauge('temba.flowserver_trial.%s' % ('resume_pass' if trial_result else 'resume_fail'))
@@ -1056,7 +1067,6 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(':', 1)[1]
 
-        step.save_rule_match(result_rule, result_value)
         ruleset.save_run_value(run, result_rule, result_value, result_input)
 
         # output the new value if in the simulator
@@ -2017,9 +2027,8 @@ class Flow(TembaModel):
 
         if previous_step:
             previous_step.left_on = arrived_on
-            previous_step.rule_uuid = exit_uuid
             previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'rule_uuid', 'next_uuid'))
+            previous_step.save(update_fields=('left_on', 'next_uuid'))
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2027,8 +2036,7 @@ class Flow(TembaModel):
 
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                                  rule_uuid=exit_uuid)
+            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -2847,6 +2855,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             del self.__dict__['cached_child']
 
     @classmethod
+    def get_active_for_contact(cls, contact):
+        runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
+
+        # don't consider voice runs, those are interactive
+        runs = runs.exclude(flow__flow_type=Flow.VOICE)
+
+        # real contacts don't deal with archived flows
+        if not contact.is_test:
+            runs = runs.filter(flow__is_archived=False)
+
+        return runs.select_related('flow', 'contact', 'flow__org', 'connection').order_by('-id')
+
+    @classmethod
     def create_or_update_from_goflow(cls, session, contact, run_output, run_events, wait, msg_in):
         """
         Creates or updates a flow run from the given output returned from goflow
@@ -3553,42 +3574,46 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             run.parent.responded = True
             run.parent.save(update_fields=['responded'])
 
-        msgs = []
+        # if our child was interrupted, so shall we be
+        if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == run.parent.contact_id:
+            FlowRun.bulk_exit(FlowRun.objects.filter(id=run.parent_id), FlowRun.EXIT_TYPE_INTERRUPTED)
+            return
 
-        steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-        step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+        last_step = run.parent.path[-1]
+        ruleset = RuleSet.objects.filter(uuid=last_step[FlowRun.PATH_NODE_UUID], ruleset_type=RuleSet.TYPE_SUBFLOW,
+                                         flow__org=run.org).exclude(flow=None).first()
 
-        if step:
-            # if our child was interrupted, so shall we be
-            if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
-                FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
-                return
+        # can't resume from a ruleset that no longer exists
+        if not ruleset:
+            return []
 
-            # resume via flowserver if this run is using the new engine
-            if run.parent.session and run.parent.session.output:  # pragma: needs cover
-                session = FlowSession.objects.get(id=run.parent.session.id)
-                return session.resume_by_expired_run(run)
+        # resume via flowserver if this run is using the new engine
+        if run.parent.session and run.parent.session.output:  # pragma: needs cover
+            session = FlowSession.objects.get(id=run.parent.session.id)
+            return session.resume_by_expired_run(run)
 
-            ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
-                                             flow__org=step.run.org).exclude(flow=None).first()
-            if ruleset:
-                # use the last incoming message on this step
-                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+        # use the last incoming message on this run
+        msg = run.get_last_msg(direction=INCOMING)
 
-                # if we are routing back to the parent before a msg was sent, we need a placeholder
-                if not msg:
-                    msg = Msg()
-                    msg.id = 0
-                    msg.text = ''
-                    msg.org = run.org
-                    msg.contact = run.contact
+        # if we are routing back to the parent before a msg was sent, we need a placeholder
+        if not msg:
+            msg = Msg()
+            msg.id = 0
+            msg.text = ''
+            msg.org = run.org
+            msg.contact = run.contact
 
-                expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+            allow_trial = True
+            expired_child_run = run
+        else:
+            allow_trial = False
+            expired_child_run = None
 
-                # finally, trigger our parent flow
-                (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
-                                                       expired_child_run=expired_child_run)
+        # finally, trigger our parent flow
+        (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
+                                               resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent,
+                                               expired_child_run=expired_child_run, allow_trial=allow_trial)
 
         return msgs
 
@@ -3625,18 +3650,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if self.session and self.session.output:
             return self.session.resume_by_timeout()
 
-        last_step = FlowStep.get_active_steps_for_contact(self.contact).first()
+        run = FlowRun.get_active_for_contact(self.contact).first()
 
         # this timeout is invalid, clear it
-        if not last_step or last_step.run != self:
+        if run != self:
             self.timeout_on = None
             self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
-        node = last_step.get_node()
+        last_step = run.path[-1]
+        node = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
 
         # only continue if we are at a ruleset with a timeout
-        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
+        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > iso8601.parse_date(last_step[FlowRun.PATH_ARRIVED_ON]):
             timeout = node.get_timeout()
 
             # if our current node doesn't have a timeout, but our timeout is still right, then the ruleset
@@ -3902,50 +3928,8 @@ class FlowStep(models.Model):
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
-    @classmethod
-    def get_active_steps_for_contact(cls, contact, step_type=None):
-
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                        left_on=None)
-
-        # don't consider voice steps, those are interactive
-        steps = steps.exclude(run__flow__flow_type=Flow.VOICE)
-
-        # real contacts don't deal with archived flows
-        if not contact.is_test:
-            steps = steps.filter(run__flow__is_archived=False)
-
-        if step_type:
-            steps = steps.filter(step_type=step_type)
-
-        steps = steps.order_by('-pk')
-
-        # optimize lookups
-        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__connection')
-
     def release(self):
         self.delete()
-
-    def save_rule_match(self, rule, value):
-        self.rule_uuid = rule.uuid
-
-        # format our rule value appropriately
-        if isinstance(value, datetime):
-            (date_format, time_format) = get_datetime_format(self.run.flow.org.get_dayfirst())
-            self.rule_value = datetime_to_str(value, tz=self.run.flow.org.timezone, format=time_format, ms=False)
-        else:
-            self.rule_value = str(value)[:Msg.MAX_TEXT_LEN]
-
-        self.save(update_fields=('rule_uuid', 'rule_value'))
-
-    def get_node(self):
-        """
-        Returns the node (i.e. a RuleSet or ActionSet) associated with this step
-        """
-        if self.step_type == FlowStep.TYPE_RULE_SET:
-            return RuleSet.objects.filter(uuid=self.step_uuid).first()
-        else:  # pragma: needs cover
-            return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
 
 class RuleSet(models.Model):
