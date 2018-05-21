@@ -411,17 +411,13 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
+             partial_recipients=None, run_map=None, high_priority=False):
         """
-        Sends this broadcast by creating outgoing messages for each recipient.
+        Sends this broadcast by creating outgoing messages for each recipient. Returns the ids of the created messages.
         """
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
-
-        # cannot ask for sending by us AND specify a created on, blow up in that case
-        if trigger_send and created_on:  # pragma: no cover
-            raise ValueError("Cannot trigger send and specify a created_on, breaks creating batches")
 
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
@@ -463,9 +459,7 @@ class Broadcast(models.Model):
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
 
-        # if they didn't pass in a created on, create one ourselves
-        if not created_on:
-            created_on = timezone.now()
+        all_created_msg_ids = []
 
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
@@ -519,7 +513,6 @@ class Broadcast(models.Model):
                                           high_priority=high_priority,
                                           insert_object=False,
                                           attachments=[media] if media else None,
-                                          created_on=created_on,
                                           quick_replies=quick_replies)
 
             except UnreachableException:
@@ -532,23 +525,24 @@ class Broadcast(models.Model):
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-                Msg.objects.bulk_create(batch)
+                batch_created_msgs = Msg.objects.bulk_create(batch)
+                batch_created_msg_ids = [m.id for m in batch_created_msgs]
+                all_created_msg_ids += batch_created_msg_ids
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
-
-                    # increment our created on so we can load our next batch
-                    created_on = created_on + timedelta(seconds=1)
+                    self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
                 batch = []
 
         # commit any remaining objects
         if batch:
-            Msg.objects.bulk_create(batch)
+            batch_created_msgs = Msg.objects.bulk_create(batch)
+            batch_created_msg_ids = [m.id for m in batch_created_msgs]
+            all_created_msg_ids += batch_created_msg_ids
 
             if trigger_send:
-                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -556,6 +550,8 @@ class Broadcast(models.Model):
         if not partial_recipients:
             self.status = QUEUED if len(recipients) > 0 else SENT
             self.save(update_fields=('status',))
+
+        return all_created_msg_ids
 
     def update(self):
         """
@@ -1084,11 +1080,11 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, quick_replies=None):
+              send_all=False, sent_on=None, quick_replies=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 msg_type=msg_type or self.msg_type, sent_on=sent_on, all_urns=send_all,
                                  high_priority=True, quick_replies=quick_replies)
 
     def update(self, cmd):
@@ -1237,7 +1233,7 @@ class Msg(models.Model):
             return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
+    def create_incoming(cls, channel, urn, text, user=None, sent_on=None, org=None, contact=None,
                         status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, connection=None):
 
         from temba.api.models import WebHookEvent
@@ -1250,8 +1246,8 @@ class Msg(models.Model):
         if not user:
             user = get_anonymous_user()
 
-        if not date:
-            date = timezone.now()  # no date?  set it to now
+        if not sent_on:
+            sent_on = timezone.now()  # no sent_on date?  set it to now
 
         contact_urn = None
         if not contact:
@@ -1270,7 +1266,8 @@ class Msg(models.Model):
         if text:
             text = clean_string(text[:cls.MAX_TEXT_LEN])
 
-        existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
+        # don't create duplicate messages
+        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1288,7 +1285,7 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        sent_on=date,
+                        sent_on=sent_on,
                         created_on=now,
                         modified_on=now,
                         queued_on=now,
@@ -1316,7 +1313,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, sent_on)
 
         return msg
 
@@ -1367,7 +1364,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
+                        sent_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None, uuid=None):
 
         if not org or not user:  # pragma: no cover
@@ -1402,10 +1399,6 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date? set it to now
-        if not created_on:
-            created_on = timezone.now()
-
         # evaluate expressions in the text and attachments if a context was provided
         if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
@@ -1439,7 +1432,7 @@ class Msg(models.Model):
                                            attachments=evaluated_attachments,
                                            text=text,
                                            direction=OUTGOING,
-                                           created_on__gte=created_on - timedelta(minutes=10))
+                                           created_on__gte=timezone.now() - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1457,7 +1450,7 @@ class Msg(models.Model):
                                                     channel=channel,
                                                     text=text,
                                                     direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(hours=24)).count()
+                                                    created_on__gte=timezone.now() - timedelta(hours=24)).count()
                 if same_msg_count >= 10:  # pragma: needs cover
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
@@ -1489,8 +1482,8 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        created_on=created_on,
-                        modified_on=created_on,
+                        created_on=timezone.now(),
+                        modified_on=timezone.now(),
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
@@ -1500,6 +1493,9 @@ class Msg(models.Model):
                         attachments=evaluated_attachments,
                         metadata=metadata,
                         connection=connection)
+
+        if sent_on:
+            msg_args['sent_on'] = sent_on
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
