@@ -688,10 +688,11 @@ class Flow(TembaModel):
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
         # find out where we last left off
-        step = run.steps.all().order_by('-arrived_on').first()
+        last_step = run.path[-1] if run.path else None
+        step_obj = run.steps.all().order_by('-arrived_on').first()
 
         # if we are just starting the flow, create our first step
-        if not step:
+        if not last_step:
             # lookup our entry node
             destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
             if not destination:
@@ -699,11 +700,17 @@ class Flow(TembaModel):
 
             # and add our first step for our run
             if destination:
-                step = flow.add_step(run, destination, [])
+                step_obj = flow.add_step(run, destination, [])
+        else:
+            destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
+        if not destination:
+            voice_response.hangup()
+            run.set_completed(final_step=step_obj)
+            return voice_response
 
         # go and actually handle wherever we are in the flow
-        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
+        (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -715,15 +722,16 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed(final_step=step)
+            run.set_completed(final_step=step_obj)
 
         return voice_response
 
     @classmethod
     def wrap_voice_response_with_input(cls, call, run, voice_response):
         """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
-        step = run.steps.all().order_by('-pk').first()
-        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        last_step = run.path[-1]
+        destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
+
         if isinstance(destination, RuleSet):
             response = call.channel.generate_ivr_response()
             callback = 'https://%s%s' % (run.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
