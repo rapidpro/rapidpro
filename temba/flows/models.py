@@ -3592,12 +3592,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             session = FlowSession.objects.get(id=run.parent.session.id)
             return session.resume_by_expired_run(run)
 
-        # need a placeholder msg
-        msg = Msg()
-        msg.id = 0
-        msg.text = ''
-        msg.org = run.org
-        msg.contact = run.contact
+        # use the last incoming message on this run
+        msg = run.get_last_msg(direction=INCOMING)
+
+        # if we are routing back to the parent before a msg was sent, we need a placeholder
+        if not msg:
+            msg = Msg()
+            msg.id = 0
+            msg.text = ''
+            msg.org = run.org
+            msg.contact = run.contact
 
         expired_child_run = run if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
