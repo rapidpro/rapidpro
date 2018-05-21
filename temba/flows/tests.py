@@ -1,4 +1,3 @@
-
 import copy
 import datetime
 import iso8601
@@ -6,7 +5,6 @@ import json
 import os
 import pytz
 import re
-import six
 import time
 
 from datetime import timedelta
@@ -3391,7 +3389,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        six.assertCountEqual(self, list(action.msg.keys()), [u'rus', u'hun', u'eng'])
+        self.assertCountEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])
@@ -7088,8 +7086,8 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][0]['actions'][0]
 
         # we should be a normal unicode response
-        self.assertTrue(isinstance(reply['msg'], dict))
-        self.assertTrue(isinstance(reply['msg']['base'], six.text_type))
+        self.assertIsInstance(reply['msg'], dict)
+        self.assertIsInstance(reply['msg']['base'], str)
 
         # now our replies are language dicts
         json_dict = favorites.as_json()

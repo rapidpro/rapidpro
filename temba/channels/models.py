@@ -8,7 +8,6 @@ from enum import Enum
 from xml.sax.saxutils import escape
 
 import phonenumbers
-import six
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
@@ -61,7 +60,7 @@ class Encoding(Enum):
     UNICODE = 3
 
 
-class ChannelType(six.with_metaclass(ABCMeta)):
+class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
     """

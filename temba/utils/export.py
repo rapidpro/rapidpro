@@ -1,6 +1,4 @@
-
 import gc
-import six
 import time
 import os
 
@@ -72,13 +70,12 @@ class BaseExportTask(TembaModel):
             send_template_email(self.created_by.username, self.email_subject, self.email_template,
                                 self.get_email_context(branding), branding)
 
-            # remove temporary file on PY3
-            if six.PY3:  # pragma: no cover
-                if hasattr(temp_file, 'delete'):
-                    if temp_file.delete is False:
-                        os.unlink(temp_file.name)
-                else:
+            # remove temporary file
+            if hasattr(temp_file, 'delete'):
+                if temp_file.delete is False:
                     os.unlink(temp_file.name)
+            else:
+                os.unlink(temp_file.name)
 
         except Exception:
             import traceback
@@ -164,11 +161,7 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        if six.PY2:  # pragma: no cover
-            self.file = NamedTemporaryFile(delete=True, suffix='.xlsx', mode='wb+')
-        else:  # pragma: no cover
-            self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
-
+        self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
         self.workbook = Workbook(write_only=True)
         self.sheet_number = 0
         self._add_sheet()
@@ -204,9 +197,8 @@ class TableExporter(object):
         """
         gc.collect()  # force garbage collection
 
-        if six.PY3:  # pragma: no cover
-            self.file.close()
-            self.file = open(self.file.name, 'rb+')
+        self.file.close()
+        self.file = open(self.file.name, 'rb+')
 
         print("Writing Excel workbook...")
         self.workbook.save(self.file)

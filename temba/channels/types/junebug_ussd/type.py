@@ -7,7 +7,6 @@ import requests
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from six import text_type
 
 from temba.channels.models import ChannelType, Channel, SendException
 from temba.contacts.models import TEL_SCHEME
@@ -102,7 +101,7 @@ class JunebugUSSDType(ChannelType):
             event.response_body = response.text
 
         except Exception as e:
-            raise SendException(text_type(e), event=event, start=start)
+            raise SendException(str(e), event=event, start=start)
 
         if not (200 <= response.status_code < 300):
             raise SendException("Received a non 200 response %d from Junebug" % response.status_code,

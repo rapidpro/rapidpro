@@ -6,9 +6,8 @@ import hmac
 import json
 import time
 import uuid
-from datetime import timedelta
 
-import six
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -3189,7 +3188,7 @@ class TwitterTest(TembaTest):
                                     data=ANY)
 
             args, kwargs = mock.call_args
-            six.assertCountEqual(self, data, kwargs.get('data'))
+            self.assertCountEqual(data, kwargs.get('data'))
 
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)

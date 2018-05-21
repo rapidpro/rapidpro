@@ -1,5 +1,4 @@
 import regex
-import six
 
 from temba.utils.dates import FULL_ISO8601_REGEX
 
@@ -14,14 +13,14 @@ class MatcherMixin(object):
         return '<Any:%s>' % self.__class__.__name__
 
 
-class String(MatcherMixin, six.text_type):
+class String(MatcherMixin, str):
     def __new__(cls, pattern=None):
-        s = six.text_type.__new__(cls, "xxx")
+        s = str.__new__(cls, "xxx")
         s.pattern = pattern
         return s
 
     def __eq__(self, other):
-        if not isinstance(other, six.text_type):
+        if not isinstance(other, str):
             return False
         if self.pattern and not regex.match(self.pattern, other):
             return False
