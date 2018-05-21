@@ -6,8 +6,7 @@
 #
 amqp==2.1.4               # via kombu
 analytics-python==1.2.9
-antlr4-python2-runtime==4.7.1 ; python_version < "3.0"
-antlr4-python3-runtime==4.7.1 ; python_version >= "3.0"
+antlr4-python3-runtime==4.7.1
 asn1crypto==0.22.0        # via cryptography
 beautifulsoup4==4.6.0     # via google
 billiard==3.5.0.2         # via celery
@@ -41,7 +40,6 @@ django-timezone-field==2.0
 django==1.11.6
 djangorestframework==3.5.1
 docutils==0.13.1          # via botocore
-enum34==1.1.6
 et-xmlfile==1.0.1         # via openpyxl
 elasticsearch==6.2.0
 elasticsearch_dsl==6.1.0
