@@ -6,7 +6,6 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
 
-from temba.channels.types.messangi import MessangiType
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -34,6 +33,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if not org:  # pragma: no cover
             raise Exception(_("No org for this user, cannot claim"))
 
+        from .type import MessangiType
         config = {
             MessangiType.CONFIG_PUBLIC_KEY: data['public_key'],
             MessangiType.CONFIG_PRIVATE_KEY: data['private_key'],

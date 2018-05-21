@@ -41,11 +41,12 @@ class MessangiTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
+        from .type import MessangiType
         self.assertEqual('JM', channel.country)
-        self.assertEqual(7, channel.config[Channel.CONFIG_MESSANGI_CARRIER_ID])
-        self.assertEqual('mgPublicKey', channel.config[Channel.CONFIG_MESSANGI_PUBLIC_KEY])
-        self.assertEqual('mgPrivateKey', channel.config[Channel.CONFIG_MESSANGI_PRIVATE_KEY])
-        self.assertEqual(2, channel.config[Channel.CONFIG_MESSANGI_INSTANCE_ID])
+        self.assertEqual(7, channel.config[MessangiType.CONFIG_CARRIER_ID])
+        self.assertEqual('mgPublicKey', channel.config[MessangiType.CONFIG_PUBLIC_KEY])
+        self.assertEqual('mgPrivateKey', channel.config[MessangiType.CONFIG_PRIVATE_KEY])
+        self.assertEqual(2, channel.config[MessangiType.CONFIG_INSTANCE_ID])
         self.assertEqual(post_data['shortcode'], channel.address)
         self.assertEqual('MG', channel.channel_type)
 
