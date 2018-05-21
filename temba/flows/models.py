@@ -4591,6 +4591,8 @@ class FlowPathRecentRun(models.Model):
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_runs')
+    step1_uuid = models.UUIDField(help_text=_("The UUID of the first step"), null=True)
+    step2_uuid = models.UUIDField(help_text=_("The UUID of the second step"), null=True)
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
 
     @classmethod
