@@ -1,7 +1,6 @@
 
 import json
 import phonenumbers
-import six
 import regex
 
 from django.contrib.auth.models import User
@@ -60,7 +59,7 @@ class StringArrayField(serializers.ListField):
 
     def to_internal_value(self, data):
         # accept single string
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             data = [data]
 
         # don't allow dicts. This is a bug in ListField due to be fixed in 3.3.2
@@ -80,7 +79,7 @@ class StringDictField(serializers.DictField):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
             for key, val in data.items():
-                if not isinstance(key, six.string_types) or not isinstance(val, six.string_types):
+                if not isinstance(key, str) or not isinstance(val, str):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
         return super(StringDictField, self).to_internal_value(data)
@@ -91,7 +90,7 @@ class PhoneArrayField(serializers.ListField):
     List of phone numbers or a single phone number
     """
     def to_internal_value(self, data):
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             return [URN.from_tel(data)]
 
         elif isinstance(data, list):
@@ -100,7 +99,7 @@ class PhoneArrayField(serializers.ListField):
 
             urns = []
             for phone in data:
-                if not isinstance(phone, six.string_types):  # pragma: no cover
+                if not isinstance(phone, str):  # pragma: no cover
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
                 urns.append(URN.from_tel(phone))
 

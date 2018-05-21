@@ -30,7 +30,7 @@ ONE_WEEK = 60 * 60 * 24 * 7
 def translate(translations, preferred_langs):
     if translations is None:
         return None
-    if isinstance(translations, six.string_types):
+    if isinstance(translations, str):
         return translations
 
     for lang in preferred_langs:

@@ -1,6 +1,3 @@
-
-import six
-
 from django.db.models import Q
 from rest_framework import serializers, relations
 
@@ -27,9 +24,9 @@ def validate_translations(value, base_language, max_length):
         raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
     for lang, trans in value.items():
-        if not isinstance(lang, six.string_types) or (lang != 'base' and len(lang) > 3):
+        if not isinstance(lang, str) or (lang != 'base' and len(lang) > 3):
             raise serializers.ValidationError("Language code %s is not valid." % str(lang))
-        if not isinstance(trans, six.string_types):
+        if not isinstance(trans, str):
             raise serializers.ValidationError("Translations must be strings.")
         if len(trans) > max_length:
             raise serializers.ValidationError("Ensure translations have no more than %d characters." % max_length)
@@ -61,7 +58,7 @@ class TranslatableField(serializers.Field):
         org = self.context['org']
         base_language = org.primary_language.iso_code if org.primary_language else 'base'
 
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             if len(data) > self.max_length:
                 raise serializers.ValidationError("Ensure this field has no more than %d characters." % self.max_length)
 
@@ -152,7 +149,7 @@ class TembaModelField(serializers.RelatedField):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        if not (isinstance(data, six.string_types) or isinstance(data, six.integer_types)):
+        if not (isinstance(data, str) or isinstance(data, int)):
             raise serializers.ValidationError("Must be a string or integer")
 
         obj = self.get_object(data)

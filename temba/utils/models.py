@@ -1,5 +1,3 @@
-
-import six
 import time
 import json
 
@@ -150,7 +148,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if value is None:
             return value
 
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
 
             if type(data) not in (list, dict, OrderedDict):
@@ -174,7 +172,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         return json.dumps(value)
 
     def to_python(self, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = json.loads(value)
         return value
 

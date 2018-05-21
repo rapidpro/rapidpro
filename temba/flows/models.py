@@ -1,4 +1,3 @@
-
 import iso8601
 import itertools
 import json
@@ -6,7 +5,6 @@ import logging
 import numbers
 import phonenumbers
 import regex
-import six
 import time
 import traceback
 import six.moves.urllib_request as urllib2
@@ -2716,7 +2714,7 @@ class Flow(TembaModel):
                             for lang, text in rule.test.test.items():
                                 fields.update(collector.get_contact_fields(text))
                         # voice rules are not localized
-                        elif isinstance(rule.test.test, six.string_types):
+                        elif isinstance(rule.test.test, str):
                             fields.update(collector.get_contact_fields(rule.test.test))
                     if isinstance(rule.test, InGroupTest):
                         groups.add(rule.test.group)
@@ -3386,7 +3384,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if max_values is None:
             max_values = settings.FLOWRUN_FIELDS_SIZE
 
-        if isinstance(fields, six.string_types):
+        if isinstance(fields, str):
             return fields[:Value.MAX_VALUE_LEN], count + 1
 
         elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
@@ -5695,7 +5693,7 @@ class AddLabelAction(Action):
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(label_data, six.string_types):
+            elif isinstance(label_data, str):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
@@ -6617,7 +6615,7 @@ class Rule(object):
             if isinstance(category, dict):
                 # prune all of our translations to 36
                 for k, v in category.items():
-                    if isinstance(v, six.string_types):
+                    if isinstance(v, str):
                         category[k] = v[:36]
             elif category:
                 category = category[:36]
