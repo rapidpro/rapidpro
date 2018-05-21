@@ -9131,7 +9131,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=122, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=110, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

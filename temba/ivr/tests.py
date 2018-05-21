@@ -1056,10 +1056,6 @@ class IVRTests(FlowFileTest):
         # should still have no active runs
         self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
 
-        # and we've exited the flow
-        step = FlowStep.objects.all().order_by('-pk').first()
-        self.assertTrue(step.left_on)
-
         # we shouldn't have any outbound pending messages, they are all considered delivered
         self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
 

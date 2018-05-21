@@ -1001,7 +1001,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            step = run.flow.add_step(run, destination, previous_step=step, exit_uuid=actionset.exit_uuid)
+            step = run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
         else:
             run.set_completed()
             step = None
@@ -1089,7 +1089,7 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=result_rule.uuid, previous_step=step)
+            step = flow.add_step(run, destination, exit_uuid=result_rule.uuid)
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs_out)
 
@@ -1698,7 +1698,7 @@ class Flow(TembaModel):
             else:
                 entry_rule = RuleSet.objects.filter(flow=self, uuid=self.entry_uuid).first()
 
-                step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
+                step = self.add_step(run, entry_rule, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
                     handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
@@ -1949,7 +1949,7 @@ class Flow(TembaModel):
                     run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
                                                               skip_leading_reply_actions=not optimize_sending_action)
 
-                    step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
                     # and onto the destination
                     if entry_actions.destination:
@@ -1957,7 +1957,7 @@ class Flow(TembaModel):
                                                     entry_actions.destination,
                                                     entry_actions.destination_type)
 
-                        next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
+                        next_step = self.add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -1968,7 +1968,7 @@ class Flow(TembaModel):
                         run.set_completed()
 
                 elif entry_rules:
-                    step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
 
                     # if we have a start message, go and handle the rule
                     if start_msg:
@@ -2018,25 +2018,16 @@ class Flow(TembaModel):
 
         return runs
 
-    def add_step(self, run, node, msgs=(), exit_uuid=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, node, msgs=(), exit_uuid=None, arrived_on=None):
         """
         Adds a new step to the given run
         """
         if not arrived_on:
             arrived_on = timezone.now()
 
-        if previous_step:
-            previous_step.left_on = arrived_on
-            previous_step.next_uuid = node.uuid
-            previous_step.save(update_fields=('left_on', 'next_uuid'))
-
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
         run.update_timeout(arrived_on, timeout)
-
-        if not is_start:
-            # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
