@@ -21,7 +21,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import JSONField
 from django.db import models, connection as db_connection
 from django.db.models import Q, Count, QuerySet, Sum, Max, Prefetch
 from django.utils import timezone
@@ -2832,9 +2832,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     events = JSONField(verbose_name=_("Fields"), null=True,
                        help_text=_("The events recorded on this run in JSON format"))
-
-    message_ids = ArrayField(base_field=models.BigIntegerField(), null=True,
-                             help_text=_("The IDs of messages associated with this run"))
 
     current_node_uuid = models.UUIDField(null=True,
                                          help_text=_("The current node location of this run in the flow"))
