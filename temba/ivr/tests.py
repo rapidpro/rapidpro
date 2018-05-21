@@ -15,7 +15,7 @@ from mock import patch, MagicMock
 from platform import python_version
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
-from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep, FlowRevision
+from temba.flows.models import Flow, FlowRun, ActionLog, FlowRevision
 from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
@@ -1092,7 +1092,6 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'busy', IVRCall.BUSY, 'NX')
         test_status_update(call, 'rejected', IVRCall.BUSY, 'NX')
 
-        FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
 
         # try sending callme trigger

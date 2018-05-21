@@ -29,7 +29,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowRevision, clear_flow_users
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.constants import Value
@@ -363,10 +363,10 @@ class TembaTestMixin(object):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = FlowStep.TYPE_ACTION_SET
+        destination_type = Flow.NODE_TYPE_ACTIONSET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = FlowStep.TYPE_RULE_SET
+            destination_type = Flow.NODE_TYPE_RULESET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 

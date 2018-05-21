@@ -432,7 +432,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = Flow.RULES_ENTRY
+        flow.entry_type = Flow.NODE_TYPE_RULESET
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
