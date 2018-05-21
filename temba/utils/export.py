@@ -72,7 +72,7 @@ class BaseExportTask(TembaModel):
 
             # remove temporary file
             if hasattr(temp_file, 'delete'):
-                if temp_file.delete is False:
+                if temp_file.delete is False:  # pragma: no cover
                     os.unlink(temp_file.name)
             else:
                 os.unlink(temp_file.name)
