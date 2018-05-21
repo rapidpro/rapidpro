@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.utils.encoding import force_text, force_bytes
 from django_redis import get_redis_connection
 from mock import patch, ANY
-from six.moves.urllib.parse import quote
+from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from temba.api.models import WebHookEvent

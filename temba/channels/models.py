@@ -30,7 +30,7 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from smartmin.models import SmartModel
 from twilio import twiml, TwilioRestException
 

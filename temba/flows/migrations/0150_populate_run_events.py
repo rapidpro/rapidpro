@@ -10,7 +10,6 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from django.utils.text import force_text
 from django_redis import get_redis_connection
-from six.moves import range
 from temba.utils import chunk_list
 from uuid import uuid4
 

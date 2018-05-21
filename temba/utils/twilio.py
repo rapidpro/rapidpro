@@ -2,7 +2,7 @@
 import json
 
 from django.utils.encoding import force_text
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from twilio.rest import Messages, Calls
 from twilio.rest import TwilioRestClient

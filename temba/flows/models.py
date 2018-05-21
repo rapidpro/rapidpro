@@ -7,7 +7,6 @@ import phonenumbers
 import regex
 import time
 import traceback
-import six.moves.urllib_request as urllib2
 
 from array import array
 from collections import OrderedDict, defaultdict
@@ -29,7 +28,6 @@ from django.utils.html import escape
 from django_redis import get_redis_connection
 from enum import Enum
 from openpyxl import Workbook
-from six.moves import range
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -51,6 +49,7 @@ from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
 from temba.values.constants import Value
 from temba_expressions.utils import tokenize
+from urllib.request import urlopen
 from uuid import uuid4
 
 
@@ -1358,7 +1357,7 @@ class Flow(TembaModel):
             try:  # pragma: needs cover
                 url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
                 temp = NamedTemporaryFile(delete=True)
-                temp.write(urllib2.urlopen(url).read())
+                temp.write(urlopen(url).read())
                 temp.flush()
                 return default_storage.save(path, temp)
             except Exception:  # pragma: needs cover
