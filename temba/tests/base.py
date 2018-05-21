@@ -511,6 +511,7 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
         self.surveyor = self.create_user("Surveyor")
+        self.customer_support = self.create_user("Customer Support")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.create(osm_id='171496', name='Rwanda', level=0)

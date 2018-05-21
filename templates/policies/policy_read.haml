@@ -1,0 +1,21 @@
+- extends 'smartmin/read.html'
+
+- block title
+  %a{href:'{% url "policies.policy_list" %}'}<
+    Policies
+  > {{title}}
+
+  %h1
+    {{title}}
+
+
+
+- block content
+
+
+  #policy
+    .created
+      Updated {{object.created_on|date:"M d, Y"}}
+
+    .policy
+      {{object.get_rendered_body}}

@@ -21,6 +21,7 @@ urlpatterns = [
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
     url(r'^', include('temba.archives.urls')),
+    url(r'^', include('temba.policies.urls')),
     url(r'^', include('temba.contacts.urls')),
     url(r'^', include('temba.orgs.urls')),
     url(r'^', include('temba.schedules.urls')),
