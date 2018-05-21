@@ -702,7 +702,7 @@ class Flow(TembaModel):
         else:
             destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
 
-        if not destination:
+        if not destination:  # pragma: no cover
             voice_response.hangup()
             run.set_completed(final_step=step_obj)
             return voice_response
