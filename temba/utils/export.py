@@ -123,7 +123,7 @@ class BaseExportTask(TembaModel):
     def prepare_value(self, value):
         if value is None:
             return ''
-        elif isinstance(value, six.string_types):
+        elif isinstance(value, str):
             if value.startswith('='):  # escape = so value isn't mistaken for a formula
                 value = '\'' + value
             return clean_string(value)

@@ -1,8 +1,6 @@
-
 import iso8601
 import json
 import pytz
-import six
 
 from datetime import datetime
 from django.contrib.auth.models import Group
@@ -307,7 +305,7 @@ class APITest(TembaTest):
         # login as administrator
         self.login(self.admin)
         token = self.admin.api_token  # generates token for the user
-        self.assertIsInstance(token, six.string_types)
+        self.assertIsInstance(token, str)
         self.assertEqual(len(token), 40)
 
         with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
