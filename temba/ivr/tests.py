@@ -281,9 +281,7 @@ class IVRTests(FlowFileTest):
         self.assertTrue(os.path.isfile(recording))
 
         # should have 4 steps and 4 messages
-        steps = FlowStep.objects.all()
         run.refresh_from_db()
-        self.assertEqual(4, steps.count())
         self.assertEqual(len(run.path), 4)
         self.assertEqual(len(run.get_messages()), 4)
 
@@ -439,9 +437,7 @@ class IVRTests(FlowFileTest):
         self.assertTrue(os.path.isfile(recording))
 
         # should have 4 steps and 4 messages
-        steps = FlowStep.objects.all()
         run.refresh_from_db()
-        self.assertEqual(4, steps.count())
         self.assertEqual(len(run.path), 4)
         self.assertEqual(len(run.get_messages()), 4)
 
@@ -493,7 +489,10 @@ class IVRTests(FlowFileTest):
             # should have two runs, but still one call
             self.assertEqual(1, IVRCall.objects.all().count())
             self.assertEqual(2, FlowRun.objects.filter(is_active=True).count())
-            self.assertEqual(2, FlowStep.objects.all().count())
+
+            parent_run, child_run = FlowRun.objects.order_by('id')
+            self.assertEqual(len(parent_run.path), 2)
+            self.assertEqual(len(child_run.path), 0)
 
             # should give us a redirect, but without the empty flag
             self.assertContains(response, 'Redirect')
@@ -508,7 +507,10 @@ class IVRTests(FlowFileTest):
             self.assertContains(response, 'What is your favorite color?')
 
             self.assertEqual(3, Msg.objects.all().count())
-            self.assertEqual(4, FlowStep.objects.all().count())
+
+            parent_run, child_run = FlowRun.objects.order_by('id')
+            self.assertEqual(len(parent_run.path), 2)
+            self.assertEqual(len(child_run.path), 2)
 
             # answer back with red
             response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
@@ -543,13 +545,14 @@ class IVRTests(FlowFileTest):
 
         # start macklemore in the flow
         ben = self.create_contact('Ben', '+12345')
-        ivr_flow.start(groups=[], contacts=[ben])
+        run, = ivr_flow.start(groups=[], contacts=[ben])
         call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
-        self.assertEqual(2, FlowStep.objects.all().count())
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
 
         # press 1
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
@@ -638,7 +641,7 @@ class IVRTests(FlowFileTest):
 
         # start marshall in the flow
         eminem = self.create_contact('Eminem', '+12345')
-        flow.start(groups=[], contacts=[eminem])
+        run, = flow.start(groups=[], contacts=[eminem])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertNotEqual(call, None)
 
@@ -647,7 +650,8 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # should have two steps so far, right up to the recording
-        self.assertEqual(2, FlowStep.objects.all().count())
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
 
         # no outbound yet
         self.assertEqual(None, Msg.objects.filter(direction='O', contact=eminem).first())

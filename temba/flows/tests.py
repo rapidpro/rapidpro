@@ -1142,9 +1142,9 @@ class FlowTest(TembaTest):
         self.flow.update(json_flow)
 
         self.mockRequest('POST', '/coupon', '{"coupon": "NEXUS4"}')
-        self.flow.start([], [self.contact])
+        run, = self.flow.start([], [self.contact])
 
-        self.assertTrue(self.flow.get_steps())
+        self.assertTrue(run.path)
         self.assertTrue(Msg.objects.all())
         msg = Msg.objects.all()[0]
         self.assertNotIn("@extra.coupon", msg.text)
@@ -8396,7 +8396,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=224, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=214, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -8639,7 +8639,7 @@ class TimeoutTest(FlowFileTest):
         run = FlowRun.objects.get()
         self.assertTrue(run.is_active)
 
-        start_step = run.steps.order_by('-id').first()
+        start_step = run.path[-1]
 
         # mark our last message as sent
         last_msg = run.get_last_msg(OUTGOING)
@@ -8663,8 +8663,7 @@ class TimeoutTest(FlowFileTest):
         # our timeout_on should have been cleared and we should be at the same node
         run.refresh_from_db()
         self.assertIsNone(run.timeout_on)
-        current_step = run.steps.order_by('-id').first()
-        self.assertEqual(current_step.step_uuid, start_step.step_uuid)
+        self.assertEqual(run.path[-1], start_step)
 
         # check that we can't be double queued by manually moving our timeout back
         with patch('temba.utils.queues.push_task') as mock_push:
@@ -9131,7 +9130,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=110, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=102, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

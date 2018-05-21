@@ -44,7 +44,7 @@ from temba.utils.expressions import get_function_listing
 from temba.utils.goflow import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
+from .models import RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
 from .models import FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
 
 logger = logging.getLogger(__name__)
@@ -1216,7 +1216,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
-                steps = FlowStep.objects.filter(run__in=runs)
 
                 # if their last simulation was more than a day ago, log this simulation
                 if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
@@ -1232,8 +1231,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 IVRCall.objects.filter(contact=test_contact).delete()
                 USSDSession.objects.filter(contact=test_contact).delete()
-
-                steps.delete()
                 FlowRun.objects.filter(contact=test_contact).delete()
 
                 # reset the name for our test contact too
@@ -1315,9 +1312,9 @@ class FlowCRUDL(SmartCRUDL):
             response = dict(messages=messages_json, activity=active, visited=visited)
 
             # if we are at a ruleset, include it's details
-            step = FlowStep.objects.filter(contact=test_contact, left_on=None).order_by('-arrived_on').first()
-            if step:
-                ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
+            run = FlowRun.get_active_for_contact(test_contact).first()
+            if run and run.path:
+                ruleset = RuleSet.objects.filter(uuid=run.path[-1][FlowRun.PATH_NODE_UUID]).first()
                 if ruleset:
                     response['ruleset'] = ruleset.as_json()
 

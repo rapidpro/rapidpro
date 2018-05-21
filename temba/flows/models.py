@@ -687,7 +687,6 @@ class Flow(TembaModel):
 
         # find out where we last left off
         last_step = run.path[-1] if run.path else None
-        step_obj = run.steps.all().order_by('-arrived_on').first()
 
         # if we are just starting the flow, create our first step
         if not last_step:
@@ -698,7 +697,7 @@ class Flow(TembaModel):
 
             # and add our first step for our run
             if destination:
-                step_obj = flow.add_step(run, destination, [])
+                flow.add_step(run, destination, [])
         else:
             destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
 
@@ -708,7 +707,7 @@ class Flow(TembaModel):
             return voice_response
 
         # go and actually handle wherever we are in the flow
-        (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, user_input=text is not None, resume_parent_run=resume)
+        (handled, msgs) = Flow.handle_destination(destination, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -843,8 +842,6 @@ class Flow(TembaModel):
             last_step = run.path[-1]
             destination = Flow.get_node(flow, last_step[FlowRun.PATH_NODE_UUID], FlowStep.TYPE_RULE_SET)
 
-            step_obj = run.steps.order_by('id').last()
-
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
                 run.set_completed()
@@ -853,7 +850,7 @@ class Flow(TembaModel):
 
             flowserver_trial = trial.maybe_start_resume(run) if allow_trial else None
 
-            (handled, msgs) = Flow.handle_destination(destination, step_obj, run, msg, started_flows,
+            (handled, msgs) = Flow.handle_destination(destination, run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
@@ -878,7 +875,7 @@ class Flow(TembaModel):
         return False, []
 
     @classmethod
-    def handle_destination(cls, destination, step, run, msg,
+    def handle_destination(cls, destination, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
                            triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False, continue_parent=True):
 
@@ -909,7 +906,7 @@ class Flow(TembaModel):
                     should_pause = True
 
                 if (user_input or resume_after_timeout) or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
+                    result = Flow.handle_ruleset(destination, run, msg, started_flows, resume_parent_run,
                                                  resume_after_timeout)
                     add_to_path(path, destination.uuid)
 
@@ -930,7 +927,7 @@ class Flow(TembaModel):
 
                 # USSD ruleset has extra functionality to send out messages.
                 elif destination.is_ussd():
-                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    result = Flow.handle_ussd_ruleset_action(destination, run, msg)
 
                     msgs += result.get('msgs', [])
 
@@ -942,7 +939,7 @@ class Flow(TembaModel):
                     path = []
 
             elif destination.get_step_type() == FlowStep.TYPE_ACTION_SET:
-                result = Flow.handle_actionset(destination, step, run, msg, started_flows)
+                result = Flow.handle_actionset(destination, run, msg, started_flows)
                 add_to_path(path, destination.uuid)
 
                 # USSD check for session end
@@ -957,9 +954,6 @@ class Flow(TembaModel):
             # if this is a triggered start, we only consider user input on the first step, so clear it now
             if triggered_start:
                 user_input = False
-
-            # pull out our current state from the result
-            step = result.get('step')
 
             # lookup our next destination
             destination = result.get('destination', None)
@@ -987,7 +981,7 @@ class Flow(TembaModel):
         return handled, msgs
 
     @classmethod
-    def handle_actionset(cls, actionset, step, run, msg, started_flows):
+    def handle_actionset(cls, actionset, run, msg, started_flows):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
@@ -1001,20 +995,19 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            step = run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
+            run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
         else:
             run.set_completed()
-            step = None
 
-        return dict(handled=True, destination=destination, step=step, msgs=msgs)
+        return dict(handled=True, destination=destination, msgs=msgs)
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg_in, started_flows, resume_parent_run=False, resume_after_timeout=False):
+    def handle_ruleset(cls, ruleset, run, msg_in, started_flows, resume_parent_run=False, resume_after_timeout=False):
         msgs_out = []
         result_input = str(msg_in)
 
         if ruleset.is_ussd() and run.connection_interrupted:
-            result_rule, result_value = ruleset.find_interrupt_rule(step, run, msg_in)
+            result_rule, result_value = ruleset.find_interrupt_rule(run, msg_in)
             if not result_rule:
                 run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True)
@@ -1054,7 +1047,7 @@ class Flow(TembaModel):
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
             # find a matching rule
-            result_rule, result_value, result_input = ruleset.find_matching_rule(step, run, msg_in, resume_after_timeout=resume_after_timeout)
+            result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in, resume_after_timeout=resume_after_timeout)
 
         flow = ruleset.flow
 
@@ -1089,19 +1082,19 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
         if destination:
-            step = flow.add_step(run, destination, exit_uuid=result_rule.uuid)
+            flow.add_step(run, destination, exit_uuid=result_rule.uuid)
 
-        return dict(handled=True, destination=destination, step=step, msgs=msgs_out)
+        return dict(handled=True, destination=destination, msgs=msgs_out)
 
     @classmethod
-    def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
+    def handle_ussd_ruleset_action(cls, ruleset, run, msg):
         action = UssdAction.from_ruleset(ruleset, run)
         context = run.flow.build_expressions_context(run.contact, msg)
         msgs = action.execute(run, context, ruleset.uuid, msg)
 
         run.add_messages(msgs)
 
-        return dict(handled=True, destination=None, step=step, msgs=msgs)
+        return dict(handled=True, destination=None, msgs=msgs)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
@@ -1698,9 +1691,9 @@ class Flow(TembaModel):
             else:
                 entry_rule = RuleSet.objects.filter(flow=self, uuid=self.entry_uuid).first()
 
-                step = self.add_step(run, entry_rule, arrived_on=timezone.now())
+                self.add_step(run, entry_rule, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, run, start_msg, trigger_send=False, continue_parent=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
@@ -1949,7 +1942,7 @@ class Flow(TembaModel):
                     run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
                                                               skip_leading_reply_actions=not optimize_sending_action)
 
-                    step = self.add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
+                    self.add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
                     # and onto the destination
                     if entry_actions.destination:
@@ -1957,10 +1950,10 @@ class Flow(TembaModel):
                                                     entry_actions.destination,
                                                     entry_actions.destination_type)
 
-                        next_step = self.add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
+                        self.add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
 
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                        handled, step_msgs = Flow.handle_destination(destination, run, msg, started_flows_by_contact,
                                                                      is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
@@ -1968,7 +1961,7 @@ class Flow(TembaModel):
                         run.set_completed()
 
                 elif entry_rules:
-                    step = self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
+                    self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
 
                     # if we have a start message, go and handle the rule
                     if start_msg:
@@ -1978,7 +1971,7 @@ class Flow(TembaModel):
                     elif not entry_rules.is_pause():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact=contact, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg,
+                        handled, step_msgs = Flow.handle_destination(entry_rules, run, msg,
                                                                      started_flows_by_contact, trigger_send=False,
                                                                      continue_parent=False)
                         run_msgs += step_msgs
@@ -2029,10 +2022,6 @@ class Flow(TembaModel):
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
         run.update_timeout(arrived_on, timeout)
 
-        # then add our new step and associate it with our message
-        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
-                                       step_uuid=node.uuid, arrived_on=arrived_on)
-
         # complete previous step
         if run.path and exit_uuid:
             run.path[-1][FlowRun.PATH_EXIT_UUID] = exit_uuid
@@ -2056,8 +2045,6 @@ class Flow(TembaModel):
 
         run.current_node_uuid = run.path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=update_fields)
-
-        return step
 
     def get_entry_send_actions(self):
         """
@@ -4085,7 +4072,7 @@ class RuleSet(models.Model):
 
         return None
 
-    def find_matching_rule(self, step, run, msg, resume_after_timeout=False):
+    def find_matching_rule(self, run, msg, resume_after_timeout=False):
         orig_text = None
         if msg:
             orig_text = msg.text
@@ -4221,7 +4208,7 @@ class RuleSet(models.Model):
 
         return None, None, None  # pragma: no cover
 
-    def find_interrupt_rule(self, step, run, msg):
+    def find_interrupt_rule(self, run, msg):
         rules = self.get_rules()
         for rule in rules:
             result, value = rule.matches(run, msg, {}, "")
