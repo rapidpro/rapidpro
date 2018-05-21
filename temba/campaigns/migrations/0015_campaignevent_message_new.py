@@ -28,6 +28,8 @@ def populate_message_new(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ('campaigns', '0014_auto_20170228_0837'),
     ]
