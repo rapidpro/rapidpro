@@ -704,7 +704,7 @@ class Flow(TembaModel):
 
         if not destination:  # pragma: no cover
             voice_response.hangup()
-            run.set_completed(final_step=step_obj)
+            run.set_completed()
             return voice_response
 
         # go and actually handle wherever we are in the flow
@@ -720,7 +720,7 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed(final_step=step_obj)
+            run.set_completed()
 
         return voice_response
 
@@ -847,7 +847,7 @@ class Flow(TembaModel):
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                run.set_completed(final_step=step_obj)
+                run.set_completed()
                 Msg.mark_handled(msg)
                 return True, []
 
@@ -991,7 +991,7 @@ class Flow(TembaModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
-            run.set_completed(final_step=step)
+            run.set_completed()
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -1003,7 +1003,7 @@ class Flow(TembaModel):
         if destination:
             step = run.flow.add_step(run, destination, previous_step=step, exit_uuid=actionset.exit_uuid)
         else:
-            run.set_completed(final_step=step)
+            run.set_completed()
             step = None
 
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
@@ -1016,7 +1016,7 @@ class Flow(TembaModel):
         if ruleset.is_ussd() and run.connection_interrupted:
             result_rule, result_value = ruleset.find_interrupt_rule(step, run, msg_in)
             if not result_rule:
-                run.set_interrupted(final_step=step)
+                run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True)
         else:
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
@@ -1080,10 +1080,10 @@ class Flow(TembaModel):
         if not result_rule.destination:
             if run.connection_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
-                run.set_interrupted(final_step=step)
+                run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
             else:
-                run.set_completed(final_step=step)
+                run.set_completed()
                 return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
@@ -1965,7 +1965,7 @@ class Flow(TembaModel):
                         run_msgs += step_msgs
 
                     else:
-                        run.set_completed(final_step=step)
+                        run.set_completed()
 
                 elif entry_rules:
                     step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
@@ -3708,7 +3708,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # lastly delete ourselves
         self.delete()
 
-    def set_completed(self, final_step=None, completed_on=None):
+    def set_completed(self, completed_on=None):
         """
         Mark a run as complete
         """
@@ -3719,11 +3719,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if not completed_on:
             completed_on = now
-
-        # mark that we left this step
-        if final_step:
-            final_step.left_on = completed_on
-            final_step.save(update_fields=['left_on'])
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
@@ -3741,7 +3736,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 # mark it for continuation
                 self.continue_parent = True
 
-    def set_interrupted(self, final_step=None):
+    def set_interrupted(self):
         """
         Mark run as interrupted
         """
@@ -3749,10 +3744,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             ActionLog.create(self, _('%s has interrupted this flow') % self.contact.get_display(self.flow.org, short=True))
 
         now = timezone.now()
-
-        if final_step:
-            final_step.left_on = now
-            final_step.save(update_fields=['left_on'])
 
         # mark this flow as inactive
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
