@@ -11,6 +11,8 @@ def backfill_webhook_result_contact(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ('contacts', '0067_auto_20170808_1852'),
         ('api', '0014_auto_20170410_0731'),
