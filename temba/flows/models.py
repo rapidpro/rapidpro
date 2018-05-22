@@ -3840,49 +3840,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-class FlowStep(models.Model):
-    """
-    A contact's visit to a node in a flow (rule set or action set)
-    """
-    STEP_TYPE_CHOICES = (('R', "RuleSet"),
-                         ('A', "ActionSet"))
-
-    run = models.ForeignKey(FlowRun, related_name='steps')
-
-    contact = models.ForeignKey(Contact, related_name='flow_steps')
-
-    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
-
-    step_uuid = models.CharField(max_length=36,
-                                 help_text=_("The UUID of the ActionSet or RuleSet for this step"))
-
-    rule_uuid = models.CharField(max_length=36, null=True,
-                                 help_text=_("For uuid of the rule that matched on this ruleset, null on ActionSets"))
-
-    rule_category = models.CharField(max_length=36, null=True,
-                                     help_text=_("The category label that matched on this ruleset, null on ActionSets"))
-
-    rule_value = models.TextField(null=True,
-                                  help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
-
-    rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
-                                             help_text=_("The decimal value that was matched in our category for this ruleset, null on ActionSets or if a non numeric rule was matched"))
-
-    next_uuid = models.CharField(max_length=36, null=True,
-                                 help_text=_("The uuid of the next step type we took"))
-
-    arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
-
-    left_on = models.DateTimeField(null=True,
-                                   help_text=_("When the user left this step in the flow"))
-
-    messages = models.ManyToManyField(Msg, related_name='steps',
-                                      help_text=_("Any messages that are associated with this step (either sent or received)"))
-
-    broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
-                                        help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
@@ -4245,7 +4202,7 @@ class ActionSet(models.Model):
     flow = models.ForeignKey(Flow, related_name='action_sets')
 
     destination = models.CharField(max_length=36, null=True)
-    destination_type = models.CharField(max_length=1, choices=FlowStep.STEP_TYPE_CHOICES, null=True)
+    destination_type = models.CharField(max_length=1, null=True)
 
     exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
