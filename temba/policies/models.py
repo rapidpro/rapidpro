@@ -15,7 +15,7 @@ class Policy(SmartModel):
     TYPE_CHOICES = (
         (TYPE_PRIVACY, _("Privacy Policy")),
         (TYPE_TOS, _("Terms of Service")),
-        (TYPE_COOKIE, _("Cookie Declaration"))
+        (TYPE_COOKIE, _("Cookie Policy"))
     )
 
     policy_type = models.CharField(choices=TYPE_CHOICES, max_length=16, help_text=_("Choose the type of policy"))

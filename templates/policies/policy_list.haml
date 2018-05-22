@@ -48,6 +48,8 @@
         .body
           {{policy.get_rendered_body}}
 
+          - include "policies/addendum.haml"
+
   -if needs_consent
     .give-consent
       %a.btn.btn-primary.posterize{href:'{% url "policies.policy_give_consent" %}?consent=true'}

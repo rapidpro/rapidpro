@@ -4,10 +4,13 @@ import pstats
 import traceback
 
 from django.conf import settings
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
 from django.utils import timezone, translation
 from io import StringIO
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
+from temba.policies.models import Policy
 
 
 class ExceptionMiddleware(object):
@@ -69,6 +72,34 @@ class BrandingMiddleware(object):
             traceback.print_exc()
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
+
+
+class ConsentMiddleware(object):
+
+    def process_request(self, request):
+
+        if not request.user or not request.user.is_authenticated():
+            return None
+
+        if request.path.startswith('/handlers'):
+            return None
+
+        if request.path.startswith('/api'):
+            return None
+
+        if request.path.startswith('/users'):
+            return None
+
+        if request.path in (
+                reverse('orgs.org_service'),
+                reverse('orgs.org_manage'),
+                reverse('policies.policy_list'),
+                reverse('policies.policy_give_consent'),
+                reverse('django.views.i18n.javascript_catalog')):
+            return None
+
+        if Policy.get_policies_needing_consent(request.user):
+                return HttpResponseRedirect(reverse('policies.policy_list'))
 
 
 class ActivateLanguageMiddleware(object):

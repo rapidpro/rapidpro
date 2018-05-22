@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
                 ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
                 ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('policy_type', models.CharField(choices=[('privacy', 'Privacy Policy'), ('tos', 'Terms of Service'), ('cookie', 'Cookie Declaration')], help_text='Choose the type of policy', max_length=16)),
+                ('policy_type', models.CharField(choices=[('privacy', 'Privacy Policy'), ('tos', 'Terms of Service'), ('cookie', 'Cookie Policy')], help_text='Choose the type of policy', max_length=16)),
                 ('body', models.TextField(help_text='Enter the content of the policy (Markdown permitted)')),
                 ('summary', models.TextField(blank=True, help_text='Summary of policy changes (Markdown permitted)', null=True)),
                 ('requires_consent', models.BooleanField(default=True, help_text='Is Consent Required?')),

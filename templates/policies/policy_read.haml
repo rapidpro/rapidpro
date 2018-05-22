@@ -1,21 +1,23 @@
 - extends 'smartmin/read.html'
 - load i18n
 
+- block top-bar
+
 - block title
-  %a{href:'{% url "policies.policy_list" %}'}<
-    -trans "Policies"
-  > {{title}}
-
-  %h1
-    {{title}}
-
-
+  %h3
+    {{brand.name}} {{title}}
 
 - block content
   #policy
     .created
       - trans "Updated"
-      &nbsp;{{object.created_on|date:"M d, Y"}}
+      {{object.created_on|date:"M d, Y"}}
 
     .policy
       {{object.get_rendered_body}}
+
+  - include "policies/addendum.haml"
+
+  %a{href:'{% url "policies.policy_list" %}'}<
+    -trans "Privacy Center"
+
