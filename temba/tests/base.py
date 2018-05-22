@@ -6,7 +6,6 @@ import regex
 import redis
 import shutil
 import string
-import six
 import time
 
 from datetime import datetime, timedelta
@@ -483,8 +482,7 @@ class TembaTestMixin(object):
         return indexes
 
 
-@six.add_metaclass(AddFlowServerTestsMeta)
-class TembaTest(TembaTestMixin, SmartminTest):
+class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server

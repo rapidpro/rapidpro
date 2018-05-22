@@ -1,6 +1,6 @@
 import iso8601
 
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib.auth import authenticate, login

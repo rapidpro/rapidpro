@@ -1,7 +1,7 @@
 import json
 import nexmo
 import pytz
-import six
+import io
 import stripe
 
 from bs4 import BeautifulSoup
@@ -2693,12 +2693,12 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
         # test import using data that is not parsable
-        junk_binary_data = six.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
+        junk_binary_data = io.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
         post_data = dict(import_file=junk_binary_data)
         response = self.client.post(reverse('orgs.org_import'), post_data)
         self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
 
-        junk_json_data = six.BytesIO(b'{"key": "data')
+        junk_json_data = io.BytesIO(b'{"key": "data')
         post_data = dict(import_file=junk_json_data)
         response = self.client.post(reverse('orgs.org_import'), post_data)
         self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
