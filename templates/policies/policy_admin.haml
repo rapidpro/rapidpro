@@ -1,12 +1,12 @@
 - extends 'smartmin/list.html'
-
+- load i18n
 
 - block content
 
   - block table-controls
     .buttons.pull-right
       %a.btn.btn-primary{href:"{% url 'policies.policy_create'%}"}
-        New Policy
+        -trans "New Policy"
 
   - for policy in active_policies
 
@@ -17,18 +17,18 @@
         {{policy.created_on|date:"M d, Y"}}
       .edit
         %a{href:"{% url 'policies.policy_update' policy.id%}"}
-          edit
+          -trans "edit"
 
 
   -if object_list
     %hr
       %h4
-        Previous Policies
+        -trans "Previous Policies"
       %table
         %thead
           %th
           %th
-            Created
+            -trans "Created"
         -for policy in object_list
           %tr
             %td
@@ -37,7 +37,7 @@
               {{policy.created_on}}
             %td.link
               %a{href:"{% url 'policies.policy_history' policy.id%}"}
-                view
+                -trans "view"
 
 - block extra-script
   :javascript

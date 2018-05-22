@@ -29,7 +29,7 @@ class PolicyViewTest(TembaTest):
         Policy.objects.create(
             policy_type=Policy.TYPE_COOKIE,
             body="C is for Cookie",
-            summary="mmmmm...",
+            summary="That's good enough for me!",
             requires_consent=False,
             created_by=self.admin,
             modified_by=self.admin

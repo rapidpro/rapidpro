@@ -1,8 +1,9 @@
 - extends 'smartmin/read.html'
+- load i18n
 
 - block title
   %a{href:'{% url "policies.policy_list" %}'}<
-    Policies
+    -trans "Policies"
   > {{title}}
 
   %h1
@@ -11,11 +12,10 @@
 
 
 - block content
-
-
   #policy
     .created
-      Updated {{object.created_on|date:"M d, Y"}}
+      - trans "Updated"
+      &nbsp;{{object.created_on|date:"M d, Y"}}
 
     .policy
       {{object.get_rendered_body}}
