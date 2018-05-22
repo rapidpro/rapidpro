@@ -5691,6 +5691,15 @@ class FlowsTest(FlowFileTest):
         recent = FlowPathRecentRun.get_recent([color_blue_uuid], beer_question.uuid)
         self.assertEqual([r['text'] for r in recent], ["blue"])
 
+        # check the details of the first recent run
+        recent = FlowPathRecentRun.objects.order_by('id').first()
+        self.assertEqual(recent.run, run1)
+        self.assertEqual(str(recent.from_uuid), run1.path[0]['exit_uuid'])
+        self.assertEqual(str(recent.from_step_uuid), run1.path[0]['uuid'])
+        self.assertEqual(str(recent.to_uuid), run1.path[1]['node_uuid'])
+        self.assertEqual(str(recent.to_step_uuid), run1.path[1]['uuid'])
+        self.assertEqual(recent.visited_on, iso8601.parse_date(run1.path[1]['arrived_on']))
+
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
         self.send_message(flow, 'burnt sienna', contact=ryan)
