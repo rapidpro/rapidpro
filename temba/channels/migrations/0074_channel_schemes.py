@@ -15,6 +15,8 @@ def populate_schemes(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ('channels', '0073_auto_20170623_1056'),
     ]
