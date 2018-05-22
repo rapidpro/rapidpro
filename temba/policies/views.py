@@ -24,9 +24,6 @@ class PolicyCRUDL(SmartCRUDL):
             queryset = super().get_queryset(**kwargs)
             return queryset.filter(is_active=False)
 
-        def lookup_field_link(self, context, field, object):
-            return reverse('policies.policy_read', args=[object.policy_type])
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['active_policies'] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
@@ -81,9 +78,6 @@ class PolicyCRUDL(SmartCRUDL):
                     )
 
             return context
-
-        def lookup_field_link(self, context, field, object):
-            return reverse('policies.policy_read', args=[object.policy_type])
 
     class GiveConsent(OrgPermsMixin, SmartFormView):
 

@@ -40,9 +40,6 @@ class Policy(SmartModel):
         consented = Consent.objects.filter(user=user, revoked_on=None).values_list('policy_id', flat=True)
         return Policy.objects.filter(requires_consent=True).exclude(id__in=consented)
 
-    def __str__(self):
-        return self.get_policy_type_display()
-
 
 class Consent(models.Model):
 

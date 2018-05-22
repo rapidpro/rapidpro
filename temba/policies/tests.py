@@ -55,12 +55,20 @@ class PolicyViewTest(TembaTest):
         self.assertEqual(0, response.context['needs_consent'].count())
         self.assertIsNotNone(response.context['consent_date'])
 
+        # now revoke it
+        self.client.post(reverse('policies.policy_give_consent'), dict(consent=False))
+        response = self.client.get(reverse('policies.policy_list'))
+        self.assertEqual(2, response.context['needs_consent'].count())
+        self.assertNotIn('consent_date', response.context)
+
     def test_read(self):
         # anybody can read our policies
         response = self.client.get(reverse('policies.policy_read', args=['privacy']))
         self.assertContains(response, "Privacy matters")
 
     def test_admin(self):
+
+        # have to be logged in
         response = self.client.get(reverse('policies.policy_admin'))
         self.assertRedirect(response, reverse('users.user_login'))
 
@@ -69,6 +77,14 @@ class PolicyViewTest(TembaTest):
         response = self.client.get(reverse('policies.policy_admin'))
         self.assertRedirect(response, reverse('users.user_login'))
 
+        # but customer service users can manage policies
         self.login(self.customer_support)
         response = self.client.get(reverse('policies.policy_admin'))
-        self.assertRedirect(response, reverse('users.user_login'))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(3, response.context['active_policies'].count())
+
+        # publishing a new policy should deactivate the previous one
+        post_data = dict(body='My privacy policy update', summary='the summary', requires_consent=True)
+        self.client.get(reverse('policies.policy_create'), post_data)
+        response = self.client.get(reverse('policies.policy_admin'))
+        self.assertEqual(3, response.context['active_policies'].count())
