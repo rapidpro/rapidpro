@@ -1,6 +1,7 @@
 FROM mvilchis/rapidpro-base:v1.0
 MAINTAINER Miguel Vilchis "mvilchis@ciencias.unam.mx"
 
+
 #################  Enviroment variables  #################
 ENV C_FORCE_ROOT True
 ENV UWSGI_WSGI_FILE=temba/wsgi.py
