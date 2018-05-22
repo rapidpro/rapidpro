@@ -38,7 +38,7 @@ from smartmin.views import SmartTemplateView, SmartModelFormView, SmartModelActi
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
@@ -938,14 +938,42 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Manage(SmartListView):
-        fields = ('credits', 'used', 'name', 'owner', 'service', 'created_on')
+        fields = ('history_msgs_in','history_msgs_out','credit_used', 'name', 'owner', 'service', 'created_on')
         field_config = {'service': {'label': ''}}
         default_order = ('-credits', '-created_on',)
         search_fields = ('name__icontains', 'created_by__email__iexact', 'config__icontains')
         link_fields = ('name', 'owner')
         title = "Organizations"
 
-        def get_used(self, obj):
+        def get_msgs(self, type_selection, org):
+            if not type_selection in (ChannelCount.INCOMING_MSG_TYPE,
+                                      ChannelCount.OUTGOING_MSG_TYPE):
+                return 0
+            else:
+                daily_counts= ChannelCount.objects.filter(count_type__in=[type_selection], channel__org=org)
+                daily_counts = daily_counts.filter(day__gt='2013-02-01').filter(day__lte=timezone.now())
+                sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
+                return sum_value
+
+        def get_total_msgs(self):
+            result = {}
+            last_month = timezone.now() -timedelta(days=30)
+            for type_selection in [ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE]:
+                daily_counts= ChannelCount.objects.filter(count_type__in=[type_selection])
+                daily_counts = daily_counts.filter(day__gt=last_month).filter(day__lte=timezone.now())
+                sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
+                result[type_selection] = sum_value
+            return result
+
+        def get_history_msgs_in(self, obj):
+            sum_value = self.get_msgs(ChannelCount.INCOMING_MSG_TYPE, obj)
+            return mark_safe("<div>%d</div>" % (sum_value))
+
+        def get_history_msgs_out(self, obj):
+            sum_value = self.get_msgs(ChannelCount.OUTGOING_MSG_TYPE, obj)
+            return mark_safe("<div>%d</div>" % (sum_value))
+
+        def get_credit_used(self, obj):
             if not obj.credits:  # pragma: needs cover
                 used_pct = 0
             else:
@@ -956,7 +984,8 @@ class OrgCRUDL(SmartCRUDL):
                 used_class = 'used-warning'
             if used_pct >= 90:  # pragma: needs cover
                 used_class = 'used-alert'
-            return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
+            return mark_safe("<div class='used-pct %s'> <a href='%s'>%d%%</a></div>" % (used_class,
+                                            reverse('orgs.topup_manage') + "?org=%d" % obj.id,used_pct))
 
         def get_credits(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -1000,8 +1029,10 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
-            context['searches'] = ['Nyaruka', ]
             context['create_org_form'] = CreateOrgForm()
+            total_msgs = self.get_total_msgs()
+            context['total_sent'] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
+            context['total_received'] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
             return context
 
         def post (self, request, *args, **kwargs):
@@ -1011,8 +1042,8 @@ class OrgCRUDL(SmartCRUDL):
                 pform.created_by = request.user
                 pform.modified_by = request.user
                 pform.timezone = settings.USER_TIME_ZONE
-                pform.webhook  = '{}'
-                pform.config = '{"STATUS": "whitelisted"}'
+                pform.webhook  = {}
+                pform.config = {"STATUS": "whitelisted"}
                 pform.slug = Org.get_unique_slug(pform.name)
                 pform.brand = settings.DEFAULT_BRAND
                 pform.save()
