@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import inspect
 import json
 import os
@@ -9,7 +6,6 @@ import regex
 import redis
 import shutil
 import string
-import six
 import time
 
 from datetime import datetime, timedelta
@@ -32,7 +28,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowRevision, clear_flow_users
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.constants import Value
@@ -98,7 +94,7 @@ class AddFlowServerTestsMeta(type):
     """
     def __new__(mcs, name, bases, dct):
         new_tests = {}
-        for key, test_func in six.iteritems(dct):
+        for key, test_func in dct.items():
             if key.startswith('test_') and getattr(test_func, '_also_in_flowserver', False):
                 test_without, test_with = mcs._split_test(test_func)
 
@@ -184,7 +180,7 @@ class TembaTestMixin(object):
         handle.close()
 
         if substitutions:
-            for k, v in six.iteritems(substitutions):
+            for k, v in substitutions.items():
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
@@ -366,10 +362,10 @@ class TembaTestMixin(object):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = FlowStep.TYPE_ACTION_SET
+        destination_type = Flow.NODE_TYPE_ACTIONSET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = FlowStep.TYPE_RULE_SET
+            destination_type = Flow.NODE_TYPE_RULESET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
@@ -410,7 +406,7 @@ class TembaTestMixin(object):
             self.assertEqual(mock_request.data, data)
 
         # check any provided header values
-        for key, val in six.iteritems(headers):
+        for key, val in headers.items():
             self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
 
     def assertAllRequestsMade(self):
@@ -477,7 +473,7 @@ class TembaTestMixin(object):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
+        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', str(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))
@@ -486,8 +482,7 @@ class TembaTestMixin(object):
         return indexes
 
 
-@six.add_metaclass(AddFlowServerTestsMeta)
-class TembaTest(TembaTestMixin, SmartminTest):
+class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server

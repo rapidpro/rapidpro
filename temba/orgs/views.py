@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import itertools
 import json
 import logging
 import nexmo
-import six
 import requests
 
 from collections import OrderedDict
@@ -176,7 +172,7 @@ class ModalMixin(SmartFormView):
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
 
-        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.GET) if k != '_']
+        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in self.request.GET.items() if k != '_']
         context['action_url'] = self.request.path + "?" + ("&".join(pairs))
 
         return context
@@ -505,7 +501,7 @@ class OrgCRUDL(SmartCRUDL):
             except Exception as e:
                 # this is an unexpected error, report it to sentry
                 logger = logging.getLogger(__name__)
-                logger.error('Exception on app import: %s' % six.text_type(e), exc_info=True)
+                logger.error('Exception on app import: %s' % str(e), exc_info=True)
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 
@@ -1685,7 +1681,7 @@ class OrgCRUDL(SmartCRUDL):
             context['form'] = self.form
             context['step'] = self.get_step()
 
-            for key, field in six.iteritems(self.form.fields):
+            for key, field in self.form.fields.items():
                 context[key] = field
 
             return context

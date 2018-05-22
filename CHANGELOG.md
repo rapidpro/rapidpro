@@ -1,3 +1,24 @@
+v3.0.399
+----------
+ * Drop no longer used FlowRun.message_ids field
+ * Don't allow nested flowserver trials
+ * Fix migrations which can lead to locks because they add a field and populate it in same transaction
+ * Remove a lot of six stuff
+ * Use bulk_create's returned msgs instead of forcing created_on to be same for batches of messages created by Broadcast.send
+ * Use sent_on for incoming messages's real world time
+ * Don't require steps for flow resumptions
+
+v3.0.398
+----------
+ * Add period, rollup fields to archive
+
+v3.0.397
+----------
+ * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts
+ * Rework run_audit command to check JSON fields and not worry about steps
+ * Replace json_date_to_datetime with iso8601.parse_date
+ * Stepless surveyor runs
+
 v3.0.396
 ----------
  * Use run path instead of steps to recalculate run expirations

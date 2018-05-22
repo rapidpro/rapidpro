@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -59,7 +54,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
         account_info = twitter.verify_credentials()
-        handle_id = six.text_type(account_info['id'])
+        handle_id = str(account_info['id'])
         screen_name = account_info['screen_name']
 
         config = {

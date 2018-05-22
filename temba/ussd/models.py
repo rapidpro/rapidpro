@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
@@ -72,7 +67,7 @@ class USSDSession(ChannelSession):
     def handle_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, connection=self,
+            channel=self.channel, org=self.org, urn=urn, text=content or '', sent_on=date, connection=self,
             msg_type=USSD, external_id=message_id)
 
     def handle_sync(self):  # pragma: needs cover
@@ -124,7 +119,7 @@ class USSDSession(ChannelSession):
                 connection = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
                                                             .get(external_id=external_id)
                 created = False
-                for k, v in six.iteritems(defaults):
+                for k, v in defaults.items():
                     setattr(connection, k, v() if callable(v) else v)
                 connection.save()
             except cls.DoesNotExist:
@@ -134,7 +129,7 @@ class USSDSession(ChannelSession):
                 created = True
         else:
             defaults.update(dict(external_id=external_id))
-            for key, value in six.iteritems(defaults):
+            for key, value in defaults.items():
                 setattr(connection, key, value)
             connection.save()
             created = None

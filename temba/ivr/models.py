@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from datetime import timedelta
-
-import six
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -97,7 +92,7 @@ class IVRCall(ChannelSession):
                 self.save()
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
-                    ActionLog.create(run[0], "Call ended. %s" % six.text_type(e))
+                    ActionLog.create(run[0], "Call ended. %s" % str(e))
 
             except Exception as e:  # pragma: no cover
                 import traceback

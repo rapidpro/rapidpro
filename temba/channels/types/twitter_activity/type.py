@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
 
-import six
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
@@ -50,7 +46,7 @@ class TwitterActivityType(ChannelType):
             client.register_webhook(config['env_name'], callback_url)
             client.subscribe_to_webhook(config['env_name'])
         except Exception as e:  # pragma: no cover
-            logger.exception(six.text_type(e))
+            logger.exception(str(e))
 
     def deactivate(self, channel):
         config = channel.config

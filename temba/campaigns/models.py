@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
-import six
 
 from datetime import timedelta
 from django.db import models
@@ -17,7 +13,6 @@ from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
 
 
-@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -222,7 +217,6 @@ class Campaign(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
@@ -272,7 +266,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        if isinstance(message, six.string_types):
+        if isinstance(message, str):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             message = {base_language: message}
 
@@ -421,7 +415,6 @@ class CampaignEvent(TembaModel):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
-@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -488,7 +481,7 @@ class EventFire(Model):
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
             field = event.relative_to
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
 
             contacts = (
                 event.campaign.group.contacts
@@ -535,7 +528,7 @@ class EventFire(Model):
             )
             for event in events:
                 field = event.relative_to
-                field_uuid = six.text_type(field.uuid)
+                field_uuid = str(field.uuid)
 
                 contacts = (
                     event.campaign.group.contacts

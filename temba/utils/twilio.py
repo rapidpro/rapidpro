@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
 from django.utils.encoding import force_text
-from six.moves.urllib.parse import urlencode
-
-import six
+from urllib.parse import urlencode
 
 from twilio.rest import Messages, Calls
 from twilio.rest import TwilioRestClient
@@ -18,9 +14,9 @@ from temba.utils.http import HttpEvent
 
 
 def encode_atom(atom):  # pragma: no cover
-    if isinstance(atom, (six.integer_types, six.binary_type)):
+    if isinstance(atom, (int, bytes)):
         return atom
-    elif isinstance(atom, six.string_types):
+    elif isinstance(atom, str):
         return atom.encode('utf-8')
     else:
         raise ValueError('list elements should be an integer, '
@@ -45,11 +41,11 @@ class LoggingResource(Resource):  # pragma: no cover
         data = kwargs.get('data')
         if data is not None:
             udata = {}
-            for k, v in six.iteritems(data):
+            for k, v in data.items():
                 key = k.encode('utf-8')
                 if isinstance(v, (list, tuple, set)):
                     udata[key] = [encode_atom(x) for x in v]
-                elif isinstance(v, (six.integer_types, six.binary_type, six.string_types)):
+                elif isinstance(v, (int, bytes, str)):
                     udata[key] = encode_atom(v)
                 else:
                     raise ValueError('data should be an integer, '

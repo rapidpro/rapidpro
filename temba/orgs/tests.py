@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import nexmo
 import pytz
-import six
+import io
 import stripe
 
 from bs4 import BeautifulSoup
@@ -181,7 +178,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", six.text_type(org.country))
+        self.assertEqual("Rwanda", str(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid
@@ -2042,13 +2039,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -2696,12 +2693,12 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
         # test import using data that is not parsable
-        junk_binary_data = six.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
+        junk_binary_data = io.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
         post_data = dict(import_file=junk_binary_data)
         response = self.client.post(reverse('orgs.org_import'), post_data)
         self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
 
-        junk_json_data = six.BytesIO(b'{"key": "data')
+        junk_json_data = io.BytesIO(b'{"key": "data')
         post_data = dict(import_file=junk_json_data)
         response = self.client.post(reverse('orgs.org_import'), post_data)
         self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')

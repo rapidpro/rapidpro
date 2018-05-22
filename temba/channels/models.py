@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import logging
@@ -10,7 +8,6 @@ from enum import Enum
 from xml.sax.saxutils import escape
 
 import phonenumbers
-import six
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
@@ -32,7 +29,7 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from smartmin.models import SmartModel
 from twilio import twiml, TwilioRestException
 
@@ -63,7 +60,7 @@ class Encoding(Enum):
     UNICODE = 3
 
 
-class ChannelType(six.with_metaclass(ABCMeta)):
+class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
     """
@@ -115,7 +112,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         if self.available_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and six.text_type(timezone) in self.available_timezones
+            return timezone and str(timezone) in self.available_timezones
         else:
             return True
 
@@ -125,7 +122,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         if self.recommended_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and six.text_type(timezone) in self.recommended_timezones
+            return timezone and str(timezone) in self.recommended_timezones
         else:
             return False
 
@@ -244,7 +241,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
 
@@ -415,7 +411,7 @@ class Channel(TembaModel):
 
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
-        if isinstance(channel_type, six.string_types):
+        if isinstance(channel_type, str):
             channel_type = cls.get_type_from_code(channel_type)
 
         if schemes:
@@ -466,7 +462,7 @@ class Channel(TembaModel):
     @classmethod
     def get_types(cls):
         from .types import TYPES
-        return six.itervalues(TYPES)
+        return TYPES.values()
 
     @classmethod
     def get_by_category(cls, org, category):
@@ -744,7 +740,7 @@ class Channel(TembaModel):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
-        default = address if address else six.text_type(self)
+        default = address if address else str(self)
 
         # for backwards compatibility
         if TEL_SCHEME in self.schemes:
@@ -787,7 +783,7 @@ class Channel(TembaModel):
         # also save our org config, as it has twilio and nexmo keys
         org_config = self.org.config
 
-        return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
+        return dict(id=self.id, org=self.org_id, country=str(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
                     callback_domain=self.callback_domain, config=self.config, org_config=org_config)
 
@@ -936,7 +932,7 @@ class Channel(TembaModel):
 
             except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
-                logger.exception(six.text_type(e))
+                logger.exception(str(e))
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
@@ -1026,7 +1022,7 @@ class Channel(TembaModel):
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            replacement = six.text_type(variables[key])
+            replacement = str(variables[key])
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
@@ -1202,7 +1198,7 @@ class Channel(TembaModel):
                 sent_count -= 1
 
             except Exception as e:
-                ChannelLog.log_error(msg, six.text_type(e))
+                ChannelLog.log_error(msg, str(e))
 
                 import traceback
                 traceback.print_exc()
@@ -1238,7 +1234,7 @@ class Channel(TembaModel):
         elif self.address:
             return self.address
         else:
-            return six.text_type(self.pk)
+            return str(self.pk)
 
     def get_count(self, count_types):
         count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
@@ -1283,7 +1279,6 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 
-@six.python_2_unicode_compatible
 class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
@@ -1514,7 +1509,7 @@ class ChannelLog(models.Model):
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=True,
-                                      description=six.text_type(e.description)[:255],
+                                      description=str(e.description)[:255],
                                       method=event.method,
                                       url=event.url,
                                       request=event.request_body,
@@ -1543,8 +1538,8 @@ class ChannelLog(models.Model):
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         return ChannelLog.objects.create(
-            channel_id=call.channel_id, connection_id=call.id, request=six.text_type(event.request_body),
-            response=six.text_type(event.response_body), url=event.url, method=event.method, is_error=is_error,
+            channel_id=call.channel_id, connection_id=call.id, request=str(event.request_body),
+            response=str(event.response_body), url=event.url, method=event.method, is_error=is_error,
             response_status=event.status_code, description=description[:255]
         )
 
@@ -1554,7 +1549,7 @@ class ChannelLog(models.Model):
         request_time_ms = request_time * 1000
 
         return ChannelLog.objects.create(
-            channel_id=channel_id, request=six.text_type(event.request_body), response=six.text_type(event.response_body),
+            channel_id=channel_id, request=str(event.request_body), response=str(event.response_body),
             url=event.url, method=event.method, is_error=is_error, response_status=event.status_code,
             description=description[:255], request_time=request_time_ms
         )

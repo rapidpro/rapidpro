@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import pytz
-import six
 
 from datetime import datetime
 from timezone_field import TimeZoneFormField as BaseTimeZoneFormField
@@ -57,4 +53,4 @@ def timezone_to_country_code(tz):
         for zone in timezones:
             timezone_country[zone] = countrycode
 
-    return timezone_country.get(six.text_type(tz), '')
+    return timezone_country.get(str(tz), '')

@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import logging
 from collections import OrderedDict
 from datetime import timedelta
 
 import regex
-import six
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -117,7 +113,7 @@ class ContactGroupForm(forms.ModelForm):
             raise e
 
         except Exception as e:
-            raise forms.ValidationError(six.text_type(e))
+            raise forms.ValidationError(str(e))
 
     class Meta:
         fields = '__all__'
@@ -179,7 +175,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 'field_type': 'field',
                 'sort_direction': sort_direction,
                 'field_path': 'fields.{}'.format(field_leaf),
-                'field_uuid': six.text_type(contact_sort_field['uuid'])
+                'field_uuid': str(contact_sort_field['uuid'])
             }
 
     def get_queryset(self, **kwargs):
@@ -208,7 +204,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return es_search
 
             except SearchException as e:
-                self.search_error = six.text_type(e)
+                self.search_error = str(e)
 
                 # this should be an empty resultset
                 return Contact.objects.none()
@@ -392,7 +388,7 @@ class ContactForm(forms.ModelForm):
                 return False
 
         # validate URN fields
-        for field_key, value in six.iteritems(self.data):
+        for field_key, value in self.data.items():
             if field_key.startswith('urn__') and value:
                 scheme = field_key.split('__')[1]
                 validate_urn(field_key, scheme, value)
@@ -715,7 +711,7 @@ class ContactCRUDL(SmartCRUDL):
         def post_save(self, task):
             # configure import params with current org and timezone
             org = self.derive_org()
-            params = dict(org_id=org.id, timezone=six.text_type(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
+            params = dict(org_id=org.id, timezone=str(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
             params_dump = json.dumps(params)
             ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
 
@@ -1085,7 +1081,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             urns = []
-            for field_key, value in six.iteritems(self.form.cleaned_data):
+            for field_key, value in self.form.cleaned_data.items():
                 if field_key.startswith('urn__') and value:
                     scheme = field_key.split('__')[1]
                     urns.append(URN.from_parts(scheme, value))
@@ -1145,7 +1141,7 @@ class ContactCRUDL(SmartCRUDL):
             if not self.org.is_anon:
                 urns = []
 
-                for field_key, value in six.iteritems(self.form.data):
+                for field_key, value in self.form.data.items():
                     if field_key.startswith('urn__') and value:
                         parts = field_key.split('__')
                         scheme = parts[1]
@@ -1429,7 +1425,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
             for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[3], label=six.text_type(config[1])))
+                sorted_results.insert(0, dict(key=config[3], label=str(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))
 

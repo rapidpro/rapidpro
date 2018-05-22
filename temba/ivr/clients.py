@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import requests
-import six
 import time
 
 from django.conf import settings
@@ -70,18 +66,18 @@ class NexmoClient(NexmoCli):
         try:
             response = self.create_call(params=params)
             call_uuid = response.get('uuid', None)
-            call.external_id = six.text_type(call_uuid)
+            call.external_id = str(call_uuid)
             call.save()
             for event in self.events:
                 ChannelLog.log_ivr_interaction(call, 'Started call', event)
 
         except Exception as e:
-            event = HttpEvent('POST', 'https://api.nexmo.com/v1/calls', json.dumps(params), response_body=six.text_type(e))
+            event = HttpEvent('POST', 'https://api.nexmo.com/v1/calls', json.dumps(params), response_body=str(e))
             ChannelLog.log_ivr_interaction(call, 'Call start failed', event, is_error=True)
 
             call.status = IVRCall.FAILED
             call.save()
-            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e))
+            raise IVRException(_("Nexmo call failed, with error %s") % str(e))
 
     def download_media(self, call, media_url):
         """
@@ -135,7 +131,7 @@ class TwilioClient(TembaTwilioRestClient):
                                             from_=call.channel.address,
                                             url=status_callback,
                                             status_callback=status_callback)
-            call.external_id = six.text_type(twilio_call.sid)
+            call.external_id = str(twilio_call.sid)
             call.save()
 
             for event in self.calls.events:
@@ -210,7 +206,7 @@ class VerboiceClient:  # pragma: needs cover
         Contact.get_or_create(channel.org, URN.from_tel(to), channel)
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
-        payload = six.text_type(Flow.handle_call(call))
+        payload = str(Flow.handle_call(call))
 
         # now we can post that to verboice
         url = "%s?%s" % (self.endpoint, urlencode(dict(channel=self.verboice_channel, address=to)))

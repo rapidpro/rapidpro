@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import pytz
-import six
 
 from datetime import datetime, timedelta
 from django.contrib.auth.models import Group
@@ -436,7 +432,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = Flow.RULES_ENTRY
+        flow.entry_type = Flow.NODE_TYPE_RULESET
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
@@ -662,7 +658,7 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].contact, self.joe)
         self.assertEqual(out_msgs[0].contact_urn, None)
         self.assertEqual(out_msgs[0].text, "What is your favorite color?")
-        self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
+        self.assertEqual(out_msgs[0].sent_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
@@ -1043,7 +1039,7 @@ class APITest(TembaTest):
         self.assertEqual(201, response.status_code)
 
         contact = Contact.objects.get()
-        contact_urns = [six.text_type(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
+        contact_urns = [str(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
         self.assertEqual(["tel:+250788123456", "twitter:drdre"], contact_urns)
         self.assertEqual("Dr Dre", contact.name)
         self.assertEqual(self.org, contact.org)
@@ -1158,7 +1154,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([six.text_type(u) for u in jay_z.urns.all()], ['tel:+250785555555'])
+        self.assertEqual([str(u) for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()
