@@ -3672,12 +3672,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Permanently deletes this flow run
         """
-        # remove each of our steps. we do this one at a time
-        # so we can decrement the activity properly
-        for step in self.steps.all():
-            step.release()
-
-        # lastly delete ourselves
         self.delete()
 
     def set_completed(self, completed_on=None):
@@ -3888,9 +3882,6 @@ class FlowStep(models.Model):
 
     broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
-
-    def release(self):
-        self.delete()
 
 
 class RuleSet(models.Model):
