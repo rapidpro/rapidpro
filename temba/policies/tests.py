@@ -84,7 +84,8 @@ class PolicyViewTest(TembaTest):
         self.assertEqual(3, response.context['active_policies'].count())
 
         # publishing a new policy should deactivate the previous one
-        post_data = dict(body='My privacy policy update', summary='the summary', requires_consent=True)
-        self.client.get(reverse('policies.policy_create'), post_data)
+        post_data = dict(policy_type='privacy', body='My privacy policy update', summary='the summary', requires_consent=True)
+        self.client.post(reverse('policies.policy_create'), post_data)
         response = self.client.get(reverse('policies.policy_admin'))
         self.assertEqual(3, response.context['active_policies'].count())
+        self.assertEqual(1, response.context['object_list'].count())
