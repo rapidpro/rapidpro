@@ -9487,14 +9487,15 @@ class BackfillRecentRunStepUUIDsTest(MigrationTest):
     app = 'flows'
 
     def setUpBeforeMigration(self, apps):
-        self.contact1 = self.create_contact("Joe", number='+250783831111')
-        self.contact2 = self.create_contact("Frank", number='+250783832222')
-        self.flow = self.get_flow('color')
+        contact1 = self.create_contact("Joe", number='+250783831111')
+        contact2 = self.create_contact("Frank", number='+250783832222')
+        contact3 = self.create_contact("Surveyee", number='+250783833333')
+        flow = self.get_flow('color')
 
-        self.flow.start([], [self.contact1, self.contact2])
+        flow.start([], [contact1, contact2, contact3])
         Msg.create_incoming(self.channel, 'tel:+250783831111', "Red")
 
-        self.flow.start([], [self.contact1, self.contact2], restart_participants=True)
+        flow.start([], [contact1, contact2], restart_participants=True)
         Msg.create_incoming(self.channel, 'tel:+250783831111', "azul")
         Msg.create_incoming(self.channel, 'tel:+250783831111', "gris")
 
@@ -9503,6 +9504,9 @@ class BackfillRecentRunStepUUIDsTest(MigrationTest):
 
         # clear step_uuids so migration populates them
         FlowPathRecentRun.objects.all().update(from_step_uuid=None, to_step_uuid=None)
+
+        # set all visited times on contact3's runs to now making them useless
+        FlowPathRecentRun.objects.filter(run__contact=contact3).update(visited_on=timezone.now())
 
     def test_recent_runs(self):
         # compare with step UUIDs set by trigger
