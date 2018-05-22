@@ -270,9 +270,9 @@ BEGIN
       );
       PERFORM temba_insert_flowpathrecentrun(
         UUID(_new_path_json->(p-1)->>'exit_uuid'),
-        UUID(_new_path_json->(p-1)->>'step_uuid'),
+        UUID(_new_path_json->(p-1)->>'uuid'),
         UUID(_new_path_json->p->>'node_uuid'),
-        UUID(_new_path_json->p->>'step_uuid'),
+        UUID(_new_path_json->p->>'uuid'),
         NEW.id,
         timestamptz(_new_path_json->p->>'arrived_on')
       );
