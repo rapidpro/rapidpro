@@ -5,7 +5,7 @@ from .views import RootView, ExplorerView, AuthenticateView, BroadcastsEndpoint,
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
 from .views import OrgEndpoint, ResthooksEndpoint, ResthookEventsEndpoint, ResthookSubscribersEndpoint, RunsEndpoint
-from .views import BoundariesEndpoint, ContactActionsEndpoint, MessageActionsEndpoint
+from .views import BoundariesEndpoint, ContactActionsEndpoint, MessageActionsEndpoint, ArchivesEndpoint
 
 
 urlpatterns = [
@@ -14,6 +14,7 @@ urlpatterns = [
     url(r'^authenticate$', AuthenticateView.as_view(), name='api.v2.authenticate'),
 
     # ========== endpoints A-Z ===========
+    url(r'^archives$', ArchivesEndpoint.as_view(), name='api.v2.archives'),
     url(r'^boundaries$', BoundariesEndpoint.as_view(), name='api.v2.boundaries'),
     url(r'^broadcasts$', BroadcastsEndpoint.as_view(), name='api.v2.broadcasts'),
     url(r'^campaigns$', CampaignsEndpoint.as_view(), name='api.v2.campaigns'),

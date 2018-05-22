@@ -11,8 +11,8 @@ from temba.utils import sizeof_fmt
 
 class Archive(models.Model):
     DOWNLOAD_EXPIRES = 600
-    TYPE_MSG = 'messages'
-    TYPE_FLOWRUN = 'runs'
+    TYPE_MSG = 'message'
+    TYPE_FLOWRUN = 'run'
 
     PERIOD_MONTHLY = 'monthly'
     PERIOD_DAILY = 'daily'
@@ -64,16 +64,19 @@ class Archive(models.Model):
         return dict(Bucket=url_parts.netloc.split('.')[0], Key=url_parts.path[1:])
 
     def get_download_link(self):
-        session = boto3.Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-        s3 = session.client('s3')
+        if self.url:
+            session = boto3.Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+            s3 = session.client('s3')
 
-        s3_params = {
-            **self.get_s3_location(),
-            # force browser to download and not uncompress our gzipped files
-            'ResponseContentDisposition': 'attachment;',
-            'ResponseContentType': 'application/octet',
-            'ResponseContentEncoding': 'none',
-        }
+            s3_params = {
+                **self.get_s3_location(),
+                # force browser to download and not uncompress our gzipped files
+                'ResponseContentDisposition': 'attachment;',
+                'ResponseContentType': 'application/octet',
+                'ResponseContentEncoding': 'none',
+            }
 
-        return s3.generate_presigned_url('get_object', Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return s3.generate_presigned_url('get_object', Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+        else:
+            return ''

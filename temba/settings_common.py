@@ -378,6 +378,8 @@ PERMISSIONS = {
 
     'ivr.ivrcall': ('start',),
 
+    'archives.archive': ('api', ),
+
     'locations.adminboundary': ('alias',
                                 'api',
                                 'boundaries',

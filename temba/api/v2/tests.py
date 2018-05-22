@@ -14,6 +14,7 @@ from django.utils import timezone
 from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
@@ -621,6 +622,61 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'text': "Hello", 'urns': ["twitter:franky"]})
         self.assertResponseError(response, 'non_field_errors', "Sorry, your account is currently suspended. To enable "
                                                                "sending messages, please contact support.")
+
+    def test_archives(self):
+        url = reverse('api.v2.archives')
+
+        self.assertEndpointAccess(url)
+
+        # create some archives
+        Archive.objects.create(
+            org=self.org, start_date=datetime(2017, 4, 5), build_time=12, record_count=34, size=345,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.DAY
+        )
+        Archive.objects.create(
+            org=self.org, start_date=datetime(2017, 5, 5), build_time=12, record_count=34, size=345,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.MONTH
+        )
+        Archive.objects.create(
+            org=self.org, start_date=datetime(2017, 6, 5), build_time=12, record_count=34, size=345,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.DAY
+        )
+        Archive.objects.create(
+            org=self.org, start_date=datetime(2017, 7, 5), build_time=12, record_count=34, size=345,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.MONTH
+        )
+
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json['results']), 4)
+
+        response = self.fetchJSON(url, query='after=2017-05-01')
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json['results']), 3)
+
+        response = self.fetchJSON(url, query='after=2017-05-01&archive_type=run')
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json['results']), 2)
+
+        # unknown archive type
+        response = self.fetchJSON(url, query='after=2017-05-01&archive_type=!!!unknown!!!')
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json['results']), 0)
+
+        # only for period "D"
+        response = self.fetchJSON(url, query='after=2017-05-01&archive_type=run&period=D')
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json['results']), 1)
 
     def test_campaigns(self):
         url = reverse('api.v2.campaigns')

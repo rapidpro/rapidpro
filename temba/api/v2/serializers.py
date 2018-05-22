@@ -2,6 +2,8 @@ import iso8601
 import json
 
 from rest_framework import serializers
+
+from temba.archives.models import Archive
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
@@ -88,6 +90,17 @@ class AdminBoundaryReadSerializer(ReadSerializer):
     class Meta:
         model = AdminBoundary
         fields = ('osm_id', 'name', 'parent', 'level', 'aliases', 'geometry')
+
+
+class ArchiveReadSerializer(ReadSerializer):
+    download_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Archive
+        fields = ('archive_type', 'start_date', 'period', 'record_count', 'size', 'hash', 'download_url')
+
+    def get_download_url(self, obj):
+        return obj.get_download_link()
 
 
 class BroadcastReadSerializer(ReadSerializer):
