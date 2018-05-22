@@ -665,7 +665,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if completed:
             completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
 
-            run.set_completed(None, completed_on=completed_on)
+            run.set_completed(completed_on=completed_on)
         else:
             run.save(update_fields=('modified_on',))
 
