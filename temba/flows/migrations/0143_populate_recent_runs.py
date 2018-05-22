@@ -19,7 +19,7 @@ def populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun):
         return
 
     num_converted = 0
-    for recent_msg_batch in chunk_list(recent_msgs.using('direct').iterator(), 1000):
+    for recent_msg_batch in chunk_list(recent_msgs.iterator(), 1000):
         with transaction.atomic():
             for recent_msg in recent_msg_batch:
 
