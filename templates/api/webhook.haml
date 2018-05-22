@@ -196,10 +196,12 @@
     JSON payload will be included as the body
 
     <table class="table table-params">
-        <tr><td>flow</td><td>The name and uuid of the flow that triggered the webhook</td></tr>
-        <tr><td>contact</td><td>The name and uuid of the contact in the flow</td></tr>
-        <tr><td>path</td><td>A list of node uuids along with when the contact arrived there and where they whent next</td></tr>
+        <tr><td>flow</td><td>The name and UUID of the flow that triggered the webhook</td></tr>
+        <tr><td>contact</td><td>The name, UUID, and urn of the contact in the flow</td></tr>
+        <tr><td>channel</td><td>The name and UUID of the channel the run is going over</td></tr>
+        <tr><td>path</td><td>A list of node UUIDs along with when the contact arrived there and where they whent next</td></tr>
         <tr><td>results</td><td>A map of result keys to values collected during the flow</td></tr>
+        <tr><td>run</td><td>The UUID and date the run was started on</td></tr>
     </table>
 
     For example, the webhook POST body will look something similar to the following:
@@ -211,7 +213,16 @@
             },
             "contact": {
                 "uuid": "dc2b3709-3261-465f-b39a-fc7312b2ab95",
-                "name": "Ben Haggerty"
+                "name": "Ben Haggerty",
+                "urn": "tel:+12065551212"
+            },
+            "channel": {
+                "name": "Twilio +12065552020",
+                "uuid": "f49d3dd6-beef-40ba-b86b-f526c649175c"
+            },
+            "run": {
+                "uuid": "7facea33-9fbc-4bdd-ba63-b2600cd4f69b",
+                "created_on":"2014-06-03T08:20:03.242525+00:00"
             },
             "path": [
                 {
@@ -235,43 +246,6 @@
                 }
             }
         }
-  %a{ name:"flow_legacy" }
-  :markdown
-    ### Legacy Flow Events
-
-    This format has been deprecated and will be removed on December 31, 2017. Please use the <a href="#flow">current format</a>.
-
-        POST http://www.yourapp.com/app.php?password=akabanga
-        event=flow&relayer=254&relayer_phone=%2B250788111111&phone=%2B250788123123&flow=1524&step=12341234-1234-1234-1234-1234-12341234&values=[]
-
-    <table class="table table-params">
-        <tr><td>event</td><td><code>flow</code></td></tr>
-        <tr><td>relayer</td><td>The id of the channel that is executing this flow</td></tr>
-        <tr><td>relayer_phone</td><td>The phone number of the channel that is executing this flow</td></tr>
-        <tr><td>phone</td><td>The phone number of the contact that has reached this point in the flow</td></tr>
-        <tr><td>flow</td><td>The id of the flow that received an event (use the URL on your flow page for reference)</td></tr>
-        <tr><td>flow_name</td><td>The name of the flow that received an event</td></tr>
-        <tr><td>flow_base_language</td><td>The base language of the flow that received an event</td></tr>
-        <tr><td>step</td><td>The step that triggered this API call, use the flow step for reference</td></tr>
-        <tr><td>values</td><td>The values collected from the user so far through this flow, in order of collection time</td></tr>
-    </table>
-
-    The values parameter will be JSON encoded in the following format:
-
-        "values": [
-          { "label": "Water Source", "category": "Stream", "text": "from stream", "value": "Stream", "time": "2013-01-01T05:35:32.012" },
-          { "label": "Boil", "category": "Yes", "text": "yego", "value": "Yes", "time": "2013-01-01T05:36:54.012" },
-          { "label": "Household Members", "category": "All", "value": "15", "text": "15", "time": "2013-01-01T05:58:32.012" }
-        ]
-
-     <table class="table table-params">
-        <tr><td>label</td><td>The label for the rule set</td></tr>
-        <tr><td>category</td><td>How the user's response was categorized</td></tr>
-        <tr><td>value</td><td>The value that was parsed from the user's response, for example just the number in a numeric response"</td></tr>
-        <tr><td>text</td><td>The full text of the user's response</td></tr>
-        <tr><td>time</td><td>The time that the user responded, in JSON format: 2013-01-01T05:34:34.034</td></tr>
-    </table>
-
 
 -block extra-script
   {{ block.super }}

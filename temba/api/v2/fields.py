@@ -1,9 +1,10 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import six
 
 from django.db.models import Q
-from rest_framework import serializers
+from rest_framework import serializers, relations
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -132,7 +133,7 @@ class TembaModelField(serializers.RelatedField):
         """
         list_kwargs = {'child_relation': cls(*args, **kwargs)}
         for key in kwargs.keys():
-            if key in serializers.MANY_RELATION_KWARGS:
+            if key in relations.MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
         return TembaModelField.LimitedSizeList(**list_kwargs)
 

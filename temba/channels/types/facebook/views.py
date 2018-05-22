@@ -1,4 +1,5 @@
-from __future__ import unicode_literals, absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import requests
 
@@ -35,9 +36,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         page = form.cleaned_data['page']
         auth_token = form.cleaned_data['page_access_token']
 
-        config = {'auth_token': auth_token, 'page_name': page['name']}
-
-        self.object = Channel.create(org, self.request.user, None, self.channel_type, name=page['name'],
-                                     address=page['id'], config=config, secret=Channel.generate_secret())
+        config = {
+            Channel.CONFIG_AUTH_TOKEN: auth_token,
+            Channel.CONFIG_PAGE_NAME: page['name'],
+            Channel.CONFIG_SECRET: Channel.generate_secret()
+        }
+        self.object = Channel.create(
+            org, self.request.user, None, self.channel_type, name=page['name'], address=page['id'], config=config
+        )
 
         return super(ClaimView, self).form_valid(form)

@@ -59,6 +59,10 @@ CREATE INDEX flows_flowrun_flow_modified_id_where_responded ON flows_flowrun (fl
 
 CREATE INDEX flows_flowrun_null_expired_on ON flows_flowrun (exited_on) WHERE exited_on IS NULL;
 
+CREATE INDEX CONCURRENTLY flows_flowrun_org_current_node_uuid_active_only
+ON flows_flowrun(org_id, current_node_uuid)
+WHERE is_active = TRUE;
+
 CREATE INDEX flows_flowrun_org_modified_id ON flows_flowrun (org_id, modified_on DESC, id DESC);
 
 CREATE INDEX flows_flowrun_org_modified_id_where_responded ON flows_flowrun (org_id, modified_on DESC, id DESC) WHERE responded = TRUE;

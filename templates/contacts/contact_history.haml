@@ -51,7 +51,7 @@
             -trans "Followed"
           -else
             -trans "Phone call"
-            ({{event.extra_json.duration|format_seconds}})
+            ({{event.extra.duration|format_seconds}})
 
       -elif item.type == 'call'
         -with item.obj as call

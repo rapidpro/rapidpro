@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import six
@@ -18,8 +18,8 @@ from temba.contacts.models import Contact, TEL_SCHEME
 from temba.flows.models import ActionSet, WebhookAction, Flow
 from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
-from temba.tests import MockResponse, TembaTest
-from urlparse import parse_qs
+from temba.tests import MockResponse, TembaTest, matchers
+from six.moves.urllib.parse import parse_qs
 from uuid import uuid4
 
 
@@ -102,7 +102,7 @@ class WebHookTest(TembaTest):
 
     def setupChannel(self):
         org = self.channel.org
-        org.webhook = u'{"url": "http://fake.com/webhook.php"}'
+        org.webhook = {"url": "http://fake.com/webhook.php"}
         org.webhook_events = ALL_EVENTS
         org.save()
 
@@ -163,7 +163,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(self.joe.name, data['contact_name'][0])
             self.assertEqual(call.pk, int(data['call'][0]))
             self.assertEqual(call.event_type, data['event'][0])
-            self.assertTrue('occurred_on' in data)
+            self.assertIn('occurred_on', data)
             self.assertEqual(self.channel.pk, int(data['channel'][0]))
 
     def test_alarm_deliveries(self):
@@ -234,7 +234,7 @@ class WebHookTest(TembaTest):
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([WebhookAction(str(uuid4()), org.get_webhook_url(), legacy_format=True).as_json()])
+        actionset.actions = [WebhookAction(str(uuid4()), org.get_webhook_url()).as_json()]
         actionset.save()
 
         # run a user through this flow
@@ -265,27 +265,50 @@ class WebHookTest(TembaTest):
         prepared_request = args[0]
         self.assertIn(self.channel.org.get_webhook_url(), prepared_request.url)
 
-        data = parse_qs(prepared_request.body)
+        data = json.loads(prepared_request.body)
 
-        self.assertEqual(data['channel'], [str(self.channel.id)])
-        self.assertEqual(data['channel_uuid'], [self.channel.uuid])
-        self.assertEqual(data['step'], [actionset.uuid])
-        self.assertEqual(data['text'], ["Mauve"])
-        self.assertEqual(data['attachments'], ["http://s3.com/text.jpg", "http://s3.com/text.mp4"])
-        self.assertEqual(data['flow'], [str(flow.id)])
-        self.assertEqual(data['flow_uuid'], [flow.uuid])
-        self.assertEqual(data['contact'], [self.joe.uuid])
-        self.assertEqual(data['contact_name'], [self.joe.name])
-        self.assertEqual(data['urn'], [six.text_type(self.joe.get_urn('tel'))])
+        self.assertEqual(data['channel'], {'uuid': str(self.channel.uuid), 'name': self.channel.name})
+        self.assertEqual(data['contact'], {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))})
+        self.assertEqual(data['flow'], {'uuid': str(flow.uuid), 'name': flow.name, 'revision': 1})
+        self.assertEqual(data['input'], {
+            'urn': 'tel:+250788123123',
+            'text': "Mauve",
+            'attachments': ["image/jpeg:http://s3.com/text.jpg", "audio/mp4:http://s3.com/text.mp4"]
+        })
+        self.assertEqual(data['results'], {
+            'color': {
+                'category': 'Other',
+                'node_uuid': matchers.UUID4String(),
+                'name': 'color',
+                'value': 'Mauve',
+                'created_on': matchers.ISODate(),
+                'input': 'Mauve'
+            }
+        })
 
-        values = json.loads(data['values'][0])
+    @patch('requests.Session.send')
+    def test_webhook_first(self, mock_send):
+        mock_send.return_value = MockResponse(200, "{}")
 
-        self.assertEqual(values[0]['category'], 'Other')
-        self.assertEqual(values[0]['category_localized'], 'Other')
-        self.assertEqual(values[0]['label'], 'color')
-        self.assertEqual(values[0]['text'], 'Mauve')
-        self.assertTrue(values[0]['time'])
-        self.assertTrue(data['time'])
+        self.setupChannel()
+        org = self.channel.org
+        org.save()
+
+        # set our very first action to be a webhook
+        flow = self.get_flow('webhook_rule_first')
+
+        # run a user through this flow
+        flow.start([], [self.joe])
+        event = WebHookEvent.objects.get()
+
+        # make sure our contact still has a URN
+        self.assertEqual(
+            event.data['contact'],
+            {'uuid': str(self.joe.uuid), 'name': self.joe.name, 'urn': six.text_type(self.joe.get_urn('tel'))}
+        )
+
+        # make sure we don't have an input
+        self.assertNotIn('input', event.data)
 
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
@@ -511,7 +534,7 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=["tel:+250788123123"], channel=self.channel)
+            contact, urn_obj = Contact.get_or_create(self.org, "tel:+250788123123", self.channel, user=self.admin)
             self.assertTrue(broadcast.text, {'base': "I am success"})
             self.assertTrue(contact, broadcast.contacts.all())
 
@@ -529,7 +552,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(self.channel.pk, int(data['channel'][0]))
             self.assertEqual(WebHookEvent.TYPE_SMS_RECEIVED, data['event'][0])
             self.assertEqual("I'm gonna pop some tags", data['text'][0])
-            self.assertTrue('time' in data)
+            self.assertIn('time', data)
 
             WebHookEvent.objects.all().delete()
             WebHookResult.objects.all().delete()
@@ -582,7 +605,11 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         # add a webhook header to the org
-        self.channel.org.webhook = u'{"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}'
+        self.channel.org.webhook = {
+            "url": "http://fake.com/webhook.php",
+            "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
+            "method": "POST"
+        }
         self.channel.org.save()
 
         # check that our webhook settings have saved
@@ -631,10 +658,9 @@ class WebHookTest(TembaTest):
                                         dict(url="http://webhook.url/", data="phone=250788383383&values=foo&bogus=2"))
             self.assertEqual(200, response.status_code)
             self.assertContains(response, "I am success")
-            self.assertTrue('values' in mock.call_args[1]['data'])
-            self.assertTrue('phone' in mock.call_args[1]['data'])
-            self.assertFalse('bogus' in mock.call_args[1]['data'])
+            self.assertIn('values', mock.call_args[1]['data'])
+            self.assertIn('phone', mock.call_args[1]['data'])
+            self.assertNotIn('bogus', mock.call_args[1]['data'])
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
-            self.assertEqual(400, response.status_code)
-            self.assertTrue(response.content.find("Must include") >= 0)
+            self.assertContains(response, "Must include", status_code=400)

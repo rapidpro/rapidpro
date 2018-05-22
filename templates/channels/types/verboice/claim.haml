@@ -1,0 +1,49 @@
+-extends "channels/channel_claim_form.html"
+-load i18n
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans
+        You can connect your <a href="http://verboice.instedd.org/">Verboice</a> number by entering your credentials here.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    #s2id_id_country {
+      width: 370px;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+

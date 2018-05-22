@@ -1,6 +1,5 @@
-from __future__ import unicode_literals, absolute_import
-
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -8,7 +7,8 @@ from twilio import TwilioRestException
 
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-from temba.tests import TembaTest, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest
+from temba.tests.twilio import MockTwilioClient, MockRequestValidator
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
@@ -19,7 +19,7 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        claim_twilio_ms = reverse('channels.claim_twilio_messaging_service')
+        claim_twilio_ms = reverse('channels.types.twilio_messaging_service.claim')
 
         # remove any existing channels
         self.org.channels.all().delete()
@@ -38,14 +38,14 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         twilio_config[ACCOUNT_TOKEN] = 'account-token'
         twilio_config[APPLICATION_SID] = 'TwilioTestSid'
 
-        self.org.config = json.dumps(twilio_config)
+        self.org.config = twilio_config
         self.org.save()
 
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_twilio_ms)
 
         response = self.client.get(claim_twilio_ms)
-        self.assertTrue('account_trial' in response.context)
+        self.assertIn('account_trial', response.context)
         self.assertFalse(response.context['account_trial'])
 
         with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
@@ -59,11 +59,11 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             response = self.client.get(claim_twilio_ms)
             self.assertRedirects(response, reverse('orgs.org_twilio_connect'))
 
-        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+        with patch('temba.tests.twilio.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
             response = self.client.get(claim_twilio_ms)
-            self.assertTrue('account_trial' in response.context)
+            self.assertIn('account_trial', response.context)
             self.assertTrue(response.context['account_trial'])
 
         response = self.client.get(claim_twilio_ms)
@@ -75,10 +75,10 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         response = self.client.post(claim_twilio_ms, dict(country='US', messaging_service_sid='MSG-SERVICE-SID'))
         channel = self.org.channels.get()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "TMS")
 
-        channel_config = channel.config_json()
+        channel_config = channel.config
         self.assertEqual(channel_config['messaging_service_sid'], 'MSG-SERVICE-SID')
         self.assertTrue(channel_config['account_sid'])
         self.assertTrue(channel_config['auth_token'])

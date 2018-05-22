@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import cmd
 
@@ -64,7 +65,8 @@ class MessageConsole(cmd.Cmd):
         if ':' not in urn:
             urn = URN.from_tel(urn)  # assume phone number
 
-        return Contact.get_or_create(self.org, self.user, name=None, urns=[urn])
+        contact, urn_obj = Contact.get_or_create(self.org, urn, user=self.user)
+        return contact
 
     def do_org(self, line):
         """

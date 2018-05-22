@@ -1,7 +1,8 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
-import urlparse
+from six.moves.urllib.parse import parse_qs, urlencode
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
@@ -49,7 +50,7 @@ class IndexView(SmartTemplateView):
         context['errors'] = 'errors' in self.request.GET
         context['send_suggestion_form'] = SendSuggestionForm()
         if context['errors']:
-            context['error_msg'] = urlparse.parse_qs(context['url_params'][1:])['errors'][0]
+            context['error_msg'] = parse_qs(context['url_params'][1:])['errors'][0]
 
         return context
 

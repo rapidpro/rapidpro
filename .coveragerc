@@ -27,6 +27,7 @@ omit =
     *management/commands*
     temba/perf_tests.py
     temba/celery_autoscaler.py
+    temba/wsgi.py
 
 [html]
 directory = coverage_html_report

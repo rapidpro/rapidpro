@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iptools
 import os
@@ -456,6 +457,7 @@ PERMISSIONS = {
                    'activity_list',
                    'api',
                    'archived',
+                   'assets',
                    'broadcast',
                    'campaign',
                    'category_counts',
@@ -516,14 +518,19 @@ PERMISSIONS = {
                          ),
 }
 
+
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
-        'msgs.msg_create',
+        'flows.flow_assets',
+        'msgs.msg_create'
     ),
     "Alpha": (
     ),
     "Beta": (
+    ),
+    "Dashboard": (
+        'orgs.org_dashboard',
     ),
     "Surveyors": (
         'contacts.contact_api',
@@ -816,6 +823,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_activity',
         'flows.flow_activity_chart',
         'flows.flow_archived',
+        'flows.flow_assets',
         'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_category_counts',
@@ -939,10 +947,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
-    "prune-recentmessages": {
-        'task': 'prune_recentmessages',
-        'schedule': timedelta(seconds=300),
-    },
     "squash-channelcounts": {
         'task': 'squash_channelcounts',
         'schedule': timedelta(seconds=300),
@@ -959,11 +963,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
-    "refresh-jiochat-access-tokens": {
-        'task': 'refresh_jiochat_access_tokens',
-        'schedule': timedelta(seconds=3600),
-    },
-
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1119,6 +1118,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.arabiacell.ArabiaCellType',
     'temba.channels.types.whatsapp.WhatsAppType',
     'temba.channels.types.twilio.TwilioType',
     'temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType',
@@ -1144,6 +1144,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.line.LineType',
     'temba.channels.types.m3tech.M3TechType',
     'temba.channels.types.macrokiosk.MacrokioskType',
+    'temba.channels.types.mtarget.MtargetType',
     'temba.channels.types.mblox.MbloxType',
     'temba.channels.types.plivo.PlivoType',
     'temba.channels.types.redrabbit.RedRabbitType',
@@ -1154,9 +1155,8 @@ CHANNEL_TYPES = [
     'temba.channels.types.twiml_api.TwimlAPIType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.verboice.VerboiceType',
     'temba.channels.types.viber_public.ViberPublicType',
-    'temba.channels.types.vumi.VumiType',
-    'temba.channels.types.vumi_ussd.VumiUSSDType',
     'temba.channels.types.yo.YoType',
     'temba.channels.types.zenvia.ZenviaType',
 ]
@@ -1210,15 +1210,23 @@ CORS_ORIGIN_ALLOW_ALL = True
 #    'localhost:8000',
 #)
 
+
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
+# -----------------------------------------------------------------------------------
+FLOW_SERVER_URL = None
+FLOW_SERVER_AUTH_TOKEN = None
+FLOW_SERVER_DEBUG = False
+FLOW_SERVER_FORCE = False
+
+# -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['DK', 'WA'])
+COURIER_CHANNELS = set(['CT', 'DK', 'MT', 'WA', 'ZV'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = 'https://chatbase.com/api/message'
-
 
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000

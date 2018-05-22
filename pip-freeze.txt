@@ -5,7 +5,7 @@
 #    pip-compile --output-file pip-freeze.txt pip-requires.txt
 #
 amqp==2.1.4               # via kombu
-analytics-python==0.4.4
+analytics-python==1.2.9
 antlr4-python2-runtime==4.7
 asn1crypto==0.22.0        # via cryptography
 beautifulsoup4==4.6.0     # via google
@@ -47,12 +47,13 @@ flake8-print==2.0.2
 flake8==3.3.0
 funcsigs==1.0.2           # via mock
 future==0.16.0            # via django-hamlpy, python-telegram-bot, uservoice
+futures==3.2.0            # via s3transfer
 geojson==1.3.5
 google==1.9.3
 gunicorn==19.7.1
 httplib2==0.10.3          # via twilio
 idna==2.5                 # via cryptography, requests
-ipaddress==1.0.18         # via cryptography
+ipaddress==1.0.19         # via cryptography
 iptools==0.6.1
 iso-639==0.4.5
 iso8601==0.1.12
@@ -70,11 +71,10 @@ microsofttranslator==0.8  # via django-rosetta
 mock==2.0.0
 nexmo==1.4.0
 oauthlib==2.0.2           # via requests-oauthlib
-openpyxl==2.4.8
+openpyxl==2.5.0
 pbr==3.1.0                # via mock
-phonenumbers==8.5.1
+phonenumbers
 pisa==3.0.33
-plivo==0.11.3
 polib==1.0.8              # via django-rosetta
 psycopg2==2.7.1
 pycodestyle==2.3.1        # via flake8
@@ -89,10 +89,9 @@ pyexcel==0.5.0            # via pyexcel-webio
 pyfcm==1.3.1
 pyflakes==1.5.0           # via flake8
 pyjwt==1.5.0              # via nexmo
-pysocks==1.6.7            # via twilio
 python-dateutil==2.2
 python-gcm==0.4
-python-magic==0.4.13
+python-magic==0.4.15
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
@@ -108,9 +107,9 @@ responses==0.5.1
 rjsmin==1.0.12            # via django-compressor
 s3transfer==0.1.10        # via boto3
 selenium==3.4.3
-six==1.10.0               # via cryptography, django-extensions, django-hamlpy, django-rosetta, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, rapidpro-expressions, responses, smartmin, twilio
-smartmin==1.11.6
-sqlparse==0.2.3           # via django-debug-toolbar
+six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, rapidpro-expressions, responses, smartmin, twilio
+smartmin==1.11.7
+sqlparse==0.2.3           # via django-debug-toolbar, smartmin
 stop-words==2015.2.23.1
 stripe==1.59.0
 texttable==0.9.0          # via pyexcel

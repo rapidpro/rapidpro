@@ -37,15 +37,13 @@
             -trans "Voice calls enabled"
 
       -if object.get_type.show_config_page
-        <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.id %}">{%trans "Settings"%}</a>
+        <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.uuid %}">{%trans "Settings"%}</a>
 
 
       -if channel.has_channel_log
         -if not user_org.is_anon or perms.contacts.contact_break_anon
           -with channel.get_sender as sender and channel.get_caller as caller and channel.get_ussd_delegate as ussd
-            -if sender and not caller
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Sending Log"%}</a>
-            -if sender and sender == caller
+            -if sender
               <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Channel Log"%}</a>
             - if caller and caller != sender
               <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ caller.id }}&sessions=1">{%trans "Call Log"%}</a>
@@ -483,7 +481,7 @@
   {{block.super}}
 
 -if start_date
-  <script src="{{ STATIC_URL }}/bower/highcharts/highcharts.js"></script>
+  <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
 :javascript
 

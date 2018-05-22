@@ -1,6 +1,5 @@
-from __future__ import unicode_literals, absolute_import
-
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -16,7 +15,7 @@ class NexmoTypeTest(TembaTest):
         mock_time_sleep.return_value = None
         self.login(self.admin)
 
-        claim_nexmo = reverse('channels.claim_nexmo')
+        claim_nexmo = reverse('channels.types.nexmo.claim')
 
         # remove any existing channels
         self.org.channels.update(is_active=False)
@@ -32,7 +31,7 @@ class NexmoTypeTest(TembaTest):
 
         nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
                             NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
-        self.org.config = json.dumps(nexmo_config)
+        self.org.config = nexmo_config
         self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
@@ -137,7 +136,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '360-788-4540')
 
                 # claim it
@@ -151,7 +150,7 @@ class NexmoTypeTest(TembaTest):
                 self.assertTrue(Channel.ROLE_ANSWER in channel.role)
                 self.assertTrue(Channel.ROLE_CALL in channel.role)
 
-                channel_config = channel.config_json()
+                channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], 'nexmo-key')
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], 'nexmo-secret')
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], 'nexmo-app-id')
@@ -177,7 +176,7 @@ class NexmoTypeTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
+                self.assertNotIn('account_trial', response.context)
                 self.assertContains(response, '579-788-4540')
 
                 # claim it
@@ -190,7 +189,7 @@ class NexmoTypeTest(TembaTest):
                 # as is our old one
                 self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
 
-                config_url = reverse('channels.channel_configuration', args=[channel.pk])
+                config_url = reverse('channels.channel_configuration', args=[channel.uuid])
                 response = self.client.get(config_url)
                 self.assertEqual(200, response.status_code)
 
@@ -202,4 +201,4 @@ class NexmoTypeTest(TembaTest):
                 response = self.client.get(call_handler_event_url)
 
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.content, "")
+                self.assertEqual(len(response.content), 0)

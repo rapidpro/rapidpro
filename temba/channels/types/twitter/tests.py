@@ -1,6 +1,5 @@
-from __future__ import unicode_literals, absolute_import
-
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.test import override_settings
 from django.urls import reverse
@@ -21,7 +20,7 @@ class TwitterTypeTest(TembaTest):
     @patch('temba.utils.mage.MageClient.activate_twitter_stream')
     @patch('twython.Twython.get_authorized_tokens')
     def test_claim(self, mock_get_authorized_tokens, mock_activate_twitter_stream, mock_get_authentication_tokens):
-        url = reverse('channels.claim_twitter')
+        url = reverse('channels.types.twitter.claim')
 
         mock_get_authentication_tokens.return_value = {
             'oauth_token': 'abcde',
@@ -85,7 +84,7 @@ class TwitterTypeTest(TembaTest):
         channel = response.context['object']
         self.assertEqual(channel.address, 'jimmy')
         self.assertEqual(channel.name, '@jimmy')
-        config = json.loads(channel.config)
+        config = channel.config
         self.assertEqual(config['handle_id'], 123)
         self.assertEqual(config['oauth_token'], 'bcdef')
         self.assertEqual(config['oauth_token_secret'], '23456')

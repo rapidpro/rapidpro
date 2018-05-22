@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
-import six
-import uuid
 
 from datetime import datetime, timedelta
 from mock import patch
@@ -11,17 +9,14 @@ from mock import patch
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils import timezone
-from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
-from temba.contacts.models import Contact, TEL_SCHEME
-from temba.flows.models import FlowRun, FlowSession
-from temba.msgs.models import (WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED,
-                               HANDLED)
+from temba.contacts.models import TEL_SCHEME
+from temba.flows.models import FlowRun
+from temba.msgs.models import WIRED, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED, HANDLED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct
 
 from .models import USSDSession
 
@@ -403,402 +398,6 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
 
-class VumiUssdTest(TembaTest):
-
-    def setUp(self):
-        super(VumiUssdTest, self).setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'VMU', None, '+250788123123',
-                                      config=dict(account_key='vumi-key', access_token='vumi-token',
-                                                  conversation_key='key'),
-                                      uuid='00000000-0000-0000-0000-000000001234',
-                                      role=Channel.ROLE_USSD)
-
-    def test_send(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        inbound = Msg.create_incoming(
-            self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
-        self.assertEqual(inbound.msg_type, USSD)
-        self.assertEqual(msg.msg_type, USSD)
-
-        # our outgoing message
-        msg.refresh_from_db()
-        r = get_redis_connection()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEqual(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEqual("1515", msg.external_id)
-                self.assertEqual(1, mock.call_count)
-
-                # should have a failsafe that it was sent
-                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-
-                # try sending again, our failsafe should kick in
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # we shouldn't have been called again
-                self.assertEqual(1, mock.call_count)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_send_default_url(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        inbound = Msg.create_incoming(
-            self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
-
-        # our outgoing message
-        msg.refresh_from_db()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                self.assertEqual(mock.call_args[0][0],
-                                 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
-
-                self.clear_cache()
-
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_ack(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        inbound = Msg.create_incoming(
-            self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
-
-        # our outgoing message
-        msg.refresh_from_db()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEqual(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEqual("1515", msg.external_id)
-                self.assertEqual(1, mock.call_count)
-
-                # simulate Vumi calling back to us sending an ACK event
-                data = {
-                    "transport_name": "ussd_transport",
-                    "event_type": "ack",
-                    "event_id": six.text_type(uuid.uuid4()),
-                    "sent_message_id": six.text_type(uuid.uuid4()),
-                    "helper_metadata": {},
-                    "routing_metadata": {},
-                    "message_version": "20110921",
-                    "timestamp": six.text_type(timezone.now()),
-                    "transport_metadata": {},
-                    "user_message_id": msg.external_id,
-                    "message_type": "event"
-                }
-                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
-                self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-                # it should be SENT now
-                msg.refresh_from_db()
-                self.assertEqual(SENT, msg.status)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_nack(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        inbound = Msg.create_incoming(
-            self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
-
-        # our outgoing message
-        msg.refresh_from_db()
-        r = get_redis_connection()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEqual(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEqual("1515", msg.external_id)
-                self.assertEqual(1, mock.call_count)
-
-                # should have a failsafe that it was sent
-                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-
-                # simulate Vumi calling back to us sending an NACK event
-                data = {
-                    "transport_name": "ussd_transport",
-                    "event_type": "nack",
-                    "nack_reason": "Unknown address.",
-                    "event_id": six.text_type(uuid.uuid4()),
-                    "timestamp": six.text_type(timezone.now()),
-                    "message_version": "20110921",
-                    "transport_metadata": {},
-                    "user_message_id": msg.external_id,
-                    "message_type": "event"
-                }
-                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
-                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-                self.assertEqual(response.status_code, 200)
-                self.assertTrue(self.create_contact("Joe", "+250788383383").is_stopped)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    @patch('temba.msgs.models.Msg.create_incoming')
-    @patch('temba.ussd.models.USSDSession.start_async')
-    def test_triggered_ussd_pull(self, start_async, create_incoming):
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        ussd_code = "*111#"
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        # getting a message without Trigger
-        self.assertEqual(response.status_code, 400)
-
-        flow = self.get_flow('ussd_example')
-
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
-                                                   created_by=self.user, modified_by=self.user, org=self.org,
-                                                   trigger_type=Trigger.TYPE_USSD_PULL)
-
-        # now we added the trigger, let's reinitiate the session
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        # should be handled now since we have a corresponding trigger
-        self.assertEqual(response.status_code, 200)
-
-        # no real messages stored
-        self.assertEqual(Msg.objects.count(), 0)
-
-        # ensure no messages has been created
-        self.assertFalse(create_incoming.called)
-
-        # check if session was started
-        self.assertTrue(start_async.called)
-        self.assertEqual(start_async.call_count, 1)
-
-    def test_receive(self):
-        # start a session
-        self.test_triggered_ussd_pull()
-
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        response = self.client.get(callback_url)
-        self.assertEqual(response.status_code, 405)
-
-        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
-        self.assertEqual(response.status_code, 404)
-
-        from_addr = "+250788383383"
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr=from_addr,
-                    content="Hello from Vumi", to_addr="*113#", transport_type='ussd')
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        msg = Msg.objects.get()
-        self.assertEqual(INCOMING, msg.direction)
-        self.assertEqual(self.org, msg.org)
-        self.assertEqual(self.channel, msg.channel)
-        self.assertEqual("Hello from Vumi", msg.text)
-        self.assertEqual('123456', msg.external_id)
-        Msg.objects.all().delete()
-
-        # test with vumi session data
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123457", from_addr=from_addr,
-                    content="Hello from Vumi 2", to_addr="*113#", transport_type='ussd')
-
-        session_start = "12341423453"
-        data.update({
-            "helper_metadata": {
-                "session_metadata": {
-                    "session_start": session_start
-                }
-            }
-        })
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        session = USSDSession.objects.last()
-        self.assertEqual(session.external_id, str(int(from_addr) + int(session_start)))
-
-        msg = Msg.objects.get()
-        self.assertEqual(INCOMING, msg.direction)
-        self.assertEqual(self.org, msg.org)
-        self.assertEqual(self.channel, msg.channel)
-        self.assertEqual("Hello from Vumi 2", msg.text)
-        self.assertEqual('123457', msg.external_id)
-        self.assertEqual(session, msg.connection)
-
-    @patch('temba.msgs.models.Msg.create_incoming')
-    def test_interrupt(self, create_incoming):
-        # start a session
-        self.test_triggered_ussd_pull()
-
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        response = self.client.get(callback_url)
-        self.assertEqual(response.status_code, 405)
-
-        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
-        self.assertEqual(response.status_code, 404)
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="Hello from Vumi", transport_type='ussd', session_event="close")
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # no real messages stored
-        self.assertEqual(Msg.objects.count(), 0)
-
-        self.assertTrue(create_incoming.called)
-        self.assertEqual(create_incoming.call_count, 1)
-
-        session = USSDSession.objects.get()
-        self.assertIsInstance(session.ended_on, datetime)
-        self.assertEqual(session.status, USSDSession.INTERRUPTED)
-
-    def test_send_session_close(self):
-        flow = self.get_flow('ussd_session_end')
-        contact = self.create_contact("Joe", "+250788383383")
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-                flow.start([], [contact])
-
-                # our outgoing message
-                msg = Msg.objects.filter(direction='O').order_by('id').last()
-
-                self.assertEqual(msg.direction, 'O')
-                self.assertTrue(msg.sent_on)
-                self.assertEqual("1515", msg.external_id)
-                self.assertEqual(msg.connection.status, USSDSession.INITIATED)
-
-                # reply and choose an option that doesn't have any destination thus needs to close the session
-                USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
-                                            date=timezone.now(), external_id="21345")
-
-                # our outgoing message
-                msg = Msg.objects.filter(direction='O').order_by('id').last()
-                self.assertEqual(msg.direction, 'O')
-                self.assertTrue(msg.sent_on)
-                self.assertEqual("1515", msg.external_id)
-
-                self.assertEqual(msg.connection.status, USSDSession.COMPLETED)
-
-                self.assertEqual(2, mock.call_count)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_ussd_trigger_flow(self):
-        # start a session
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-        ussd_code = "*111#"
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        flow = self.get_flow('ussd_trigger_flow')
-        self.assertEqual(0, flow.runs.all().count())
-
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
-                                                   created_by=self.user, modified_by=self.user, org=self.org,
-                                                   trigger_type=Trigger.TYPE_USSD_PULL)
-
-        # now we added the trigger, let's reinitiate the session
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        session = FlowSession.objects.get()
-        connection = USSDSession.objects.get()
-
-        self.assertEqual(session.connection, connection)
-
-        run = FlowRun.objects.get()
-        self.assertEqual(run.session, session)
-        self.assertEqual(run.connection, connection)
-
-        msg = Msg.objects.order_by('id').last()
-        self.assertEqual("Please enter a phone number", msg.text)
-
-        from_addr = "+250788383383"
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr=from_addr,
-                    content="250788123123", to_addr="*113#", transport_type='ussd')
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        msg = Msg.objects.order_by('id').last()
-
-        # We should get the final message
-        self.assertEqual("Thank you", msg.text)
-
-        # Check the new contact was created
-        new_contact = Contact.from_urn(self.org, "tel:+250788123123")
-        self.assertIsNotNone(new_contact)
-
-
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
@@ -922,14 +521,14 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
                 # reply and choose an option that doesn't have any destination thus needs to close the session
                 USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
-                                            date=timezone.now(), external_id="21345", message_id='vumi-message-id')
+                                            date=timezone.now(), external_id="21345", message_id='jn-message-id')
                 # our outgoing message
                 msg = Msg.objects.filter(direction='O').order_by('id').last()
                 self.assertEqual(WIRED, msg.status)
                 self.assertEqual(msg.direction, 'O')
                 self.assertTrue(msg.sent_on)
                 self.assertEqual("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
-                self.assertEqual("vumi-message-id", msg.response_to.external_id)
+                self.assertEqual("jn-message-id", msg.response_to.external_id)
 
                 self.assertEqual(msg.connection.status, USSDSession.COMPLETED)
                 self.assertTrue(isinstance(msg.connection.get_duration(), timedelta))
@@ -950,7 +549,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 call = mock.call_args_list[1]
                 (args, kwargs) = call
                 payload = kwargs['json']
-                self.assertEqual(payload['reply_to'], 'vumi-message-id')
+                self.assertEqual(payload['reply_to'], 'jn-message-id')
                 self.assertEqual(payload.get('to'), None)
                 self.assertEqual(payload['channel_data'], {
                     'continue_session': False

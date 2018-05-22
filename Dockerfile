@@ -66,7 +66,7 @@ RUN sed -i '/Pillow/c\Pillow==3.4.2' /rapidpro/pip-freeze.txt
 RUN sed -i '/dj-database-url/c\dj-database-url==0.4.1' /rapidpro/pip-freeze.txt
 
 #################   Install requirements  #################
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip==9.0.3 && \
   pip install --upgrade setuptools && \
   pip install -r pip-freeze.txt
 
