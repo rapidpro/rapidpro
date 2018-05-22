@@ -24,7 +24,7 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
 from temba.values.constants import Value
 from uuid import uuid4
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
 from .serializers import format_datetime
@@ -2340,9 +2340,6 @@ class APITest(TembaTest):
         self.assertEqual(response.json()['next'], None)
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
-        joe_run1_steps = list(joe_run1.steps.order_by('pk'))
-        frank_run2_steps = list(frank_run2.steps.order_by('pk'))
-
         resp_json = response.json()
         self.assertEqual(resp_json['results'][2], {
             'id': frank_run2.pk,
@@ -2352,8 +2349,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[1]['arrived_on']))}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2369,9 +2366,9 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[1]['arrived_on']))},
+                {'node': blue_reply.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[2]['arrived_on']))}
             ],
             'values': {
                 'color': {

@@ -6,9 +6,8 @@ import hmac
 import json
 import time
 import uuid
-from datetime import timedelta
 
-import six
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -21,7 +20,7 @@ from django.utils import timezone
 from django.utils.encoding import force_text, force_bytes
 from django_redis import get_redis_connection
 from mock import patch, ANY
-from six.moves.urllib.parse import quote
+from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from temba.api.models import WebHookEvent
@@ -3192,7 +3191,7 @@ class TwitterTest(TembaTest):
                                     data=ANY)
 
             args, kwargs = mock.call_args
-            six.assertCountEqual(self, data, kwargs.get('data'))
+            self.assertCountEqual(data, kwargs.get('data'))
 
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)

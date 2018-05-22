@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import pytz
 import regex
-import six
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -1994,7 +1993,7 @@ class LabelCount(SquashableModel):
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
-class MsgIterator(six.Iterator):
+class MsgIterator:
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """

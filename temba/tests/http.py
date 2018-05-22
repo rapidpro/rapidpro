@@ -2,7 +2,7 @@ import json
 
 from cgi import parse_header, parse_multipart
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from threading import Thread
 
 

@@ -1,12 +1,9 @@
-
-
 import copy
 import datetime
 import iso8601
 import json
 import pycountry
 import pytz
-import six
 import os
 
 from celery.app.task import Task
@@ -1211,8 +1208,7 @@ class ExportTest(TembaTest):
         self.assertEqual(200 + 2, len(list(sheet4.rows)))
         self.assertEqual(16, len(list(sheet4.columns)))
 
-        if six.PY3:
-            os.unlink(temp_file.name)
+        os.unlink(temp_file.name)
 
 
 class CurrencyTest(TembaTest):
@@ -1617,12 +1613,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
-
-        if six.PY2:
-            # approved by Nic Pottier :)
-            assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
-        else:
-            assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])
+        assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
@@ -1630,11 +1621,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        if six.PY2:
-            # approved by Nic Pottier :)
-            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
-        else:
-            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '12b01ad0-db44-462d-81e6-dc0995c13a79')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '12b01ad0-db44-462d-81e6-dc0995c13a79')
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.filter(is_test=False).first().fields)
