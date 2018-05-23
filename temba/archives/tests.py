@@ -28,11 +28,11 @@ class ArchiveViewTest(TembaTest):
 
     def test_empty_list(self):
         self.login(self.admin)
-        response = self.client.get(reverse('archives.archive_list', args=['runs']))
+        response = self.client.get(reverse('archives.archive_list', args=['run']))
         self.assertEqual(0, response.context['object_list'].count())
         self.assertEqual('Run Archive', response.context['title'])
 
-        response = self.client.get(reverse('archives.archive_list', args=['messages']))
+        response = self.client.get(reverse('archives.archive_list', args=['message']))
         self.assertEqual(0, response.context['object_list'].count())
         self.assertEqual('Message Archive', response.context['title'])
 
@@ -46,10 +46,10 @@ class ArchiveViewTest(TembaTest):
         self.login(self.admin)
 
         # make sure we have the right number of each
-        response = self.client.get(reverse('archives.archive_list', args=['runs']))
+        response = self.client.get(reverse('archives.archive_list', args=['run']))
         self.assertEqual(6, response.context['object_list'].count())
 
-        response = self.client.get(reverse('archives.archive_list', args=['messages']))
+        response = self.client.get(reverse('archives.archive_list', args=['message']))
         self.assertEqual(4, response.context['object_list'].count())
 
     def test_download(self):
