@@ -9,7 +9,7 @@ from django.conf import settings
 from temba.channels.views import register, sync
 from django.views.i18n import javascript_catalog
 from django.conf.urls.static import static
-from temba.utils import init_analytics
+from temba.utils.analytics import init_analytics
 
 # javascript translation packages
 js_info_dict = {

@@ -52,13 +52,13 @@ class Welcome(SmartTemplateView):
         org = user.get_org()
 
         if org:
-            user_dict = dict(email=user.email, first_name=user.first_name,
+            user_dict = dict(email=user.email, first_name=user.first_name, segment=randint(1, 10),
                              last_name=user.last_name, brand=self.request.branding['slug'])
             if org:
                 user_dict['org'] = org.name
                 user_dict['paid'] = org.account_value()
 
-            analytics.identify(user.username, user_dict)
+            analytics.identify(user.email, f"{user.first_name} {user.last_name}", user_dict)
 
         return context
 
@@ -133,12 +133,6 @@ class LeadCRUDL(SmartCRUDL):
             obj = super(LeadCRUDL.Create, self).pre_save(obj)
             obj.created_by = anon
             obj.modified_by = anon
-
-            if self.request.user.is_anonymous():
-                analytics.identify(obj.email, dict(email=obj.email, plan='None', segment=randint(1, 10),
-                                                   brand=self.request.branding['slug']))
-                analytics.track(obj.email, 'temba.org_lead')
-
             return obj
 
 
