@@ -66,10 +66,6 @@ class Welcome(SmartTemplateView):
         return request.user.is_authenticated()
 
 
-class Privacy(SmartTemplateView):
-    template_name = 'public/public_privacy.haml'
-
-
 class LeadViewer(SmartCRUDL):
     actions = ('list',)
     model = Lead

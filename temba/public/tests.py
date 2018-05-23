@@ -34,10 +34,6 @@ class PublicTest(SmartminTest):
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_signup'))
 
-    def test_privacy(self):
-        response = self.client.get(reverse('public.public_privacy'))
-        self.assertContains(response, "Privacy")
-
     def test_welcome(self):
         welcome_url = reverse('public.public_welcome')
         response = self.client.get(welcome_url, follow=True)
