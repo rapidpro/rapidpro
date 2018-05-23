@@ -1,5 +1,5 @@
 import json
-from six.moves.urllib.parse import parse_qs, urlencode
+from urllib.parse import parse_qs, urlencode
 
 from django.conf import settings
 from django.core.urlresolvers import reverse

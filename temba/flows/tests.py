@@ -1,4 +1,3 @@
-
 import copy
 import datetime
 import iso8601
@@ -6,7 +5,6 @@ import json
 import os
 import pytz
 import re
-import six
 import time
 
 from datetime import timedelta
@@ -43,7 +41,7 @@ from .flow_migrations import (
 )
 from uuid import uuid4
 from .models import (
-    Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
+    Flow, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, ActionSet,
     RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user, FlowCategoryCount,
     Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest, EqTest, LtTest, LteTest,
     GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest, DateEqualTest, DateAfterTest,
@@ -1142,9 +1140,9 @@ class FlowTest(TembaTest):
         self.flow.update(json_flow)
 
         self.mockRequest('POST', '/coupon', '{"coupon": "NEXUS4"}')
-        self.flow.start([], [self.contact])
+        run, = self.flow.start([], [self.contact])
 
-        self.assertTrue(self.flow.get_steps())
+        self.assertTrue(run.path)
         self.assertTrue(Msg.objects.all())
         msg = Msg.objects.all()[0]
         self.assertNotIn("@extra.coupon", msg.text)
@@ -3391,7 +3389,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        six.assertCountEqual(self, list(action.msg.keys()), [u'rus', u'hun', u'eng'])
+        self.assertCountEqual(list(action.msg.keys()), [u'rus', u'hun', u'eng'])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg['eng'], action.msg['rus'])
@@ -6004,18 +6002,18 @@ class FlowsTest(FlowFileTest):
         start = ActionSet.objects.get(flow=flow, y=0)
 
         # assert our destination
-        self.assertEqual(FlowStep.TYPE_RULE_SET, start.destination_type)
+        self.assertEqual(Flow.NODE_TYPE_RULESET, start.destination_type)
 
         # and that ruleset points to an actionset
         ruleset = RuleSet.objects.get(uuid=start.destination)
         rule = ruleset.get_rules()[0]
-        self.assertEqual(FlowStep.TYPE_ACTION_SET, rule.destination_type)
+        self.assertEqual(Flow.NODE_TYPE_ACTIONSET, rule.destination_type)
 
         # point our rule to a ruleset
         passive = RuleSet.objects.get(flow=flow, label='passive')
         self.update_destination(flow, rule.uuid, passive.uuid)
         ruleset = RuleSet.objects.get(uuid=start.destination)
-        self.assertEqual(FlowStep.TYPE_RULE_SET, ruleset.get_rules()[0].destination_type)
+        self.assertEqual(Flow.NODE_TYPE_RULESET, ruleset.get_rules()[0].destination_type)
 
     def test_orphaned_action_to_action(self):
         """
@@ -6146,7 +6144,7 @@ class FlowsTest(FlowFileTest):
 
     def test_rules_first(self):
         flow = self.get_flow('rules_first')
-        self.assertEqual(Flow.RULES_ENTRY, flow.entry_type)
+        self.assertEqual(Flow.NODE_TYPE_RULESET, flow.entry_type)
         self.assertEqual("You've got to be kitten me", self.send_message(flow, "cats"))
 
     def test_numeric_rule_allows_variables(self):
@@ -7088,8 +7086,8 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][0]['actions'][0]
 
         # we should be a normal unicode response
-        self.assertTrue(isinstance(reply['msg'], dict))
-        self.assertTrue(isinstance(reply['msg']['base'], six.text_type))
+        self.assertIsInstance(reply['msg'], dict)
+        self.assertIsInstance(reply['msg']['base'], str)
 
         # now our replies are language dicts
         json_dict = favorites.as_json()
@@ -8396,7 +8394,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=234, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=214, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -8639,7 +8637,7 @@ class TimeoutTest(FlowFileTest):
         run = FlowRun.objects.get()
         self.assertTrue(run.is_active)
 
-        start_step = run.steps.order_by('-id').first()
+        start_step = run.path[-1]
 
         # mark our last message as sent
         last_msg = run.get_last_msg(OUTGOING)
@@ -8663,8 +8661,7 @@ class TimeoutTest(FlowFileTest):
         # our timeout_on should have been cleared and we should be at the same node
         run.refresh_from_db()
         self.assertIsNone(run.timeout_on)
-        current_step = run.steps.order_by('-id').first()
-        self.assertEqual(current_step.step_uuid, start_step.step_uuid)
+        self.assertEqual(run.path[-1], start_step)
 
         # check that we can't be double queued by manually moving our timeout back
         with patch('temba.utils.queues.push_task') as mock_push:
@@ -9131,7 +9128,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=124, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=102, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

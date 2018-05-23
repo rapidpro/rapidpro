@@ -8,7 +8,6 @@ from enum import Enum
 from xml.sax.saxutils import escape
 
 import phonenumbers
-import six
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
@@ -30,7 +29,7 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from smartmin.models import SmartModel
 from twilio import twiml, TwilioRestException
 
@@ -61,7 +60,7 @@ class Encoding(Enum):
     UNICODE = 3
 
 
-class ChannelType(six.with_metaclass(ABCMeta)):
+class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
     """

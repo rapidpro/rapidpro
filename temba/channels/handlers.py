@@ -14,7 +14,7 @@ from twilio import twiml
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
@@ -257,8 +257,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 runs = FlowRun.objects.filter(connection=call)
                 for run in runs:
                     if not run.is_completed():
-                        final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
-                        run.set_completed(final_step=final_step)
+                        run.set_completed()
 
             return JsonResponse(response)
 

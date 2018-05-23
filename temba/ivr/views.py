@@ -9,7 +9,7 @@ from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog, ChannelType
 from temba.ivr.models import IVRCall
 from temba.utils.http import HttpEvent
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun
 
 
 class CallHandler(View):
@@ -143,8 +143,7 @@ class CallHandler(View):
                     runs = FlowRun.objects.filter(connection=call)
                     for run in runs:
                         if not run.is_completed():
-                            final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
-                            run.set_completed(final_step=final_step)
+                            run.set_completed()
 
                 response = dict(description="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))

@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import timedelta
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from temba.api.models import WebHookResult
 
 

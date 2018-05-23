@@ -41,7 +41,7 @@ from temba.utils.email import send_template_email, send_simple_email, send_custo
 from temba.utils.models import SquashableModel, JSONAsTextField
 from temba.utils.text import random_string
 from timezone_field import TimeZoneField
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from uuid import uuid4
 
 
