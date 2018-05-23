@@ -1,3 +1,8 @@
+v3.0.400
+----------
+ * Don't create flow steps
+ * Remove remaining usages of six
+
 v3.0.399
 ----------
  * Drop no longer used FlowRun.message_ids field
