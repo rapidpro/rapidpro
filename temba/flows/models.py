@@ -4609,6 +4609,9 @@ class FlowPathRecentRun(models.Model):
 
         return cursor.rowcount  # number of deleted entries
 
+    def __str__(self):  # pragma: no cover
+        return f"run={self.run.uuid} flow={self.run.flow.uuid} segment={self.to_uuid}→{self.from_uuid}"
+
     class Meta:
         indexes = [
             models.Index(fields=['from_uuid', 'to_uuid', '-visited_on'])
