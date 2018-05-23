@@ -82,14 +82,21 @@
         }
 
         .total-messages {
-          margin-bottom: 20px;
+          margin-bottom: 80px;
           padding:10px;
           .rounded-corners(5px);
         }
-
+        .header-per_msgs_out {
+            max-width: 100px;
+        }
+        .header-per_msgs_in {
+            max-width: 100px;
+        }
+        .table thead th {
+          vertical-align: top;
+        }
     {% endlessblock %}
 -block create_object
-  .row
   <!-- Modal -->
   <div id="create_org" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -144,6 +151,15 @@
   {{block.super}}
 
 -block pre-table
+  .total-messages
+    .span9
+      %h4
+        %strong Total msgs sent:     {{total_sent}} (last 30 days)
+      %h4
+        %strong Total msgs received: {{total_received}} (last 30 days)
+    .span3
+      %a{class:'btn btn-primary btn-block send-button pull-right', style:"width:220px" ,href:'#create_org', data-toggle:"modal"} Create new org
+
   .quick-searches
     -if search == ""
       %span{class:'quick'}
@@ -161,10 +177,3 @@
           {{ s }}
       -else
         %a{class:'quick', href:'?search={{s}}'}= s
-
-  .total-messages
-    .span9
-      %h4 Total msgs sent:     {{total_sent}} (last 30 days)
-      %h4 Total msgs received: {{total_received}} (last 30 days)
-    .span3
-      %a{class:'btn btn-primary btn-block send-button', href:'#create_org', data-toggle:"modal"} Create new org

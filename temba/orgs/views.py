@@ -938,102 +938,145 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Manage(SmartListView):
-        fields = ('history_msgs_in','history_msgs_out','credit_used', 'name', 'owner', 'service', 'created_on')
-        field_config = {'service': {'label': ''}}
-        default_order = ('-credits', '-created_on',)
+        fields = ('name', 'history_msgs_in','history_msgs_out','per_msgs_in','per_msgs_out', 'owner', 'service', 'created_on')
+        field_config = {'service': {'label': ''},
+                        'per_msgs_out':{'label':'Msgs Out (%) Last 30 days'},
+                        'per_msgs_in' :{'label':'Msgs In  (%) Last 30 days'},
+                        'history_msgs_out':{'label':'All Msgs Out'},
+                        'history_msgs_in':{'label':'All Msgs In'},
+                        }
         search_fields = ('name__icontains', 'created_by__email__iexact', 'config__icontains')
         link_fields = ('name', 'owner')
         title = "Organizations"
 
-        def get_msgs(self, type_selection, org):
+
+        #def order_queryset(self, queryset):
+        #    """
+        #    Orders the passed in queryset, returning a new queryset in response.  By default uses the _order query
+        #    parameter.
+        #    """
+        #    order = self.derive_ordering()
+
+        #    # if we get our order from the request
+        #    # make sure it is a valid field in the list
+        #    if '_order' in self.request.GET:
+        #        if order.lstrip('-') not in self.derive_fields():
+        #            order = None
+
+        #    if order:
+        #        # if our order is a single string, convert to a simple list
+        #        if isinstance(order, six.string_types):
+        #            order = (order,)
+
+        #        queryset = queryset.order_by(*order)
+        #    if not order:
+        #        queryset = queryset.extra(select={'d_field': #ChannelCount.objects.filter(channel__org_id="id").aggregate(Sum('count'))['count__sum']})
+
+        #    return queryset
+        ########################################################################
+        #                            Auxiliar funtions                         #
+        ########################################################################
+        def get_total_msgs_by_type(self, type_selection, org):
             if not type_selection in (ChannelCount.INCOMING_MSG_TYPE,
                                       ChannelCount.OUTGOING_MSG_TYPE):
                 return 0
             else:
-                daily_counts= ChannelCount.objects.filter(count_type__in=[type_selection], channel__org=org)
-                daily_counts = daily_counts.filter(day__gt='2013-02-01').filter(day__lte=timezone.now())
+                daily_counts = ChannelCount.objects.filter(count_type=type_selection,
+                                                           channel__org=org)
+                daily_counts = daily_counts.filter(day__gt='2013-02-01')
+                daily_counts = daily_counts.filter(day__lte=timezone.now())
                 sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
                 return sum_value
 
-        def get_total_msgs(self):
+
+        def get_total_msgs_general(self, org = None, type_selection= None):
             result = {}
             last_month = timezone.now() -timedelta(days=30)
-            for type_selection in [ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE]:
-                daily_counts= ChannelCount.objects.filter(count_type__in=[type_selection])
-                daily_counts = daily_counts.filter(day__gt=last_month).filter(day__lte=timezone.now())
+            if type_selection:
+                list_type = [type_selection]
+            else:
+                list_type = [ChannelCount.INCOMING_MSG_TYPE,
+                            ChannelCount.OUTGOING_MSG_TYPE]
+            for type_selection in list_type:
+                daily_counts= ChannelCount.objects.filter(count_type=type_selection)
+                if org:
+                    daily_counts = daily_counts.filter(channel__org=org)
+                daily_counts = daily_counts.filter(day__gt=last_month)
+                daily_counts = daily_counts.filter(day__lte=timezone.now())
                 sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
                 result[type_selection] = sum_value
             return result
 
+
+        def get_percentage_msgs(self, type_selection,org):
+            all_msgs  = self.get_total_msgs_general(type_selection = type_selection)
+            org_msgs  = self.get_total_msgs_general(org= org,
+                                                    type_selection=type_selection)
+            total = str(int(100*org_msgs[type_selection]/all_msgs[type_selection]))+"%"
+            return total
+        ########################################################################
+        #                               View funtions                          #
+        ########################################################################
         def get_history_msgs_in(self, obj):
-            sum_value = self.get_msgs(ChannelCount.INCOMING_MSG_TYPE, obj)
+            sum_value = self.get_total_msgs_by_type(ChannelCount.INCOMING_MSG_TYPE, obj)
             return mark_safe("<div>%d</div>" % (sum_value))
+
 
         def get_history_msgs_out(self, obj):
-            sum_value = self.get_msgs(ChannelCount.OUTGOING_MSG_TYPE, obj)
+            sum_value = self.get_total_msgs_by_type(ChannelCount.OUTGOING_MSG_TYPE, obj)
             return mark_safe("<div>%d</div>" % (sum_value))
 
-        def get_credit_used(self, obj):
-            if not obj.credits:  # pragma: needs cover
-                used_pct = 0
-            else:
-                used_pct = round(100 * float(obj.get_credits_used()) / float(obj.credits))
 
-            used_class = 'used-normal'
-            if used_pct >= 75:  # pragma: needs cover
-                used_class = 'used-warning'
-            if used_pct >= 90:  # pragma: needs cover
-                used_class = 'used-alert'
-            return mark_safe("<div class='used-pct %s'> <a href='%s'>%d%%</a></div>" % (used_class,
-                                            reverse('orgs.topup_manage') + "?org=%d" % obj.id,used_pct))
+        def get_per_msgs_in(self, obj):
+            total = self.get_percentage_msgs(ChannelCount.INCOMING_MSG_TYPE, obj)
+            return mark_safe("<div>%s</div>" % (total))
 
-        def get_credits(self, obj):
-            if not obj.credits:  # pragma: needs cover
-                obj.credits = 0
-            return mark_safe("<div class='num-credits'><a href='%s'>%s</a></div>"
-                             % (reverse('orgs.topup_manage') + "?org=%d" % obj.id, format(obj.credits, ",d")))
+
+        def get_per_msgs_out(self, obj):
+            total = self.get_percentage_msgs(ChannelCount.OUTGOING_MSG_TYPE, obj)
+            return mark_safe("<div>%s</div>" % (total))
+
 
         def get_owner(self, obj):
             # default to the created by if there are no admins
             owner = obj.latest_admin() or obj.created_by
-
             return mark_safe("<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
                              % (owner.first_name, owner.last_name, owner))
 
+
         def get_service(self, obj):
             url = reverse('orgs.org_service')
-
             return mark_safe("<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a>"
                              % (url, obj.id))
+
 
         def get_name(self, obj):
             suspended = ''
             if obj.is_suspended():
                 suspended = '<span class="suspended">(Suspended)</span>'
-
             return mark_safe("<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
                              % (suspended, obj.name, obj.timezone))
+
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
-
             brand = self.request.branding.get('brand')
             if brand:
                 queryset = queryset.filter(brand=brand)
-
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
-
             return queryset
+
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
             context['create_org_form'] = CreateOrgForm()
-            total_msgs = self.get_total_msgs()
-            context['total_sent'] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
-            context['total_received'] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
+            total_msgs = self.get_total_msgs_general()
+            context['total_received'] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
+            context['total_sent'] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
             return context
+
 
         def post (self, request, *args, **kwargs):
             form = CreateOrgForm(self.request.POST or None)
@@ -1053,10 +1096,12 @@ class OrgCRUDL(SmartCRUDL):
                 print (form.errors)
             return HttpResponseRedirect('/org/manage/')
 
+
         def lookup_field_link(self, context, field, obj):
             if field == 'owner':
                 return reverse('users.user_update', args=[obj.created_by.pk])
             return super(OrgCRUDL.Manage, self).lookup_field_link(context, field, obj)
+
 
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
