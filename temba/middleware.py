@@ -90,11 +90,12 @@ class ConsentMiddleware(object):
         if request.path.startswith('/users'):
             return None
 
+        if request.path.startswith('/policy'):
+            return None
+
         if request.path in (
                 reverse('orgs.org_service'),
                 reverse('orgs.org_manage'),
-                reverse('policies.policy_list'),
-                reverse('policies.policy_give_consent'),
                 reverse('django.views.i18n.javascript_catalog')):
             return None
 

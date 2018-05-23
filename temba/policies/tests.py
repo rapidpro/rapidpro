@@ -89,3 +89,9 @@ class PolicyViewTest(TembaTest):
         response = self.client.get(reverse('policies.policy_admin'))
         self.assertEqual(3, response.context['active_policies'].count())
         self.assertEqual(1, response.context['object_list'].count())
+
+    def test_consent_middleware(self):
+        # middleware should reroute to ask for consent
+        self.login(self.admin)
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertRedirect(response, reverse('policies.policy_list'))
