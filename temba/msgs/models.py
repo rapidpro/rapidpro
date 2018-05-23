@@ -1632,7 +1632,6 @@ class Msg(models.Model):
                 cursor = connection.cursor()
                 msg_ids = tuple([m.id for m in msg_batch])
                 cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
-                cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
                 cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
 
     @classmethod
