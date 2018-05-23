@@ -1,18 +1,13 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import subprocess
-
 import pytz
-import six
 import copy
 import time
 
 from datetime import date
 from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
-
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db.models import Value as DbValue
@@ -310,7 +305,7 @@ class ContactGroupTest(TembaTest):
                 ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
                 ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=166, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=111, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1240,10 +1235,10 @@ class ContactTest(TembaTest):
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
 
-        self.assertEqual("Joe Blow", six.text_type(self.joe))
-        self.assertEqual("0768 383 383", six.text_type(self.voldemort))
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
-        self.assertEqual("Billy Nophone", six.text_type(self.billy))
+        self.assertEqual("Joe Blow", str(self.joe))
+        self.assertEqual("0768 383 383", str(self.voldemort))
+        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", str(mr_long_name))
+        self.assertEqual("Billy Nophone", str(self.billy))
 
         with AnonymousOrg(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
@@ -1261,10 +1256,10 @@ class ContactTest(TembaTest):
             self.assertEqual('', self.billy.get_urn_display())
             self.assertEqual('', self.billy.get_urn_display(scheme=TEL_SCHEME))
 
-            self.assertEqual("Joe Blow", six.text_type(self.joe))
-            self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
-            self.assertEqual("Billy Nophone", six.text_type(self.billy))
+            self.assertEqual("Joe Blow", str(self.joe))
+            self.assertEqual("%010d" % self.voldemort.pk, str(self.voldemort))
+            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", str(mr_long_name))
+            self.assertEqual("Billy Nophone", str(self.billy))
 
     def test_bulk_cache_initialize(self):
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N', show_in_table=True)
@@ -1503,7 +1498,7 @@ class ContactTest(TembaTest):
             # this will be parsed as search for contact id
             self.assertRaises(
                 SearchException, evaluate_query,
-                self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json()
+                self.org, str(self.joe.pk), contact_json=self.joe.as_search_json()
             )
 
     def test_contact_search_parsing(self):
@@ -1653,7 +1648,7 @@ class ContactTest(TembaTest):
                 # {'term': {'is_blocked': False}},
                 # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
-                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+                {'term': {'groups': str(self.org.cached_all_contacts_group.uuid)}}
             ],
             'must': []
         }}, 'sort': [{'id': {'order': 'desc'}}]}
@@ -1662,7 +1657,7 @@ class ContactTest(TembaTest):
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
-                {'term': {'fields.field': six.text_type(gender.uuid)}},
+                {'term': {'fields.field': str(gender.uuid)}},
                 {'term': {'fields.text': 'unknown'}}
             ]}
         }}}]
@@ -1676,7 +1671,7 @@ class ContactTest(TembaTest):
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
-                {'term': {'fields.field': six.text_type(age.uuid)}},
+                {'term': {'fields.field': str(age.uuid)}},
                 {'match': {'fields.number': '35'}}
             ]}
         }}}]
@@ -1690,7 +1685,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(age.uuid)}},
+                    {'term': {'fields.field': str(age.uuid)}},
                     {'range': {'fields.number': {'gt': '35'}}}
                 ]}
         }}}]
@@ -1704,7 +1699,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(age.uuid)}},
+                    {'term': {'fields.field': str(age.uuid)}},
                     {'range': {'fields.number': {'gte': '35'}}}
                 ]}
         }}}]
@@ -1718,7 +1713,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(age.uuid)}},
+                    {'term': {'fields.field': str(age.uuid)}},
                     {'range': {'fields.number': {'lt': '35'}}}
                 ]}
         }}}]
@@ -1732,7 +1727,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(age.uuid)}},
+                    {'term': {'fields.field': str(age.uuid)}},
                     {'range': {'fields.number': {'lte': '35'}}}
                 ]}
         }}}]
@@ -1746,7 +1741,7 @@ class ContactTest(TembaTest):
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {'must': [
-                {'term': {'fields.field': six.text_type(joined.uuid)}},
+                {'term': {'fields.field': str(joined.uuid)}},
                 {'range': {'fields.datetime': {
                     'gte': '2018-02-28T22:00:00+00:00', 'lt': '2018-03-01T22:00:00+00:00'
                 }}}
@@ -1762,7 +1757,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'range': {'fields.datetime': {'gte': '2018-03-01T22:00:00+00:00'}}}
                 ]}
         }}}]
@@ -1776,7 +1771,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'range': {'fields.datetime': {'gte': '2018-02-28T22:00:00+00:00'}}}
                 ]}
         }}}]
@@ -1790,7 +1785,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'range': {'fields.datetime': {'lt': '2018-02-28T22:00:00+00:00'}}}
                 ]}
         }}}]
@@ -1804,7 +1799,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'range': {'fields.datetime': {'lt': '2018-03-01T22:00:00+00:00'}}}
                 ]}
         }}}
@@ -1820,7 +1815,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(ward.uuid)}},
+                    {'term': {'fields.field': str(ward.uuid)}},
                     {'term': {'fields.ward_keyword': 'bukure'}}
                 ]}
         }}}]
@@ -1837,7 +1832,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(district.uuid)}},
+                    {'term': {'fields.field': str(district.uuid)}},
                     {'term': {'fields.district_keyword': 'rwamagana'}}
                 ]}
         }}}]
@@ -1853,7 +1848,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(state.uuid)}},
+                    {'term': {'fields.field': str(state.uuid)}},
                     {'term': {'fields.state_keyword': 'eastern province'}}
                 ]}
         }}}]
@@ -1868,11 +1863,11 @@ class ContactTest(TembaTest):
         expected_search = copy.deepcopy(base_search)
         expected_search['query']['bool']['must'] = [
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                {'term': {'fields.field': six.text_type(gender.uuid)}},
+                {'term': {'fields.field': str(gender.uuid)}},
                 {'term': {'fields.text': 'unknown'}}
             ]}}}},
             {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                {'term': {'fields.field': six.text_type(age.uuid)}},
+                {'term': {'fields.field': str(age.uuid)}},
                 {'range': {'fields.number': {'gt': '32'}}}
             ]}}}}
         ]
@@ -1885,9 +1880,9 @@ class ContactTest(TembaTest):
         expected_search = {'query': {'bool': {
             'should': [
                 {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                    {'term': {'fields.field': six.text_type(gender.uuid)}}, {'term': {'fields.text': 'unknown'}}
+                    {'term': {'fields.field': str(gender.uuid)}}, {'term': {'fields.text': 'unknown'}}
                 ]}}}}, {'nested': {'path': 'fields', 'query': {'bool': {'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'range': {'fields.datetime': {'lt': '2018-02-28T22:00:00+00:00'}}}
                 ]}}}}
             ],
@@ -1895,7 +1890,7 @@ class ContactTest(TembaTest):
                 # {'term': {'is_blocked': False}},
                 # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
-                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+                {'term': {'groups': str(self.org.cached_all_contacts_group.uuid)}}
             ],
             'minimum_should_match': 1}}, 'sort': [{'id': {'order': 'desc'}}]}
 
@@ -1963,7 +1958,7 @@ class ContactTest(TembaTest):
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
+                'must': [{'term': {'fields.field': str(gender.uuid)}}, {'exists': {'field': 'fields.text'}}]
             }
         }}}]
         actual_search, _ = contact_es_search(self.org, 'gender = ""')
@@ -1976,7 +1971,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(gender.uuid)}},
+                    {'term': {'fields.field': str(gender.uuid)}},
                     {'exists': {'field': 'fields.text'}}
                 ]
             }
@@ -1991,7 +1986,7 @@ class ContactTest(TembaTest):
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
+                'must': [{'term': {'fields.field': str(age.uuid)}}, {'exists': {'field': 'fields.number'}}]
             }
         }}}]
         actual_search, _ = contact_es_search(self.org, 'age = ""')
@@ -2004,7 +1999,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(age.uuid)}},
+                    {'term': {'fields.field': str(age.uuid)}},
                     {'exists': {'field': 'fields.number'}}
                 ]
             }
@@ -2020,7 +2015,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}}, {'exists': {'field': 'fields.datetime'}}
+                    {'term': {'fields.field': str(joined.uuid)}}, {'exists': {'field': 'fields.datetime'}}
                 ]
             }
         }}}]
@@ -2034,7 +2029,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(joined.uuid)}},
+                    {'term': {'fields.field': str(joined.uuid)}},
                     {'exists': {'field': 'fields.datetime'}}
                 ]
             }
@@ -2049,7 +2044,7 @@ class ContactTest(TembaTest):
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
+                'must': [{'term': {'fields.field': str(ward.uuid)}}, {'exists': {'field': 'fields.ward'}}]
             }
         }}}]
         actual_search, _ = contact_es_search(self.org, 'ward = ""')
@@ -2062,7 +2057,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(ward.uuid)}},
+                    {'term': {'fields.field': str(ward.uuid)}},
                     {'exists': {'field': 'fields.ward'}}
                 ]
             }
@@ -2078,7 +2073,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(district.uuid)}}, {'exists': {'field': 'fields.district'}}
+                    {'term': {'fields.field': str(district.uuid)}}, {'exists': {'field': 'fields.district'}}
                 ]
             }
         }}}]
@@ -2092,7 +2087,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(district.uuid)}},
+                    {'term': {'fields.field': str(district.uuid)}},
                     {'exists': {'field': 'fields.district'}}
                 ]
             }
@@ -2107,7 +2102,7 @@ class ContactTest(TembaTest):
         del expected_search['query']['bool']['must']
         expected_search['query']['bool']['must_not'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
-                'must': [{'term': {'fields.field': six.text_type(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
+                'must': [{'term': {'fields.field': str(state.uuid)}}, {'exists': {'field': 'fields.state'}}]
             }
         }}}]
         actual_search, _ = contact_es_search(self.org, 'state = ""')
@@ -2120,7 +2115,7 @@ class ContactTest(TembaTest):
         expected_search['query']['bool']['must'] = [{'nested': {'path': 'fields', 'query': {
             'bool': {
                 'must': [
-                    {'term': {'fields.field': six.text_type(state.uuid)}},
+                    {'term': {'fields.field': str(state.uuid)}},
                     {'exists': {'field': 'fields.state'}}
                 ]
             }
@@ -2166,7 +2161,7 @@ class ContactTest(TembaTest):
                 # {'term': {'is_blocked': False}},
                 # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
-                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+                {'term': {'groups': str(self.org.cached_all_contacts_group.uuid)}}
             ],
             'minimum_should_match': 1}}, 'sort': [{'id': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name = ""')
@@ -2182,7 +2177,7 @@ class ContactTest(TembaTest):
                 # {'term': {'is_blocked': False}},
                 # {'term': {'is_stopped': False}},
                 {'term': {'org_id': self.org.id}},
-                {'term': {'groups': six.text_type(self.org.cached_all_contacts_group.uuid)}}
+                {'term': {'groups': str(self.org.cached_all_contacts_group.uuid)}}
             ],
         }}, 'sort': [{'id': {'order': 'desc'}}]}
         actual_search, _ = contact_es_search(self.org, 'name != ""')
@@ -2248,8 +2243,7 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(35):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
-        six.assertCountEqual(
-            self,
+        self.assertCountEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()], ['Empty age field', 'urn group']
         )
 
@@ -2257,8 +2251,7 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'gender', 'male')
         contact.set_field(self.user, 'age', 20)
 
-        six.assertCountEqual(
-            self,
+        self.assertCountEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()],
             ['cannon fodder', 'urn group', 'Age field is set']
         )
@@ -2486,7 +2479,7 @@ class ContactTest(TembaTest):
             EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
             # create a missed call
-            ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
+            ChannelEvent.create(self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
                                 timezone.now(), {})
 
             # try adding some failed calls
@@ -2535,10 +2528,13 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[10]['obj'].text, "Inbound message 0")
             self.assertEqual(activity[11]['obj'].text, "Very old inbound message")
 
-            # if a broadcast is purged, it appears in place of the message
+            # make our broadcast look like an old purged broadcast
             bcast = Broadcast.objects.get()
+            for msg in bcast.msgs.all():
+                BroadcastRecipient.objects.create(contact=msg.contact, broadcast=bcast, purged_status=msg.status)
+
             bcast.purged = True
-            bcast.save()
+            bcast.save(update_fields=('purged',))
             bcast.msgs.all().delete()
 
             recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
@@ -3386,7 +3382,7 @@ class ContactTest(TembaTest):
 
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.name, "Joe X")
-        self.assertEqual({six.text_type(u) for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
+        self.assertEqual({str(u) for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
 
         # remove all of joe's URNs
         ContactURN.objects.filter(contact=self.joe).update(contact=None)
@@ -3396,7 +3392,7 @@ class ContactTest(TembaTest):
         self.assertNotContains(response, "blow80")
 
         # try delete action
-        event = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)),
+        event = ChannelEvent.create(self.channel, str(self.frank.get_urn(TEL_SCHEME)),
                                     ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {})
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
@@ -3465,9 +3461,9 @@ class ContactTest(TembaTest):
         self.assertEqual(contact5, ContactURN.objects.get(identity='twitter:jimmy_woot').contact)
 
         # check twitter URN takes priority if you don't specify scheme
-        self.assertEqual('twitter:jimmy_woot', six.text_type(contact5.get_urn()))
-        self.assertEqual('twitter:jimmy_woot', six.text_type(contact5.get_urn(schemes=[TWITTER_SCHEME])))
-        self.assertEqual('tel:+250788333666', six.text_type(contact5.get_urn(schemes=[TEL_SCHEME])))
+        self.assertEqual('twitter:jimmy_woot', str(contact5.get_urn()))
+        self.assertEqual('twitter:jimmy_woot', str(contact5.get_urn(schemes=[TWITTER_SCHEME])))
+        self.assertEqual('tel:+250788333666', str(contact5.get_urn(schemes=[TEL_SCHEME])))
         self.assertIsNone(contact5.get_urn(schemes=['email']))
         self.assertIsNone(contact5.get_urn(schemes=['facebook']))
 
@@ -3537,7 +3533,7 @@ class ContactTest(TembaTest):
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
-        self.assertEqual([six.text_type(u) for u in contact.urns.all()], ["tel:+250788111111"])
+        self.assertEqual([str(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
 
     def test_create_instance_with_language(self):
@@ -3553,7 +3549,7 @@ class ContactTest(TembaTest):
 
     def do_import(self, user, filename):
 
-        import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=[],
+        import_params = dict(org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[],
                              original_filename=filename)
 
         task = ImportTask.objects.create(
@@ -4482,7 +4478,7 @@ class ContactTest(TembaTest):
         # simple text field
         self.joe.set_field(self.user, 'dog', "Chef", label="Dog")
         self.joe.refresh_from_db()
-        dog_uuid = six.text_type(ContactField.objects.get(key="dog").uuid)
+        dog_uuid = str(ContactField.objects.get(key="dog").uuid)
 
         self.assertEqual(self.joe.fields, {dog_uuid: {"text": "Chef"}})
 
@@ -4544,7 +4540,7 @@ class ContactTest(TembaTest):
         # setting another field doesn't ruin anything
         self.joe.set_field(self.user, 'cat', "Rando", label="Cat")
         self.joe.refresh_from_db()
-        cat_uuid = six.text_type(ContactField.objects.get(key="cat").uuid)
+        cat_uuid = str(ContactField.objects.get(key="cat").uuid)
         self.assertEqual(
             self.joe.fields,
             {
@@ -4592,7 +4588,7 @@ class ContactTest(TembaTest):
         self.joe.refresh_from_db()
 
         # we try a bit harder if we know it is a location field
-        state_uuid = six.text_type(
+        state_uuid = str(
             ContactField.get_or_create(self.org, self.user, "state", "State", value_type=Value.TYPE_STATE).uuid)
         self.joe.set_field(self.user, 'state', "i live in eastern province")
         self.joe.refresh_from_db()
@@ -4607,9 +4603,9 @@ class ContactTest(TembaTest):
         )
 
         # ok, let's test our other boundary levels
-        district_uuid = six.text_type(
+        district_uuid = str(
             ContactField.get_or_create(self.org, self.user, "district", "District", value_type=Value.TYPE_DISTRICT).uuid)
-        ward_uuid = six.text_type(
+        ward_uuid = str(
             ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=Value.TYPE_WARD).uuid)
         self.joe.set_field(self.user, 'district', 'gatsibo')
         self.joe.set_field(self.user, 'ward', 'kageyo')
@@ -5080,8 +5076,7 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(19):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
-        six.assertCountEqual(
-            self,
+        self.assertCountEqual(
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
             ['Empty age field', 'urn group']
         )
@@ -5262,7 +5257,7 @@ class ContactFieldTest(TembaTest):
 
         # create another contact, this should sort before Ben
         contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam', language='eng')
-        urns = [six.text_type(urn) for urn in contact2.get_urns()]
+        urns = [str(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
@@ -5375,10 +5370,10 @@ class ContactFieldTest(TembaTest):
         with AnonymousOrg(self.org):
             self.assertExcelSheet(request_export()[0], [
                 ["ID", "Contact UUID", "Name", "Language", "Third", "Second", "First"],
-                [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
-                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "", "20-12-2015 08:30", "", "One"],
-                [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", "", ""],
-                [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
+                [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
+                [str(contact.id), contact.uuid, "Ben Haggerty", "", "20-12-2015 08:30", "", "One"],
+                [str(contact3.id), contact3.uuid, "Luol Deng", "", "", "", ""],
+                [str(contact4.id), contact4.uuid, "Stephen", "", "", "", ""],
             ])
 
     def test_prepare_sort_field_struct(self):
@@ -5401,50 +5396,50 @@ class ContactFieldTest(TembaTest):
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(six.text_type(self.contactfield_1.uuid))),
-            (six.text_type(self.contactfield_1.uuid), 'asc', {
+            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(str(self.contactfield_1.uuid))),
+            (str(self.contactfield_1.uuid), 'asc', {
                 'field_type': 'field', 'sort_direction': 'asc', 'field_path': 'fields.text',
-                'field_uuid': six.text_type(self.contactfield_1.uuid)
+                'field_uuid': str(self.contactfield_1.uuid)
             })
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(self.contactfield_1.uuid))),
-            (six.text_type(self.contactfield_1.uuid), 'desc', {
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(str(self.contactfield_1.uuid))),
+            (str(self.contactfield_1.uuid), 'desc', {
                 'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.text',
-                'field_uuid': six.text_type(self.contactfield_1.uuid)
+                'field_uuid': str(self.contactfield_1.uuid)
             })
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(self.contactfield_1.uuid))),
-            (six.text_type(self.contactfield_1.uuid), 'desc', {
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(str(self.contactfield_1.uuid))),
+            (str(self.contactfield_1.uuid), 'desc', {
                 'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.text',
-                'field_uuid': six.text_type(self.contactfield_1.uuid)
+                'field_uuid': str(self.contactfield_1.uuid)
             })
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(ward.uuid))),
-            (six.text_type(ward.uuid), 'desc', {
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(str(ward.uuid))),
+            (str(ward.uuid), 'desc', {
                 'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.ward_keyword',
-                'field_uuid': six.text_type(ward.uuid)
+                'field_uuid': str(ward.uuid)
             })
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(six.text_type(district.uuid))),
-            (six.text_type(district.uuid), 'desc', {
+            ContactListView.prepare_sort_field_struct(sort_on='-{}'.format(str(district.uuid))),
+            (str(district.uuid), 'desc', {
                 'field_type': 'field', 'sort_direction': 'desc', 'field_path': 'fields.district_keyword',
-                'field_uuid': six.text_type(district.uuid)
+                'field_uuid': str(district.uuid)
             })
         )
 
         self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(six.text_type(state.uuid))),
-            (six.text_type(state.uuid), 'asc', {
+            ContactListView.prepare_sort_field_struct(sort_on='{}'.format(str(state.uuid))),
+            (str(state.uuid), 'asc', {
                 'field_type': 'field', 'sort_direction': 'asc', 'field_path': 'fields.state_keyword',
-                'field_uuid': six.text_type(state.uuid)
+                'field_uuid': str(state.uuid)
             })
         )
 
@@ -5476,15 +5471,15 @@ class ContactFieldTest(TembaTest):
             mock_ES.search.return_value = {'_hits': [{'id': self.joe.id}]}
             mock_ES.count.return_value = {'count': 1}
 
-            response = self.client.get('%s?sort_on=%s' % (url, six.text_type(self.contactfield_1.uuid)))
+            response = self.client.get('%s?sort_on=%s' % (url, str(self.contactfield_1.uuid)))
 
-            self.assertEqual(response.context['sort_field'], six.text_type(self.contactfield_1.uuid))
+            self.assertEqual(response.context['sort_field'], str(self.contactfield_1.uuid))
             self.assertEqual(response.context['sort_direction'], 'asc')
             self.assertTrue('search' not in response.context)
 
-            response = self.client.get('%s?sort_on=-%s' % (url, six.text_type(self.contactfield_1.uuid)))
+            response = self.client.get('%s?sort_on=-%s' % (url, str(self.contactfield_1.uuid)))
 
-            self.assertEqual(response.context['sort_field'], six.text_type(self.contactfield_1.uuid))
+            self.assertEqual(response.context['sort_field'], str(self.contactfield_1.uuid))
             self.assertEqual(response.context['sort_direction'], 'desc')
             self.assertTrue('search' not in response.context)
 
@@ -5536,7 +5531,7 @@ class ContactFieldTest(TembaTest):
 
         # find our favorite_cat contact field
         favorite_cat = None
-        for key, value in six.iteritems(post_data):
+        for key, value in post_data.items():
             if value == 'Favorite Cat':
                 favorite_cat = key
         self.assertIsNotNone(favorite_cat)
@@ -6090,28 +6085,28 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         response = self.client.get('%s?sort_on=%s' % (url, 'created_on'))
         self.assertEqual(response.context['contacts'][0].name, 'Trey')  # first contact in the set
         self.assertEqual(
-            response.context['contacts'][0].fields[six.text_type(age.uuid)],
+            response.context['contacts'][0].fields[str(age.uuid)],
             {'text': '10', 'number': '10'}
         )
 
         response = self.client.get('%s?sort_on=-%s' % (url, 'created_on'))
         self.assertEqual(response.context['contacts'][0].name, None)  # last contact in the set
         self.assertEqual(
-            response.context['contacts'][0].fields[six.text_type(age.uuid)],
+            response.context['contacts'][0].fields[str(age.uuid)],
             {'text': '99', 'number': '99'}
         )
 
-        response = self.client.get('%s?sort_on=-%s' % (url, six.text_type(ward.uuid)))
+        response = self.client.get('%s?sort_on=-%s' % (url, str(ward.uuid)))
         self.assertEqual(
-            response.context['contacts'][0].fields[six.text_type(ward.uuid)], {
+            response.context['contacts'][0].fields[str(ward.uuid)], {
                 'district': 'Rwanda > Eastern Province > Gatsibo', 'state': 'Rwanda > Eastern Province',
                 'text': 'Kageyo', 'ward': 'Rwanda > Eastern Province > Gatsibo > Kageyo'
             }
         )
 
-        response = self.client.get('%s?sort_on=%s' % (url, six.text_type(ward.uuid)))
+        response = self.client.get('%s?sort_on=%s' % (url, str(ward.uuid)))
         self.assertEqual(
-            response.context['contacts'][0].fields[six.text_type(ward.uuid)], {
+            response.context['contacts'][0].fields[str(ward.uuid)], {
                 'district': 'Rwanda > Eastern Province > Rwamagana', 'state': 'Rwanda > Eastern Province',
                 'text': 'Bukure', 'ward': 'Rwanda > Eastern Province > Rwamagana > Bukure'
             }

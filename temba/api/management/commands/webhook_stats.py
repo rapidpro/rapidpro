@@ -1,14 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from array import array
 from collections import defaultdict
 from datetime import timedelta
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from temba.api.models import WebHookResult
 
 
@@ -76,16 +71,16 @@ class Command(BaseCommand):  # pragma: no cover
 
         # calculate stats for each unique item
         items = []
-        for key, status_counts in six.iteritems(item_statuses):
+        for key, status_counts in item_statuses.items():
             times = item_times[key]
             total_requests = len(times)
             avg_time = sum(times) // total_requests
 
-            num_non200s = sum([count for code, count in six.iteritems(status_counts) if code != -1 and int(code // 100) != 2])
+            num_non200s = sum([count for code, count in status_counts.items() if code != -1 and int(code // 100) != 2])
             num_timeouts = status_counts.get(-1, 0)
 
             sorted_statuses = []
-            for code, count in six.iteritems(status_counts):
+            for code, count in status_counts.items():
                 if code > 0:
                     sorted_statuses.append({'code': code, 'count': count, '%': (100 * count // total_requests)})
 
@@ -163,4 +158,4 @@ class Command(BaseCommand):  # pragma: no cover
             return url
 
     def _num_style(self, v):
-        return self.style.NOTICE(six.text_type(v))
+        return self.style.NOTICE(str(v))

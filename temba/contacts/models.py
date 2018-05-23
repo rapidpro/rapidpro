@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import datetime
 import json
 import logging
@@ -8,7 +5,6 @@ import os
 import phonenumbers
 import pytz
 import regex
-import six
 import time
 import uuid
 import iso8601
@@ -113,7 +109,7 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return six.text_type(ParsedURN(scheme, path, query=query, fragment=display))
+        return str(ParsedURN(scheme, path, query=query, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -220,7 +216,7 @@ class URN(object):
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        norm_path = six.text_type(path).strip()
+        norm_path = str(path).strip()
 
         if scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
@@ -232,7 +228,7 @@ class URN(object):
 
         elif scheme == TWITTERID_SCHEME:
             if display:
-                display = six.text_type(display).strip().lower()
+                display = str(display).strip().lower()
                 if display and display[0] == '@':
                     display = display[1:]
 
@@ -345,7 +341,6 @@ class URN(object):
         return cls.from_parts(JIOCHAT_SCHEME, path)
 
 
-@six.python_2_unicode_compatible
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
@@ -523,7 +518,6 @@ NEW_CONTACT_VARIABLE = "@new_contact"
 MAX_HISTORY = 50
 
 
-@six.python_2_unicode_compatible
 class Contact(RequireUpdateFieldsMixin, TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -590,7 +584,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return get_cacheable_attr(self, '_user_groups', lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED))
 
     def as_json(self):
-        obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
+        obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -711,7 +705,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        return self.fields.get(six.text_type(field.uuid)) if self.fields else None
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
     def get_field_serialized(self, field):
         """
@@ -770,7 +764,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
             return value.name
         else:
-            return six.text_type(value)
+            return str(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
         # make sure this field exists
@@ -785,7 +779,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         else:
             # parse as all value data types
-            str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
+            str_value = str(value)[:Value.MAX_VALUE_LEN]
             dt_value = self.org.parse_datetime(value)
             num_value = self.org.parse_number(value)
             loc_value = None
@@ -817,7 +811,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 else:
                     loc_value = None
 
-        field_uuid = six.text_type(field.uuid)
+        field_uuid = str(field.uuid)
         if self.fields is None:
             self.fields = {}
 
@@ -1121,7 +1115,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             urn_objects = existing_orphan_urns.copy()
 
             # add all new URNs
-            for raw, normalized in six.iteritems(urns_to_create):
+            for raw, normalized in urns_to_create.items():
                 urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
                 urn_objects[raw] = urn
 
@@ -1205,7 +1199,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if not value:
                 continue
 
-            value = six.text_type(value)
+            value = str(value)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
@@ -1393,7 +1387,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def normalize_value(cls, val):
-        if isinstance(val, six.string_types):
+        if isinstance(val, str):
             return SmartModel.normalize_value(val)
         return val
 
@@ -1432,7 +1426,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for cell in row:
                 cell_value = cls.normalize_value(cell)
                 if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
-                    cell_value = six.text_type(cell_value)
+                    cell_value = str(cell_value)
                 row_data.append(cell_value)
 
             line_number += 1
@@ -1861,7 +1855,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Gets the highest priority matching URN for this contact. Schemes may be a single scheme or a set/list/tuple
         """
-        if isinstance(schemes, six.string_types):
+        if isinstance(schemes, str):
             schemes = (schemes,)
 
         urns = self.get_urns()
@@ -1928,7 +1922,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -2058,10 +2052,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, expressions_context=None, connection=None,
-             quick_replies=None, attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
+             quick_replies=None, attachments=None, msg_type=None, sent_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
-        status = SENT if created_on else PENDING
+        status = SENT if sent_on else PENDING
 
         if all_urns:
             recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
@@ -2074,7 +2068,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, expressions_context=expressions_context,
                                           connection=connection, attachments=attachments, msg_type=msg_type or INBOX,
-                                          status=status, quick_replies=quick_replies, created_on=created_on,
+                                          status=status, quick_replies=quick_replies, sent_on=sent_on,
                                           high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
@@ -2090,7 +2084,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return self.get_display()
 
 
-@six.python_2_unicode_compatible
 class ContactURN(models.Model):
     """
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
@@ -2293,7 +2286,6 @@ class UserContactGroupManager(models.Manager):
                                                                           is_active=True)
 
 
-@six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
@@ -2687,7 +2679,6 @@ class ContactGroup(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
@@ -2852,7 +2843,7 @@ class ExportContactsTask(BaseExportTask):
                     elif field['key'] == Contact.LANGUAGE:
                         field_value = contact.language
                     elif field['key'] == Contact.ID:
-                        field_value = six.text_type(contact.id)
+                        field_value = str(contact.id)
                     elif field['urn_scheme'] is not None:
                         contact_urns = contact.get_urns()
                         scheme_urns = []
@@ -2872,7 +2863,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = ''
 
                     if field_value:
-                        field_value = six.text_type(clean_string(field_value))
+                        field_value = str(clean_string(field_value))
 
                     values.append(field_value)
 
@@ -2886,7 +2877,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = 'true' if field['group_id'] in contact_groups_ids else 'false'
 
                     if field_value:
-                        field_value = six.text_type(clean_string(field_value))
+                        field_value = str(clean_string(field_value))
 
                     group_values.append(field_value)
 

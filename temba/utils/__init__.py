@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import datetime
+import iso8601
 import json
 import locale
 import resource
-import six
 
 from decimal import Decimal
 from django.conf import settings
@@ -13,7 +10,7 @@ from django.db import transaction
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
-from .dates import json_date_to_datetime, datetime_to_json_date, datetime_decoder
+from .dates import datetime_to_json_date
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -55,12 +52,20 @@ def format_number(val):
 
     # convert our decimal to a value without exponent
     val = val.quantize(Decimal(1)) if val == val.to_integral() else val.normalize()
-    val = six.text_type(val)
+    val = str(val)
 
     if '.' in val:
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
 
     return val
+
+
+def sizeof_fmt(num, suffix='b'):
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Y', suffix)
 
 
 def get_dict_from_cursor(cursor):
@@ -74,7 +79,6 @@ def get_dict_from_cursor(cursor):
     ]
 
 
-@six.python_2_unicode_compatible
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
@@ -88,7 +92,7 @@ class DictStruct(object):
         for field in datetime_fields:
             value = self._values.get(field, None)
             if value:
-                self._values[field] = json_date_to_datetime(value)
+                self._values[field] = iso8601.parse_date(value)
 
         self._initialized = True
 
@@ -161,14 +165,6 @@ def dict_to_json(dictionary):
     Converts a dictionary to JSON, taking care of converting dates as needed.
     """
     return json.dumps(dictionary, cls=DateTimeJsonEncoder)
-
-
-def json_to_dict(json_string):
-    """
-    Converts an incoming json string to a Python dictionary trying to detect datetime fields and convert them
-    to Python objects. (you shouldn't do this with untrusted input)
-    """
-    return json.loads(json_string, object_hook=datetime_decoder)
 
 
 def splitting_getlist(request, name, default=None):

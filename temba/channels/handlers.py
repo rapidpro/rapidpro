@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import logging
-from datetime import datetime
-
 import pytz
-import six
+
+from datetime import datetime
 from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -18,7 +14,7 @@ from twilio import twiml
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
@@ -110,7 +106,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
                 response.hangup()
-                return HttpResponse(six.text_type(response))
+                return HttpResponse(str(response))
 
             org = channel.org
 
@@ -142,7 +138,7 @@ class TWIMLCallHandler(BaseChannelHandler):
 
                     FlowRun.create(flow, contact, session=session, connection=call)
                     response = Flow.handle_call(call)
-                    return HttpResponse(six.text_type(response))
+                    return HttpResponse(str(response))
 
                 else:
 
@@ -159,7 +155,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                     Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
-                    return HttpResponse(six.text_type(response))
+                    return HttpResponse(str(response))
 
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
@@ -261,8 +257,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 runs = FlowRun.objects.filter(connection=call)
                 for run in runs:
                     if not run.is_completed():
-                        final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
-                        run.set_completed(final_step=final_step)
+                        run.set_completed()
 
             return JsonResponse(response)
 
@@ -302,9 +297,9 @@ class NexmoCallHandler(BaseChannelHandler):
                 FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
 
-                event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                 ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
-                return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                return JsonResponse(json.loads(str(response)), safe=False)
             else:
                 # we don't have an inbound trigger to deal with this call.
                 response = channel.generate_ivr_response()
@@ -319,7 +314,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                 # either way, we need to hangup now
-                return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                return JsonResponse(json.loads(str(response)), safe=False)
 
 
 class MageHandler(BaseChannelHandler):

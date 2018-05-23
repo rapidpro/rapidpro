@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import calendar
 import datetime
 import iso8601
 import pytz
 import regex
-import six
 
 from django.utils import timezone
 
@@ -70,7 +66,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     # remove whitespace any trailing period
-    date_str = six.text_type(date_str).strip().rstrip('.')
+    date_str = str(date_str).strip().rstrip('.')
 
     # try first as full ISO string
     if FULL_ISO8601_REGEX.match(date_str):
@@ -202,16 +198,6 @@ def datetime_to_json_date(dt, micros=False):
     return (as_str if micros else as_str[:-3]) + 'Z'
 
 
-def json_date_to_datetime(date_str):
-    """
-    Parses a datetime from a JSON string value
-    """
-    iso_format = '%Y-%m-%dT%H:%M:%S.%f'
-    if date_str.endswith('Z'):
-        iso_format += 'Z'
-    return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
-
-
 def datetime_to_s(dt):
     """
     Converts a datetime to a fractional second epoch
@@ -251,35 +237,6 @@ def date_to_utc_range(d, org):
     local_midnight = org.timezone.localize(datetime.datetime.combine(d, datetime.time(0, 0)))
     utc_midnight = local_midnight.astimezone(pytz.UTC)
     return utc_midnight, utc_midnight + datetime.timedelta(days=1)
-
-
-def datetime_decoder(d):
-    """
-    Looks through strings in a dictionary trying to find things that look like date or
-    datetimes and converting them back to datetimes.
-    """
-    if isinstance(d, list):
-        pairs = enumerate(d)  # pragma: no cover
-    elif isinstance(d, dict):
-        pairs = d.items()
-    result = []
-    for k, v in pairs:
-        if isinstance(v, six.string_types):
-            try:
-                # The %f format code is only supported in Python >= 2.6.
-                # For Python <= 2.5 strip off microseconds
-                # v = datetime.datetime.strptime(v.rsplit('.', 1)[0],
-                #     '%Y-%m-%dT%H:%M:%S')
-                v = json_date_to_datetime(v)
-            except ValueError:
-                pass
-        elif isinstance(v, (dict, list)):
-            v = datetime_decoder(v)  # pragma: no cover
-        result.append((k, v))
-    if isinstance(d, list):
-        return [x[1] for x in result]  # pragma: no cover
-    elif isinstance(d, dict):
-        return dict(result)
 
 
 def _atoi(s):

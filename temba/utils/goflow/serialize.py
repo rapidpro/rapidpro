@@ -1,11 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django.db.models import Prefetch
 from mptt.utils import get_cached_trees
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 from temba.values.constants import Value
 
 VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
@@ -30,7 +25,7 @@ def serialize_channel(channel):
 
     return {
         'uuid': str(channel.uuid),
-        'name': channel.name,
+        'name': channel.name or "",
         'address': channel.address,
         'schemes': channel.schemes,
         'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
@@ -38,7 +33,7 @@ def serialize_channel(channel):
 
 
 def serialize_channel_ref(channel):
-    return {'uuid': str(channel.uuid), 'name': channel.name}
+    return {'uuid': str(channel.uuid), 'name': channel.name or ""}
 
 
 def serialize_contact(contact):
@@ -78,7 +73,7 @@ def serialize_environment(org):
     return {
         'date_format': "DD-MM-YYYY" if org.date_format == 'D' else "MM-DD-YYYY",
         'time_format': "tt:mm",
-        'timezone': six.text_type(org.timezone),
+        'timezone': str(org.timezone),
         'languages': languages
     }
 

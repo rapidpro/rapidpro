@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from .views import MsgCRUDL, BroadcastCRUDL, LabelCRUDL
 
 urlpatterns = MsgCRUDL().as_urlpatterns()

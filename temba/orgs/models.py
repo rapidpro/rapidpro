@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import calendar
 import itertools
 import logging
@@ -10,7 +7,6 @@ import pycountry
 import random
 import re
 import regex
-import six
 import stripe
 import traceback
 
@@ -45,7 +41,7 @@ from temba.utils.email import send_template_email, send_simple_email, send_custo
 from temba.utils.models import SquashableModel, JSONAsTextField
 from temba.utils.text import random_string
 from timezone_field import TimeZoneField
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from uuid import uuid4
 
 
@@ -162,7 +158,6 @@ class OrgCache(Enum):
     credits = 2
 
 
-@six.python_2_unicode_compatible
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
@@ -1064,7 +1059,7 @@ class Org(SmartModel):
         """
         # while technically we could resolve a full boundary path without a country, our policy is that
         # if you don't have a country set then you don't have locations
-        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, six.string_types) else None
+        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, str) else None
 
     def parse_location(self, location_string, level, parent=None):
         """
@@ -1074,7 +1069,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, str):
             return []
 
         boundary = None
@@ -1490,7 +1485,7 @@ class Org(SmartModel):
                     break
 
             # update items in the database with their new topups
-            for topup, items in six.iteritems(new_topup_items):
+            for topup, items in new_topup_items.items():
                 msg_ids = [item.id for item in items if isinstance(item, Msg)]
                 Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
@@ -1787,7 +1782,7 @@ class Org(SmartModel):
             for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
                 campaigns_by_group[campaign.group].append(campaign)
 
-        for c, deps in six.iteritems(dependencies):
+        for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
                     if isinstance(d, ContactGroup):
@@ -1800,7 +1795,7 @@ class Org(SmartModel):
                 dependencies[trigger] = {trigger.flow}
 
         # make dependencies symmetric, i.e. if A depends on B, B depends on A
-        for c, deps in six.iteritems(dependencies.copy()):
+        for c, deps in dependencies.copy().items():
             for d in deps:
                 dependencies[d].add(c)
 
@@ -2039,7 +2034,6 @@ def get_stripe_credentials():
     return (public_key, private_key)
 
 
-@six.python_2_unicode_compatible
 class Language(SmartModel):
     """
     A Language that has been added to the org. In the end and language is just an iso_code and name
@@ -2162,7 +2156,6 @@ class UserSettings(models.Model):
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
 
-@six.python_2_unicode_compatible
 class TopUp(SmartModel):
     """
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of

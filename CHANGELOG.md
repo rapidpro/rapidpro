@@ -1,3 +1,57 @@
+v3.0.400
+----------
+ * Don't create flow steps
+ * Remove remaining usages of six
+
+v3.0.399
+----------
+ * Drop no longer used FlowRun.message_ids field
+ * Don't allow nested flowserver trials
+ * Fix migrations which can lead to locks because they add a field and populate it in same transaction
+ * Remove a lot of six stuff
+ * Use bulk_create's returned msgs instead of forcing created_on to be same for batches of messages created by Broadcast.send
+ * Use sent_on for incoming messages's real world time
+ * Don't require steps for flow resumptions
+
+v3.0.398
+----------
+ * Add period, rollup fields to archive
+
+v3.0.397
+----------
+ * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts
+ * Rework run_audit command to check JSON fields and not worry about steps
+ * Replace json_date_to_datetime with iso8601.parse_date
+ * Stepless surveyor runs
+
+v3.0.396
+----------
+ * Use run path instead of steps to recalculate run expirations
+ * Stop writing to FlowRun.message_ids
+
+v3.0.395
+----------
+ * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
+ * Stop saving message associations with steps
+
+v3.0.393
+----------
+ * Drop values_value
+
+v3.0.392
+----------
+ * Remove broadcast purging
+
+v3.0.391
+----------
+ * remove reference to nyaruka for trackings users
+ * fix test decoration to work when no flow server configured
+
+v3.0.390
+----------
+ * Disable webhook calls during flowserver trials
+ * Use FlowRun.events for recent messages rollovers
+
 v3.0.389
 ----------
  * add archive model, migrations

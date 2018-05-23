@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import math
 import pytz
 import random
 import resource
-import six
 import sys
 import time
 import uuid
@@ -21,6 +17,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
@@ -44,6 +41,9 @@ USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = 'test-data/nigeria.bin'
+
+# number of each type of archive to create
+ARCHIVES = 50
 
 # organization names are generated from these components
 ORG_NAMES = (
@@ -98,8 +98,8 @@ FLOWS = (
 
 # contact names are generated from these components
 CONTACT_NAMES = (
-    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
-    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
+    ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
+    ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
 CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
@@ -183,6 +183,7 @@ class Command(BaseCommand):
         self.create_groups(orgs)
         self.create_labels(orgs)
         self.create_flows(orgs)
+        self.create_archives(orgs)
         self.create_contacts(orgs, locations, num_contacts)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
@@ -337,6 +338,52 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
+    def create_archives(self, orgs):
+        """
+        Creates archives for each org
+        """
+        self._log("Creating %d archives... " % (len(orgs) * ARCHIVES * 3))
+
+        MAX_RECORDS_PER_DAY = 3000000
+
+        def create_archive(max_records, start, period):
+            record_count = random.randint(0, max_records)
+            archive_size = record_count * 20
+            archive_hash = uuid.uuid4().hex
+
+            if period == Archive.DAY:
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
+            else:
+
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz'
+
+            Archive.objects.create(org=org, archive_type=type[0],
+                                   url=archive_url, start_date=start, period=period,
+                                   size=archive_size, hash=archive_hash,
+                                   record_count=record_count, build_time=record_count / 123)
+
+        for org in orgs:
+            for type in Archive.TYPE_CHOICES:
+                end = timezone.now()
+
+                # daily archives up until now
+                for idx in range(0, end.day - 2):
+                    end = (end - timedelta(days=1))
+                    start = (end - timedelta(days=1))
+                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.DAY)
+
+                # month archives before that
+                end = timezone.now()
+                for idx in range(0, ARCHIVES):
+                    # last day of the previous month
+                    end = end.replace(day=1) - timedelta(days=1)
+                    start = end.replace(day=1)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.MONTH)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
     def create_fields(self, orgs):
         """
         Creates the contact fields for each org
@@ -424,7 +471,7 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch_num = 1
-            for index_batch in chunk_list(six.moves.xrange(num_contacts), self.batch_size):
+            for index_batch in chunk_list(range(num_contacts), self.batch_size):
                 batch = []
 
                 # generate flat representations and contact objects for this batch
@@ -458,35 +505,35 @@ class Command(BaseCommand):
                     c['fields_as_json'] = {}
 
                     if c['gender'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['gender'].uuid)] = {
-                            'text': six.text_type(c['gender'])
+                        c['fields_as_json'][str(org.cache['fields']['gender'].uuid)] = {
+                            'text': str(c['gender'])
                         }
                     if c['age'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['age'].uuid)] = {
-                            'text': six.text_type(c['age']),
-                            'number': six.text_type(c['age'])
+                        c['fields_as_json'][str(org.cache['fields']['age'].uuid)] = {
+                            'text': str(c['age']),
+                            'number': str(c['age'])
                         }
                     if c['joined'] is not None:
-                        c['fields_as_json'][six.text_type(org.cache['fields']['joined'].uuid)] = {
+                        c['fields_as_json'][str(org.cache['fields']['joined'].uuid)] = {
                             'text': org.format_datetime(c['joined'], show_time=False),
                             'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
                         }
 
                     if location:
                         c['fields_as_json'].update({
-                            six.text_type(org.cache['fields']['ward'].uuid): {
-                                'text': six.text_type(c['ward'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['ward'].uuid): {
+                                'text': str(c['ward'].path.split(' > ')[-1]),
                                 'ward': c['ward'].path,
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['district'].uuid): {
-                                'text': six.text_type(c['district'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['district'].uuid): {
+                                'text': str(c['district'].path.split(' > ')[-1]),
                                 'district': c['district'].path,
                                 'state': c['state'].path
                             },
-                            six.text_type(org.cache['fields']['state'].uuid): {
-                                'text': six.text_type(c['state'].path.split(' > ')[-1]),
+                            str(org.cache['fields']['state'].uuid): {
+                                'text': str(c['state'].path.split(' > ')[-1]),
                                 'state': c['state'].path
                             }
                         })
@@ -646,7 +693,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, six.text_type(urn), text)
+                    Msg.create_incoming(channel, str(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -665,7 +712,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, six.text_type(urn), text)
+                Msg.create_incoming(channel, str(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob

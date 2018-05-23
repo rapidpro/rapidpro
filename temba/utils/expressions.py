@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import pytz
 import regex
-import six
 
 from temba_expressions.evaluator import Evaluator, EvaluationContext, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
 from temba.contacts.models import ContactField
@@ -288,7 +284,7 @@ class ContactFieldCollector(EvaluationContext):
     def get_contact_fields(self, msg):
         self.contact_fields = set()
         if msg:
-            evaluate_template(six.text_type(msg), self, False, True)
+            evaluate_template(str(msg), self, False, True)
         return self.contact_fields
 
     def resolve_variable(self, path):

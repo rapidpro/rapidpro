@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import copy
@@ -8,9 +6,8 @@ import hmac
 import json
 import time
 import uuid
-from datetime import timedelta
 
-import six
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -23,7 +20,7 @@ from django.utils import timezone
 from django.utils.encoding import force_text, force_bytes
 from django_redis import get_redis_connection
 from mock import patch, ANY
-from six.moves.urllib.parse import quote
+from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from temba.api.models import WebHookEvent
@@ -509,15 +506,17 @@ class ChannelTest(TembaTest):
 
         # but put it in the past
         msg.delete()
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test",
-                                  created_on=timezone.now() - timedelta(hours=3))
+        with patch('django.utils.timezone.now', return_value=timezone.now() - timedelta(hours=3)):
+            Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test")
+
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send",
-                                          created_on=timezone.now() - timedelta(hours=2))
+        with patch('django.utils.timezone.now', return_value=timezone.now() - timedelta(hours=2)):
+            success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send")
+
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
         success_msg.save()
@@ -744,7 +743,8 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message', created_on=two_hours_ago)
+        with patch('django.utils.timezone.now', return_value=two_hours_ago):
+            Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
@@ -774,7 +774,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a test contact
-        Msg.create_incoming(self.tel_channel, six.text_type(test_contact.get_urn()), 'This incoming message will not be counted')
+        Msg.create_incoming(self.tel_channel, str(test_contact.get_urn()), 'This incoming message will not be counted')
         Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
@@ -792,7 +792,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a normal contact
-        Msg.create_incoming(self.tel_channel, six.text_type(joe.get_urn(TEL_SCHEME)), 'This incoming message will be counted')
+        Msg.create_incoming(self.tel_channel, str(joe.get_urn(TEL_SCHEME)), 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
         # now we have an inbound message and two outbounds
@@ -815,7 +815,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
 
         from temba.msgs.models import IVR
-        Msg.create_incoming(self.tel_channel, six.text_type(test_contact.get_urn()), 'incoming ivr as a test contact', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, str(test_contact.get_urn()), 'incoming ivr as a test contact', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -829,7 +829,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # now let's create an ivr interaction from a real contact
-        Msg.create_incoming(self.tel_channel, six.text_type(joe.get_urn()), 'incoming ivr', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, str(joe.get_urn()), 'incoming ivr', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -1854,7 +1854,7 @@ class ChannelEventTest(TembaTest):
         event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, extra=dict(duration=300))
 
         contact = Contact.objects.get()
-        self.assertEqual(six.text_type(contact.get_urn()), "tel:+250783535665")
+        self.assertEqual(str(contact.get_urn()), "tel:+250783535665")
 
         self.assertEqual(event.org, self.org)
         self.assertEqual(event.channel, self.channel)
@@ -3191,7 +3191,7 @@ class TwitterTest(TembaTest):
                                     data=ANY)
 
             args, kwargs = mock.call_args
-            six.assertCountEqual(self, data, kwargs.get('data'))
+            self.assertCountEqual(data, kwargs.get('data'))
 
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import logging
 import time
@@ -9,12 +7,11 @@ from uuid import uuid4
 
 import pytz
 import regex
-import six
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -27,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
-from temba.orgs.models import Org, TopUp, Language
+from temba.orgs.models import Org, TopUp, Debit, Language
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, on_transaction_commit, dict_to_json, get_anonymous_user
 from temba.utils.dates import get_datetime_format, datetime_to_str, datetime_to_s
@@ -161,7 +158,6 @@ class BroadcastRecipient(models.Model):
         db_table = 'msgs_broadcast_recipients'
 
 
-@six.python_2_unicode_compatible
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -239,7 +235,7 @@ class Broadcast(models.Model):
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
                quick_replies=None, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
-        if isinstance(text, six.string_types):
+        if isinstance(text, str):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             text = {base_language: text}
 
@@ -414,17 +410,13 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, expressions_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
+             partial_recipients=None, run_map=None, high_priority=False):
         """
-        Sends this broadcast by creating outgoing messages for each recipient.
+        Sends this broadcast by creating outgoing messages for each recipient. Returns the ids of the created messages.
         """
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
-
-        # cannot ask for sending by us AND specify a created on, blow up in that case
-        if trigger_send and created_on:  # pragma: no cover
-            raise ValueError("Cannot trigger send and specify a created_on, breaks creating batches")
 
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
@@ -463,16 +455,10 @@ class Broadcast(models.Model):
 
             recipients = set(recipients)
 
-        RelatedRecipient = Broadcast.recipients.through
-
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
-        batch_recipients = []
-        existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
-        # if they didn't pass in a created on, create one ourselves
-        if not created_on:
-            created_on = timezone.now()
+        all_created_msg_ids = []
 
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
@@ -526,7 +512,6 @@ class Broadcast(models.Model):
                                           high_priority=high_priority,
                                           insert_object=False,
                                           attachments=[media] if media else None,
-                                          created_on=created_on,
                                           quick_replies=quick_replies)
 
             except UnreachableException:
@@ -537,33 +522,26 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
 
-                # if this isn't an existing recipient, add it as one
-                if msg.contact_id not in existing_recipients:
-                    existing_recipients.add(msg.contact_id)
-                    batch_recipients.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
-
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-                Msg.objects.bulk_create(batch)
-                RelatedRecipient.objects.bulk_create(batch_recipients)
+                batch_created_msgs = Msg.objects.bulk_create(batch)
+                batch_created_msg_ids = [m.id for m in batch_created_msgs]
+                all_created_msg_ids += batch_created_msg_ids
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
-
-                    # increment our created on so we can load our next batch
-                    created_on = created_on + timedelta(seconds=1)
+                    self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
                 batch = []
-                batch_recipients = []
 
         # commit any remaining objects
         if batch:
-            Msg.objects.bulk_create(batch)
-            RelatedRecipient.objects.bulk_create(batch_recipients)
+            batch_created_msgs = Msg.objects.bulk_create(batch)
+            batch_created_msg_ids = [m.id for m in batch_created_msgs]
+            all_created_msg_ids += batch_created_msg_ids
 
             if trigger_send:
-                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.objects.filter(id__in=batch_created_msg_ids).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -571,6 +549,8 @@ class Broadcast(models.Model):
         if not partial_recipients:
             self.status = QUEUED if len(recipients) > 0 else SENT
             self.save(update_fields=('status',))
+
+        return all_created_msg_ids
 
     def update(self):
         """
@@ -635,7 +615,6 @@ class Attachment(object):
         return self.content_type == other.content_type and self.url == other.url
 
 
-@six.python_2_unicode_compatible
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
@@ -1100,11 +1079,11 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, expressions_context=None, connection=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, quick_replies=None):
+              send_all=False, sent_on=None, quick_replies=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, expressions_context=expressions_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 msg_type=msg_type or self.msg_type, sent_on=sent_on, all_urns=send_all,
                                  high_priority=True, quick_replies=quick_replies)
 
     def update(self, cmd):
@@ -1176,8 +1155,8 @@ class Msg(models.Model):
 
     def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        value = six.text_type(self)
-        attachments = {six.text_type(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
+        value = str(self)
+        attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
         return {
             '__default__': value,
@@ -1229,7 +1208,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
+                    text=self.text, urn_path=self.contact_urn.path, urn=str(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1253,7 +1232,7 @@ class Msg(models.Model):
             return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
+    def create_incoming(cls, channel, urn, text, user=None, sent_on=None, org=None, contact=None,
                         status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, connection=None):
 
         from temba.api.models import WebHookEvent
@@ -1266,8 +1245,8 @@ class Msg(models.Model):
         if not user:
             user = get_anonymous_user()
 
-        if not date:
-            date = timezone.now()  # no date?  set it to now
+        if not sent_on:
+            sent_on = timezone.now()  # no sent_on date?  set it to now
 
         contact_urn = None
         if not contact:
@@ -1286,7 +1265,8 @@ class Msg(models.Model):
         if text:
             text = clean_string(text[:cls.MAX_TEXT_LEN])
 
-        existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
+        # don't create duplicate messages
+        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1304,7 +1284,7 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        sent_on=date,
+                        sent_on=sent_on,
                         created_on=now,
                         modified_on=now,
                         queued_on=now,
@@ -1332,7 +1312,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, sent_on)
 
         return msg
 
@@ -1383,7 +1363,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
-                        created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
+                        sent_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None, quick_replies=None, uuid=None):
 
         if not org or not user:  # pragma: no cover
@@ -1418,10 +1398,6 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        # no creation date? set it to now
-        if not created_on:
-            created_on = timezone.now()
-
         # evaluate expressions in the text and attachments if a context was provided
         if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
@@ -1455,7 +1431,7 @@ class Msg(models.Model):
                                            attachments=evaluated_attachments,
                                            text=text,
                                            direction=OUTGOING,
-                                           created_on__gte=created_on - timedelta(minutes=10))
+                                           created_on__gte=timezone.now() - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1473,7 +1449,7 @@ class Msg(models.Model):
                                                     channel=channel,
                                                     text=text,
                                                     direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(hours=24)).count()
+                                                    created_on__gte=timezone.now() - timedelta(hours=24)).count()
                 if same_msg_count >= 10:  # pragma: needs cover
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
@@ -1505,8 +1481,8 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        created_on=created_on,
-                        modified_on=created_on,
+                        created_on=timezone.now(),
+                        modified_on=timezone.now(),
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
@@ -1516,6 +1492,9 @@ class Msg(models.Model):
                         attachments=evaluated_attachments,
                         metadata=metadata,
                         connection=connection)
+
+        if sent_on:
+            msg_args['sent_on'] = sent_on
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1544,7 +1523,7 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, six.string_types):
+        elif isinstance(recipient, str):
             scheme, path, query, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
@@ -1627,6 +1606,34 @@ class Msg(models.Model):
 
         # remove labels
         self.labels.clear()
+
+    @classmethod
+    def bulk_purge(cls, msgs):
+        """
+        Purges the given messages
+        """
+        debits_to_create = []
+        topup_counts = msgs.values('topup_id').annotate(count=Count('topup_id'))
+
+        # figure out which topups needs debits added to them
+        for tc in topup_counts:
+            topup_id = tc['topup_id']
+            msg_count = tc['count']
+            if tc['topup_id'] and msg_count:
+                debits_to_create.append(Debit(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE))
+
+        with transaction.atomic():
+            Debit.objects.bulk_create(debits_to_create)
+            Debit.squash()
+
+            # delete messages in batches to avoid long locks
+            for msg_batch in chunk_list(msgs, 1000):
+                # manually delete to avoid slow and unnecessary checks on related fields like response_to
+                cursor = connection.cursor()
+                msg_ids = tuple([m.id for m in msg_batch])
+                cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
 
     @classmethod
     def apply_action_label(cls, user, msgs, label, add):
@@ -1791,7 +1798,6 @@ class UserLabelManager(models.Manager):
         return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-@six.python_2_unicode_compatible
 class Label(TembaModel):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
@@ -1828,7 +1834,7 @@ class Label(TembaModel):
             raise ValueError("Invalid label name: %s" % name)
 
         if folder and not folder.is_folder():  # pragma: needs cover
-            raise ValueError("%s is not a label folder" % six.text_type(folder))
+            raise ValueError("%s is not a label folder" % str(folder))
 
         label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
@@ -1948,7 +1954,7 @@ class Label(TembaModel):
 
     def __str__(self):
         if self.folder:
-            return "%s > %s" % (six.text_type(self.folder), self.name)
+            return "%s > %s" % (str(self.folder), self.name)
         return self.name
 
     class Meta:
@@ -1987,7 +1993,7 @@ class LabelCount(SquashableModel):
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
-class MsgIterator(six.Iterator):
+class MsgIterator:
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """
@@ -2000,7 +2006,7 @@ class MsgIterator(six.Iterator):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
+        for i in range(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
@@ -2096,7 +2102,7 @@ class ExportMessagesTask(BaseExportTask):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
 
         self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
         self.append_row(current_messages_sheet, fields)
@@ -2114,7 +2120,7 @@ class ExportMessagesTask(BaseExportTask):
 
             if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
-                current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
+                current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
 
                 self.append_row(current_messages_sheet, fields)
                 self.set_sheet_column_widths(current_messages_sheet, fields_col_width)

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import requests
@@ -45,7 +43,7 @@ class RequestBuilder(object):
         self.client = client
         self.org = org
         self.base_assets_url = base_assets_url
-        self.request = {'assets': [], 'events': []}
+        self.request = {'assets': [], 'events': [], 'config': {}}
 
     def include_all(self, simulator=False):
         request = self
@@ -191,6 +189,10 @@ class RequestBuilder(object):
             type_urls['location_hierarchy'] = '%s/location_hierarchy/' % self.base_assets_url
 
         self.request['asset_server'] = {'type_urls': type_urls}
+        return self
+
+    def set_config(self, name, value):
+        self.request['config'][name] = value
         return self
 
     def start_manual(self, contact, flow, params=None):

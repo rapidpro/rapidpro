@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from enum import Enum
 
 # Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
@@ -15,7 +10,6 @@ ESCAPES = {
 }
 
 
-@six.python_2_unicode_compatible
 class ParsedURN(object):
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme
@@ -24,11 +18,11 @@ class ParsedURN(object):
         self.fragment = fragment
 
     def __str__(self):
-        s = escape(six.text_type(self.scheme)) + ":" + escape(six.text_type(self.path))
+        s = escape(str(self.scheme)) + ":" + escape(str(self.path))
         if self.query:
-            s += "?" + escape(six.text_type(self.query))
+            s += "?" + escape(str(self.query))
         if self.fragment:
-            s += "#" + escape(six.text_type(self.fragment))
+            s += "#" + escape(str(self.fragment))
         return s
 
 
@@ -87,6 +81,6 @@ def escape(s):
 
 
 def unescape(s):
-    for ch, esc in six.iteritems(ESCAPES):
+    for ch, esc in ESCAPES.items():
         s = s.replace(esc, ch, -1)
     return s

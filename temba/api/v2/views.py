@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
+import iso8601
 import itertools
-import six
 
 from django import forms
 from django.contrib.auth import authenticate, login
@@ -27,7 +24,6 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
 from temba.utils import str_to_bool, splitting_getlist
-from temba.utils.dates import json_date_to_datetime
 from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -300,7 +296,7 @@ class BaseAPIView(generics.GenericAPIView):
         Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
         """
         lookup_values = {}
-        for param, field in six.iteritems(self.lookup_params):
+        for param, field in self.lookup_params.items():
             if param in self.request.query_params:
                 param_value = self.request.query_params[param]
 
@@ -386,7 +382,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         before = self.request.query_params.get('before')
         if before:
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(**{field + '__lte': before})
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -394,7 +390,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         after = self.request.query_params.get('after')
         if after:
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(**{field + '__gte': after})
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -2424,7 +2420,7 @@ class OrgEndpoint(BaseAPIView):
             'country': org.get_country_code(),
             'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
-            'timezone': six.text_type(org.timezone),
+            'timezone': str(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
             'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
             'anon': org.is_anon

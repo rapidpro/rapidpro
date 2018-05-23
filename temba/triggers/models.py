@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import regex
-import six
 
 from django.conf import settings
 from django.db import models
@@ -19,7 +15,6 @@ from temba.orgs.models import Org
 from temba_expressions.utils import tokenize
 
 
-@six.python_2_unicode_compatible
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
@@ -312,7 +307,7 @@ class Trigger(SmartModel):
         # skip if message contact is currently active in a flow
         active_run_qs = FlowRun.objects.filter(is_active=True, contact=msg.contact,
                                                flow__is_active=True, flow__is_archived=False)
-        active_run = active_run_qs.prefetch_related('steps').order_by("-created_on", "-pk").first()
+        active_run = active_run_qs.order_by("-created_on", "-pk").first()
 
         if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
             return False

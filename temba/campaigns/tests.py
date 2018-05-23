@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
-import six
 import pytz
 
 from datetime import timedelta
@@ -335,7 +331,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertIn('A message is required', six.text_type(response.context['form'].errors['__all__']))
+        self.assertIn('A message is required', str(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='allo!' * 500, direction='A',
                          offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
@@ -343,7 +339,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue("Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN in six.text_type(response.context['form'].errors['__all__']))
+        self.assertTrue("Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN in str(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
@@ -540,7 +536,7 @@ class CampaignTest(TembaTest):
         # now import the group again
         filename = 'farmers.csv'
         extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
-        import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
+        import_params = dict(org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
 
         task = ImportTask.objects.create(
             created_by=self.admin, modified_by=self.admin,
@@ -647,13 +643,13 @@ class CampaignTest(TembaTest):
 
     def test_scheduling(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        self.assertEqual("Planting Reminders", six.text_type(campaign))
+        self.assertEqual("Planting Reminders", str(campaign))
 
         # create a reminder for our first planting event
         planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
                                                             offset=0, unit='D', flow=self.reminder_flow, delivery_hour=17)
 
-        self.assertEqual("Planting Date == 0 -> Reminder Flow", six.text_type(planting_reminder))
+        self.assertEqual("Planting Date == 0 -> Reminder Flow", str(planting_reminder))
 
         # schedule our reminders
         EventFire.update_campaign_events(campaign)

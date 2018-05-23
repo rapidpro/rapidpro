@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import time
 import uuid
-
 import jwt
 import nexmo as nx
 import requests
-import six
+
 from django.utils.encoding import force_bytes
 
 
@@ -36,13 +32,13 @@ class NexmoClient(nx.Client):
     def get_numbers(self, pattern=None, size=10):
         params = dict()
         if pattern:
-            params['pattern'] = six.text_type(pattern).strip('+')
+            params['pattern'] = str(pattern).strip('+')
         params['size'] = size
 
         try:
             response = nx.Client.get_account_numbers(self, params=params)
         except nx.ClientError as e:
-            message = six.text_type(e)
+            message = str(e)
             if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 response = nx.Client.get_account_numbers(self, params=params)
@@ -74,7 +70,7 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.buy_number(self, params=params)
         except nx.ClientError as e:
-            message = six.text_type(e)
+            message = str(e)
             if message.startswith('420') or message.startswith('429'):
                 time.sleep(1)
                 nx.Client.buy_number(self, params=params)
@@ -88,7 +84,7 @@ class NexmoClient(nx.Client):
         try:
             nx.Client.update_number(self, params=params)
         except nx.ClientError as e:
-            message = six.text_type(e)
+            message = str(e)
             if message.startswith('420') or message.startswith('429'):
                 time.sleep(2)
                 nx.Client.update_number(self, params=params)
@@ -112,7 +108,7 @@ class NexmoClient(nx.Client):
         payload.setdefault('application_id', self.application_id)
         payload.setdefault('iat', iat)
         payload.setdefault('exp', iat + 60)
-        payload.setdefault('jti', six.text_type(uuid.uuid4()))
+        payload.setdefault('jti', str(uuid.uuid4()))
 
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
@@ -183,7 +179,7 @@ class NCCOResponse(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=six.text_type(text), bargeIn=True))
+        self.document.append(dict(action='talk', text=str(text), bargeIn=True))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -232,10 +228,10 @@ class NCCOResponse(object):
         result['submitOnHash'] = kwargs.get('finishOnKey', '#') == '#'
 
         if kwargs.get('numDigits', False):
-            result['maxDigits'] = int(six.text_type(kwargs.get('numDigits')))
+            result['maxDigits'] = int(str(kwargs.get('numDigits')))
 
         if kwargs.get('timeout', False):
-            result['timeOut'] = int(six.text_type(kwargs.get('timeout')))
+            result['timeOut'] = int(str(kwargs.get('timeout')))
 
         self.document.append(result)
         return self
@@ -244,7 +240,7 @@ class NCCOResponse(object):
         result = dict(format='wav', endOnSilence=4, endOnKey='#', beepStart=True, action='record')
 
         if kwargs.get('maxLength', False):
-            result['timeOut'] = int(six.text_type(kwargs.get('maxLength')))
+            result['timeOut'] = int(str(kwargs.get('maxLength')))
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
@@ -254,7 +250,7 @@ class NCCOResponse(object):
         self.document.append(result)
         result = dict(action='input', maxDigits=1, timeOut=1,
                       eventUrl=["%s%ssave_media=1" % (kwargs.get('action'),
-                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&")])
+                                                      "?" if '?' not in str(kwargs.get('action')) else "&")])
 
         self.document.append(result)
 

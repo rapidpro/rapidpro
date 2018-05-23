@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import iso8601
 import json
 import pytz
-import six
 
 from datetime import datetime
 from django.contrib.auth.models import Group
@@ -28,7 +24,7 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
 from temba.values.constants import Value
 from uuid import uuid4
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
 from .serializers import format_datetime
@@ -309,7 +305,7 @@ class APITest(TembaTest):
         # login as administrator
         self.login(self.admin)
         token = self.admin.api_token  # generates token for the user
-        self.assertIsInstance(token, six.string_types)
+        self.assertIsInstance(token, str)
         self.assertEqual(len(token), 40)
 
         with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
@@ -1138,7 +1134,7 @@ class APITest(TembaTest):
         jaqen = Contact.objects.filter(name=None, language=None).order_by('-pk').first()
         self.assertEqual(set(jaqen.urns.all()), set())
         self.assertEqual(set(jaqen.user_groups.all()), set())
-        self.assertEqual(set(jaqen.values.all()), set())
+        self.assertIsNone(jaqen.fields)
 
         with ESMockWithScroll():
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
@@ -1434,7 +1430,7 @@ class APITest(TembaTest):
         self.create_msg(direction='I', contact=contact4, text="Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
-        response = self.postJSON(url, None, {'contacts': [six.text_type(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
+        response = self.postJSON(url, None, {'contacts': [str(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
         self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
@@ -2056,7 +2052,7 @@ class APITest(TembaTest):
             'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
-            'urn': six.text_type(msg.contact_urn),
+            'urn': str(msg.contact_urn),
             'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
@@ -2344,9 +2340,6 @@ class APITest(TembaTest):
         self.assertEqual(response.json()['next'], None)
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
-        joe_run1_steps = list(joe_run1.steps.order_by('pk'))
-        frank_run2_steps = list(frank_run2.steps.order_by('pk'))
-
         resp_json = response.json()
         self.assertEqual(resp_json['results'][2], {
             'id': frank_run2.pk,
@@ -2356,8 +2349,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[1]['arrived_on']))}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2373,9 +2366,9 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[1]['arrived_on']))},
+                {'node': blue_reply.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[2]['arrived_on']))}
             ],
             'values': {
                 'color': {
@@ -2813,7 +2806,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [start2, start1])
         self.assertEqual(response.json()['results'][0], {
             'id': start2.id,
-            'uuid': six.text_type(start2.uuid),
+            'uuid': str(start2.uuid),
             'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
             'contacts': [
                 {'uuid': self.joe.uuid, 'name': 'Joe Blow'},

@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
-import six
 import django
 import textwrap
 import traceback
@@ -13,7 +9,6 @@ from django.db.backends.utils import CursorWrapper
 logger = logging.getLogger(__name__)
 
 
-@six.python_2_unicode_compatible
 class QueryTracker(object):  # pragma: no cover
 
     def print_stack(self, stack):

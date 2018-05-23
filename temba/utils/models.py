@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 import time
 import json
 
@@ -18,7 +14,7 @@ from uuid import uuid4
 
 
 def generate_uuid():
-    return six.text_type(uuid4())
+    return str(uuid4())
 
 
 class ProxyQuerySet(object):
@@ -56,7 +52,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
         return pks
     else:
         # prepare the data set
-        pairs = ','.join(six.text_type((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
+        pairs = ','.join(str((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
 
         if pairs:
             return model.objects.raw(
@@ -79,7 +75,7 @@ class TranslatableField(HStoreField):
             self.max_length = max_length
 
         def __call__(self, value):
-            for lang, translation in six.iteritems(value):
+            for lang, translation in value.items():
                 if lang != 'base' and len(lang) != 3:
                     raise ValidationError("'%s' is not a valid language code." % lang)
                 if len(translation) > self.max_length:
@@ -152,7 +148,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if value is None:
             return value
 
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
 
             if type(data) not in (list, dict, OrderedDict):
@@ -176,7 +172,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         return json.dumps(value)
 
     def to_python(self, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = json.loads(value)
         return value
 

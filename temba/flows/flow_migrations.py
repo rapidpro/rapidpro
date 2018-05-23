@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import copy
 import json
 import regex
-import six
 from uuid import uuid4
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
@@ -238,12 +234,12 @@ def migrate_to_version_10_4(json_flow, flow=None):
     """
     for actionset in json_flow['action_sets']:
         if not actionset.get('exit_uuid'):
-            actionset['exit_uuid'] = six.text_type(uuid4())
+            actionset['exit_uuid'] = str(uuid4())
 
         for action in actionset['actions']:
             uuid = action.get('uuid')
             if not uuid:
-                action['uuid'] = six.text_type(uuid4())
+                action['uuid'] = str(uuid4())
     return json_flow
 
 
@@ -252,7 +248,7 @@ def migrate_to_version_10_3(json_flow, flow=None):
     Adds exit_uuid to actionsets so flows can be migrated in goflow deterministically
     """
     for actionset in json_flow['action_sets']:
-        actionset['exit_uuid'] = six.text_type(uuid4())
+        actionset['exit_uuid'] = str(uuid4())
     return json_flow
 
 
@@ -283,7 +279,7 @@ def migrate_to_version_10_1(json_flow, flow):
         for action in actionset['actions']:
             uuid = action.get('uuid', None)
             if not uuid:
-                action['uuid'] = six.text_type(uuid4())
+                action['uuid'] = str(uuid4())
     return json_flow
 
 
@@ -317,7 +313,7 @@ def migrate_to_version_10(json_flow, flow):
         rules = []
         for status in ['success', 'failure']:
             # maintain our rule uuid for the success case
-            rule_uuid = old_rule_uuid if status == 'success' else six.text_type(uuid4())
+            rule_uuid = old_rule_uuid if status == 'success' else str(uuid4())
             new_rule = dict(test=dict(status=status, type='webhook_status'),
                             category={base_lang: status.capitalize()},
                             uuid=rule_uuid)
@@ -383,13 +379,13 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def get_uuid(id_map, obj_id):
         uuid = id_map.get(obj_id, None)
         if not uuid:
-            uuid = six.text_type(uuid4())
+            uuid = str(uuid4())
             id_map[obj_id] = uuid
         return uuid
 
     def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
         # deal with case of having only a string and no name
-        if isinstance(ele, six.string_types) and create_dict:
+        if isinstance(ele, str) and create_dict:
             # variable references should just stay put
             if len(ele) > 0 and ele[0] == '@':
                 return ele
@@ -520,13 +516,13 @@ def migrate_to_version_8(json_flow, flow=None):
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
     def migrate_node(node):
-        if isinstance(node, six.string_types):
+        if isinstance(node, str):
             return migrate_template(node)
         if isinstance(node, list):
             for n in range(len(node)):
                 node[n] = migrate_node(node[n])
         if isinstance(node, dict):
-            for key, val in six.iteritems(node):
+            for key, val in node.items():
                 node[key] = migrate_node(val)
         return node
 
@@ -839,7 +835,7 @@ def insert_node(flow, node, _next):
 
     # make sure we have a fresh uuid
     node['uuid'] = _next['uuid']
-    _next['uuid'] = six.text_type(uuid4())
+    _next['uuid'] = str(uuid4())
     update_destination(node, _next['uuid'])
 
     # bump everybody down

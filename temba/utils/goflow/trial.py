@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 """
 Temporary functionality to help us try running some flows against a flowserver instance and comparing the results, path
@@ -8,7 +6,6 @@ and events with what the current engine produces.
 
 import json
 import logging
-import six
 import time
 
 from django.conf import settings
@@ -76,11 +73,11 @@ def maybe_start_resume(run):
         pass
 
     try:
-        print("Starting flowserver trial resume for run %s" % str(run.uuid))
+        print("Starting flowserver trial resume for run %s in flow '%s'" % (str(run.uuid), run.flow.name))
         return ResumeTrial(run)
 
     except Exception as e:
-        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), six.text_type(e)), exc_info=True)
+        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), str(e)), exc_info=True)
         return None
 
 
@@ -100,7 +97,7 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             return True
 
     except Exception as e:
-        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), six.text_type(e)), exc_info=True)
+        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True)
         return False
 
 
@@ -108,14 +105,14 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print("Flowserver trial resume for run %s succeeded" % str(trial.run.uuid))
+    print("Flowserver trial resume for run %s in flow '%s' succeeded" % (str(trial.run.uuid), trial.run.flow.name))
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s failed" % str(trial.run.uuid))
+    print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
 
     logger.error("trial resume in flowserver produced different output", extra={
         'run_id': trial.run.id,
@@ -131,7 +128,7 @@ def resume(org, session, msg_in=None, expired_child_run=None):
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server()
+    request = client.request_builder(org, asset_timestamp).asset_server().set_config('disable_webhooks', True)
 
     if settings.TESTING:
         request.include_all()
@@ -315,7 +312,7 @@ def reduce_results(results):
     """
     Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
     """
-    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in six.iteritems(results)}
+    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in results.items()}
 
 
 def reduce_events(events):
@@ -335,4 +332,4 @@ def reduce_events(events):
 
 
 def copy_keys(d, keys):
-    return {k: v for k, v in six.iteritems(d) if k in keys}
+    return {k: v for k, v in d.items() if k in keys}

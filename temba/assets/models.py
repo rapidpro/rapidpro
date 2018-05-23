@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
-import six
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -125,8 +121,8 @@ class BaseAssetStore(object):
         """
         Derives the storage path of an asset, e.g. 'orgs/1/recordings/asdf-asdf-asdf-asdf-asdf-asdf.wav'
         """
-        base_name = six.text_type(uuid)
-        directory = os.path.join(settings.STORAGE_ROOT_DIR, six.text_type(org.pk), self.directory)
+        base_name = str(uuid)
+        directory = os.path.join(settings.STORAGE_ROOT_DIR, str(org.pk), self.directory)
 
         if extension:
             return '%s/%s.%s' % (directory, base_name, extension)

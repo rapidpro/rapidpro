@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
-import six
 import time
 
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.db.models import Count, Prefetch
+from django.db.models import Prefetch
 from temba.flows.models import Flow, FlowRun
 
 
@@ -28,10 +24,11 @@ def audit_runs(max_id=0):  # pragma: no cover
 
     problem_finders = {
         'unparseable_fields': has_unparseble_fields,
-        # 'no_steps_for_active_flow': has_no_steps_for_active_flow,  # not worrying about this for now
-        'less_events_than_message_ids': has_less_events_than_message_ids,
-        'step_count_path_length_mismatch': has_step_count_path_length_mismatch,
         'has_duplicate_message_events': has_duplicate_message_events,
+        'has_none_string_in_path': lambda r: has_none_string_in(r.path),
+        'has_none_string_in_results': lambda r: has_none_string_in(r.results),
+        'has_none_string_in_events': lambda r: has_none_string_in(r.events),
+        # 'has_empty_path_for_active_flow': has_empty_path_for_active_flow,  # not worrying about this for now
     }
 
     problem_log = open('run_problems.log', 'w')
@@ -50,17 +47,8 @@ def audit_runs(max_id=0):  # pragma: no cover
         if not run_batch:
             break
 
-        step_counts = (
-            FlowRun.objects.filter(id__in=[r.id for r in run_batch])
-            .annotate(num_steps=Count('steps'))
-            .values('id', 'num_steps')
-        )
-        step_counts = {sc['id']: sc['num_steps'] for sc in step_counts}
-
         for run in run_batch:
-            run.num_steps = step_counts.get(run.id, 0)
-
-            for problem_name, problem_finder in six.iteritems(problem_finders):
+            for problem_name, problem_finder in problem_finders.items():
                 if problem_finder(run):
                     msg = "Run #%d for flow #%d has problem: %s" % (run.id, run.flow.id, problem_name)
                     print("   ! %s" % msg)
@@ -92,20 +80,8 @@ def has_unparseble_fields(run):
     return False
 
 
-def has_no_steps_for_active_flow(run):
-    return run.num_steps == 0 and run.flow.is_active
-
-
-def has_step_count_path_length_mismatch(run):
-    # don't worry about runs whose steps were deleted when their flow was deactivated
-    if run.num_steps == 0 and not run.flow.is_active:
-        return False
-
-    return min(len(run.path), 100) != min(run.num_steps, 100)  # take path trimming into account
-
-
-def has_less_events_than_message_ids(run):
-    return len(run.events or []) < len(set(run.message_ids or []))  # events might include purged messages
+def has_empty_path_for_active_flow(run):
+    return len(run.path) == 0 and run.flow.is_active
 
 
 def has_duplicate_message_events(run):
@@ -129,3 +105,19 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, resume_from, *args, **options):
         audit_runs(resume_from)
+
+
+def has_none_string_in(json_frag):
+    if isinstance(json_frag, dict):
+        for k, v in json_frag.items():
+            if has_none_string_in(v):
+                return True
+    elif isinstance(json_frag, list):
+        for v in json_frag:
+            if has_none_string_in(v):
+                return True
+    elif isinstance(json_frag, str):
+        if json_frag == 'None':
+            return True
+
+    return False

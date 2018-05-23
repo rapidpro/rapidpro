@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import phonenumbers
-import six
 import regex
 
 from django.contrib.auth.models import User
@@ -11,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
+from temba.flows.models import Flow, FlowRun, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
 from temba.orgs.models import get_current_export_version
@@ -62,7 +59,7 @@ class StringArrayField(serializers.ListField):
 
     def to_internal_value(self, data):
         # accept single string
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             data = [data]
 
         # don't allow dicts. This is a bug in ListField due to be fixed in 3.3.2
@@ -81,8 +78,8 @@ class StringDictField(serializers.DictField):
     def to_internal_value(self, data):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
-            for key, val in six.iteritems(data):
-                if not isinstance(key, six.string_types) or not isinstance(val, six.string_types):
+            for key, val in data.items():
+                if not isinstance(key, str) or not isinstance(val, str):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
         return super(StringDictField, self).to_internal_value(data)
@@ -93,7 +90,7 @@ class PhoneArrayField(serializers.ListField):
     List of phone numbers or a single phone number
     """
     def to_internal_value(self, data):
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             return [URN.from_tel(data)]
 
         elif isinstance(data, list):
@@ -102,7 +99,7 @@ class PhoneArrayField(serializers.ListField):
 
             urns = []
             for phone in data:
-                if not isinstance(phone, six.string_types):  # pragma: no cover
+                if not isinstance(phone, str):  # pragma: no cover
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
                 urns.append(URN.from_tel(phone))
 
@@ -197,7 +194,7 @@ class ContactReadSerializer(ReadSerializer):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [six.text_type(urn) for urn in obj.get_urns()]
+        return [str(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
@@ -595,14 +592,7 @@ class FlowRunWriteSerializer(WriteSerializer):
                 return self.ruleset
 
             def is_pause(self):
-                from temba.flows.models import RuleSet
                 return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
-
-            def get_step_type(self):
-                if self.is_ruleset():
-                    return FlowStep.TYPE_RULE_SET
-                else:
-                    return FlowStep.TYPE_ACTION_SET
 
         steps = data.get('steps')
         revision = data.get('revision', data.get('version'))
@@ -670,13 +660,12 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not run or run.submitted_by != self.submitted_by_obj:
             run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
 
-        step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
+        run.update_from_surveyor(steps)
 
         if completed:
-            final_step = step_objs[len(step_objs) - 1] if step_objs else None
             completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
 
-            run.set_completed(final_step, completed_on=completed_on)
+            run.set_completed(completed_on=completed_on)
         else:
             run.save(update_fields=('modified_on',))
 
@@ -746,7 +735,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     normalized = URN.normalize(urn, country)
                 except ValueError as e:  # pragma: needs cover
-                    raise serializers.ValidationError(six.text_type(e))
+                    raise serializers.ValidationError(str(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)

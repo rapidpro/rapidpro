@@ -1,10 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import operator
-
 import regex
-import six
 
 from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
 from antlr4.error.Errors import ParseCancellationException, NoViableAltException
@@ -25,7 +20,6 @@ TEL_VALUE_REGEX = regex.compile(r'^[+ \d\-\(\)]+$', flags=regex.V0)
 CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r'[+ \-\(\)]+', flags=regex.V0)
 
 
-@six.python_2_unicode_compatible
 class SearchException(Exception):
     """
     Exception class for unparseable search queries
@@ -37,7 +31,6 @@ class SearchException(Exception):
         return force_text(self.message)
 
 
-@six.python_2_unicode_compatible
 class ContactQuery(object):
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
@@ -110,10 +103,10 @@ class ContactQuery(object):
         return isinstance(other, ContactQuery) and self.root == other.root
 
     def __str__(self):
-        return six.text_type(self.root)
+        return str(self.root)
 
     def __repr__(self):
-        return 'ContactQuery{%s}' % six.text_type(self)
+        return 'ContactQuery{%s}' % str(self)
 
 
 class QueryNode(object):
@@ -137,7 +130,6 @@ class QueryNode(object):
         pass
 
 
-@six.python_2_unicode_compatible
 class Condition(QueryNode):
     COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
 
@@ -171,7 +163,7 @@ class Condition(QueryNode):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
             contact_fields = contact_json.get('fields')
 
             if field_uuid not in contact_fields:
@@ -290,7 +282,7 @@ class Condition(QueryNode):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
             es_query = es_Q('term', **{'fields.field': field_uuid})
 
             if field.value_type == Value.TYPE_TEXT:
@@ -303,7 +295,7 @@ class Condition(QueryNode):
                     raise SearchException(_("Unknown text comparator: '%s'") % (self.comparator,))
 
             elif field.value_type == Value.TYPE_NUMBER:
-                query_value = six.text_type(self._parse_number(self.value))
+                query_value = str(self._parse_number(self.value))
 
                 if self.comparator == '=':
                     es_query &= es_Q('match', **{'fields.number': query_value})
@@ -431,7 +423,7 @@ class IsSetCondition(Condition):
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
             contact_fields = contact_json.get('fields')
 
             contact_field = contact_fields.get(field_uuid)
@@ -555,7 +547,7 @@ class IsSetCondition(Condition):
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = six.text_type(field.uuid)
+            field_uuid = str(field.uuid)
             es_query = es_Q('term', **{'fields.field': field_uuid})
 
             if field.value_type == Value.TYPE_TEXT:
@@ -604,7 +596,6 @@ class IsSetCondition(Condition):
             raise SearchException(_("Unrecognized contact field type '%s'") % (prop_type, ))
 
 
-@six.python_2_unicode_compatible
 class BoolCombination(QueryNode):
     """
     A combination of two or more conditions using an AND or OR logical operation
@@ -689,10 +680,9 @@ class BoolCombination(QueryNode):
 
     def __str__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
+        return '%s(%s)' % (op, ', '.join([str(c) for c in self.children]))
 
 
-@six.python_2_unicode_compatible
 class SinglePropCombination(BoolCombination):
     """
     A special case combination where all conditions are on the same property and so may be optimized to query the value
@@ -866,7 +856,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
         # es_Q('term', is_blocked=False),
         # es_Q('term', is_stopped=False),
         es_Q('term', org_id=org.id),
-        es_Q('term', groups=six.text_type(base_group.uuid))
+        es_Q('term', groups=str(base_group.uuid))
     ])
 
     if text:
