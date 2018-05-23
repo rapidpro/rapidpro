@@ -10,7 +10,7 @@ from ...models import Channel
 
 class ViberPublicTypeTest(TembaTest):
     def setUp(self):
-        super(ViberPublicTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'VP', name="Viber", address="12345",
                                       role="SR", schemes=['viber'], config={'auth_token': 'abcd1234'})

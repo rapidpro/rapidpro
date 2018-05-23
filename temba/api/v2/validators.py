@@ -10,13 +10,13 @@ class UniqueForOrgValidator(UniqueValidator):
     def __init__(self, queryset, ignore_case=True, message=None):
         lookup = 'iexact' if ignore_case else 'exact'
 
-        super(UniqueForOrgValidator, self).__init__(queryset, message=message, lookup=lookup)
+        super().__init__(queryset, message=message, lookup=lookup)
 
     def set_context(self, serializer_field):
-        super(UniqueForOrgValidator, self).set_context(serializer_field)
+        super().set_context(serializer_field)
 
         self.org = serializer_field.context['org']
 
     def filter_queryset(self, value, queryset):
-        queryset = super(UniqueForOrgValidator, self).filter_queryset(value, queryset)
+        queryset = super().filter_queryset(value, queryset)
         return qs_filter(queryset, **{'org': self.org})

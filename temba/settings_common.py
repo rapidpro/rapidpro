@@ -1226,6 +1226,8 @@ TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_S
 
 SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
 
+INTERCOM_TOKEN = os.environ.get('INTERCOM_TOKEN', '')
+
 LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
 LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 

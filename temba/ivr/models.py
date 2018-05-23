@@ -9,10 +9,10 @@ from temba.utils import on_transaction_commit
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super(IVRManager, self).create(*args, session_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, session_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super(IVRManager, self).get_queryset().filter(session_type=IVRCall.IVR)
+        return super().get_queryset().filter(session_type=IVRCall.IVR)
 
 
 class IVRCall(ChannelSession):

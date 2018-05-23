@@ -7,7 +7,7 @@ from temba.tests import TembaTest, MockResponse
 
 class AirtimeEventTest(TembaTest):
     def setUp(self):
-        super(AirtimeEventTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
         self.org.connect_transferto('mylogin', 'api_token', self.admin)

@@ -1789,12 +1789,12 @@ class SystemLabelCount(SquashableModel):
 
 class UserFolderManager(models.Manager):
     def get_queryset(self):
-        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.TYPE_FOLDER)
+        return super().get_queryset().filter(label_type=Label.TYPE_FOLDER)
 
 
 class UserLabelManager(models.Manager):
     def get_queryset(self):
-        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
+        return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
 class Label(TembaModel):

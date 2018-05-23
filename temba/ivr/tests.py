@@ -28,7 +28,7 @@ from .models import IVRCall
 class IVRTests(FlowFileTest):
 
     def setUp(self):
-        super(IVRTests, self).setUp()
+        super().setUp()
         settings.SEND_CALLS = True
 
         # configure our account to be IVR enabled
@@ -39,7 +39,7 @@ class IVRTests(FlowFileTest):
         self.login(self.admin)
 
     def tearDown(self):
-        super(IVRTests, self).tearDown()
+        super().tearDown()
         settings.SEND_CALLS = False
 
     @patch('nexmo.Client.create_application')

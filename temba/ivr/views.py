@@ -16,7 +16,7 @@ class CallHandler(View):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(CallHandler, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)

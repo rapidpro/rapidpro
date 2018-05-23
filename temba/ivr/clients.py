@@ -120,7 +120,7 @@ class TwilioClient(TembaTwilioRestClient):
 
     def __init__(self, account, token, org, **kwargs):
         self.org = org
-        super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
+        super().__init__(account=account, token=token, **kwargs)
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:

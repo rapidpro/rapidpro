@@ -2109,7 +2109,7 @@ class Invitation(SmartModel):
 
             self.secret = secret
 
-        return super(Invitation, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     @classmethod
     def generate_random_string(cls, length):  # pragma: needs cover
@@ -2320,7 +2320,7 @@ class Debit(SquashableModel):
 
     @classmethod
     def get_unsquashed(cls):
-        return super(Debit, cls).get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
+        return super().get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
 
     @classmethod
     def get_squash_query(cls, distinct_set):

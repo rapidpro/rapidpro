@@ -13,7 +13,7 @@ class FormaxMixin(object):
         return None
 
     def get_context_data(self, *args, **kwargs):
-        context = super(FormaxMixin, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
         formax = Formax(self.request)
         self.derive_formax_sections(formax, context)
 

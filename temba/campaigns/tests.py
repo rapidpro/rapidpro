@@ -19,7 +19,7 @@ from .models import Campaign, CampaignEvent, EventFire
 class CampaignTest(TembaTest):
 
     def setUp(self):
-        super(CampaignTest, self).setUp()
+        super().setUp()
 
         self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
         self.farmer2 = self.create_contact("Mike Gordon", "+250788222222", language='spa')

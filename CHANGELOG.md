@@ -1,3 +1,17 @@
+v3.0.404
+----------
+ * remove old privacy page in favor of new policy app
+ * use python3 `super` method
+ * migration to backfill step UUIDs on recent runs
+
+v3.0.403
+----------
+ * tweaks to add_analytics users
+
+v3.0.402
+----------
+ * add native intercom support, add management command to update all users
+
 v3.0.401
 ----------
  * Fix quick replies in simulator

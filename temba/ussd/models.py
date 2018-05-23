@@ -10,7 +10,7 @@ from temba.utils import get_anonymous_user
 class USSDQuerySet(models.QuerySet):
     def get(self, *args, **kwargs):
         kwargs.update(dict(session_type=USSDSession.USSD))
-        return super(USSDQuerySet, self).get(*args, **kwargs)
+        return super().get(*args, **kwargs)
 
     def create(self, **kwargs):
         if kwargs.get('channel'):
@@ -19,7 +19,7 @@ class USSDQuerySet(models.QuerySet):
             user = get_anonymous_user()
 
         kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
-        return super(USSDQuerySet, self).create(**kwargs)
+        return super().create(**kwargs)
 
     def get_initiated_push(self, contact):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()

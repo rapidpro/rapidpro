@@ -21,7 +21,7 @@ from uuid import uuid4
 
 class APITokenTest(TembaTest):
     def setUp(self):
-        super(APITokenTest, self).setUp()
+        super().setUp()
 
         self.create_secondary_org()
 
@@ -88,12 +88,12 @@ class APITokenTest(TembaTest):
 class WebHookTest(TembaTest):
 
     def setUp(self):
-        super(WebHookTest, self).setUp()
+        super().setUp()
         self.joe = self.create_contact("Joe Blow", "0788123123")
         settings.SEND_WEBHOOKS = True
 
     def tearDown(self):
-        super(WebHookTest, self).tearDown()
+        super().tearDown()
         settings.SEND_WEBHOOKS = False
 
     def setupChannel(self):

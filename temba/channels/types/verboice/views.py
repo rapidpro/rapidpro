@@ -54,4 +54,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                                                password=data['password'],
                                                                channel=data['channel']),
                                                           role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

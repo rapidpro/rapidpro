@@ -41,7 +41,7 @@ class TimeZoneFormField(BaseTimeZoneFormField):
     def __init__(self, *args, **kwargs):
         kwargs['choices'] = PRETTY_TIMEZONE_CHOICES
 
-        super(TimeZoneFormField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 def timezone_to_country_code(tz):

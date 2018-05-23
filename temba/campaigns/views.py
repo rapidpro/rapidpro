@@ -30,7 +30,7 @@ class CampaignActionMixin(SmartListView):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(CampaignActionMixin, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         user = self.request.user
@@ -51,7 +51,7 @@ class UpdateCampaignForm(forms.ModelForm):
         self.user = kwargs['user']
         del kwargs['user']
 
-        super(UpdateCampaignForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['group'].initial = self.instance.group
         self.fields['group'].queryset = ContactGroup.get_user_groups(self.user.get_org(), ready_only=False)
 
@@ -66,7 +66,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
-            queryset = super(CampaignCRUDL.OrgMixin, self).derive_queryset(*args, **kwargs)
+            queryset = super().derive_queryset(*args, **kwargs)
             if not self.request.user.is_authenticated():  # pragma: no cover
                 return queryset.exclude(pk__gt=0)
             else:
@@ -81,7 +81,7 @@ class CampaignCRUDL(SmartCRUDL):
             return reverse('campaigns.campaign_read', args=[self.object.pk])
 
         def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super(CampaignCRUDL.Update, self).get_form_kwargs(*args, **kwargs)
+            form_kwargs = super().get_form_kwargs(*args, **kwargs)
             form_kwargs['user'] = self.request.user
             return form_kwargs
 
@@ -127,7 +127,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         class CampaignForm(forms.ModelForm):
             def __init__(self, user, *args, **kwargs):
-                super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
                 self.fields['group'].queryset = ContactGroup.get_user_groups(user.get_org()).order_by('name')
 
@@ -141,12 +141,12 @@ class CampaignCRUDL(SmartCRUDL):
         success_url = 'id@campaigns.campaign_read'
 
         def pre_save(self, obj):
-            obj = super(CampaignCRUDL.Create, self).pre_save(obj)
+            obj = super().pre_save(obj)
             obj.org = self.request.user.get_org()
             return obj
 
         def get_form_kwargs(self):
-            kwargs = super(CampaignCRUDL.Create, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['user'] = self.request.user
             return kwargs
 
@@ -156,7 +156,7 @@ class CampaignCRUDL(SmartCRUDL):
         default_order = ('-modified_on',)
 
         def get_context_data(self, **kwargs):
-            context = super(CampaignCRUDL.BaseList, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['org_has_campaigns'] = Campaign.objects.filter(org=self.request.user.get_org()).count()
             context['folders'] = self.get_folders()
             context['request_url'] = self.request.path
@@ -176,7 +176,7 @@ class CampaignCRUDL(SmartCRUDL):
         search_fields = ('name__icontains', 'group__name__icontains')
 
         def get_queryset(self, *args, **kwargs):
-            qs = super(CampaignCRUDL.List, self).get_queryset(*args, **kwargs)
+            qs = super().get_queryset(*args, **kwargs)
             qs = qs.filter(is_active=True, is_archived=False)
             return qs
 
@@ -185,7 +185,7 @@ class CampaignCRUDL(SmartCRUDL):
         actions = ('restore',)
 
         def get_queryset(self, *args, **kwargs):
-            qs = super(CampaignCRUDL.Archived, self).get_queryset(*args, **kwargs)
+            qs = super().get_queryset(*args, **kwargs)
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
 
@@ -205,7 +205,7 @@ class EventForm(forms.ModelForm):
     delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
 
     def clean(self):
-        data = super(EventForm, self).clean()
+        data = super().clean()
         if self.data['event_type'] == CampaignEvent.TYPE_MESSAGE and self.languages:
             language = self.languages[0].language
             iso_code = language['iso_code']
@@ -265,7 +265,7 @@ class EventForm(forms.ModelForm):
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
-        super(EventForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         org = self.user.get_org()
 
@@ -345,7 +345,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
-            context = super(CampaignEventCRUDL.Read, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             event_fires = self.get_object().event_fires.all()
 
             fired_event_fires = event_fires.exclude(fired=None).order_by('fired', 'pk')
@@ -403,12 +403,12 @@ class CampaignEventCRUDL(SmartCRUDL):
         default_fields = ['event_type', 'flow_to_start', 'offset', 'unit', 'direction', 'relative_to', 'delivery_hour']
 
         def get_form_kwargs(self):
-            kwargs = super(CampaignEventCRUDL.Update, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['user'] = self.request.user
             return kwargs
 
         def get_context_data(self, **kwargs):
-            return super(CampaignEventCRUDL.Update, self).get_context_data(**kwargs)
+            return super().get_context_data(**kwargs)
 
         def derive_fields(self):
 
@@ -429,7 +429,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             return fields
 
         def derive_initial(self):
-            initial = super(CampaignEventCRUDL.Update, self).derive_initial()
+            initial = super().derive_initial()
 
             if self.object.offset < 0:
                 initial['direction'] = 'B'
@@ -443,7 +443,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             return initial
 
         def post_save(self, obj):
-            obj = super(CampaignEventCRUDL.Update, self).post_save(obj)
+            obj = super().post_save(obj)
             obj.update_flow_name()
             EventFire.update_eventfires_for_event(obj)
             return obj
@@ -457,7 +457,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 flow.save()
                 obj.message = None
 
-            obj = super(CampaignEventCRUDL.Update, self).pre_save(obj)
+            obj = super().pre_save(obj)
             self.form.pre_save(self.request, obj)
             return obj
 
@@ -491,25 +491,25 @@ class CampaignEventCRUDL(SmartCRUDL):
             return reverse('campaigns.campaign_read', args=[self.object.campaign.pk])
 
         def get_form_kwargs(self):
-            kwargs = super(CampaignEventCRUDL.Create, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['user'] = self.request.user
             return kwargs
 
         def derive_initial(self):
-            initial = super(CampaignEventCRUDL.Create, self).derive_initial()
+            initial = super().derive_initial()
             initial['unit'] = 'D'
             initial['offset'] = '15'
             initial['direction'] = 'A'
             return initial
 
         def post_save(self, obj):
-            obj = super(CampaignEventCRUDL.Create, self).post_save(obj)
+            obj = super().post_save(obj)
             obj.update_flow_name()
             EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
-            obj = super(CampaignEventCRUDL.Create, self).pre_save(obj)
+            obj = super().pre_save(obj)
             obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get('campaign'))
             self.form.pre_save(self.request, obj)
             return obj

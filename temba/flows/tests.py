@@ -26,7 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, O
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import (
     TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers,
-    ESMockWithScroll
+    ESMockWithScroll, MigrationTest
 )
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -58,7 +58,7 @@ from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flo
 class FlowTest(TembaTest):
 
     def setUp(self):
-        super(FlowTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
@@ -2811,7 +2811,7 @@ class FlowTest(TembaTest):
 class ActionPackedTest(FlowFileTest):
 
     def setUp(self):
-        super(ActionPackedTest, self).setUp()
+        super().setUp()
         self.flow = self.get_flow('action_packed')
 
     def start_flow(self):
@@ -3166,7 +3166,7 @@ class ActionPackedTest(FlowFileTest):
 class ActionTest(TembaTest):
 
     def setUp(self):
-        super(ActionTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
@@ -4110,7 +4110,7 @@ class ActionTest(TembaTest):
 class FlowRunTest(TembaTest):
 
     def setUp(self):
-        super(FlowRunTest, self).setUp()
+        super().setUp()
 
         self.flow = self.get_flow('color')
         self.contact = self.create_contact("Ben Haggerty", "+250788123123")
@@ -8209,7 +8209,7 @@ class DuplicateResultTest(FlowFileTest):
 class ChannelSplitTest(FlowFileTest):
 
     def setUp(self):
-        super(ChannelSplitTest, self).setUp()
+        super().setUp()
 
         # update our channel to have a 206 address
         self.channel.address = '+12065551212'
@@ -8541,7 +8541,7 @@ class ExitTest(FlowFileTest):
 class OrderingTest(FlowFileTest):
 
     def setUp(self):
-        super(OrderingTest, self).setUp()
+        super().setUp()
 
         self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
 
@@ -8550,7 +8550,7 @@ class OrderingTest(FlowFileTest):
                                       config=dict(send_url='https://google.com'))
 
     def tearDown(self):
-        super(OrderingTest, self).tearDown()
+        super().tearDown()
 
     @override_settings(LEGACY_CHANNELS=['EX'])
     def test_two_in_row(self):
@@ -9000,7 +9000,7 @@ class TriggerFlowTest(FlowFileTest):
 class StackedExitsTest(FlowFileTest):
 
     def setUp(self):
-        super(StackedExitsTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
@@ -9080,7 +9080,7 @@ class StackedExitsTest(FlowFileTest):
 class ParentChildOrderingTest(FlowFileTest):
 
     def setUp(self):
-        super(ParentChildOrderingTest, self).setUp()
+        super().setUp()
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
@@ -9104,7 +9104,7 @@ class ParentChildOrderingTest(FlowFileTest):
 
 class AndroidChildStatus(FlowFileTest):
     def setUp(self):
-        super(AndroidChildStatus, self).setUp()
+        super().setUp()
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', schemes=['tel'])
 
@@ -9144,7 +9144,7 @@ class QueryTest(FlowFileTest):
 class FlowChannelSelectionTest(FlowFileTest):
 
     def setUp(self):
-        super(FlowChannelSelectionTest, self).setUp()
+        super().setUp()
         self.channel.delete()
         self.sms_channel = Channel.create(
             self.org, self.user, 'RW', 'JN', None, '+250788123123',
@@ -9290,7 +9290,7 @@ class TypeTest(TembaTest):
 
 class FlowServerTest(TembaTest):
     def setUp(self):
-        super(FlowServerTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact("Joe", "+250788373373")
 
@@ -9479,3 +9479,38 @@ class AssetServerTest(TembaTest):
                 }
             ],
         })
+
+
+class BackfillRecentRunStepUUIDsTest(MigrationTest):
+    migrate_from = '0157_update_path_trigger'
+    migrate_to = '0158_backfill_recent_step_uuids'
+    app = 'flows'
+
+    def setUpBeforeMigration(self, apps):
+        contact1 = self.create_contact("Joe", number='+250783831111')
+        contact2 = self.create_contact("Frank", number='+250783832222')
+        contact3 = self.create_contact("Surveyee", number='+250783833333')
+        flow = self.get_flow('color')
+
+        flow.start([], [contact1, contact2, contact3])
+        Msg.create_incoming(self.channel, 'tel:+250783831111', "Red")
+
+        flow.start([], [contact1, contact2], restart_participants=True)
+        Msg.create_incoming(self.channel, 'tel:+250783831111', "azul")
+        Msg.create_incoming(self.channel, 'tel:+250783831111', "gris")
+
+        # save the step UUIDs set by the trigger so we can compare with those set by the migration
+        self.trigger_results = {rr.id: {'from_step_uuid': rr.from_step_uuid, 'to_step_uuid': rr.to_step_uuid} for rr in FlowPathRecentRun.objects.all()}
+
+        # clear step_uuids so migration populates them
+        FlowPathRecentRun.objects.all().update(from_step_uuid=None, to_step_uuid=None)
+
+        # set all visited times on contact3's runs to now making them useless
+        FlowPathRecentRun.objects.filter(run__contact=contact3).update(visited_on=timezone.now())
+
+    def test_recent_runs(self):
+        # compare with step UUIDs set by trigger
+        for rr_id, expected in self.trigger_results.items():
+            rr = FlowPathRecentRun.objects.get(id=rr_id)
+            self.assertEqual(rr.from_step_uuid, expected['from_step_uuid'])
+            self.assertEqual(rr.to_step_uuid, expected['to_step_uuid'])
