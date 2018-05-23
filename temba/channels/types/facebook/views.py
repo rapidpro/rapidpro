@@ -8,10 +8,10 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        page_access_token = forms.CharField(min_length=43, required=True,
+        page_access_token = forms.CharField(min_length=32, required=True,
                                             help_text=_("The Page Access Token for your Application"))
         page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
-        page_id = forms.CharField(required=True, help_text="The Facebook Page ID")
+        page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
     form_class = Form
 
@@ -19,7 +19,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         org = self.request.user.get_org()
         auth_token = form.cleaned_data['page_access_token']
         name = form.cleaned_data['page_name']
-        page_id = form.cleaned_data['page_id'].strip()
+        page_id = form.cleaned_data['page_id']
 
         config = {
             Channel.CONFIG_AUTH_TOKEN: auth_token,
