@@ -32,7 +32,7 @@ class ISODate(String):
     Matches any ISO8601 formatted datetime string
     """
     def __new__(cls):
-        return super(ISODate, cls).__new__(cls, pattern=FULL_ISO8601_REGEX)
+        return super().__new__(cls, pattern=FULL_ISO8601_REGEX)
 
 
 class UUID4String(String):
@@ -40,4 +40,4 @@ class UUID4String(String):
     Matches any UUID v4 string
     """
     def __new__(cls):
-        return super(UUID4String, cls).__new__(cls, pattern=UUID4_REGEX)
+        return super().__new__(cls, pattern=UUID4_REGEX)

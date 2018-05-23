@@ -44,7 +44,7 @@ class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     start_datetime_value = forms.IntegerField(required=False)
 
     def clean(self):
-        data = super(ScheduleForm, self).clean()
+        data = super().clean()
 
         # only weekly gets repeat days
         if data['repeat_period'] != 'W':
@@ -83,7 +83,7 @@ class ScheduleCRUDL(SmartCRUDL):
             return None
 
         def get_context_data(self, **kwargs):
-            context = super(ScheduleCRUDL.Update, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['days'] = self.get_object().explode_bitmask()
             context['user_tz'] = get_current_timezone_name()
             context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)

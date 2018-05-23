@@ -8,7 +8,7 @@ from ...models import Channel
 
 class TwitterTypeTest(TembaTest):
     def setUp(self):
-        super(TwitterTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob",
                                       role="SR", config={})

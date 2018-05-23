@@ -135,7 +135,7 @@ class PublicTest(SmartminTest):
 class VideoCRUDLTest(_CRUDLTest):
 
     def setUp(self):
-        super(VideoCRUDLTest, self).setUp()
+        super().setUp()
         self.crudl = VideoCRUDL
         self.user = User.objects.create_superuser('admin', 'a@b.com', 'admin')
 

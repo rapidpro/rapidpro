@@ -42,7 +42,7 @@ class WebHookEventListView(WebHookEventMixin, SmartListView):
     permission = 'api.webhookevent_list'
 
     def get_context_data(self, *args, **kwargs):  # pragma: needs cover
-        context = super(WebHookEventListView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
         context['org'] = self.request.user.get_org()
         return context
 
@@ -67,7 +67,7 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
                     return _("Never, event delivery failed permanently")
 
     def get_context_data(self, *args, **kwargs):  # pragma: needs cover
-        context = super(WebHookEventReadView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
 
         context['results'] = self.object.results.all()
         return context
@@ -110,7 +110,7 @@ class WebHookSimulatorView(SmartTemplateView):
     template_name = "api/webhook_simulator.html"
 
     def get_context_data(self, **kwargs):
-        context = super(WebHookSimulatorView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
 
         endpoints = list()
 

@@ -410,7 +410,7 @@ class IsSetCondition(Condition):
     IS_NOT_SET_LOOKUPS = ('is', '=')
 
     def __init__(self, prop, comparator):
-        super(IsSetCondition, self).__init__(prop, comparator, "")
+        super().__init__(prop, comparator, "")
 
     def evaluate(self, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
@@ -693,10 +693,10 @@ class SinglePropCombination(BoolCombination):
 
         self.prop = prop
 
-        super(SinglePropCombination, self).__init__(op, *children)
+        super().__init__(op, *children)
 
     def __eq__(self, other):
-        return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
+        return isinstance(other, SinglePropCombination) and self.prop == other.prop and super().__eq__(other)
 
     def __str__(self):
         op = 'OR' if self.op == self.OR else 'AND'

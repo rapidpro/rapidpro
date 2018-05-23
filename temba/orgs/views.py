@@ -112,7 +112,7 @@ class OrgPermsMixin(object):
             if not self.derive_org():
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
 
-        return super(OrgPermsMixin, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class AnonMixin(OrgPermsMixin):
@@ -130,7 +130,7 @@ class AnonMixin(OrgPermsMixin):
         if not org or org.is_anon:
             return False
         else:
-            return super(AnonMixin, self).has_permission(request, *args, **kwargs)
+            return super().has_permission(request, *args, **kwargs)
 
 
 class OrgObjPermsMixin(OrgPermsMixin):
@@ -139,7 +139,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
         return self.get_object().org
 
     def has_org_perm(self, codename):
-        has_org_perm = super(OrgObjPermsMixin, self).has_org_perm(codename)
+        has_org_perm = super().has_org_perm(codename)
 
         if has_org_perm:
             user = self.get_user()
@@ -148,7 +148,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
         return False
 
     def has_permission(self, request, *args, **kwargs):
-        has_perm = super(OrgObjPermsMixin, self).has_permission(request, *args, **kwargs)
+        has_perm = super().has_permission(request, *args, **kwargs)
 
         if has_perm:
             user = self.get_user()
@@ -165,7 +165,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
 class ModalMixin(SmartFormView):
 
     def get_context_data(self, **kwargs):
-        context = super(ModalMixin, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
 
         if 'HTTP_X_PJAX' in self.request.META and 'HTTP_X_FORMAX' not in self.request.META:  # pragma: no cover
             context['base_template'] = "smartmin/modal.html"
@@ -224,7 +224,7 @@ class OrgSignupForm(forms.ModelForm):
         if 'branding' in kwargs:
             del kwargs['branding']
 
-        super(OrgSignupForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean_email(self):
         email = self.cleaned_data['email']
@@ -261,7 +261,7 @@ class OrgGrantForm(forms.ModelForm):
         branding = kwargs['branding']
         del kwargs['branding']
 
-        super(OrgGrantForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         welcome_packs = branding['welcome_packs']
 
@@ -349,12 +349,12 @@ class UserCRUDL(SmartCRUDL):
             return self.request.user
 
         def derive_initial(self):
-            initial = super(UserCRUDL.Edit, self).derive_initial()
+            initial = super().derive_initial()
             initial['language'] = self.get_object().get_settings().language
             return initial
 
         def pre_save(self, obj):
-            obj = super(UserCRUDL.Edit, self).pre_save(obj)
+            obj = super().pre_save(obj)
 
             # keep our username and email in sync
             obj.username = obj.email
@@ -366,7 +366,7 @@ class UserCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # save the user settings as well
-            obj = super(UserCRUDL.Edit, self).post_save(obj)
+            obj = super().post_save(obj)
             user_settings = obj.get_settings()
             user_settings.language = self.form.cleaned_data['language']
             user_settings.save()
@@ -461,7 +461,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
                 del kwargs['org']
-                super(OrgCRUDL.Import.FlowImportForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             def clean_import_file(self):
                 from temba.orgs.models import EARLIEST_IMPORT_VERSION
@@ -489,7 +489,7 @@ class OrgCRUDL(SmartCRUDL):
             return reverse('orgs.org_home')
 
         def get_form_kwargs(self):
-            kwargs = super(OrgCRUDL.Import, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
@@ -505,7 +505,7 @@ class OrgCRUDL(SmartCRUDL):
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 
-            return super(OrgCRUDL.Import, self).form_valid(form)  # pragma: needs cover
+            return super().form_valid(form)  # pragma: needs cover
 
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
@@ -528,7 +528,7 @@ class OrgCRUDL(SmartCRUDL):
             return response
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             org = self.get_object()
             include_archived = bool(int(self.request.GET.get('archived', 0)))
@@ -657,10 +657,10 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
 
             except nexmo.Error:
-                return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
+                return super().get(request, *args, **kwargs)
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             org = self.get_object()
             domain = org.get_brand_domain()
@@ -686,7 +686,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.NexmoAccount.NexmoKeys, self).clean()
+                super().clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     api_key = self.cleaned_data.get('api_key', None)
                     api_secret = self.cleaned_data.get('api_secret', None)
@@ -713,7 +713,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = NexmoKeys
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.NexmoAccount, self).derive_initial()
+            initial = super().derive_initial()
             org = self.get_object()
             config = org.config
             initial['api_key'] = config.get(NEXMO_KEY, '')
@@ -734,10 +734,10 @@ class OrgCRUDL(SmartCRUDL):
                 api_secret = form.cleaned_data['api_secret']
 
                 org.connect_nexmo(api_key, api_secret, user)
-                return super(OrgCRUDL.NexmoAccount, self).form_valid(form)
+                return super().form_valid(form)
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.NexmoAccount, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             org = self.get_object()
             client = org.get_nexmo_client()
@@ -754,7 +754,7 @@ class OrgCRUDL(SmartCRUDL):
             api_secret = forms.CharField(help_text=_("Your Nexmo API secret"))
 
             def clean(self):
-                super(OrgCRUDL.NexmoConnect.NexmoConnectForm, self).clean()
+                super().clean()
 
                 api_key = self.cleaned_data.get('api_key', None)
                 api_secret = self.cleaned_data.get('api_secret', None)
@@ -794,7 +794,7 @@ class OrgCRUDL(SmartCRUDL):
             auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
 
             def clean(self):
-                super(OrgCRUDL.PlivoConnect.PlivoConnectForm, self).clean()
+                super().clean()
 
                 auth_id = self.cleaned_data.get('auth_id', None)
                 auth_token = self.cleaned_data.get('auth_token', None)
@@ -843,7 +843,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.SmtpServer.SmtpConfig, self).clean()
+                super().clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     smtp_from_email = self.cleaned_data.get('smtp_from_email', None)
                     smtp_host = self.cleaned_data.get('smtp_host', None)
@@ -885,7 +885,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = SmtpConfig
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.SmtpServer, self).derive_initial()
+            initial = super().derive_initial()
             org = self.get_object()
             config = org.config
             initial['smtp_from_email'] = config.get(SMTP_FROM_EMAIL, '')
@@ -916,10 +916,10 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.add_smtp_config(smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, smtp_encryption, user)
 
-            return super(OrgCRUDL.SmtpServer, self).form_valid(form)
+            return super().form_valid(form)
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.SmtpServer, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             org = self.get_object()
             if org.has_smtp_config():
@@ -982,7 +982,7 @@ class OrgCRUDL(SmartCRUDL):
                              % (suspended, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
-            queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
+            queryset = super().derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
 
             brand = self.request.branding.get('brand')
@@ -995,14 +995,14 @@ class OrgCRUDL(SmartCRUDL):
             return queryset
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['searches'] = ['Nyaruka', ]
             return context
 
         def lookup_field_link(self, context, field, obj):
             if field == 'owner':
                 return reverse('users.user_update', args=[obj.created_by.pk])
-            return super(OrgCRUDL.Manage, self).lookup_field_link(context, field, obj)
+            return super().lookup_field_link(context, field, obj)
 
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
@@ -1064,7 +1064,7 @@ class OrgCRUDL(SmartCRUDL):
                 elif request.POST.get('status', None) == RESTORED:
                     self.get_object().set_restored()
                 return HttpResponseRedirect(self.get_success_url())
-            return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
+            return super().post(request, *args, **kwargs)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -1154,7 +1154,7 @@ class OrgCRUDL(SmartCRUDL):
             return getattr(org, group_name.lower())
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.ManageAccounts, self).derive_initial()
+            initial = super().derive_initial()
 
             org = self.get_object()
             for group in self.ORG_GROUPS:
@@ -1166,7 +1166,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_form(self):
-            form = super(OrgCRUDL.ManageAccounts, self).get_form()
+            form = super().get_form()
 
             org = self.get_object()
             self.org_users = org.get_org_users()
@@ -1178,7 +1178,7 @@ class OrgCRUDL(SmartCRUDL):
             return form
 
         def post_save(self, obj):
-            obj = super(OrgCRUDL.ManageAccounts, self).post_save(obj)
+            obj = super().post_save(obj)
 
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
@@ -1239,7 +1239,7 @@ class OrgCRUDL(SmartCRUDL):
             return obj
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.ManageAccounts, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             org = self.get_object()
             context['org'] = org
             context['org_users'] = self.org_users
@@ -1257,7 +1257,7 @@ class OrgCRUDL(SmartCRUDL):
     class MultiOrgMixin(OrgPermsMixin):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
-            response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
+            response = super().pre_process(request, *args, **kwargs)
             if not response and not request.user.get_org().is_multi_org_tier():
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             return response
@@ -1265,7 +1265,7 @@ class OrgCRUDL(SmartCRUDL):
     class ManageAccountsSubOrg(MultiOrgMixin, ManageAccounts):
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.ManageAccountsSubOrg, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             org_id = self.request.GET.get('org')
             context['parent'] = Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
             return context
@@ -1346,7 +1346,7 @@ class OrgCRUDL(SmartCRUDL):
                              % (org_type, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
-            queryset = super(OrgCRUDL.SubOrgs, self).derive_queryset(**kwargs)
+            queryset = super().derive_queryset(**kwargs)
 
             # all our children and ourselves
             org = self.get_object()
@@ -1360,7 +1360,7 @@ class OrgCRUDL(SmartCRUDL):
             return queryset.order_by('-parent', 'name')
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.SubOrgs, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['searches'] = ['Nyaruka', ]
             return context
 
@@ -1385,7 +1385,7 @@ class OrgCRUDL(SmartCRUDL):
         permission = 'orgs.org_create_sub_org'
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.CreateSubOrg, self).derive_initial()
+            initial = super().derive_initial()
             parent = self.request.user.get_org()
             initial['timezone'] = parent.timezone
             initial['date_format'] = parent.date_format
@@ -1444,7 +1444,7 @@ class OrgCRUDL(SmartCRUDL):
             return None  # pragma: needs cover
 
         def get_context_data(self, **kwargs):  # pragma: needs cover
-            context = super(OrgCRUDL.Choose, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['orgs'] = self.get_user_orgs()
             return context
 
@@ -1486,7 +1486,7 @@ class OrgCRUDL(SmartCRUDL):
             return None
 
         def pre_save(self, obj):
-            obj = super(OrgCRUDL.CreateLogin, self).pre_save(obj)
+            obj = super().pre_save(obj)
 
             user = Org.create_user(self.form.cleaned_data['email'],
                                    self.form.cleaned_data['password'])
@@ -1518,7 +1518,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):
             if self.invitation.user_group == 'S':
                 return reverse('orgs.org_surveyor')
-            return super(OrgCRUDL.CreateLogin, self).get_success_url()
+            return super().get_success_url()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1543,7 +1543,7 @@ class OrgCRUDL(SmartCRUDL):
             return _("Join %(name)s") % {'name': org.name}
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.CreateLogin, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             context['secret'] = self.kwargs.get('secret')
             context['org'] = self.get_object()
@@ -1604,7 +1604,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.invitation.user_group == 'S':
                 return reverse('orgs.org_surveyor')
 
-            return super(OrgCRUDL.Join, self).get_success_url()
+            return super().get_success_url()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1624,7 +1624,7 @@ class OrgCRUDL(SmartCRUDL):
                 return invitation.org
 
         def get_context_data(self, **kwargs):  # pragma: needs cover
-            context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
 
             context['org'] = self.get_object()
             return context
@@ -1651,7 +1651,7 @@ class OrgCRUDL(SmartCRUDL):
                                        help_text=_("Your password, at least eight letters please"))
 
             def __init__(self, *args, **kwargs):
-                super(OrgCRUDL.Surveyor.RegisterForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             def clean_email(self):
                 email = self.cleaned_data['email']
@@ -1672,12 +1672,12 @@ class OrgCRUDL(SmartCRUDL):
         form_class = PasswordForm
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.Surveyor, self).derive_initial()
+            initial = super().derive_initial()
             initial['surveyor_password'] = self.request.POST.get('surveyor_password', '')
             return initial
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Surveyor, self).get_context_data()
+            context = super().get_context_data()
             context['form'] = self.form
             context['step'] = self.get_step()
 
@@ -1735,7 +1735,7 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect('%(url)s?org=%(org)s&token=%(token)s&user=%(user)s' % response)
 
         def form_invalid(self, form):
-            return super(OrgCRUDL.Surveyor, self).form_invalid(form)
+            return super().form_invalid(form)
 
         def derive_title(self):
             return _('Welcome!')
@@ -1746,7 +1746,7 @@ class OrgCRUDL(SmartCRUDL):
                     or 'Android' in self.request.META.get('HTTP_USER_AGENT', ''):
                 return ['orgs/org_surveyor_mobile.haml']
             else:
-                return super(OrgCRUDL.Surveyor, self).get_template_names()
+                return super().get_template_names()
 
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
@@ -1776,12 +1776,12 @@ class OrgCRUDL(SmartCRUDL):
             return user
 
         def get_form_kwargs(self):
-            kwargs = super(OrgCRUDL.Grant, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['branding'] = self.request.branding
             return kwargs
 
         def pre_save(self, obj):
-            obj = super(OrgCRUDL.Grant, self).pre_save(obj)
+            obj = super().pre_save(obj)
 
             self.user = self.create_user()
 
@@ -1797,7 +1797,7 @@ class OrgCRUDL(SmartCRUDL):
             return self.form.cleaned_data['credits']
 
         def post_save(self, obj):
-            obj = super(OrgCRUDL.Grant, self).post_save(obj)
+            obj = super().post_save(obj)
             obj.administrators.add(self.user)
 
             if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):  # pragma: needs cover
@@ -1823,10 +1823,10 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('public.public_index'))
 
             else:
-                return super(OrgCRUDL.Signup, self).pre_process(request, *args, **kwargs)
+                return super().pre_process(request, *args, **kwargs)
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.Signup, self).get_initial()
+            initial = super().get_initial()
             initial['email'] = self.request.POST.get('email', None)
             return initial
 
@@ -1835,7 +1835,7 @@ class OrgCRUDL(SmartCRUDL):
             return welcome_topup_size
 
         def post_save(self, obj):
-            obj = super(OrgCRUDL.Signup, self).post_save(obj)
+            obj = super().post_save(obj)
             self.request.session['org_id'] = obj.pk
 
             user = authenticate(username=self.user.username, password=self.form.cleaned_data['password'])
@@ -1880,12 +1880,12 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ''
 
         def get_form(self):
-            form = super(OrgCRUDL.Resthooks, self).get_form()
+            form = super().get_form()
             self.current_resthooks = form.add_resthook_fields()
             return form
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Resthooks, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['current_resthooks'] = self.current_resthooks
             return context
 
@@ -1901,7 +1901,7 @@ class OrgCRUDL(SmartCRUDL):
                 if self.form.data.get(resthook['field']):
                     resthook['resthook'].release(self.request.user)
 
-            return super(OrgCRUDL.Resthooks, self).pre_save(obj)
+            return super().pre_save(obj)
 
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -1939,7 +1939,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ''
 
         def pre_save(self, obj):
-            obj = super(OrgCRUDL.Webhook, self).pre_save(obj)
+            obj = super().pre_save(obj)
 
             data = self.form.cleaned_data
 
@@ -1974,7 +1974,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             from temba.api.models import WebHookEvent
 
-            context = super(OrgCRUDL.Webhook, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
@@ -1990,7 +1990,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.Chatbase.ChatbaseForm, self).clean()
+                super().clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     agent_name = self.cleaned_data.get('agent_name')
                     api_key = self.cleaned_data.get('api_key')
@@ -2010,7 +2010,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = ChatbaseForm
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.Chatbase, self).derive_initial()
+            initial = super().derive_initial()
             org = self.get_object()
             config = org.config
             initial['agent_name'] = config.get(CHATBASE_AGENT_NAME, '')
@@ -2020,7 +2020,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Chatbase, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
             if chatbase_api_key:
                 config = self.object.config
@@ -2044,7 +2044,7 @@ class OrgCRUDL(SmartCRUDL):
             elif api_key:
                 org.connect_chatbase(agent_name, api_key, version, user)
 
-            return super(OrgCRUDL.Chatbase, self).form_valid(form)
+            return super().form_valid(form)
 
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
@@ -2149,7 +2149,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.TransferToAccount.TransferToAccountForm, self).clean()
+                super().clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     account_login = self.cleaned_data.get('account_login', None)
                     airtime_api_token = self.cleaned_data.get('airtime_api_token', None)
@@ -2182,7 +2182,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = '@orgs.org_home'
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.TransferToAccount, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             if self.object.is_connected_to_transferto():
                 config = self.object.config
                 account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
@@ -2191,7 +2191,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.TransferToAccount, self).derive_initial()
+            initial = super().derive_initial()
             config = self.object.config
             initial['account_login'] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
             initial['airtime_api_token'] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
@@ -2211,7 +2211,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.connect_transferto(account_login, airtime_api_token, user)
                 org.refresh_transferto_account_currency()
-                return super(OrgCRUDL.TransferToAccount, self).form_valid(form)
+                return super().form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -2223,7 +2223,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.TwilioAccount.TwilioKeys, self).clean()
+                super().clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     account_sid = self.cleaned_data.get('account_sid', None)
                     account_token = self.cleaned_data.get('account_token', None)
@@ -2253,7 +2253,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = TwilioKeys
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             client = self.object.get_twilio_client()
             if client:
                 account_sid = client.auth[0]
@@ -2262,7 +2262,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
+            initial = super().derive_initial()
             config = self.object.config
             initial['account_sid'] = config[ACCOUNT_SID]
             initial['account_token'] = config[ACCOUNT_TOKEN]
@@ -2282,7 +2282,7 @@ class OrgCRUDL(SmartCRUDL):
                 account_token = form.cleaned_data['account_token']
 
                 org.connect_twilio(account_sid, account_token, user)
-                return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
+                return super().form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -2304,7 +2304,7 @@ class OrgCRUDL(SmartCRUDL):
             return self.has_org_perm('orgs.org_edit')
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Edit, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             sub_orgs = Org.objects.filter(parent=self.get_object())
             context['sub_orgs'] = sub_orgs
             return context
@@ -2338,13 +2338,13 @@ class OrgCRUDL(SmartCRUDL):
                 org = kwargs['org']
                 del kwargs['org']
 
-                super(OrgCRUDL.TransferCredits.TransferForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
                 self.fields['from_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'name', 'id')
                 self.fields['to_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'name', 'id')
 
             def clean(self):
-                cleaned_data = super(OrgCRUDL.TransferCredits.TransferForm, self).clean()
+                cleaned_data = super().clean()
 
                 if 'amount' in cleaned_data and 'from_org' in cleaned_data:
                     from_org = cleaned_data['from_org']
@@ -2362,7 +2362,7 @@ class OrgCRUDL(SmartCRUDL):
             return self.request.user.has_perm(self.permission) or self.has_org_perm(self.permission)
 
         def get_form_kwargs(self):
-            form_kwargs = super(OrgCRUDL.TransferCredits, self).get_form_kwargs()
+            form_kwargs = super().get_form_kwargs()
             form_kwargs['org'] = self.get_object()
             return form_kwargs
 
@@ -2415,7 +2415,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
                 del kwargs['org']
-                super(OrgCRUDL.Languages.LanguagesForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             class Meta:
                 model = Org
@@ -2425,13 +2425,13 @@ class OrgCRUDL(SmartCRUDL):
         form_class = LanguagesForm
 
         def get_form_kwargs(self):
-            kwargs = super(OrgCRUDL.Languages, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
         def derive_initial(self):
 
-            initial = super(OrgCRUDL.Languages, self).derive_initial()
+            initial = super().derive_initial()
             langs = ','.join([lang.iso_code for lang in self.get_object().languages.filter(orgs=None).order_by('name')])
             initial['languages'] = langs
 
@@ -2441,7 +2441,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.Languages, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             languages = [lang.name for lang in self.request.user.get_org().languages.filter(orgs=None).order_by('name')]
             lang_count = len(languages)
 
@@ -2470,7 +2470,7 @@ class OrgCRUDL(SmartCRUDL):
                     matches += languages.search_language_names(search)
                 return JsonResponse(dict(results=matches))
 
-            return super(OrgCRUDL.Languages, self).get(request, *args, **kwargs)
+            return super().get(request, *args, **kwargs)
 
         def form_valid(self, form):
             user = self.request.user
@@ -2484,7 +2484,7 @@ class OrgCRUDL(SmartCRUDL):
 
             self.object.set_languages(user, iso_codes, primary)
 
-            return super(OrgCRUDL.Languages, self).form_valid(form)
+            return super().form_valid(form)
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -2515,7 +2515,7 @@ class TopUpCRUDL(SmartCRUDL):
             return queryset.annotate(credits_remaining=ExpressionWrapper(F('credits') - Sum(F('topupcredits__used')), IntegerField()))
 
         def get_context_data(self, **kwargs):
-            context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
 
             now = timezone.now()
@@ -2563,7 +2563,7 @@ class TopUpCRUDL(SmartCRUDL):
             if 'HTTP_X_FORMAX' in self.request.META:
                 return ['orgs/topup_list_summary.haml']
             else:
-                return super(TopUpCRUDL.List, self).get_template_names()
+                return super().get_template_names()
 
     class Create(SmartCreateView):
         """
@@ -2579,7 +2579,7 @@ class TopUpCRUDL(SmartCRUDL):
             return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org)
 
         def post_save(self, obj):
-            obj = super(TopUpCRUDL.Create, self).post_save(obj)
+            obj = super().post_save(obj)
             apply_topups_task.delay(obj.org.id)
             return obj
 
@@ -2590,7 +2590,7 @@ class TopUpCRUDL(SmartCRUDL):
             return reverse('orgs.topup_manage') + ('?org=%d' % self.object.org.id)
 
         def post_save(self, obj):
-            obj = super(TopUpCRUDL.Update, self).post_save(obj)
+            obj = super().post_save(obj)
             apply_topups_task.delay(obj.org.id)
             return obj
 
@@ -2615,7 +2615,7 @@ class TopUpCRUDL(SmartCRUDL):
             return format(obj.credits, ",d")
 
         def get_context_data(self, **kwargs):
-            context = super(TopUpCRUDL.Manage, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['org'] = self.org
             return context
 
@@ -2631,7 +2631,7 @@ class StripeHandler(View):  # pragma: no cover
     """
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(StripeHandler, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("ILLEGAL METHOD")

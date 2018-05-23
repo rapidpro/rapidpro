@@ -28,7 +28,7 @@ class AirtimeCRUDL(SmartCRUDL):
             return "--"
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.List, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['org'] = self.derive_org()
             return context
 
@@ -37,7 +37,7 @@ class AirtimeCRUDL(SmartCRUDL):
         field_config = dict(created_on=dict(label="Time"))
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.Read, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['show_logs'] = self.show_logs()
             return context
 

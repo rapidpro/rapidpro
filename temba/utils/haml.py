@@ -31,7 +31,7 @@ def get_haml_loader(loader):
                 try_template_name = self._generate_template_name(template_name, extension)
                 try_origin = Origin(try_name, try_template_name, origin.loader)
                 try:
-                    haml_source = super(Loader, self).get_contents(try_origin)
+                    haml_source = super().get_contents(try_origin)
                 except TemplateDoesNotExist:
                     pass
                 else:

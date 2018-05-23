@@ -49,4 +49,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                                           config,
                                                           role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

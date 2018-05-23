@@ -741,11 +741,11 @@ class ClaimViewMixin(OrgPermsMixin):
         def __init__(self, **kwargs):
             self.request = kwargs.pop('request')
             self.channel_type = kwargs.pop('channel_type')
-            super(ClaimViewMixin.Form, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
     def __init__(self, channel_type):
         self.channel_type = channel_type
-        super(ClaimViewMixin, self).__init__()
+        super().__init__()
 
     def get_template_names(self):
         return [self.template_name] if self.template_name else ['channels/types/%s/claim.html' % self.channel_type.slug, 'channels/channel_claim_form.html']
@@ -754,7 +754,7 @@ class ClaimViewMixin(OrgPermsMixin):
         return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
 
     def get_form_kwargs(self):
-        kwargs = super(ClaimViewMixin, self).get_form_kwargs()
+        kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         kwargs['channel_type'] = self.channel_type
         return kwargs
@@ -819,7 +819,7 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
             data['password'], self.channel_type, data.get('url'), extra_config=extra_config
         )
 
-        return super(AuthenticatedExternalClaimView, self).form_valid(form)
+        return super().form_valid(form)
 
 
 class AuthenticatedExternalCallbackClaimView(AuthenticatedExternalClaimView):
@@ -832,7 +832,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
         return None
 
     def get_context_data(self, **kwargs):
-        context = super(BaseClaimNumberMixin, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         org = self.request.user.get_org()
 
         try:
@@ -962,7 +962,7 @@ class ClaimAndroidForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.org = kwargs.pop('org')
-        super(ClaimAndroidForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean_claim_code(self):
         claim_code = self.cleaned_data['claim_code']
@@ -1006,7 +1006,7 @@ class UpdateChannelForm(forms.ModelForm):
         self.object = kwargs['object']
         del kwargs['object']
 
-        super(UpdateChannelForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.add_config_fields()
 
     def add_config_fields(self):
@@ -1096,7 +1096,7 @@ class ChannelCRUDL(SmartCRUDL):
             return links
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.Read, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             channel = self.object
 
             sync_events = SyncEvent.objects.filter(channel=channel.id).order_by('-created_on')
@@ -1344,12 +1344,12 @@ class ChannelCRUDL(SmartCRUDL):
         def lookup_field_label(self, context, field, default=None):
             if field in self.form.Meta.labels:
                 return self.form.Meta.labels[field]
-            return super(ChannelCRUDL.Update, self).lookup_field_label(context, field, default=default)
+            return super().lookup_field_label(context, field, default=default)
 
         def lookup_field_help(self, field, default=None):
             if field in self.form.Meta.helps:
                 return self.form.Meta.helps[field]
-            return super(ChannelCRUDL.Update, self).lookup_field_help(field, default=default)
+            return super().lookup_field_help(field, default=default)
 
         def get_success_url(self):
             return reverse('channels.channel_read', args=[self.object.uuid])
@@ -1358,7 +1358,7 @@ class ChannelCRUDL(SmartCRUDL):
             return Channel.get_type_from_code(self.object.channel_type).get_update_form()
 
         def get_form_kwargs(self):
-            kwargs = super(ChannelCRUDL.Update, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['object'] = self.object
             return kwargs
 
@@ -1387,7 +1387,7 @@ class ChannelCRUDL(SmartCRUDL):
     class Claim(OrgPermsMixin, SmartTemplateView):
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.Claim, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             user = self.request.user
 
             twilio_countries = [str(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
@@ -1427,7 +1427,7 @@ class ChannelCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
                 del kwargs['org']
-                super(ChannelCRUDL.CreateBulkSender.BulkSenderForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             def clean_connection(self):
                 connection = self.cleaned_data['connection']
@@ -1446,7 +1446,7 @@ class ChannelCRUDL(SmartCRUDL):
         fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super(ChannelCRUDL.CreateBulkSender, self).get_form_kwargs(*args, **kwargs)
+            form_kwargs = super().get_form_kwargs(*args, **kwargs)
             form_kwargs['org'] = Org.objects.get(pk=self.request.user.get_org().pk)
             return form_kwargs
 
@@ -1455,10 +1455,10 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel = form.cleaned_data['channel']
             Channel.add_send_channel(user, channel)
-            return super(ChannelCRUDL.CreateBulkSender, self).form_valid(form)
+            return super().form_valid(form)
 
         def form_invalid(self, form):
-            return super(ChannelCRUDL.CreateBulkSender, self).form_invalid(form)
+            return super().form_invalid(form)
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -1471,7 +1471,7 @@ class ChannelCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
                 del kwargs['org']
-                super(ChannelCRUDL.CreateCaller.CallerForm, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             def clean_connection(self):
                 connection = self.cleaned_data['connection']
@@ -1490,7 +1490,7 @@ class ChannelCRUDL(SmartCRUDL):
         fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super(ChannelCRUDL.CreateCaller, self).get_form_kwargs(*args, **kwargs)
+            form_kwargs = super().get_form_kwargs(*args, **kwargs)
             form_kwargs['org'] = Org.objects.get(pk=self.request.user.get_org().pk)
             return form_kwargs
 
@@ -1500,10 +1500,10 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel = form.cleaned_data['channel']
             Channel.add_call_channel(org, user, channel)
-            return super(ChannelCRUDL.CreateCaller, self).form_valid(form)
+            return super().form_valid(form)
 
         def form_invalid(self, form):
-            return super(ChannelCRUDL.CreateCaller, self).form_invalid(form)
+            return super().form_invalid(form)
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -1512,7 +1512,7 @@ class ChannelCRUDL(SmartCRUDL):
         slug_url_kwarg = 'uuid'
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.Configuration, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['domain'] = self.object.callback_domain
             context['ip_addresses'] = settings.IP_ADDRESSES
 
@@ -1532,7 +1532,7 @@ class ChannelCRUDL(SmartCRUDL):
         permission = 'channels.channel_claim'
 
         def get_form_kwargs(self):
-            kwargs = super(ChannelCRUDL.ClaimAndroid, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
@@ -1563,7 +1563,7 @@ class ChannelCRUDL(SmartCRUDL):
             # trigger a sync
             self.object.trigger_sync()
 
-            return super(ChannelCRUDL.ClaimAndroid, self).form_valid(form)
+            return super().form_valid(form)
 
         def derive_org(self):
             user = self.request.user
@@ -1584,7 +1584,7 @@ class ChannelCRUDL(SmartCRUDL):
         search_fields = ('name', 'address', 'org__created_by__email')
 
         def get_queryset(self, **kwargs):
-            queryset = super(ChannelCRUDL.List, self).get_queryset(**kwargs)
+            queryset = super().get_queryset(**kwargs)
 
             # org users see channels for their org, superuser sees all
             if not self.request.user.is_superuser:
@@ -1596,7 +1596,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_process(self, *args, **kwargs):
             # superuser sees things as they are
             if self.request.user.is_superuser:
-                return super(ChannelCRUDL.List, self).pre_process(*args, **kwargs)
+                return super().pre_process(*args, **kwargs)
 
             # everybody else goes to a different page depending how many channels there are
             org = self.request.user.get_org()
@@ -1607,7 +1607,7 @@ class ChannelCRUDL(SmartCRUDL):
             elif len(channels) == 1:
                 return HttpResponseRedirect(reverse('channels.channel_read', args=[channels[0].uuid]))
             else:
-                return super(ChannelCRUDL.List, self).pre_process(*args, **kwargs)
+                return super().pre_process(*args, **kwargs)
 
         def get_name(self, obj):
             return obj.get_name()
@@ -1760,7 +1760,7 @@ class ChannelEventCRUDL(SmartCRUDL):
             return r'^calls/$'
 
         def get_context_data(self, *args, **kwargs):
-            context = super(ChannelEventCRUDL.Calls, self).get_context_data(*args, **kwargs)
+            context = super().get_context_data(*args, **kwargs)
             context['actions'] = []
             return context
 
@@ -1798,7 +1798,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return events
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
@@ -1813,5 +1813,5 @@ class ChannelLogCRUDL(SmartCRUDL):
             return object.channel.org if object else None
 
         def derive_queryset(self, **kwargs):
-            queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
+            queryset = super().derive_queryset(**kwargs)
             return queryset.order_by('-created_on')

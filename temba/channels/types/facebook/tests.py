@@ -11,7 +11,7 @@ from ...models import Channel
 
 class FacebookTypeTest(TembaTest):
     def setUp(self):
-        super(FacebookTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'FB', name="Facebook", address="12345",
                                       role="SR", schemes=['facebook'], config={'auth_token': '09876543'})

@@ -7,7 +7,7 @@ from temba.tests import TembaTest
 
 class DashboardTest(TembaTest):
     def setUp(self):
-        super(DashboardTest, self).setUp()
+        super().setUp()
 
         self.user = self.create_user("tito")
         self.flow_label = Label.label_objects.create(name="Color", org=self.org,
