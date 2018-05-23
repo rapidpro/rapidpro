@@ -35,7 +35,7 @@ BEGIN
   -- Msg is being deleted
   ELSIF TG_OP = 'DELETE' THEN
     -- Remove a used credit if this Msg had one assigned and it isn't being purged
-    IF OLD.topup_id IS NOT NULL AND (OLD.purged IS NULL OR OLD.purged IS False) THEN
+    IF OLD.topup_id IS NOT NULL AND (OLD.delete_reason IS NULL) THEN
       PERFORM temba_insert_topupcredits(OLD.topup_id, -1);
     END IF;
   END IF;
@@ -55,9 +55,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='msg',
-            name='purged',
-            field=models.NullBooleanField(help_text='If this message is being purged'),
+            name='delete_reason',
+            field=models.CharField(choices=[(('A', 'Archive delete'), ('P', 'Purge delete'))], help_text='How the message is being deleted', max_length=1, null=True),
         ),
-        migrations.RunSQL(SQL_update_credits)
+        migrations.RunSQL(SQL_update_credits, '')
 
     ]
