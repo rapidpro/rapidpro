@@ -10,8 +10,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         page_access_token = forms.CharField(min_length=43, required=True,
                                             help_text=_("The Page Access Token for your Application"))
-        page_name = forms.CharField(required=True)
-        page_id = forms.CharField(required=True)
+        page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
+        page_id = forms.CharField(required=True, help_text="The Facebook Page ID")
 
     form_class = Form
 
