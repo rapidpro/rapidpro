@@ -16,10 +16,7 @@ class FacebookTypeTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, None, 'FB', name="Facebook", address="12345",
                                       role="SR", schemes=['facebook'], config={'auth_token': '09876543'})
 
-    @override_settings(IS_PROD=True)
-    @patch('requests.get')
-    @patch('requests.post')
-    def test_claim(self, mock_post, mock_get):
+    def test_claim(self):
         url = reverse('channels.types.facebook.claim')
 
         self.login(self.admin)
@@ -33,24 +30,19 @@ class FacebookTypeTest(TembaTest):
         self.assertContains(response, "Connect Facebook")
 
         token = 'x' * 200
-        mock_get.return_value = MockResponse(400, json.dumps({'error': {'message': "Failed validation"}}))
 
-        # try to claim facebook, should fail because our verification of the token fails
-        response = self.client.post(url, {'page_access_token': token})
+        post_data = response.context['form'].initial
+        post_data['page_access_token'] = token
+        post_data['page_id'] = "123456"
+        post_data['page_name'] = "Temba"
 
-        # assert we got a normal 200 and it says our token is wrong
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Failed validation")
-
-        # ok this time claim with a success
-        mock_get.return_value = MockResponse(200, json.dumps({'name': "Temba", 'id': 10}))
-        response = self.client.post(url, {'page_access_token': token}, follow=True)
+        response = self.client.post(url, post_data, follow=True)
 
         # assert our channel got created
-        channel = Channel.objects.get(address='10')
+        channel = Channel.objects.get(address='123456')
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], token)
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], 'Temba')
-        self.assertEqual(channel.address, '10')
+        self.assertEqual(channel.address, '123456')
 
         # should be on our configuration page displaying our secret
         self.assertContains(response, channel.config[Channel.CONFIG_SECRET])

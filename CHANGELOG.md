@@ -1,3 +1,12 @@
+v3.0.401
+----------
+ * Fix quick replies in simulator
+ * Lower the min length for Facebook page access token
+ * Update Facebook claim to ask for Page ID and Page name from the user
+ * Add new policies and consent app
+ * Fix another migration that adds a field and writes to it in same transaction
+ * Add step UUID fields to FlowPathRecentRun and update trigger on run paths to start populating them
+
 v3.0.400
 ----------
  * Don't create flow steps
