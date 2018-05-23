@@ -76,31 +76,14 @@ class BrandingMiddleware(object):
 
 class ConsentMiddleware(object):
 
+    REQUIRES_CONSENT = ('/msg', '/contact', '/flow', '/trigger', '/org/home', '/campaign', '/channel')
+
     def process_request(self, request):
-
-        if not request.user or not request.user.is_authenticated():
-            return None
-
-        if request.path.startswith('/handlers'):
-            return None
-
-        if request.path.startswith('/api'):
-            return None
-
-        if request.path.startswith('/users'):
-            return None
-
-        if request.path.startswith('/policy'):
-            return None
-
-        if request.path in (
-                reverse('orgs.org_service'),
-                reverse('orgs.org_manage'),
-                reverse('django.views.i18n.javascript_catalog')):
-            return None
-
-        if Policy.get_policies_needing_consent(request.user):
-                return HttpResponseRedirect(reverse('policies.policy_list'))
+        if request.user and request.user.is_authenticated():
+            for path in ConsentMiddleware.REQUIRES_CONSENT:
+                if request.path.startswith(path):
+                    if Policy.get_policies_needing_consent(request.user):
+                        return HttpResponseRedirect(reverse('policies.policy_list'))
 
 
 class ActivateLanguageMiddleware(object):
