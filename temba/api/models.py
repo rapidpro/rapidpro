@@ -686,7 +686,7 @@ class APIToken(models.Model):
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = self.generate_key()
-        return super(APIToken, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def generate_key(self):
         unique = uuid.uuid4()

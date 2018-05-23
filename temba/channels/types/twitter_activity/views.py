@@ -17,7 +17,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         env_name = forms.CharField(label=_('Environment Name'))
 
         def clean(self):
-            cleaned_data = super(ClaimView.Form, self).clean()
+            cleaned_data = super().clean()
             api_key = cleaned_data.get('api_key')
             api_secret = cleaned_data.get('api_secret')
             access_token = cleaned_data.get('access_token')
@@ -70,4 +70,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name="@%s" % screen_name,
                                      address=screen_name, config=config)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

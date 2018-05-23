@@ -8,7 +8,7 @@ class Select2Field(forms.Field):
     widget = widgets.TextInput(attrs={"class": "select2_field", "style": "width:520px"})
 
     def __init__(self, **kwargs):
-        super(Select2Field, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def to_python(self, value):
         return value

@@ -30,4 +30,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org, self.request.user, None, self.channel_type, name=name, address=page_id, config=config
         )
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

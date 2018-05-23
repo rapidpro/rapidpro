@@ -279,7 +279,7 @@ class ContactFieldCollector(EvaluationContext):
         return None
 
     def __init__(self):
-        super(ContactFieldCollector, self).__init__(dict(), pytz.UTC, None)
+        super().__init__(dict(), pytz.UTC, None)
 
     def get_contact_fields(self, msg):
         self.contact_fields = set()

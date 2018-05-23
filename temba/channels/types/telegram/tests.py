@@ -11,7 +11,7 @@ from ...models import Channel
 
 class TelegramTypeTest(TembaTest):
     def setUp(self):
-        super(TelegramTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TG', name="Telegram", address="12345",
                                       role="SR", schemes=['telegram'],

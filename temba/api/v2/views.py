@@ -172,7 +172,7 @@ class ExplorerView(SmartTemplateView):
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
-        context = super(ExplorerView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -229,7 +229,7 @@ class AuthenticateView(SmartFormView):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(AuthenticateView, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('username')
@@ -278,7 +278,7 @@ class BaseAPIView(generics.GenericAPIView):
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
-        return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
     def options(self, request, *args, **kwargs):
         """
@@ -331,7 +331,7 @@ class BaseAPIView(generics.GenericAPIView):
             raise InvalidQueryError("Value for %s must be a valid UUID" % name)
 
     def get_serializer_context(self):
-        context = super(BaseAPIView, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['org'] = self.request.user.get_org()
         context['user'] = self.request.user
         return context
@@ -363,7 +363,7 @@ class ListAPIMixin(mixins.ListModelMixin):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
-            return super(ListAPIMixin, self).list(request, *args, **kwargs)
+            return super().list(request, *args, **kwargs)
 
     def check_query(self, params):
         # check user hasn't provided values for more than one of any exclusive params
@@ -398,7 +398,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         return queryset
 
     def paginate_queryset(self, queryset):
-        page = super(ListAPIMixin, self).paginate_queryset(queryset)
+        page = super().paginate_queryset(queryset)
 
         # give views a chance to prepare objects for serialization
         self.prepare_for_serialization(page)
@@ -568,7 +568,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
-        context = super(BoundariesEndpoint, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['include_geometry'] = str_to_bool(self.request.query_params.get('geometry', 'false'))
         return context
 
@@ -1365,7 +1365,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         """
         So that we only fetch active contact fields once for all contacts
         """
-        context = super(ContactsEndpoint, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 

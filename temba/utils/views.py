@@ -34,7 +34,7 @@ class BaseActionForm(forms.Form):
         org = kwargs.pop('org')
         self.user = kwargs.pop('user')
 
-        super(BaseActionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         objects_qs = getattr(self.model, self.model_manager).filter(org=org)
         if self.has_is_active:
@@ -163,14 +163,14 @@ class ContactListPaginator(Paginator):
 
             new_args[0] = new_object_list
 
-        return super(ContactListPaginator, self)._get_page(*new_args, **kwargs)
+        return super()._get_page(*new_args, **kwargs)
 
 
 class ContactListPaginationMixin(object):
     paginator_class = ContactListPaginator
 
     def paginate_queryset(self, queryset, page_size):
-        paginator, page, new_queryset, is_paginated = super(ContactListPaginationMixin, self).paginate_queryset(queryset, page_size)
+        paginator, page, new_queryset, is_paginated = super().paginate_queryset(queryset, page_size)
 
         if isinstance(queryset, ModelESSearch):
             model_queryset = ProxyQuerySet([obj for obj in mapEStoDB(self.model, new_queryset)])

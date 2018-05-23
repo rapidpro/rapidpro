@@ -12,7 +12,7 @@ from .tasks import resolve_twitter_ids
 
 class TwitterActivityTypeTest(TembaTest):
     def setUp(self):
-        super(TwitterActivityTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TWT', name="Twitter Beta", address="beta_bob",
                                       role="SR",

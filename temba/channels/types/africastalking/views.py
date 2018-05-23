@@ -35,4 +35,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                      name="Africa's Talking: %s" % data['shortcode'], address=data['shortcode'],
                                      config=config)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

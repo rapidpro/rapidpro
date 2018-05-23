@@ -26,7 +26,7 @@ def encode_atom(atom):  # pragma: no cover
 class LoggingResource(Resource):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
-        super(LoggingResource, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.events = []
 
     def request(self, method, uri, **kwargs):
@@ -69,19 +69,19 @@ class LoggingResource(Resource):  # pragma: no cover
 class LoggingCalls(LoggingResource, Calls):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
-        super(LoggingCalls, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class LoggingMessages(LoggingResource, Messages):  # pragma: nocover
 
     def __init__(self, *args, **kwargs):
-        super(LoggingMessages, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class TembaTwilioRestClient(TwilioRestClient):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
-        super(TembaTwilioRestClient, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # replace endpoints we want logging for
         self.messages = LoggingMessages(self.account_uri, self.auth, self.timeout)

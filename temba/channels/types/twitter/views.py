@@ -19,7 +19,7 @@ SESSION_TWITTER_OAUTH_SECRET = 'twitter_oauth_token_secret'
 class ClaimView(ClaimViewMixin, SmartTemplateView):
 
     def pre_process(self, *args, **kwargs):
-        response = super(ClaimView, self).pre_process(*args, **kwargs)
+        response = super().pre_process(*args, **kwargs)
 
         api_key = settings.TWITTER_API_KEY
         api_secret = settings.TWITTER_API_SECRET
@@ -60,7 +60,7 @@ class ClaimView(ClaimViewMixin, SmartTemplateView):
         return response
 
     def get_context_data(self, **kwargs):
-        context = super(ClaimView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
 
         # generate temp OAuth token and secret
         twitter = TembaTwython(settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET)

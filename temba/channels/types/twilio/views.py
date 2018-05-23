@@ -37,7 +37,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def __init__(self, channel_type):
-        super(ClaimView, self).__init__(channel_type)
+        super().__init__(channel_type)
         self.account = None
         self.client = None
 
@@ -64,7 +64,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.types.twilio.claim')
 
     def get_context_data(self, **kwargs):
-        context = super(ClaimView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context['account_trial'] = self.account.type.lower() == 'trial'
         return context
 

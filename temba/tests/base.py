@@ -47,11 +47,11 @@ class TembaTestRunner(DiscoverRunner):
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
-        super(TembaTestRunner, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         mock_server.start()
 
     def build_suite(self, *args, **kwargs):
-        suite = super(TembaTestRunner, self).build_suite(*args, **kwargs)
+        suite = super().build_suite(*args, **kwargs)
         excluded = getattr(settings, 'TEST_EXCLUDE', [])
         if not getattr(settings, 'RUN_ALL_TESTS', False):
             tests = []
@@ -64,7 +64,7 @@ class TembaTestRunner(DiscoverRunner):
 
     def run_suite(self, suite, **kwargs):
 
-        return super(TembaTestRunner, self).run_suite(suite, **kwargs)
+        return super().run_suite(suite, **kwargs)
 
 
 def add_testing_flag_to_context(*args):
@@ -104,7 +104,7 @@ class AddFlowServerTestsMeta(type):
 
         dct.update(new_tests)
 
-        return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+        return super().__new__(mcs, name, bases, dct)
 
     @staticmethod
     def _split_test(test_func):
@@ -587,7 +587,7 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
 class FlowFileTest(TembaTest):
 
     def setUp(self):
-        super(FlowFileTest, self).setUp()
+        super().setUp()
         self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
     def assertInUserGroups(self, contact, group_names, only=False):
@@ -695,13 +695,13 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         except Exception:
             pass
 
-        super(BrowserTest, cls).setUpClass()
+        super().setUpClass()
 
     @classmethod
     def tearDownClass(cls):
         pass
         # cls.driver.quit()
-        # super(BrowserTest, cls).tearDownClass()
+        # super().tearDownClass()
 
     def strip_tags(self, html):
         s = MLStripper()
@@ -867,7 +867,7 @@ class MigrationTest(TembaTest):
             "TestCase '{}' must define migrate_from and migrate_to properties".format(type(self).__name__)
 
         # set up our temba test
-        super(MigrationTest, self).setUp()
+        super().setUp()
 
         self.migrate_from = [(self.app, self.migrate_from)]
         self.migrate_to = [(self.app, self.migrate_to)]

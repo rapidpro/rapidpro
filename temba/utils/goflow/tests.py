@@ -46,7 +46,7 @@ class SerializationTest(TembaTest):
 
 class ClientTest(TembaTest):
     def setUp(self):
-        super(ClientTest, self).setUp()
+        super().setUp()
 
         self.gender = self.create_field('gender', "Gender", Value.TYPE_TEXT)
         self.age = self.create_field('age', "Age", Value.TYPE_NUMBER)
@@ -127,7 +127,7 @@ class ClientTest(TembaTest):
 
 class TrialTest(TembaTest):
     def setUp(self):
-        super(TrialTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
 
