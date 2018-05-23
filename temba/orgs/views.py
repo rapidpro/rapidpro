@@ -938,7 +938,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Manage(SmartListView):
-        fields = ('name', 'history_msgs_in','history_msgs_out','per_msgs_in','per_msgs_out', 'owner', 'service', 'created_on')
+        fields = ('name', 'history_msgs_in','history_msgs_out','per_msgs_in','per_msgs_out','contacts' ,'owner', 'service', 'created_on')
         field_config = {'service': {'label': ''},
                         'per_msgs_out':{'label':'Msgs Out (%) Last 30 days'},
                         'per_msgs_in' :{'label':'Msgs In  (%) Last 30 days'},
@@ -950,35 +950,6 @@ class OrgCRUDL(SmartCRUDL):
         title = "Organizations"
 
 
-        def order_queryset(self, queryset):
-            """
-            Orders the passed in queryset, returning a new queryset in response.  By default uses the _order query
-            parameter.
-            """
-            order = self.derive_ordering()
-
-            # if we get our order from the request
-            # make sure it is a valid field in the list
-            if '_order' in self.request.GET:
-                if order.lstrip('-') not in self.derive_fields():
-                    order = None
-
-            if order:
-                # if our order is a single string, convert to a simple list
-                if isinstance(order, six.string_types):
-                    order = (order,)
-                queryset = queryset.order_by(*order)
-            else:
-                #Get ids by
-                orgs_count =  {o.id:  ChannelCount.objects.filter(channel__org_id=o.id).aggregate(Sum('count'))['count__sum']
-                                    for o in queryset[0:queryset.count()]}
-                pk_tuple_list = sorted(orgs_count.items(), key=lambda x: x[1], reverse=True)
-                pk_list = [i[0] for i in pk_tuple_list]
-                clauses = ' '.join(['WHEN id=%s THEN %s' % (pk, i) for i, pk in enumerate(pk_list)])
-                ordering = 'CASE %s END' % clauses
-                queryset =Org.objects.filter(pk__in=pk_list).extra(select={'ordering': ordering}, order_by=('ordering',))
-
-            return queryset
         ########################################################################
         #                            Auxiliar funtions                         #
         ########################################################################
@@ -1020,6 +991,8 @@ class OrgCRUDL(SmartCRUDL):
                                                     type_selection=type_selection)
             total = str(int(100*org_msgs[type_selection]/all_msgs[type_selection]))+"%"
             return total
+
+
         ########################################################################
         #                               View funtions                          #
         ########################################################################
@@ -1042,6 +1015,11 @@ class OrgCRUDL(SmartCRUDL):
             total = self.get_percentage_msgs(ChannelCount.OUTGOING_MSG_TYPE, obj)
             return mark_safe("<div>%s</div>" % (total))
 
+
+        def get_contacts(self,obj):
+            from temba.contacts.models import Contact
+            total = Contact.objects.filter(org = obj).count()
+            return mark_safe("<div>%d</div>" % (total))
 
         def get_owner(self, obj):
             # default to the created by if there are no admins
@@ -1082,6 +1060,37 @@ class OrgCRUDL(SmartCRUDL):
             context['total_received'] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
             context['total_sent'] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
             return context
+
+
+        def order_queryset(self, queryset):
+            """
+            Orders the passed in queryset, returning a new queryset in response.  By default uses the _order query
+            parameter.
+            """
+            order = self.derive_ordering()
+
+            # if we get our order from the request
+            # make sure it is a valid field in the list
+            if '_order' in self.request.GET:
+                if order.lstrip('-') not in self.derive_fields():
+                    order = None
+
+            if order:
+                # if our order is a single string, convert to a simple list
+                if isinstance(order, six.string_types):
+                    order = (order,)
+                queryset = queryset.order_by(*order)
+            else:
+                #Get ids by
+                orgs_count =  {o.id:  ChannelCount.objects.filter(channel__org_id=o.id).aggregate(Sum('count'))['count__sum']
+                                    for o in queryset[0:queryset.count()]}
+                pk_tuple_list = sorted(orgs_count.items(), key=lambda x: x[1], reverse=True)
+                pk_list = [i[0] for i in pk_tuple_list]
+                clauses = ' '.join(['WHEN id=%s THEN %s' % (pk, i) for i, pk in enumerate(pk_list)])
+                ordering = 'CASE %s END' % clauses
+                queryset =Org.objects.filter(pk__in=pk_list).extra(select={'ordering': ordering}, order_by=('ordering',))
+
+            return queryset
 
 
         def post (self, request, *args, **kwargs):
