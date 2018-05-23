@@ -76,11 +76,14 @@ def identify(email, name, attributes):  # pragma: no cover
 
     # post to intercom if configured
     if _intercom:
-        # rip out duplicate fields for intercom
-        for key in ('first_name', 'last_name', 'email'):
-            attributes.pop(key, None)
+        try:
+            # rip out duplicate fields for intercom
+            for key in ('first_name', 'last_name', 'email'):
+                attributes.pop(key, None)
 
-        _intercom.users.create(email=email, name=name, custom_attributes=attributes)
+            _intercom.users.create(email=email, name=name, custom_attributes=attributes)
+        except:
+            logger.error("error posting to intercom", exc_info=True)
 
 
 def track(email, event, properties=None, context=None):  # pragma: no cover
@@ -121,4 +124,4 @@ def track(email, event, properties=None, context=None):  # pragma: no cover
                 metadata=properties,
             )
         except:
-            logger.error("error posting to intercom")
+            logger.error("error posting to intercom", exc_info=True)

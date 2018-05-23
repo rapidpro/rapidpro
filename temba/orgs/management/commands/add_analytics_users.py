@@ -1,3 +1,6 @@
+import traceback
+import time
+
 from django.core.management.base import BaseCommand
 from temba.orgs.models import Org
 from temba.utils import analytics
@@ -13,7 +16,13 @@ class Command(BaseCommand):  # pragma: no cover
         count = 0
         for org in Org.objects.filter(is_active=True).order_by('id'):
             for u in chain(org.administrators.all(), org.editors.all(), org.viewers.all()):
-                analytics.identify(u.email, f"{u.first_name} {u.last_name}", dict(org=org.name, org_id=org.id, brand=org.brand))
-                count += 1
+                try:
+                    analytics.identify(u.email, f"{u.first_name} {u.last_name}", dict(org=org.name, org_id=org.id, brand=org.brand))
+                    time.sleep(.1)
+                    count += 1
+                except Exception as e:
+                    traceback.print_exc()
+
+            print(f"Processed {org.name}")
 
         print(f"Added {count} users.")
