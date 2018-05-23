@@ -47,7 +47,7 @@ from .tasks import check_channels_task, squash_channelcounts
 class ChannelTest(TembaTest):
 
     def setUp(self):
-        super(ChannelTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
 
@@ -2266,7 +2266,7 @@ class ChannelLogTest(TembaTest):
 class MageHandlerTest(TembaTest):
 
     def setUp(self):
-        super(MageHandlerTest, self).setUp()
+        super().setUp()
 
         self.org.webhook = {"url": "http://fake.com/webhook.php"}
         self.org.webhook_events = ALL_EVENTS
@@ -2510,7 +2510,7 @@ class JunebugTestMixin(object):
 class JunebugTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
-        super(JunebugTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
 
@@ -2521,7 +2521,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             role=Channel.DEFAULT_ROLE)
 
     def tearDown(self):
-        super(JunebugTest, self).tearDown()
+        super().tearDown()
 
     def test_get_request(self):
         response = self.client.get(
@@ -2827,7 +2827,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 class FacebookWhitelistTest(TembaTest):
 
     def setUp(self):
-        super(FacebookWhitelistTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
@@ -2945,7 +2945,7 @@ class HandleEventTest(TembaTest):
 class TwitterTest(TembaTest):
 
     def setUp(self):
-        super(TwitterTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
 
@@ -3208,7 +3208,7 @@ class TwitterTest(TembaTest):
 class FacebookTest(TembaTest):
 
     def setUp(self):
-        super(FacebookTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
@@ -3218,7 +3218,7 @@ class FacebookTest(TembaTest):
         (self.contact, self.urn) = Contact.get_or_create(org=self.org, urn='facebook:1122', channel=self.channel)
 
     def tearDown(self):
-        super(FacebookTest, self).tearDown()
+        super().tearDown()
 
     def test_referrals_optin(self):
         # create two triggers for referrals

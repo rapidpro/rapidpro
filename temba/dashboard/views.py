@@ -103,7 +103,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
     template_name = 'dashboard/range_details.haml'
 
     def get_context_data(self, **kwargs):
-        context = super(RangeDetails, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
 
         is_support = self.request.user.groups.filter(name='Customer Support').first()
 

@@ -37,7 +37,7 @@ from .templatetags.sms import as_icon
 class MsgTest(TembaTest):
 
     def setUp(self):
-        super(MsgTest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "123")
         ContactURN.create(self.org, self.joe, "tel:789")
@@ -448,7 +448,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (1)")
@@ -461,7 +461,7 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by('-created_on', '-id'))
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(37):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
@@ -594,7 +594,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(53):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
@@ -680,7 +680,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
@@ -732,7 +732,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(64):
+        with self.assertNumQueries(63):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 3)
@@ -908,7 +908,7 @@ class MsgTest(TembaTest):
 
 class MsgCRUDLTest(TembaTest):
     def setUp(self):
-        super(MsgCRUDLTest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "+250788000001")
         self.frank = self.create_contact("Frank Blow", "250788000002")
@@ -981,7 +981,7 @@ class MsgCRUDLTest(TembaTest):
 
 class BroadcastTest(TembaTest):
     def setUp(self):
-        super(BroadcastTest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "123")
         self.frank = self.create_contact("Frank Blow", "321")
@@ -1506,7 +1506,7 @@ class BroadcastTest(TembaTest):
 
 class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
-        super(BroadcastCRUDLTest, self).setUp()
+        super().setUp()
 
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
@@ -1606,7 +1606,7 @@ class BroadcastCRUDLTest(TembaTest):
 class LabelTest(TembaTest):
 
     def setUp(self):
-        super(LabelTest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", number="073835001")
         self.frank = self.create_contact("Frank", number="073835002")
@@ -1905,7 +1905,7 @@ class ConsoleTest(TembaTest):
     def setUp(self):
         from temba.triggers.models import Trigger
 
-        super(ConsoleTest, self).setUp()
+        super().setUp()
         self.create_secondary_org()
 
         # create a new console
@@ -1979,7 +1979,7 @@ class ConsoleTest(TembaTest):
 class BroadcastLanguageTest(TembaTest):
 
     def setUp(self):
-        super(BroadcastLanguageTest, self).setUp()
+        super().setUp()
 
         self.francois = self.create_contact('Francois', '+12065551213', language='fra')
         self.greg = self.create_contact('Greg', '+12065551212')
@@ -2120,7 +2120,7 @@ class SystemLabelTest(TembaTest):
 
 class TagsTest(TembaTest):
     def setUp(self):
-        super(TagsTest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "123")
 
@@ -2184,7 +2184,7 @@ class TagsTest(TembaTest):
 class CeleryTaskTest(TembaTest):
 
     def setUp(self):
-        super(CeleryTaskTest, self).setUp()
+        super().setUp()
 
         self.applied_tasks = []
 

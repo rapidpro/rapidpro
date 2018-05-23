@@ -82,13 +82,13 @@ class TranslatableField(HStoreField):
                     raise ValidationError("Translation for '%s' exceeds the %d character limit." % (lang, self.max_length))
 
     def __init__(self, max_length, **kwargs):
-        super(TranslatableField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.max_length = max_length
 
     @cached_property
     def validators(self):
-        return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
+        return super().validators + [TranslatableField.Validator(self.max_length)]
 
 
 class CheckFieldDefaultMixin(object):
@@ -114,7 +114,7 @@ class CheckFieldDefaultMixin(object):
             return []
 
     def check(self, **kwargs):
-        errors = super(CheckFieldDefaultMixin, self).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(self._check_default())
         return errors
 
@@ -139,7 +139,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
     def __init__(self, object_pairs_hook=dict, *args, **kwargs):
 
         self.object_pairs_hook = object_pairs_hook
-        super(JSONAsTextField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
         if self.has_default() and value is None:
@@ -180,7 +180,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         return 'text'
 
     def deconstruct(self):
-        name, path, args, kwargs = super(JSONAsTextField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         # Only include kwarg if it's not the default
         if self.object_pairs_hook != dict:
             kwargs['object_pairs_hook'] = self.object_pairs_hook
@@ -202,7 +202,7 @@ class RequireUpdateFieldsMixin(object):
         if self.id and 'update_fields' not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
-        return super(RequireUpdateFieldsMixin, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):

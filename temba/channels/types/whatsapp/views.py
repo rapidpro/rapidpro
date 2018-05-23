@@ -24,7 +24,7 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     slug_url_kwarg = 'uuid'
 
     def get_queryset(self):
-        queryset = super(RefreshView, self).get_queryset()
+        queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
 
     def post_save(self, obj):
@@ -88,4 +88,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                      config=config,
                                      tps=15)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

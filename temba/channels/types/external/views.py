@@ -106,4 +106,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                                           self.channel_type,
                                                           config, role, [scheme], parent=channel)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

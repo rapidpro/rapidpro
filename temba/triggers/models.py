@@ -307,7 +307,7 @@ class Trigger(SmartModel):
         # skip if message contact is currently active in a flow
         active_run_qs = FlowRun.objects.filter(is_active=True, contact=msg.contact,
                                                flow__is_active=True, flow__is_archived=False)
-        active_run = active_run_qs.prefetch_related('steps').order_by("-created_on", "-pk").first()
+        active_run = active_run_qs.order_by("-created_on", "-pk").first()
 
         if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
             return False

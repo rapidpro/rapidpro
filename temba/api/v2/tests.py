@@ -36,7 +36,7 @@ NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API reques
 class APITest(TembaTest):
 
     def setUp(self):
-        super(APITest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "0788123123")
         self.frank = self.create_contact("Frank", twitter="franky")
@@ -54,7 +54,7 @@ class APITest(TembaTest):
         connection.settings_dict['ATOMIC_REQUESTS'] = False
 
     def tearDown(self):
-        super(APITest, self).tearDown()
+        super().tearDown()
 
         connection.settings_dict['ATOMIC_REQUESTS'] = True
 

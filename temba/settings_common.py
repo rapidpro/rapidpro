@@ -175,6 +175,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #  'temba.middleware.ConsentMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
@@ -236,6 +237,7 @@ INSTALLED_APPS = (
     'temba.api',
     'temba.dashboard',
     'temba.public',
+    'temba.policies',
     'temba.schedules',
     'temba.orgs',
     'temba.contacts',
@@ -496,6 +498,8 @@ PERMISSIONS = {
 
     'orgs.topup': ('manage',),
 
+    'policies.policy': ('admin', 'history', 'give_consent'),
+
     'triggers.trigger': ('archived',
                          'catchall',
                          'follow',
@@ -553,6 +557,12 @@ GROUP_PERMISSIONS = {
         'orgs.topup_create',
         'orgs.topup_manage',
         'orgs.topup_update',
+
+        'policies.policy_create',
+        'policies.policy_update',
+        'policies.policy_admin',
+        'policies.policy_history',
+
     ),
     "Administrators": (
         'airtime.airtimetransfer_list',
@@ -680,6 +690,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_sent',
         'msgs.msg_update',
 
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
+
         'triggers.trigger.*',
 
     ),
@@ -781,6 +795,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_sent',
         'msgs.msg_update',
 
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
+
         'triggers.trigger.*',
 
     ),
@@ -843,6 +861,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_inbox',
         'msgs.msg_outbox',
         'msgs.msg_sent',
+
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
 
         'triggers.trigger_archived',
         'triggers.trigger_list',
@@ -1203,6 +1225,8 @@ TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
 TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
 SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
+
+INTERCOM_TOKEN = os.environ.get('INTERCOM_TOKEN', '')
 
 LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
 LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')

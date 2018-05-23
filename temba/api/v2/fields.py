@@ -49,7 +49,7 @@ class TranslatableField(serializers.Field):
     """
     def __init__(self, **kwargs):
         self.max_length = kwargs.pop('max_length', None)
-        super(TranslatableField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def to_representation(self, obj):
         return obj
@@ -79,7 +79,7 @@ class LimitedListField(serializers.ListField):
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
-        return super(LimitedListField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class LimitedDictField(serializers.DictField):
@@ -89,7 +89,7 @@ class LimitedDictField(serializers.DictField):
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_DICT_ITEMS)
 
-        return super(LimitedDictField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class URNField(serializers.CharField):
@@ -119,7 +119,7 @@ class TembaModelField(serializers.RelatedField):
         def run_validation(self, data=serializers.empty):
             validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
-            return super(TembaModelField.LimitedSizeList, self).run_validation(data)
+            return super().run_validation(data)
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -210,10 +210,10 @@ class ContactGroupField(TembaModelField):
 
     def __init__(self, **kwargs):
         self.allow_dynamic = kwargs.pop('allow_dynamic', True)
-        super(ContactGroupField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def to_internal_value(self, data):
-        obj = super(ContactGroupField, self).to_internal_value(data)
+        obj = super().to_internal_value(data)
 
         if not self.allow_dynamic and obj.is_dynamic:
             raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)

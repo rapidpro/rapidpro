@@ -66,6 +66,7 @@ redis
 requests
 stop-words
 unidecode
+python-intercom
 pysocks; python_version >= "3.0"
 
 ########################## testing ##########################
