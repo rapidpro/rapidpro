@@ -9,6 +9,7 @@ from django.conf import settings
 from temba.channels.views import register, sync
 from django.views.i18n import javascript_catalog
 from django.conf.urls.static import static
+from temba.utils.analytics import init_analytics
 
 # javascript translation packages
 js_info_dict = {
@@ -48,28 +49,6 @@ if settings.DEBUG:
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
     importlib.import_module(app)
-
-
-# provide a utility method to initialize our analytics
-def init_analytics():
-    import analytics
-
-    analytics.send = settings.IS_PROD
-    analytics.debug = not settings.IS_PROD
-
-    analytics_key = getattr(settings, 'SEGMENT_IO_KEY', '')
-
-    if settings.IS_PROD and not analytics_key:
-        raise ValueError('SEGMENT.IO analytics key is required for production')  # pragma: no cover
-
-    analytics.write_key = analytics_key
-
-    from temba.utils.analytics import init_librato
-    librato_user = getattr(settings, 'LIBRATO_USER', None)
-    librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
-    if librato_user and librato_token:  # pragma: needs cover
-        init_librato(librato_user, librato_token)
-
 
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
