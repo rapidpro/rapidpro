@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0155_remove_flowrun_message_ids'),
+        ('flows', '0157_update_path_trigger'),
     ]
 
     operations = [
