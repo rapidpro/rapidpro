@@ -74,7 +74,7 @@ class BrandingMiddleware(object):
         request.branding = BrandingMiddleware.get_branding_for_host(host)
 
 
-class ConsentMiddleware(object):
+class ConsentMiddleware(object):  # pragma: no cover
 
     REQUIRES_CONSENT = ('/msg', '/contact', '/flow', '/trigger', '/org/home', '/campaign', '/channel')
 

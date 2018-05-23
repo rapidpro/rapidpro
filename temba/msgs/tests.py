@@ -448,7 +448,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (1)")
@@ -461,7 +461,7 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by('-created_on', '-id'))
 
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
@@ -516,7 +516,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(61):
+        with self.assertNumQueries(60):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
         self.assertEqual(response.context['refresh'], 20000)
@@ -594,7 +594,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(54):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 1)
@@ -680,7 +680,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context['object_list']), {msg3, msg2, msg1})
@@ -732,7 +732,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(65):
+        with self.assertNumQueries(64):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context['object_list'].count(), 3)
@@ -825,7 +825,7 @@ class MsgTest(TembaTest):
             return workbook.worksheets[0]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(25):
             self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
                 [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
