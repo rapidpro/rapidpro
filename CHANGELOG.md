@@ -1,3 +1,7 @@
+v3.0.403
+----------
+ * tweaks to add_analytics users
+
 v3.0.402
 ----------
  * add native intercom support, add management command to update all users
