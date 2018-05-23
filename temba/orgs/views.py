@@ -950,29 +950,35 @@ class OrgCRUDL(SmartCRUDL):
         title = "Organizations"
 
 
-        #def order_queryset(self, queryset):
-        #    """
-        #    Orders the passed in queryset, returning a new queryset in response.  By default uses the _order query
-        #    parameter.
-        #    """
-        #    order = self.derive_ordering()
+        def order_queryset(self, queryset):
+            """
+            Orders the passed in queryset, returning a new queryset in response.  By default uses the _order query
+            parameter.
+            """
+            order = self.derive_ordering()
 
-        #    # if we get our order from the request
-        #    # make sure it is a valid field in the list
-        #    if '_order' in self.request.GET:
-        #        if order.lstrip('-') not in self.derive_fields():
-        #            order = None
+            # if we get our order from the request
+            # make sure it is a valid field in the list
+            if '_order' in self.request.GET:
+                if order.lstrip('-') not in self.derive_fields():
+                    order = None
 
-        #    if order:
-        #        # if our order is a single string, convert to a simple list
-        #        if isinstance(order, six.string_types):
-        #            order = (order,)
+            if order:
+                # if our order is a single string, convert to a simple list
+                if isinstance(order, six.string_types):
+                    order = (order,)
+                queryset = queryset.order_by(*order)
+            else:
+                #Get ids by
+                orgs_count =  {o.id:  ChannelCount.objects.filter(channel__org_id=o.id).aggregate(Sum('count'))['count__sum']
+                                    for o in queryset[0:queryset.count()]}
+                pk_tuple_list = sorted(orgs_count.items(), key=lambda x: x[1], reverse=True)
+                pk_list = [i[0] for i in pk_tuple_list]
+                clauses = ' '.join(['WHEN id=%s THEN %s' % (pk, i) for i, pk in enumerate(pk_list)])
+                ordering = 'CASE %s END' % clauses
+                queryset =Org.objects.filter(pk__in=pk_list).extra(select={'ordering': ordering}, order_by=('ordering',))
 
-        #        queryset = queryset.order_by(*order)
-        #    if not order:
-        #        queryset = queryset.extra(select={'d_field': #ChannelCount.objects.filter(channel__org_id="id").aggregate(Sum('count'))['count__sum']})
-
-        #    return queryset
+            return queryset
         ########################################################################
         #                            Auxiliar funtions                         #
         ########################################################################
