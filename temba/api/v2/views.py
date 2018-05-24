@@ -351,7 +351,6 @@ class ListAPIMixin(mixins.ListModelMixin):
     Mixin for any endpoint which returns a list of objects from a GET request
     """
     exclusive_params = ()
-    required_params = ()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -369,11 +368,6 @@ class ListAPIMixin(mixins.ListModelMixin):
         # check user hasn't provided values for more than one of any exclusive params
         if sum([(1 if params.get(p) else 0) for p in self.exclusive_params]) > 1:
             raise InvalidQueryError("You may only specify one of the %s parameters" % ", ".join(self.exclusive_params))
-
-        # check that any required params are included
-        if self.required_params:
-            if sum([(1 if params.get(p) else 0) for p in self.required_params]) != 1:
-                raise InvalidQueryError("You must specify one of the %s parameters" % ", ".join(self.required_params))
 
     def filter_before_after(self, queryset, field):
         """
