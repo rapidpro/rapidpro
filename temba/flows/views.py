@@ -1526,6 +1526,9 @@ class FlowCRUDL(SmartCRUDL):
             resource = self.resources[resource_type]
             if uuid:
                 result = resource.get_item(org, uuid)
+
+                if result is None:
+                    return JsonResponse({'error': f"no such {resource_type} with UUID '{uuid}'"}, status=400)
             else:
                 result = resource.get_root(org)
 
