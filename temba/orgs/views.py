@@ -1131,10 +1131,14 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
+        fields = ('name', 'slug', 'administrators','viewers','editors','surveyors','stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
+            viewers = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
 
             def clean_parent(self):
                 parent = self.cleaned_data.get('parent')
@@ -1143,7 +1147,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('name', 'slug', 'stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
+                fields = ('name', 'slug', 'administrators','viewers','editors','surveyors','stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
 
         form_class = OrgUpdateForm
 
