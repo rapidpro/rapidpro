@@ -1098,7 +1098,8 @@ class OrgCRUDL(SmartCRUDL):
             MAX_TOPUP = 100000000
             if form and form.is_valid():
                 parent_org = form.save(commit = False)
-                parent_org.name = parent_org.name+"_produccion"
+                base_name = parent_org.name
+                parent_org.name = base_name+"_produccion"
                 parent_org.created_by = request.user
                 parent_org.modified_by = request.user
                 parent_org.timezone = settings.USER_TIME_ZONE
@@ -1110,7 +1111,7 @@ class OrgCRUDL(SmartCRUDL):
                 form.save_m2m()
                 parent_org.initialize(branding=parent_org.get_branding(), topup_size=MAX_TOPUP)
                 #Now create child
-                child_name = parent_org.name+"_desarrollo"
+                child_name = base_name+"_desarrollo"
                 child_org = parent_org.create_sub_org(child_name,parent_org.timezone,request.user)
                 child_org.initialize(branding=child_org.get_branding(), topup_size=MAX_TOPUP)
                 #Now add same administrator
