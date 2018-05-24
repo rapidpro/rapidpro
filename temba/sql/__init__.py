@@ -14,4 +14,4 @@ class InstallSQL(RunSQL):
         with open(sql_path) as sql_file:
             sql = sql_file.read()
 
-        super(InstallSQL, self).__init__(sql)
+        super().__init__(sql)

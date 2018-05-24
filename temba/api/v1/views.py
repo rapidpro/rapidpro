@@ -42,7 +42,7 @@ class AuthenticateEndpoint(SmartFormView):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
@@ -92,7 +92,7 @@ class ListAPIMixin(mixins.ListModelMixin):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
-            return super(ListAPIMixin, self).list(request, *args, **kwargs)
+            return super().list(request, *args, **kwargs)
 
     def paginate_queryset(self, queryset):
         if self.cache_counts:

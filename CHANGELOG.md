@@ -1,3 +1,26 @@
+v3.0.404
+----------
+ * remove old privacy page in favor of new policy app
+ * use python3 `super` method
+ * migration to backfill step UUIDs on recent runs
+
+v3.0.403
+----------
+ * tweaks to add_analytics users
+
+v3.0.402
+----------
+ * add native intercom support, add management command to update all users
+
+v3.0.401
+----------
+ * Fix quick replies in simulator
+ * Lower the min length for Facebook page access token
+ * Update Facebook claim to ask for Page ID and Page name from the user
+ * Add new policies and consent app
+ * Fix another migration that adds a field and writes to it in same transaction
+ * Add step UUID fields to FlowPathRecentRun and update trigger on run paths to start populating them
+
 v3.0.400
 ----------
  * Don't create flow steps

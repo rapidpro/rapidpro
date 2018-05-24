@@ -87,7 +87,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
 
         self.template = 'api/v%d/api_root.html' % api_version
 
-        return super(DocumentationRenderer, self).render(data, accepted_media_type, renderer_context)
+        return super().render(data, accepted_media_type, renderer_context)
 
 
 class InvalidQueryError(APIException):

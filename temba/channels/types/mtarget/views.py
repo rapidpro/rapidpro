@@ -44,4 +44,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             config=config, schemes=[TEL_SCHEME]
         )
 
-        return super(ClaimViewMixin, self).form_valid(form)
+        return super().form_valid(form)

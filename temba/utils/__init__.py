@@ -157,7 +157,7 @@ class DateTimeJsonEncoder(json.JSONEncoder):
         elif isinstance(o, Decimal):
             return str(o)
         else:
-            return super(DateTimeJsonEncoder, self).default(o)
+            return super().default(o)
 
 
 def dict_to_json(dictionary):

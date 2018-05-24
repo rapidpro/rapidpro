@@ -9,7 +9,7 @@ from ...models import Channel
 
 class LineTypeTest(TembaTest):
     def setUp(self):
-        super(LineTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'LN', name="LINE", address="12345",
                                       role="SR", schemes=['line'],

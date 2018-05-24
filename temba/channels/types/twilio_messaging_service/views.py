@@ -20,7 +20,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = TwilioMessagingServiceForm
 
     def __init__(self, channel_type):
-        super(ClaimView, self).__init__(channel_type)
+        super().__init__(channel_type)
         self.account = None
         self.client = None
         self.object = None
@@ -36,7 +36,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             return HttpResponseRedirect(reverse('orgs.org_twilio_connect'))
 
     def get_context_data(self, **kwargs):
-        context = super(ClaimView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context['account_trial'] = self.account.type.lower() == 'trial'
         return context
 
@@ -58,4 +58,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel.create(org, user, data['country'], 'TMS',
                                      name=data['messaging_service_sid'], address=None, config=config)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

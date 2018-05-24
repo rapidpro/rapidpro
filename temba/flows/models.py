@@ -4539,8 +4539,12 @@ class FlowPathRecentRun(models.Model):
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
 
-    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    from_uuid = models.UUIDField(help_text=_("The flow node UUID of the first step"))
+    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"), null=True)
+
+    to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
+    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"), null=True)
+
     run = models.ForeignKey(FlowRun, related_name='recent_runs')
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
 
@@ -4604,6 +4608,9 @@ class FlowPathRecentRun(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+    def __str__(self):  # pragma: no cover
+        return f"run={self.run.uuid} flow={self.run.flow.uuid} segment={self.to_uuid}→{self.from_uuid}"
 
     class Meta:
         indexes = [
@@ -4731,7 +4738,7 @@ class ExportFlowResultsTask(BaseExportTask):
         return export
 
     def get_email_context(self, branding):
-        context = super(ExportFlowResultsTask, self).get_email_context(branding)
+        context = super().get_email_context(branding)
         context['flows'] = self.flows.all()
         return context
 
@@ -5354,7 +5361,7 @@ class EmailAction(Action):
     MESSAGE = 'msg'
 
     def __init__(self, uuid, emails, subject, message):
-        super(EmailAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         if not emails:
             raise FlowException("Email actions require at least one recipient")
@@ -5420,7 +5427,7 @@ class WebhookAction(Action):
     ACTION = 'action'
 
     def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
-        super(WebhookAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.webhook = webhook
         self.action = action
@@ -5463,7 +5470,7 @@ class AddToGroupAction(Action):
     GROUPS = 'groups'
 
     def __init__(self, uuid, groups):
-        super(AddToGroupAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.groups = groups
 
@@ -5604,7 +5611,7 @@ class AddLabelAction(Action):
     LABELS = 'labels'
 
     def __init__(self, uuid, labels):
-        super(AddLabelAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.labels = labels
 
@@ -5682,7 +5689,7 @@ class SayAction(Action):
     RECORDING = 'recording'
 
     def __init__(self, uuid, msg, recording):
-        super(SayAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.msg = msg
         self.recording = recording
@@ -5733,7 +5740,7 @@ class PlayAction(Action):
     URL = 'url'
 
     def __init__(self, uuid, url):
-        super(PlayAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.url = url
 
@@ -5771,7 +5778,7 @@ class ReplyAction(Action):
     QUICK_REPLIES = 'quick_replies'
 
     def __init__(self, uuid, msg=None, media=None, quick_replies=None, send_all=False):
-        super(ReplyAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.msg = msg
         self.media = media if media else {}
@@ -5878,7 +5885,7 @@ class UssdAction(ReplyAction):
     MSG_TYPE = MSG_TYPE_USSD
 
     def __init__(self, uuid=None, msg=None, base_language=None, languages=None, primary_language=None):
-        super(UssdAction, self).__init__(uuid, msg)
+        super().__init__(uuid, msg)
 
         self.languages = languages
         if msg and base_language and primary_language:
@@ -5954,7 +5961,7 @@ class VariableContactAction(Action):
     ID = 'id'
 
     def __init__(self, uuid, groups, contacts, variables):
-        super(VariableContactAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.groups = groups
         self.contacts = contacts
@@ -6065,7 +6072,7 @@ class TriggerFlowAction(VariableContactAction):
     TYPE = 'trigger-flow'
 
     def __init__(self, uuid, flow, groups, contacts, variables):
-        super(TriggerFlowAction, self).__init__(uuid, groups, contacts, variables)
+        super().__init__(uuid, groups, contacts, variables)
 
         self.flow = flow
 
@@ -6139,7 +6146,7 @@ class SetLanguageAction(Action):
     NAME = 'name'
 
     def __init__(self, uuid, lang, name):
-        super(SetLanguageAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.lang = lang
         self.name = name
@@ -6181,7 +6188,7 @@ class StartFlowAction(Action):
     NAME = 'name'
 
     def __init__(self, uuid, flow):
-        super(StartFlowAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.flow = flow
 
@@ -6244,7 +6251,7 @@ class SaveToContactAction(Action):
     VALUE = 'value'
 
     def __init__(self, uuid, label, field, value):
-        super(SaveToContactAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.label = label
         self.field = field
@@ -6382,7 +6389,7 @@ class SetChannelAction(Action):
     NAME = 'name'
 
     def __init__(self, uuid, channel):
-        super(SetChannelAction, self).__init__(uuid)
+        super().__init__(uuid)
 
         self.channel = channel
 
@@ -6429,7 +6436,7 @@ class SendAction(VariableContactAction):
     MEDIA = 'media'
 
     def __init__(self, uuid, msg, groups, contacts, variables, media=None):
-        super(SendAction, self).__init__(uuid, groups, contacts, variables)
+        super().__init__(uuid, groups, contacts, variables)
 
         self.msg = msg
         self.media = media if media else {}

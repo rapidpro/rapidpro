@@ -63,6 +63,9 @@ processForm = (postData) ->
     else
       window.sendUpdate(postData)
 
+window.sendSimulationMessage = (new_message) ->
+  sendMessage(new_message)
+
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
 

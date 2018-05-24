@@ -5,7 +5,7 @@ from .models import Flow
 
 class FlowHandler(MessageHandler):
     def __init__(self):
-        super(FlowHandler, self).__init__('rules')
+        super().__init__('rules')
 
     def handle(self, msg):
         # hand off to our Flow object to handle

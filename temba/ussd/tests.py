@@ -22,7 +22,7 @@ from .models import USSDSession
 class USSDSessionTest(TembaTest):
 
     def setUp(self):
-        super(USSDSessionTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
@@ -393,7 +393,7 @@ class USSDSessionTest(TembaTest):
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
-        super(JunebugUSSDTest, self).setUp()
+        super().setUp()
 
         flow = self.get_flow('ussd_example')
         self.starcode = "*113#"
@@ -410,7 +410,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             trigger_type=Trigger.TYPE_USSD_PULL)
 
     def tearDown(self):
-        super(JunebugUSSDTest, self).tearDown()
+        super().tearDown()
         settings.SEND_MESSAGES = False
 
     def test_status(self):

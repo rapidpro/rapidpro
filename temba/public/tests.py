@@ -34,10 +34,6 @@ class PublicTest(SmartminTest):
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_signup'))
 
-    def test_privacy(self):
-        response = self.client.get(reverse('public.public_privacy'))
-        self.assertContains(response, "Privacy")
-
     def test_welcome(self):
         welcome_url = reverse('public.public_welcome')
         response = self.client.get(welcome_url, follow=True)
@@ -135,7 +131,7 @@ class PublicTest(SmartminTest):
 class VideoCRUDLTest(_CRUDLTest):
 
     def setUp(self):
-        super(VideoCRUDLTest, self).setUp()
+        super().setUp()
         self.crudl = VideoCRUDL
         self.user = User.objects.create_superuser('admin', 'a@b.com', 'admin')
 
