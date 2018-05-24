@@ -26,7 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, WIRED, O
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import (
     TembaTest, MockResponse, FlowFileTest, also_in_flowserver, skip_if_no_flowserver, matchers,
-    ESMockWithScroll, MigrationTest
+    ESMockWithScroll
 )
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -9479,38 +9479,3 @@ class AssetServerTest(TembaTest):
                 }
             ],
         })
-
-
-class BackfillRecentRunStepUUIDsTest(MigrationTest):
-    migrate_from = '0157_update_path_trigger'
-    migrate_to = '0158_backfill_recent_step_uuids'
-    app = 'flows'
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Joe", number='+250783831111')
-        contact2 = self.create_contact("Frank", number='+250783832222')
-        contact3 = self.create_contact("Surveyee", number='+250783833333')
-        flow = self.get_flow('color')
-
-        flow.start([], [contact1, contact2, contact3])
-        Msg.create_incoming(self.channel, 'tel:+250783831111', "Red")
-
-        flow.start([], [contact1, contact2], restart_participants=True)
-        Msg.create_incoming(self.channel, 'tel:+250783831111', "azul")
-        Msg.create_incoming(self.channel, 'tel:+250783831111', "gris")
-
-        # save the step UUIDs set by the trigger so we can compare with those set by the migration
-        self.trigger_results = {rr.id: {'from_step_uuid': rr.from_step_uuid, 'to_step_uuid': rr.to_step_uuid} for rr in FlowPathRecentRun.objects.all()}
-
-        # clear step_uuids so migration populates them
-        FlowPathRecentRun.objects.all().update(from_step_uuid=None, to_step_uuid=None)
-
-        # set all visited times on contact3's runs to now making them useless
-        FlowPathRecentRun.objects.filter(run__contact=contact3).update(visited_on=timezone.now())
-
-    def test_recent_runs(self):
-        # compare with step UUIDs set by trigger
-        for rr_id, expected in self.trigger_results.items():
-            rr = FlowPathRecentRun.objects.get(id=rr_id)
-            self.assertEqual(rr.from_step_uuid, expected['from_step_uuid'])
-            self.assertEqual(rr.to_step_uuid, expected['to_step_uuid'])
