@@ -9414,6 +9414,11 @@ class AssetServerTest(TembaTest):
         resp_json = response.json()
         self.assertEqual(resp_json['uuid'], str(flow2.uuid))
 
+        # try to get a non-existent flow
+        response = self.client.get('/flow/assets/%d/1234/flow/%s/' % (self.org.id, str(uuid4())))
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
     def test_channels(self):
         self.login(self.admin)
 
