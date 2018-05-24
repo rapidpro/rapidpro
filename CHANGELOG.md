@@ -1,3 +1,7 @@
+v3.0.406
+----------
+ * Fix logging events to intercom
+
 v3.0.405
 ----------
  * Migration to remove FlowStep
