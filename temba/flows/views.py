@@ -51,7 +51,6 @@ logger = logging.getLogger(__name__)
 
 
 EXPIRES_CHOICES = (
-    (0, _('Never')),
     (5, _('After 5 minutes')),
     (10, _('After 10 minutes')),
     (15, _('After 15 minutes')),
