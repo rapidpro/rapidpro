@@ -5317,7 +5317,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(43):
             export = request_export()
             self.assertExcelSheet(export[0], [
                 ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
@@ -5348,7 +5348,7 @@ class ContactFieldTest(TembaTest):
             {'_type': '_doc', '_index': 'dummy_index', '_source': {'id': contact3.id}}
         ]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(41):
+            with self.assertNumQueries(42):
                 self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng')[0], [
                     ["Contact UUID", "Name", "Language", "Email", "Phone", "Phone", "Telegram", "Twitter", "Third", "Second", "First"],
                     [contact2.uuid, "Adam Sumner", "eng", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
