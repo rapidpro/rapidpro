@@ -1098,7 +1098,7 @@ class OrgCRUDL(SmartCRUDL):
             MAX_TOPUP = 100000000
             if form and form.is_valid():
                 parent_org = form.save(commit = False)
-                parent_org.name = parent_org+"_produccion"
+                parent_org.name = parent_org.name+"_produccion"
                 parent_org.created_by = request.user
                 parent_org.modified_by = request.user
                 parent_org.timezone = settings.USER_TIME_ZONE
@@ -1726,6 +1726,9 @@ class OrgCRUDL(SmartCRUDL):
                 # set the active org on this user
                 self.request.user.set_org(org)
                 self.request.session['org_id'] = org.pk
+
+            #Now check if have to add to another org
+
 
         def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == 'S':
