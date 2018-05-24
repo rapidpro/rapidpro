@@ -2186,6 +2186,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
+    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
+
     The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
     includes all incoming messages, regardless of visibility or type) messages are sorted by last modified date. This
     allows clients to poll for updates to message labels and visibility changes.
@@ -2235,7 +2237,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = Pagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
-    required_params = ('contact', 'folder', 'label', 'broadcast', 'id')
     throttle_scope = 'v2.messages'
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
