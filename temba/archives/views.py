@@ -33,7 +33,7 @@ class ArchiveCRUDL(SmartCRUDL):
             return (
                 queryset
                 .filter(archive_type=self.get_archive_type())
-                .exclude(period=Archive.DAY, rollup_id__isnull=False)
+                .exclude(period=Archive.PERIOD_DAILY, rollup_id__isnull=False)
             )
 
         def derive_title(self):

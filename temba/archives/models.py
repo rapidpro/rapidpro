@@ -14,20 +14,17 @@ class Archive(models.Model):
     TYPE_MSG = 'message'
     TYPE_FLOWRUN = 'run'
 
-    PERIOD_MONTHLY = 'monthly'
-    PERIOD_DAILY = 'daily'
-
     TYPE_CHOICES = (
         (TYPE_MSG, _("Message")),
         (TYPE_FLOWRUN, _("Run"))
     )
 
-    DAY = 'D'
-    MONTH = 'M'
+    PERIOD_DAILY = 'D'
+    PERIOD_MONTHLY = 'M'
 
     PERIOD_CHOICES = (
-        (DAY, "Day"),
-        (MONTH, "Month")
+        (PERIOD_DAILY, "Day"),
+        (PERIOD_MONTHLY, "Month")
     )
 
     org = models.ForeignKey('orgs.Org', db_constraint=False,
@@ -36,7 +33,7 @@ class Archive(models.Model):
                                     help_text="The type of record this is an archive for")
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text="When this archive was created")
-    period = models.CharField(max_length=1, choices=PERIOD_CHOICES, default=DAY,
+    period = models.CharField(max_length=1, choices=PERIOD_CHOICES, default=PERIOD_DAILY,
                               help_text="The length of time this archive covers")
 
     start_date = models.DateField(help_text="The starting modified_on date for records in this archive (inclusive")

@@ -351,7 +351,7 @@ class Command(BaseCommand):
             archive_size = record_count * 20
             archive_hash = uuid.uuid4().hex
 
-            if period == Archive.DAY:
+            if period == Archive.PERIOD_DAILY:
                 archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
                               f'{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
             else:
@@ -372,7 +372,7 @@ class Command(BaseCommand):
                 for idx in range(0, end.day - 2):
                     end = (end - timedelta(days=1))
                     start = (end - timedelta(days=1))
-                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.DAY)
+                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.PERIOD_DAILY)
 
                 # month archives before that
                 end = timezone.now()
@@ -380,7 +380,7 @@ class Command(BaseCommand):
                     # last day of the previous month
                     end = end.replace(day=1) - timedelta(days=1)
                     start = end.replace(day=1)
-                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.MONTH)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.PERIOD_MONTHLY)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 

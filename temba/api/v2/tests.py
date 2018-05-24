@@ -631,24 +631,24 @@ class APITest(TembaTest):
         # create some archives
         Archive.objects.create(
             org=self.org, start_date=datetime(2017, 4, 5), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.DAY
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.PERIOD_DAILY
         )
         may_archive = Archive.objects.create(
             org=self.org, start_date=datetime(2017, 5, 5), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.MONTH
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_MSG, period=Archive.PERIOD_MONTHLY
         )
         Archive.objects.create(
             org=self.org, start_date=datetime(2017, 6, 5), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.DAY
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.PERIOD_DAILY
         )
         Archive.objects.create(
             org=self.org, start_date=datetime(2017, 7, 5), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.MONTH
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.PERIOD_MONTHLY
         )
         # this archive has been rolled up and it should not be included in the API responses
         Archive.objects.create(
             org=self.org, start_date=datetime(2017, 5, 1), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.DAY,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.PERIOD_DAILY,
             rollup_id=may_archive.id
         )
 

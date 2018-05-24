@@ -547,7 +547,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        return queryset.order_by('-start_date').exclude(period=Archive.DAY, rollup_id__isnull=False)
+        return queryset.order_by('-start_date').exclude(period=Archive.PERIOD_DAILY, rollup_id__isnull=False)
 
     def filter_queryset(self, queryset):
         # filter by `archive_type`

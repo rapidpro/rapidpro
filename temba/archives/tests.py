@@ -45,7 +45,7 @@ class ArchiveViewTest(TembaTest):
         # create a daily archive that has been rolled up and will not appear in the results
         Archive.objects.create(
             org=self.org, start_date=date(2018, 10, 5), build_time=12, record_count=34, size=345,
-            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.DAY,
+            hash='feca9988b7772c003204a28bd741d0d0', archive_type=Archive.TYPE_FLOWRUN, period=Archive.PERIOD_DAILY,
             rollup_id=archives[-1].id
         )
 
