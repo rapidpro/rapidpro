@@ -6091,6 +6091,34 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(responses)
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
 
+    def test_flow_start_race(self):
+        # setup a catchall trigger to a flow
+        flow1 = self.get_flow('color')
+        Trigger.create(self.org, self.user, Trigger.TYPE_CATCH_ALL, flow1)
+
+        # simulate contact being started in a flow in a batch task - i.e. they have an active run but no steps yet
+        flow = self.get_flow('favorites')
+        starting_run = FlowRun.create(flow, self.contact)
+
+        # whilst that is happening, contact sends a message...
+        msg1 = Msg.create_incoming(self.channel, 'tel:+12065552020', "test")
+
+        # message should be recorded as handled but not associated with a flow
+        msg1.refresh_from_db()
+        self.assertEqual(msg1.status, 'H')
+        self.assertEqual(msg1.msg_type, 'I')
+
+        # however if for some reason our empty run is old, ignore it
+        starting_run.created_on = timezone.now() - timedelta(days=1)
+        starting_run.save(update_fields=('created_on',))
+
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "test")
+
+        # message should have been allowed fall through to the catch call trigger
+        msg2.refresh_from_db()
+        self.assertEqual(msg2.status, 'H')
+        self.assertEqual(msg2.msg_type, 'F')
+
     def test_server_runtime_cycle(self):
         flow = self.get_flow('loop_detection')
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
