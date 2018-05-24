@@ -1,3 +1,7 @@
+v3.0.405
+----------
+ * Migration to remove FlowStep
+
 v3.0.404
 ----------
  * remove old privacy page in favor of new policy app
