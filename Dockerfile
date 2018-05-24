@@ -76,6 +76,7 @@ RUN cp temba/settings.py.dev temba/settings.py
 #################    Set configuration    #################
 
 RUN sed -i 's/sitestatic\///' /rapidpro/static/brands/rapidpro/less/style.less
+RUN sed -i '/                - for obj in object_list/c\                - for obj in object_list\n \                  - if obj.id >= 0' templates/smartmin/list.haml
 EXPOSE 8000
 EXPOSE 5555
 

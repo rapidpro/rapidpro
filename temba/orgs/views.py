@@ -1095,18 +1095,27 @@ class OrgCRUDL(SmartCRUDL):
 
         def post (self, request, *args, **kwargs):
             form = CreateOrgForm(self.request.POST or None)
+            MAX_TOPUP = 100000000
             if form and form.is_valid():
-                pform = form.save(commit = False)
-                pform.created_by = request.user
-                pform.modified_by = request.user
-                pform.timezone = settings.USER_TIME_ZONE
-                pform.webhook  = {}
-                pform.config = {"STATUS": "whitelisted"}
-                pform.slug = Org.get_unique_slug(pform.name)
-                pform.brand = settings.DEFAULT_BRAND
-                pform.save()
+                parent_org = form.save(commit = False)
+                parent_org.name = parent_org+"_produccion"
+                parent_org.created_by = request.user
+                parent_org.modified_by = request.user
+                parent_org.timezone = settings.USER_TIME_ZONE
+                parent_org.webhook  = {}
+                parent_org.config = {"STATUS": "whitelisted"}
+                parent_org.slug = Org.get_unique_slug(parent_org.name)
+                parent_org.brand = settings.DEFAULT_BRAND
+                parent_org.save()
                 form.save_m2m()
-                pform.initialize(branding=pform.get_branding(), topup_size=1000)
+                parent_org.initialize(branding=parent_org.get_branding(), topup_size=MAX_TOPUP)
+                #Now create child
+                child_name = parent_org.name+"_desarrollo"
+                child_org = parent_org.create_sub_org(child_name,parent_org.timezone,request.user)
+                child_org.initialize(branding=child_org.get_branding(), topup_size=MAX_TOPUP)
+                #Now add same administrator
+                for administrator in parent_org.administrators.all():
+                    child_org.administrators.add(administrator)
             else:
                 print (form.errors)
             return HttpResponseRedirect('/org/manage/')

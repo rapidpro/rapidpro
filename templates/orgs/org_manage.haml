@@ -106,39 +106,33 @@
                  %span.title{:style =>"color: rgb(255, 255, 255)! important;"}
                     -trans "Crea una organización"
                </div>
-               <div class="modal-body" style="margin-right: 0px;">
+               <div class="modal-body" style="margin-right: 0px; max-height:600px">
                  <form role="form" action="" method="post">
                    {% csrf_token %}
-                   <p>
-                   {{ create_org_form.name.label}}
-                   </p>
-                   %h5 Campo Obligatorio:
-
-                   <p>
-                   {{ create_org_form.name}}
-                   </p>
-                   <p>
-                   {{create_org_form.plan.label}}
-                   </p>
-                   <p>
-                   {{create_org_form.plan}}
-                   </p>
-                   <p>
-                   {{create_org_form.administrators.label}}
-                   </p>
-                    %h5 Campo Obligatorio:
-                   <p>
-                   {{create_org_form.administrators}}
-                   </p>
-                   <p>
-                   {{create_org_form.language.label}}
-                   </p>
-                   <p>
-                   {{create_org_form.language}}
-                   </p>
-
-                 <div>
-                   <button type="submit" class="btn btn-primary btn-block send-button"style="width: 100px;" >Guardar</button>
+                   %p
+                    Nombre base de la organizacion
+                   %h6
+                    Se crearan dos organizaciones: [nombre_base]_produccion y [nombre_base]_desarrollo.
+                   %h5
+                    Campo Obligatorio:
+                   %p
+                    {{ create_org_form.name}}
+                   %p
+                    {{create_org_form.plan.label}}
+                   %p
+                    {{create_org_form.plan}}
+                   %p
+                    {{create_org_form.administrators.label}}
+                   %h5
+                    Campo Obligatorio:
+                   %p
+                    {{create_org_form.administrators}}
+                   %p
+                    {{create_org_form.language.label}}
+                   %p
+                    {{create_org_form.language}}
+                  <div>
+                   <button type="submit" class="btn btn-primary btn-block send-button"style="width: 100px; float:right" >Guardar</button>
                  </div>
                  </form>
                </div><!-- End of Modal body -->
