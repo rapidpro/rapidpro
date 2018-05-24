@@ -33,9 +33,12 @@ def backfill_step_uuids(FlowPathRecentRun):
                 if len(recent_run.run.path) == 0:
                     continue
 
-                from_step_uuid, to_step_uuid = calculate_step_uuids(recent_run)
-                recent_run.from_step_uuid = from_step_uuid
-                recent_run.to_step_uuid = to_step_uuid
+                step_uuids = calculate_step_uuids(recent_run)
+                if step_uuids is None:
+                    continue
+
+                recent_run.from_step_uuid = step_uuids[0]
+                recent_run.to_step_uuid = step_uuids[1]
                 recent_run.save(update_fields=('from_step_uuid', 'to_step_uuid'))
 
         num_updated += len(batch)
@@ -57,8 +60,9 @@ def calculate_step_uuids(recent_run):
         if from_step.get(PATH_EXIT_UUID) == exit_uuid and to_step.get(PATH_NODE_UUID) == node_uuid and to_step:
             segment_step_pairs.append((from_step, to_step))
 
+    # maybe we have a bad run, maybe we had to trim this run's path?
     if not segment_step_pairs:
-        raise ValueError(f"Can't find steps in run #{recent_run.run.id} for flow segment {exit_uuid}:{node_uuid}")
+        raise None
 
     if len(segment_step_pairs) == 1:
         segment_step_pair = segment_step_pairs[0]
