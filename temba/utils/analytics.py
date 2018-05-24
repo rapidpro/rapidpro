@@ -119,9 +119,9 @@ def track(email, event, properties=None, context=None):  # pragma: no cover
         try:
             _intercom.events.create(
                 event_name=event,
-                created_on=time.mktime(time.localtime()),
+                created_at=int(time.mktime(time.localtime())),
                 email=email,
-                metadata=properties,
+                metadata=properties if properties else {},
             )
         except:
             logger.error("error posting to intercom", exc_info=True)
