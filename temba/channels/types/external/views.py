@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -108,4 +106,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                                           self.channel_type,
                                                           config, role, [scheme], parent=channel)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

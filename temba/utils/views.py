@@ -1,10 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import forms
+from django.core.paginator import Paginator
 from django.http import HttpResponse
+from django.utils.functional import cached_property
 from django.views import View
 from django.utils.translation import ugettext_lazy as _
+
+from temba.utils.es import ModelESSearch
+from temba.utils.models import mapEStoDB, ProxyQuerySet
+from temba.contacts.models import ContactGroupCount
 
 
 class PostOnlyMixin(View):
@@ -30,7 +34,7 @@ class BaseActionForm(forms.Form):
         org = kwargs.pop('org')
         self.user = kwargs.pop('user')
 
-        super(BaseActionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         objects_qs = getattr(self.model, self.model_manager).filter(org=org)
         if self.has_is_active:
@@ -128,3 +132,50 @@ class BaseActionForm(forms.Form):
 
         else:  # pragma: no cover
             return dict(error=_("Oops, so sorry. Something went wrong!"))
+
+
+class ContactListPaginator(Paginator):
+    """
+    Paginator that knows how to work with ES dsl Search objects
+    """
+
+    @cached_property
+    def count(self):
+        if isinstance(self.object_list, ModelESSearch):
+            # execute search on the ElasticSearch to get the count
+            return self.object_list.count()
+        else:
+            # get the group count from the ContactGroupCount squashed model
+            group_instance = self.object_list._hints.get('instance')
+            if group_instance:
+                return ContactGroupCount.get_totals([group_instance]).get(group_instance)
+            else:
+                return 0
+
+    def _get_page(self, *args, **kwargs):
+        new_args = list(args)
+
+        es_search = args[0]
+
+        if isinstance(es_search, ModelESSearch):
+            # we need to execute the ES search again, to get the actual page of records
+            new_object_list = args[0].execute()
+
+            new_args[0] = new_object_list
+
+        return super()._get_page(*new_args, **kwargs)
+
+
+class ContactListPaginationMixin(object):
+    paginator_class = ContactListPaginator
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator, page, new_queryset, is_paginated = super().paginate_queryset(queryset, page_size)
+
+        if isinstance(queryset, ModelESSearch):
+            model_queryset = ProxyQuerySet([obj for obj in mapEStoDB(self.model, new_queryset)])
+            return paginator, page, model_queryset, is_paginated
+
+        else:
+            model_queryset = ProxyQuerySet([obj for obj in new_queryset])
+            return paginator, page, model_queryset, is_paginated

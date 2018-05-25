@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import nexmo
@@ -17,12 +15,12 @@ from mock import patch, MagicMock
 from platform import python_version
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
-from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep, FlowRevision
+from temba.flows.models import Flow, FlowRun, ActionLog, FlowRevision
 from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
 from temba.tests.twilio import MockTwilioClient, MockRequestValidator
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from .clients import IVRException
 from .models import IVRCall
 
@@ -30,7 +28,7 @@ from .models import IVRCall
 class IVRTests(FlowFileTest):
 
     def setUp(self):
-        super(IVRTests, self).setUp()
+        super().setUp()
         settings.SEND_CALLS = True
 
         # configure our account to be IVR enabled
@@ -41,7 +39,7 @@ class IVRTests(FlowFileTest):
         self.login(self.admin)
 
     def tearDown(self):
-        super(IVRTests, self).tearDown()
+        super().tearDown()
         settings.SEND_CALLS = False
 
     @patch('nexmo.Client.create_application')
@@ -210,7 +208,7 @@ class IVRTests(FlowFileTest):
 
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
-        flow.start([], [contact])
+        run, = flow.start([], [contact])
         call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         # after a call is picked up, twilio will call back to our server
@@ -282,17 +280,10 @@ class IVRTests(FlowFileTest):
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
 
-        from temba.flows.models import FlowStep
-        steps = FlowStep.objects.all()
-        self.assertEqual(4, steps.count())
-
-        # each of our steps should have exactly one message
-        for step in steps:
-            self.assertEqual(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
-
-        # each message should have exactly one step
-        for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+        # should have 4 steps and 4 messages
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 4)
+        self.assertEqual(len(run.get_messages()), 4)
 
         # run same flow in simulator
         Contact.set_simulation(True)
@@ -343,7 +334,7 @@ class IVRTests(FlowFileTest):
 
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
-        flow.start([], [contact])
+        run, = flow.start([], [contact])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
@@ -445,17 +436,10 @@ class IVRTests(FlowFileTest):
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
 
-        from temba.flows.models import FlowStep
-        steps = FlowStep.objects.all()
-        self.assertEqual(4, steps.count())
-
-        # each of our steps should have exactly one message
-        for step in steps:
-            self.assertEqual(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
-
-        # each message should have exactly one step
-        for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+        # should have 4 steps and 4 messages
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 4)
+        self.assertEqual(len(run.get_messages()), 4)
 
         # create a valid call first
         flow.start([], [contact], restart_participants=True)
@@ -505,7 +489,10 @@ class IVRTests(FlowFileTest):
             # should have two runs, but still one call
             self.assertEqual(1, IVRCall.objects.all().count())
             self.assertEqual(2, FlowRun.objects.filter(is_active=True).count())
-            self.assertEqual(2, FlowStep.objects.all().count())
+
+            parent_run, child_run = FlowRun.objects.order_by('id')
+            self.assertEqual(len(parent_run.path), 2)
+            self.assertEqual(len(child_run.path), 0)
 
             # should give us a redirect, but without the empty flag
             self.assertContains(response, 'Redirect')
@@ -520,7 +507,10 @@ class IVRTests(FlowFileTest):
             self.assertContains(response, 'What is your favorite color?')
 
             self.assertEqual(3, Msg.objects.all().count())
-            self.assertEqual(4, FlowStep.objects.all().count())
+
+            parent_run, child_run = FlowRun.objects.order_by('id')
+            self.assertEqual(len(parent_run.path), 2)
+            self.assertEqual(len(child_run.path), 2)
 
             # answer back with red
             response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
@@ -555,13 +545,14 @@ class IVRTests(FlowFileTest):
 
         # start macklemore in the flow
         ben = self.create_contact('Ben', '+12345')
-        ivr_flow.start(groups=[], contacts=[ben])
+        run, = ivr_flow.start(groups=[], contacts=[ben])
         call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
-        self.assertEqual(2, FlowStep.objects.all().count())
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
 
         # press 1
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
@@ -650,7 +641,7 @@ class IVRTests(FlowFileTest):
 
         # start marshall in the flow
         eminem = self.create_contact('Eminem', '+12345')
-        flow.start(groups=[], contacts=[eminem])
+        run, = flow.start(groups=[], contacts=[eminem])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertNotEqual(call, None)
 
@@ -659,7 +650,8 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # should have two steps so far, right up to the recording
-        self.assertEqual(2, FlowStep.objects.all().count())
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
 
         # no outbound yet
         self.assertEqual(None, Msg.objects.filter(direction='O', contact=eminem).first())
@@ -773,7 +765,7 @@ class IVRTests(FlowFileTest):
         # make sure we set submitOnHash to true nexmo
         self.assertContains(response, '"submitOnHash": true,')
 
-        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (self.channel.callback_domain, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (self.channel.callback_domain, callback_url))
 
     @patch('jwt.encode')
     @patch('requests.put')
@@ -995,7 +987,7 @@ class IVRTests(FlowFileTest):
         # now pretend we are a normal caller
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         Contact.set_simulation(False)
-        flow.start([], [eric], restart_participants=True)
+        run, = flow.start([], [eric], restart_participants=True)
 
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
@@ -1047,8 +1039,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(6, messages.count())
         self.assertEqual(7, self.org.get_credits_used())
 
+        run.refresh_from_db()
         for msg in messages:
-            self.assertEqual(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
+            self.assertIn(msg, run.get_messages())
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
@@ -1066,10 +1059,6 @@ class IVRTests(FlowFileTest):
 
         # should still have no active runs
         self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
-
-        # and we've exited the flow
-        step = FlowStep.objects.all().order_by('-pk').first()
-        self.assertTrue(step.left_on)
 
         # we shouldn't have any outbound pending messages, they are all considered delivered
         self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
@@ -1103,7 +1092,6 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'busy', IVRCall.BUSY, 'NX')
         test_status_update(call, 'rejected', IVRCall.BUSY, 'NX')
 
-        FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
 
         # try sending callme trigger
@@ -1111,26 +1099,23 @@ class IVRTests(FlowFileTest):
         msg = self.create_msg(direction=INCOMING, contact=eric, text="callme")
 
         # make sure if we are started with a message we still create a normal voice run
-        flow.start([], [eric], restart_participants=True, start_msg=msg)
+        run, = flow.start([], [eric], restart_participants=True, start_msg=msg)
+        run.refresh_from_db()
 
         # we should have an outbound ivr call now, and no steps yet
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertIsNotNone(call)
-        self.assertEqual(0, FlowStep.objects.all().count())
+        self.assertEqual(len(run.path), 0)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # should have two flow steps (the outgoing messages, and the step to handle the response)
-        steps = FlowStep.objects.all().order_by('pk')
-
-        # the first step has exactly one message which is an outgoing IVR message
-        self.assertEqual(1, steps.first().messages.all().count())
-        self.assertEqual(1, steps.first().messages.filter(direction=IVRCall.OUTGOING, msg_type=IVR).count())
-
-        # the next step shouldn't have any messages yet since they haven't pressed anything
-        self.assertEqual(0, steps[1].messages.all().count())
+        out = Msg.objects.get(direction=IVRCall.OUTGOING, msg_type=IVR)
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 2)
+        self.assertIn(out, run.get_messages())
 
         # try updating our status to completed for a test contact
         Contact.set_simulation(True)

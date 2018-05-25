@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
-import six
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -13,14 +9,14 @@ from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog, ChannelType
 from temba.ivr.models import IVRCall
 from temba.utils.http import HttpEvent
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun
 
 
 class CallHandler(View):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(CallHandler, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -131,15 +127,15 @@ class CallHandler(View):
             if not has_event and call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
-                    event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                    event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                     if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
                         ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
 
                         # TODO: what's special here that this needs to be different?
-                        return JsonResponse(json.loads(six.text_type(response)), safe=False)
+                        return JsonResponse(json.loads(str(response)), safe=False)
 
                     ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
-                    return HttpResponse(six.text_type(response), content_type="text/xml; charset=utf-8")
+                    return HttpResponse(str(response), content_type="text/xml; charset=utf-8")
             else:
 
                 if call.status == IVRCall.COMPLETED:
@@ -147,8 +143,7 @@ class CallHandler(View):
                     runs = FlowRun.objects.filter(connection=call)
                     for run in runs:
                         if not run.is_completed():
-                            final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
-                            run.set_completed(final_step=final_step)
+                            run.set_completed()
 
                 response = dict(description="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))

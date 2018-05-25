@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import telegram
 
@@ -13,7 +11,7 @@ from ...models import Channel
 
 class TelegramTypeTest(TembaTest):
     def setUp(self):
-        super(TelegramTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TG', name="Telegram", address="12345",
                                       role="SR", schemes=['telegram'],

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartListView, SmartReadView, SmartCRUDL
 from temba.airtime.models import AirtimeTransfer
@@ -31,7 +28,7 @@ class AirtimeCRUDL(SmartCRUDL):
             return "--"
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.List, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['org'] = self.derive_org()
             return context
 
@@ -40,7 +37,7 @@ class AirtimeCRUDL(SmartCRUDL):
         field_config = dict(created_on=dict(label="Time"))
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.Read, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             context['show_logs'] = self.show_logs()
             return context
 

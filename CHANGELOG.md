@@ -1,3 +1,366 @@
+v3.0.407
+----------
+ * Reenable requiring policy consent
+ * Allow msgs endpoint to return ALL messages for an org sorted by created_on
+ * Return error message if non-existent asset requested from assets endpoint
+ * If contact sends message whilst being started in a flow, don't blow up
+ * Remove option to have a flow never expire, migrate current flows with never to 30 days instead
+ * Request the user to fill the LINE channel ID and channel name on the claim form
+
+v3.0.406
+----------
+ * Fix logging events to intercom
+
+v3.0.405
+----------
+ * Migration to remove FlowStep
+
+v3.0.404
+----------
+ * remove old privacy page in favor of new policy app
+ * use python3 `super` method
+ * migration to backfill step UUIDs on recent runs
+
+v3.0.403
+----------
+ * tweaks to add_analytics users
+
+v3.0.402
+----------
+ * add native intercom support, add management command to update all users
+
+v3.0.401
+----------
+ * Fix quick replies in simulator
+ * Lower the min length for Facebook page access token
+ * Update Facebook claim to ask for Page ID and Page name from the user
+ * Add new policies and consent app
+ * Fix another migration that adds a field and writes to it in same transaction
+ * Add step UUID fields to FlowPathRecentRun and update trigger on run paths to start populating them
+
+v3.0.400
+----------
+ * Don't create flow steps
+ * Remove remaining usages of six
+
+v3.0.399
+----------
+ * Drop no longer used FlowRun.message_ids field
+ * Don't allow nested flowserver trials
+ * Fix migrations which can lead to locks because they add a field and populate it in same transaction
+ * Remove a lot of six stuff
+ * Use bulk_create's returned msgs instead of forcing created_on to be same for batches of messages created by Broadcast.send
+ * Use sent_on for incoming messages's real world time
+ * Don't require steps for flow resumptions
+
+v3.0.398
+----------
+ * Add period, rollup fields to archive
+
+v3.0.397
+----------
+ * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts
+ * Rework run_audit command to check JSON fields and not worry about steps
+ * Replace json_date_to_datetime with iso8601.parse_date
+ * Stepless surveyor runs
+
+v3.0.396
+----------
+ * Use run path instead of steps to recalculate run expirations
+ * Stop writing to FlowRun.message_ids
+
+v3.0.395
+----------
+ * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
+ * Stop saving message associations with steps
+
+v3.0.393
+----------
+ * Drop values_value
+
+v3.0.392
+----------
+ * Remove broadcast purging
+
+v3.0.391
+----------
+ * remove reference to nyaruka for trackings users
+ * fix test decoration to work when no flow server configured
+
+v3.0.390
+----------
+ * Disable webhook calls during flowserver trials
+ * Use FlowRun.events for recent messages rollovers
+
+v3.0.389
+----------
+ * add archive model, migrations
+
+v3.0.388
+----------
+ * Make ContactField header clickable when sorting
+ * Add first python2 incompatible code change
+ * Add contact groups sheet on contact exports
+ * Remove contact export as CSV
+ * Update to latest goflow
+ * Fix test_db contact fields serialization
+
+v3.0.387
+----------
+ * fix flowstarts migration
+
+v3.0.386
+----------
+ * update start contact migration to work with malformed extra
+
+v3.0.384
+----------
+ * fix not selecting contact id from ES in canary task
+
+v3.0.383
+----------
+ * add canary task for elasticsearch
+ * record metrics about flowserver trial to librarto
+ * allow sorting of contact fields via dragging in manage dialog
+
+v3.0.382
+----------
+ * rename flow migration
+
+v3.0.381
+----------
+ * limit number of flows exited at once, order by expired_on to encourage index
+ * remove python 2.7 build target in travis
+ * start flow starts in the flows queue vs our global celery one
+ * add flow start count model to track # of runs in a flow start
+ * Always use channel.name for channel assets
+
+v3.0.380
+----------
+ * update to latest goflow to get location support
+ * better output logs for goflow differences
+
+v3.0.379
+----------
+ * add v2 editor through /v2 command in simulator
+
+v3.0.378
+----------
+ * get all possible existing Twilio numbers on the Twilio account
+ * reenable group sends *
+ * remove Value model usage, Contact.search
+
+v3.0.377
+----------
+ * do not allow dupe broadcasts to groups
+ * Use ElasticSearch to export contacts and create dynamic groups
+ * remove celery super auto scaler
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add ability to test flow results against goflow
+
+v3.0.376
+----------
+ * remove celery super auto scaler since we don't use it anywhere
+ * update whatsapp activation by setting rate limits using new endpoints
+ * fix incorrect keys for tokens and account sids for twiml apps
+ * add admin command to help audit ES and DB discrepencies
+
+v3.0.375
+----------
+ * update whatsapp for new API
+ * new index on contacts_contact.fields optimized for space
+
+v3.0.374
+----------
+ * allow reading, just not writing of sends with groups
+ * remove old seaching from contact views
+
+v3.0.373
+----------
+ * optimize group views
+ * don't allow sends to groups to be imported or copied
+ * remove normal junebug, keep only junebug ussd
+ * fix isset/~isset, sort by 'modified_on_mu' in ES
+ * use ES to search for contacts
+
+v3.0.372
+----------
+ * remap sms and status Twilio urls, log people still calling old ones
+ * fix to display Export buttons on sent msgs folder and failed msgs folder
+ * use message events in run.events for results exports instead of run.message_ids
+
+v3.0.371
+----------
+ * add twilio messaging handling back in
+
+v3.0.370
+----------
+ * remove logging of base handler being called
+
+v3.0.369
+----------
+ * rename contact field types of decimal to number
+ * finalize contact imports so that updated contacts have modified_on outside transaction 
+ * try to fetch IVR recordings for up to a minute before giving up
+ * remove handling and sendind code for all channel types (except twitter and junebug)
+
+v3.0.368
+----------
+ * Fewer sentry errors from ES searching
+ * Don't assume messages have a UUID in FlowRun.add_messages
+
+v3.0.367
+----------
+ * allow up to two minutes for elastic search lag
+
+v3.0.366
+----------
+ * fix empty queryset case for ES comparison
+
+v3.0.365
+----------
+ * chill the f out with sentry if the first contact in our queryset is less than 30 seconds old
+ * fix duplicate messages when searching on msgs whose contacts have more than one urn
+
+v3.0.364
+----------
+ * fix environment variable for elastic search, catch all exceptions
+
+v3.0.363
+----------
+ * Add Elastic searching for contacts, for now only validating that results through ES are the same as through postgres searches
+
+v3.0.361
+----------
+ * Migrate Dart/Hub9 Contact urns and channels to support ext schemes
+
+v3.0.360
+----------
+ * Use more efficient queries for check channels task
+ * Fix Location geojson import
+
+v3.0.359
+----------
+ * Add API endpoint to view failed messages
+
+v3.0.358
+----------
+ * Allow filtering by uuid on runs API endpoint, and include run uuid in webhooks
+ * Fix blockstrans failing on label count
+
+v3.0.357
+----------
+ * Add linear backdown for our refresh rate on inbox pages
+
+v3.0.356
+----------
+ * Do not log MageHandler calls
+ * Serialize contact field label as name instead
+
+v3.0.355
+----------
+ * Use force_text on uuids read from redis
+ * Log errors for any channel handler methods
+
+v3.0.354
+----------
+ * Set placeholder msg.id = 0
+ * Fix comparison when price is None
+
+v3.0.353
+----------
+ * Evaluate contact field with no value as False
+
+v3.0.352
+----------
+ * Update to Facebook graph api v2.12
+
+v3.0.351
+----------
+ * Support plain ISO dates (not just datetimes)
+
+v3.0.350
+----------
+ * Swallow exceptions encountered when parsing, don't add to group
+ * Set placeholder msg.id = 0
+
+v3.0.349
+----------
+ * Deal with null state values in contact search evaluation
+
+v3.0.348
+----------
+ * Fix off by one error in calculating best channel based on prefixes
+ * Reevaluate dynamic groups using local contact fields instead of SQL
+
+v3.0.347
+----------
+ * Add modified_on index for elasticsearch
+
+v3.0.346
+----------
+ * Don't start archived flows
+ * Don't show stale dates on campaign events
+ * Allow brands to configure flow types
+ * Remove group search from send to others action
+ * Fixes for test contact activity
+
+v3.0.345
+----------
+ * Migration to backfill run.events and add step uuids to run.path
+ * Do the right thing when we are presented with NaN decimals
+
+v3.0.344
+----------
+ * Use real JSONField for FlowRun.events
+ * Add FlowRun.events and start populating with msg events for new runs
+ * Serialize Contact.fields in test_db
+ * Update to latest goflow release
+
+v3.0.342
+----------
+ * Fix for decimal values in JSON fields attribute
+ * Fix for not being able to change contact field types if campaign event inactive
+
+v3.0.341
+----------
+ * Add if not exists to index creation for fields
+ * Last of Py3 compatibility changes
+
+v3.0.340
+----------
+ * Use fields JSON field on Contact instead of Value table for all reading.
+ * Force campaign events to be based off of DateTime fields
+ * Migration to change all contact fields used in campaign events to DateTime
+ * Migration to add GIN index on Contact.fields
+
+v3.0.339
+----------
+ * Remove leading and trailing spaces on location string before boundaries path query
+ * Require use of update_fields with Contact.save()
+ * Event time of contact_changed is when contact was modified
+ * Use latest goflow release
+ * Make special channel accessible during simulator use
+
+v3.0.338
+----------
+ * Always serialize contact field datetime values in the org timezone
+ * Add migration for population of the contact field json
+
+v3.0.336
+----------
+ * Update middlewares to Django defaults for security
+ * Add JSON fields to Contact, set in set_field
+ * backfill any null location paths, make not null, update import to set path, set other levels on fields when setting location
+
+v3.0.335
+----------
+ * Allow groups when scheduling flows or triggers
+ * Fix configuration page URLs and use courier URLs
+ * Replace contact.channel in goflow serialization with a channel query param in each contact URN
+ * Serialize contact.group_uuids as groups with name and UUID
+
 v3.0.334
 ----------
  * Add response to external ID to courier serialized msg if we have response to

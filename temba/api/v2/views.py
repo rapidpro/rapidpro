@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
+import iso8601
 import itertools
-import six
 
 from django import forms
 from django.contrib.auth import authenticate, login
@@ -27,7 +24,6 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
 from temba.utils import str_to_bool, splitting_getlist
-from temba.utils.dates import json_date_to_datetime
 from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -176,7 +172,7 @@ class ExplorerView(SmartTemplateView):
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
-        context = super(ExplorerView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -233,7 +229,7 @@ class AuthenticateView(SmartFormView):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(AuthenticateView, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('username')
@@ -282,7 +278,7 @@ class BaseAPIView(generics.GenericAPIView):
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
-        return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
     def options(self, request, *args, **kwargs):
         """
@@ -300,7 +296,7 @@ class BaseAPIView(generics.GenericAPIView):
         Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
         """
         lookup_values = {}
-        for param, field in six.iteritems(self.lookup_params):
+        for param, field in self.lookup_params.items():
             if param in self.request.query_params:
                 param_value = self.request.query_params[param]
 
@@ -335,7 +331,7 @@ class BaseAPIView(generics.GenericAPIView):
             raise InvalidQueryError("Value for %s must be a valid UUID" % name)
 
     def get_serializer_context(self):
-        context = super(BaseAPIView, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['org'] = self.request.user.get_org()
         context['user'] = self.request.user
         return context
@@ -355,7 +351,6 @@ class ListAPIMixin(mixins.ListModelMixin):
     Mixin for any endpoint which returns a list of objects from a GET request
     """
     exclusive_params = ()
-    required_params = ()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -367,17 +362,12 @@ class ListAPIMixin(mixins.ListModelMixin):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
-            return super(ListAPIMixin, self).list(request, *args, **kwargs)
+            return super().list(request, *args, **kwargs)
 
     def check_query(self, params):
         # check user hasn't provided values for more than one of any exclusive params
         if sum([(1 if params.get(p) else 0) for p in self.exclusive_params]) > 1:
             raise InvalidQueryError("You may only specify one of the %s parameters" % ", ".join(self.exclusive_params))
-
-        # check that any required params are included
-        if self.required_params:
-            if sum([(1 if params.get(p) else 0) for p in self.required_params]) != 1:
-                raise InvalidQueryError("You must specify one of the %s parameters" % ", ".join(self.required_params))
 
     def filter_before_after(self, queryset, field):
         """
@@ -386,7 +376,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         before = self.request.query_params.get('before')
         if before:
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(**{field + '__lte': before})
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -394,7 +384,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         after = self.request.query_params.get('after')
         if after:
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(**{field + '__gte': after})
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -402,7 +392,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         return queryset
 
     def paginate_queryset(self, queryset):
-        page = super(ListAPIMixin, self).paginate_queryset(queryset)
+        page = super().paginate_queryset(queryset)
 
         # give views a chance to prepare objects for serialization
         self.prepare_for_serialization(page)
@@ -572,7 +562,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         return queryset.defer(None).defer('geometry').select_related('parent')
 
     def get_serializer_context(self):
-        context = super(BoundariesEndpoint, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['include_geometry'] = str_to_bool(self.request.query_params.get('geometry', 'false'))
         return context
 
@@ -1369,7 +1359,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         """
         So that we only fetch active contact fields once for all contacts
         """
-        context = super(ContactsEndpoint, self).get_serializer_context()
+        context = super().get_serializer_context()
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
@@ -2187,8 +2177,10 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming` or `sent`.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
+
+    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
 
     The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
     includes all incoming messages, regardless of visibility or type) messages are sorted by last modified date. This
@@ -2239,13 +2231,13 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = Pagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
-    required_params = ('contact', 'folder', 'label', 'broadcast', 'id')
     throttle_scope = 'v2.messages'
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
                       'flows': SystemLabel.TYPE_FLOWS,
                       'archived': SystemLabel.TYPE_ARCHIVED,
                       'outbox': SystemLabel.TYPE_OUTBOX,
+                      'failed': SystemLabel.TYPE_FAILED,
                       'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
@@ -2423,7 +2415,7 @@ class OrgEndpoint(BaseAPIView):
             'country': org.get_country_code(),
             'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
-            'timezone': six.text_type(org.timezone),
+            'timezone': str(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
             'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
             'anon': org.is_anon
@@ -2733,7 +2725,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     A `GET` request returns the flow runs for your organization, filtering them as needed. Each
     run has the following attributes:
 
-     * **id** - the ID of the run (int), filterable as `id`.
+     * **uuid** - the ID of the run (string), filterable as `uuid`.
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
@@ -2813,6 +2805,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         run_id = self.get_int_param('id')
         if run_id:
             queryset = queryset.filter(id=run_id)
+
+        # filter by uuid (optional)
+        run_uuid = self.get_uuid_param('uuid')
+        if run_uuid:
+            queryset = queryset.filter(uuid=run_uuid)
 
         # filter by contact (optional)
         contact_uuid = params.get('contact')

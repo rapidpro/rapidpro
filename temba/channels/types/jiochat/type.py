@@ -1,15 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import time
 
 from django.utils.translation import ugettext_lazy as _
+
 from temba.contacts.models import JIOCHAT_SCHEME
-from temba.msgs.models import WIRED
-from temba.utils.jiochat import JiochatClient
-from .tasks import refresh_jiochat_access_tokens
 from .views import ClaimView
-from ...models import Channel, ChannelType
+from ...models import ChannelType
 
 
 class JioChatType(ChannelType):
@@ -18,6 +12,8 @@ class JioChatType(ChannelType):
     """
     code = 'JC'
     category = ChannelType.Category.SOCIAL_MEDIA
+
+    courier_url = r'^jc/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
 
     name = "JioChat"
     icon = 'icon-jiochat'
@@ -48,20 +44,3 @@ class JioChatType(ChannelType):
             url="{{ channel.config.secret }}",
         )
     )
-
-    def setup_periodic_tasks(self, sender):
-        # automatically refresh the access token
-        sender.add_periodic_task(3600, refresh_jiochat_access_tokens)
-
-    def send(self, channel, msg, text):
-        data = {'msgtype': 'text', 'touser': msg.urn_path, 'text': {'content': text}}
-
-        client = JiochatClient(channel.uuid,
-                               channel.config.get('jiochat_app_id'),
-                               channel.config.get('jiochat_app_secret'))
-
-        start = time.time()
-
-        response, event = client.send_message(data, start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)

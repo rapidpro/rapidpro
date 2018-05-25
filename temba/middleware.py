@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import cProfile
 import pstats
 import traceback
 
 from django.conf import settings
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
 from django.utils import timezone, translation
 from io import StringIO
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
+from temba.policies.models import Policy
 
 
 class ExceptionMiddleware(object):
@@ -71,6 +72,18 @@ class BrandingMiddleware(object):
             traceback.print_exc()
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
+
+
+class ConsentMiddleware(object):  # pragma: no cover
+
+    REQUIRES_CONSENT = ('/msg', '/contact', '/flow', '/trigger', '/org/home', '/campaign', '/channel')
+
+    def process_request(self, request):
+        if request.user and request.user.is_authenticated():
+            for path in ConsentMiddleware.REQUIRES_CONSENT:
+                if request.path.startswith(path):
+                    if Policy.get_policies_needing_consent(request.user):
+                        return HttpResponseRedirect(reverse('policies.policy_list'))
 
 
 class ActivateLanguageMiddleware(object):

@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django.db.models import Q
 from rest_framework import serializers, relations
 
@@ -28,10 +23,10 @@ def validate_translations(value, base_language, max_length):
     if base_language not in value:
         raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
-    for lang, trans in six.iteritems(value):
-        if not isinstance(lang, six.string_types) or (lang != 'base' and len(lang) > 3):
-            raise serializers.ValidationError("Language code %s is not valid." % six.text_type(lang))
-        if not isinstance(trans, six.string_types):
+    for lang, trans in value.items():
+        if not isinstance(lang, str) or (lang != 'base' and len(lang) > 3):
+            raise serializers.ValidationError("Language code %s is not valid." % str(lang))
+        if not isinstance(trans, str):
             raise serializers.ValidationError("Translations must be strings.")
         if len(trans) > max_length:
             raise serializers.ValidationError("Ensure translations have no more than %d characters." % max_length)
@@ -54,7 +49,7 @@ class TranslatableField(serializers.Field):
     """
     def __init__(self, **kwargs):
         self.max_length = kwargs.pop('max_length', None)
-        super(TranslatableField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def to_representation(self, obj):
         return obj
@@ -63,7 +58,7 @@ class TranslatableField(serializers.Field):
         org = self.context['org']
         base_language = org.primary_language.iso_code if org.primary_language else 'base'
 
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             if len(data) > self.max_length:
                 raise serializers.ValidationError("Ensure this field has no more than %d characters." % self.max_length)
 
@@ -84,7 +79,7 @@ class LimitedListField(serializers.ListField):
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
-        return super(LimitedListField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class LimitedDictField(serializers.DictField):
@@ -94,7 +89,7 @@ class LimitedDictField(serializers.DictField):
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_DICT_ITEMS)
 
-        return super(LimitedDictField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class URNField(serializers.CharField):
@@ -104,7 +99,7 @@ class URNField(serializers.CharField):
         if self.context['org'].is_anon:
             return None
         else:
-            return six.text_type(obj)
+            return str(obj)
 
     def to_internal_value(self, data):
         return validate_urn(data)
@@ -124,7 +119,7 @@ class TembaModelField(serializers.RelatedField):
         def run_validation(self, data=serializers.empty):
             validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
-            return super(TembaModelField.LimitedSizeList, self).run_validation(data)
+            return super().run_validation(data)
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -154,7 +149,7 @@ class TembaModelField(serializers.RelatedField):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        if not (isinstance(data, six.string_types) or isinstance(data, six.integer_types)):
+        if not (isinstance(data, str) or isinstance(data, int)):
             raise serializers.ValidationError("Must be a string or integer")
 
         obj = self.get_object(data)
@@ -215,10 +210,10 @@ class ContactGroupField(TembaModelField):
 
     def __init__(self, **kwargs):
         self.allow_dynamic = kwargs.pop('allow_dynamic', True)
-        super(ContactGroupField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def to_internal_value(self, data):
-        obj = super(ContactGroupField, self).to_internal_value(data)
+        obj = super().to_internal_value(data)
 
         if not self.allow_dynamic and obj.is_dynamic:
             raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)

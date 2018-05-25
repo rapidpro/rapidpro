@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
-import six
 
 from django.conf import settings
 from django.http import HttpResponseServerError
@@ -91,7 +87,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
 
         self.template = 'api/v%d/api_root.html' % api_version
 
-        return super(DocumentationRenderer, self).render(data, accepted_media_type, renderer_context)
+        return super().render(data, accepted_media_type, renderer_context)
 
 
 class InvalidQueryError(APIException):
@@ -111,7 +107,7 @@ def temba_exception_handler(exc, context):
         return response
     else:
         # ensure exception still goes to Sentry
-        logger.error('Exception in API request: %s' % six.text_type(exc), exc_info=True)
+        logger.error('Exception in API request: %s' % str(exc), exc_info=True)
 
         # respond with simple message
         return HttpResponseServerError("Server Error. Site administrators have been notified.")

@@ -1,6 +1,6 @@
 
 $(document).ready(function() {
-  prepareOmnibox("cu");
+  prepareOmnibox();
 });
 
 function omnibox(ele, types, options) {
@@ -28,6 +28,8 @@ function omnibox(ele, types, options) {
     var placeholder = null;
     if (types == 'g'){
         placeholder = gettext("Enter one or more contact groups");
+    } else if (types == 'c') {
+        placeholder = gettext("Recipients, enter contacts");
     } else if (types == 'cu'){
         placeholder = gettext("Recipients, enter contacts or phone numbers");
     }

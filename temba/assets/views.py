@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import mimetypes
 
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseRedirect
@@ -45,7 +42,7 @@ class AssetDownloadView(SmartTemplateView):
         return self.request.user.is_authenticated()
 
     def get_context_data(self, **kwargs):
-        context = super(AssetDownloadView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
 
         asset_store = get_asset_store(kwargs.pop('type'))
         pk = kwargs.pop('pk')

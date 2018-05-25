@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
-import six
 
 from celery.task import task
 from collections import defaultdict
@@ -40,7 +36,7 @@ def check_campaigns_task():
     queued_fires = QueueRecord('queued_event_fires')
 
     # create queued tasks
-    for flow_id, fire_ids in six.iteritems(fire_ids_by_flow_id):
+    for flow_id, fire_ids in fire_ids_by_flow_id.items():
         flow = flows_by_id[flow_id]
 
         # create sub-batches no no single task is too big
@@ -55,7 +51,7 @@ def check_campaigns_task():
 
                     queued_fires.set_queued(queued_fire_ids)
                 except Exception:  # pragma: no cover
-                    fire_ids_str = ','.join(six.text_type(f) for f in queued_fire_ids)
+                    fire_ids_str = ','.join(str(f) for f in queued_fire_ids)
                     logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
@@ -75,7 +71,6 @@ def update_event_fires(event_id):
                     EventFire.do_update_eventfires_for_event(event)
 
         except Exception as e:  # pragma: no cover
-
             # requeue our task to try again in five minutes
             update_event_fires(event_id).delay(countdown=60 * 5)
 

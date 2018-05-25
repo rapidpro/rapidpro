@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -38,7 +36,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(
-                ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234',
+                auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234',
                 callback_domain=channel.callback_domain
             )
         )
@@ -49,7 +47,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(
-                ACCOUNT_TOKEN='abcd4321', send_url='https://twilio.com', ACCOUNT_SID='abcd4321',
+                auth_token='abcd4321', send_url='https://twilio.com', account_sid='abcd4321',
                 callback_domain=channel.callback_domain
             )
         )
@@ -62,7 +60,10 @@ class TwimlAPITypeTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(
             channel.config, dict(
-                ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234',
+                auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234',
                 callback_domain=channel.callback_domain
             )
         )
+
+        response = self.client.get(reverse('channels.channel_configuration', args=[channel.uuid]))
+        self.assertContains(response, reverse('courier.tw', args=[channel.uuid, 'receive']))

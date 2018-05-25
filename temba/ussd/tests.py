@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -24,7 +22,7 @@ from .models import USSDSession
 class USSDSessionTest(TembaTest):
 
     def setUp(self):
-        super(USSDSessionTest, self).setUp()
+        super().setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
@@ -83,15 +81,13 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.started_on, datetime)
 
         # message created and sent out
-        msg = Msg.objects.get()
-
-        self.assertEqual(flow.get_steps().get().messages.get().text, msg.text)
+        self.assertIsNotNone(Msg.objects.filter(direction='O').first())
 
         return flow
 
     def test_async_content_handling(self):
         # start off a PUSH session
-        flow = self.test_push_async_start()
+        self.test_push_async_start()
 
         # send an incoming message through the channel
         session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
@@ -104,22 +100,18 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
 
         # there should be 3 messages
-        self.assertEqual(Msg.objects.count(), 3)
+        run = FlowRun.objects.get()
+        msg1, msg2, msg3 = run.get_messages().order_by('id')
 
-        # lets check the steps and incoming and outgoing messages
-        # first step has 1 outgoing and the answer
-        msgs = flow.get_steps().first().messages.order_by('id')
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(msgs[0].direction, OUTGOING)
-        self.assertEqual(msgs[0].text, u'What would you like to read about?')
-        self.assertEqual(msgs[1].direction, INCOMING)
-        self.assertEqual(msgs[1].text, u'1')
+        # check the incoming and outgoing messages
+        self.assertEqual(msg1.direction, OUTGOING)
+        self.assertEqual(msg1.text, 'What would you like to read about?')
 
-        # second step sent out the next message and waits for response
-        msgs = flow.get_steps().last().messages.order_by('id')
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0].direction, OUTGOING)
-        self.assertEqual(msgs[0].text, u'Thank you!')
+        self.assertEqual(msg2.direction, INCOMING)
+        self.assertEqual(msg2.text, '1')
+
+        self.assertEqual(msg3.direction, OUTGOING)
+        self.assertEqual(msg3.text, 'Thank you!')
 
     def test_expiration(self):
         # start off a PUSH session
@@ -401,7 +393,7 @@ class USSDSessionTest(TembaTest):
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
-        super(JunebugUSSDTest, self).setUp()
+        super().setUp()
 
         flow = self.get_flow('ussd_example')
         self.starcode = "*113#"
@@ -418,7 +410,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             trigger_type=Trigger.TYPE_USSD_PULL)
 
     def tearDown(self):
-        super(JunebugUSSDTest, self).tearDown()
+        super().tearDown()
         settings.SEND_MESSAGES = False
 
     def test_status(self):
@@ -447,7 +439,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
-        from temba.channels.handlers import JunebugHandler
+        from temba.channels.handlers import JunebugUSSDHandler
 
         data = self.mk_ussd_msg(content="événement", to=self.starcode)
         callback_url = reverse('handlers.junebug_handler',
@@ -456,7 +448,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], JunebugHandler.ACK)
+        self.assertEqual(response.json()['status'], JunebugUSSDHandler.ACK)
 
         # load our message
         inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
@@ -481,7 +473,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEqual(inbound_msg.connection.external_id, 'session-id')
 
     def test_receive_ussd_no_session(self):
-        from temba.channels.handlers import JunebugHandler
+        from temba.channels.handlers import JunebugUSSDHandler
 
         # Delete the trigger to prevent the sesion from being created
         self.trigger.delete()
@@ -493,7 +485,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+        self.assertEqual(response.json()['status'], JunebugUSSDHandler.NACK)
 
     def test_send_ussd_continue_and_end_session(self):
         flow = self.get_flow('ussd_session_end')

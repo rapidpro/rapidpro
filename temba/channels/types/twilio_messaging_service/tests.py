@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -82,3 +80,6 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertEqual(channel_config['messaging_service_sid'], 'MSG-SERVICE-SID')
         self.assertTrue(channel_config['account_sid'])
         self.assertTrue(channel_config['auth_token'])
+
+        response = self.client.get(reverse('channels.channel_configuration', args=[channel.uuid]))
+        self.assertContains(response, reverse('courier.tms', args=[channel.uuid, 'receive']))

@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import nexmo
 import pytz
-import six
+import io
 import stripe
 
 from bs4 import BeautifulSoup
@@ -25,7 +22,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.flows.models import Flow, ActionSet, AddToGroupAction
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -103,6 +100,17 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
         self.assertEqual(self.org.get_language_codes(), {'eng', 'kin'})
 
+    def test_channel_prefixes(self):
+        mtn = Channel.create(self.org, self.admin, 'RW', 'KN', "MTN", "5050", {"matching_prefixes": ["25078"]})
+        tigo = Channel.create(self.org, self.admin, 'RW', 'KN', "Tigo", "5050", {"matching_prefixes": ["25072"]})
+
+        joe = self.create_contact("Joe")
+        mtn_urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
+        tigo_urn = ContactURN.get_or_create(self.org, joe, "tel:+250722383383")
+
+        self.assertEqual(mtn, self.org.get_channel_for_role(Channel.ROLE_SEND, 'tel', mtn_urn))
+        self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, 'tel', tigo_urn))
+
     def test_get_channel_countries(self):
         self.assertEqual(self.org.get_channel_countries(), [])
 
@@ -170,7 +178,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", six.text_type(org.country))
+        self.assertEqual("Rwanda", str(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid
@@ -1401,16 +1409,6 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.config['CHATBASE_AGENT_NAME'], 'chatbase_agent')
         self.assertEqual(self.org.config['CHATBASE_VERSION'], '1.0')
 
-        with self.assertRaises(Exception):
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
-        with self.settings(SEND_CHATBASE=True), patch('requests.post'):
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
@@ -1422,13 +1420,6 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        with self.settings(SEND_CHATBASE=True), patch('requests.post') as mock_post:
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-
-            self.assertEqual(len(mock_post.mock_calls), 0)
 
     def test_resthooks(self):
         # no hitting this page without auth
@@ -2002,7 +1993,7 @@ class AnonOrgTest(TembaTest):
     """
 
     def setUp(self):
-        super(AnonOrgTest, self).setUp()
+        super().setUp()
 
         self.org.is_anon = True
         self.org.save()
@@ -2024,10 +2015,14 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
         # can't search for it
-        response = self.client.get(reverse('contacts.contact_list') + "?search=788")
+        with patch('temba.utils.es.ES') as mock_ES:
+            mock_ES.search.return_value = {'_hits': []}
+            mock_ES.count.return_value = {'count': 0}
+            response = self.client.get(reverse('contacts.contact_list') + "?search=788")
 
-        # can't look for 788 as that is in the search box..
-        self.assertNotContains(response, "123123")
+            # can't look for 788 as that is in the search box..
+            self.assertNotContains(response, "123123")
+            self.assertContains(response, 'No matching contacts.')
 
         # create a flow
         flow = self.get_flow('color')
@@ -2044,13 +2039,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -2668,7 +2663,7 @@ class BulkExportTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
+        self.assertFormError(response, 'form', 'import_file', 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
         TopUp.objects.create(org=self.org, price=1, credits=10000,
@@ -2683,17 +2678,30 @@ class BulkExportTest(TembaTest):
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEqual(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
+        self.assertFormError(
+            response, 'form', 'import_file', 'This file is no longer valid. Please export a new version and try again.'
+        )
 
         # simulate an unexpected exception during import
         with patch('temba.triggers.models.Trigger.import_triggers') as validate:
             validate.side_effect = Exception('Unexpected Error')
             post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
             response = self.client.post(reverse('orgs.org_import'), post_data)
-            self.assertEqual(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
+            self.assertFormError(response, 'form', 'import_file', 'Sorry, your import file is invalid.')
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
+
+        # test import using data that is not parsable
+        junk_binary_data = io.BytesIO(b'\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(')
+        post_data = dict(import_file=junk_binary_data)
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
+
+        junk_json_data = io.BytesIO(b'{"key": "data')
+        post_data = dict(import_file=junk_json_data)
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertFormError(response, 'form', 'import_file', 'This file is not a valid flow definition file.')
 
     def test_import_campaign_with_translations(self):
         self.import_file('campaign_import_with_translations')
@@ -2727,6 +2735,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
             self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
+            self.assertEqual(1, ContactField.objects.filter(org=self.org, value_type='D', label="Next Appointment").count())
 
         # import all our bits
         self.import_file('the_clinic')
@@ -2752,7 +2761,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.actions = actions
         action_set.save()
@@ -2764,7 +2773,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
+        self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @(format_date(contact.next_appointment)). See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword='patient').first()
@@ -2777,7 +2786,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
         assert_object_counts()
@@ -3018,7 +3027,7 @@ class CreditAlertTest(TembaTest):
 
 class EmailContextProcessorsTest(SmartminTest):
     def setUp(self):
-        super(EmailContextProcessorsTest, self).setUp()
+        super().setUp()
         self.admin = self.create_user("Administrator")
         self.middleware = BrandingMiddleware()
 
@@ -3222,12 +3231,22 @@ class StripeCreditsTest(TembaTest):
 
 class ParsingTest(TembaTest):
 
+    def test_parse_location_path(self):
+
+        self.country = AdminBoundary.create(osm_id='192787', name='Nigeria', level=0)
+        lagos = AdminBoundary.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        self.org.country = self.country
+
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos'), lagos)
+        self.assertEqual(self.org.parse_location_path('Nigeria > Lagos '), lagos)
+        self.assertEqual(self.org.parse_location_path(' Nigeria > Lagos '), lagos)
+
     def test_parse_decimal(self):
-        self.assertEqual(self.org.parse_decimal("Not num"), None)
-        self.assertEqual(self.org.parse_decimal("00.123"), Decimal("0.123"))
-        self.assertEqual(self.org.parse_decimal("6e33"), None)
-        self.assertEqual(self.org.parse_decimal("6e5"), Decimal("600000"))
-        self.assertEqual(self.org.parse_decimal("9999999999999999999999999"), None)
-        self.assertEqual(self.org.parse_decimal(""), None)
-        self.assertEqual(self.org.parse_decimal("NaN"), None)
-        self.assertEqual(self.org.parse_decimal("Infinity"), None)
+        self.assertEqual(self.org.parse_number("Not num"), None)
+        self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
+        self.assertEqual(self.org.parse_number("6e33"), None)
+        self.assertEqual(self.org.parse_number("6e5"), Decimal("600000"))
+        self.assertEqual(self.org.parse_number("9999999999999999999999999"), None)
+        self.assertEqual(self.org.parse_number(""), None)
+        self.assertEqual(self.org.parse_number("NaN"), None)
+        self.assertEqual(self.org.parse_number("Infinity"), None)

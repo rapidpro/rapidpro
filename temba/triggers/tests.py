@@ -1,21 +1,18 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 import time
-import json
+
+from datetime import timedelta
 from uuid import uuid4
 
-from mock import patch
-from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
+
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME, Contact
+from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
-from temba.orgs.models import Language
 from temba.msgs.models import Msg, INCOMING
+from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, MockResponse
 from .models import Trigger
@@ -600,7 +597,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
+        ChannelEvent.create(self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 1)
         self.assertEqual(flow.runs.all().count(), 0)
 
@@ -621,7 +618,7 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(missed_call_trigger.pk, trigger.pk)
 
-        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
+        ChannelEvent.create(self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {})
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
         self.assertEqual(flow.runs.all().count(), 1)
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
@@ -750,50 +747,6 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
 
-        # ok, trigger a facebook event
-        data = json.loads("""{
-        "object": "page",
-          "entry": [
-            {
-              "id": "620308107999975",
-              "time": 1467841778778,
-              "messaging": [
-                {
-                  "sender":{
-                    "id":"1001"
-                  },
-                  "recipient":{
-                    "id":"%s"
-                  },
-                  "timestamp":1458692752478,
-                  "postback":{
-                    "payload":"get_started"
-                  }
-                }
-              ]
-            }
-          ]
-        }
-        """ % fb_channel.address)
-
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
-
-            callback_url = reverse('handlers.facebook_handler', args=[fb_channel.uuid])
-            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-            self.assertEqual(response.status_code, 200)
-
-            # should have a new flow run for Ben
-            contact = Contact.from_urn(self.org, 'facebook:1001')
-            self.assertTrue(contact.name, "Ben Haggerty")
-
-            # and a new channel event for the conversation
-            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact,
-                                                        event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
-
-            run = FlowRun.objects.get(contact=contact)
-            self.assertEqual(run.flow, flow)
-
         # archive our trigger, should unregister our callback
         with patch('requests.post') as mock_post:
             mock_post.return_value = MockResponse(200, '{"message": "Success"}')
@@ -821,7 +774,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(catch_all_trigger)
 
-        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        Msg.create_incoming(self.channel, str(contact.get_urn()), "Hi")
         self.assertEqual(1, Msg.objects.all().count())
         self.assertEqual(0, flow.runs.all().count())
 
@@ -842,7 +795,7 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(catch_all_trigger.pk, trigger.pk)
 
-        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        incoming = Msg.create_incoming(self.channel, str(contact.get_urn()), "Hi")
         self.assertEqual(1, flow.runs.all().count())
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)
@@ -911,7 +864,7 @@ class TriggerTest(TembaTest):
         FlowRun.objects.all().delete()
         Msg.objects.all().delete()
 
-        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        incoming = Msg.create_incoming(self.channel, str(contact.get_urn()), "Hi")
         self.assertEqual(0, FlowRun.objects.all().count())
         self.assertFalse(Msg.objects.filter(response_to=incoming))
 
@@ -919,7 +872,7 @@ class TriggerTest(TembaTest):
         group.contacts.add(contact)
 
         # this time should trigger the flow
-        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        incoming = Msg.create_incoming(self.channel, str(contact.get_urn()), "Hi")
         self.assertEqual(1, FlowRun.objects.all().count())
         self.assertEqual(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)

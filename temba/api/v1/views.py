@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
+import iso8601
 
-import six
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib.auth import authenticate, login
@@ -19,7 +17,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import splitting_getlist, str_to_bool
-from temba.utils.dates import json_date_to_datetime
 from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, FlowReadSerializer
@@ -45,7 +42,7 @@ class AuthenticateEndpoint(SmartFormView):
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
-        return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
+        return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
@@ -95,7 +92,7 @@ class ListAPIMixin(mixins.ListModelMixin):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
-            return super(ListAPIMixin, self).list(request, *args, **kwargs)
+            return super().list(request, *args, **kwargs)
 
     def paginate_queryset(self, queryset):
         if self.cache_counts:
@@ -273,7 +270,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         before = self.request.query_params.get('before', None)
         if before:
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(modified_on__lte=before)
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
@@ -281,7 +278,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         after = self.request.query_params.get('after', None)
         if after:
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(modified_on__gte=after)
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
@@ -677,7 +674,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         before = self.request.query_params.get('before', None)
         if before:  # pragma: needs cover
             try:
-                before = json_date_to_datetime(before)
+                before = iso8601.parse_date(before)
                 queryset = queryset.filter(created_on__lte=before)
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -685,7 +682,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         after = self.request.query_params.get('after', None)
         if after:  # pragma: needs cover
             try:
-                after = json_date_to_datetime(after)
+                after = iso8601.parse_date(after)
                 queryset = queryset.filter(created_on__gte=after)
             except Exception:
                 queryset = queryset.filter(pk=-1)
@@ -736,7 +733,7 @@ class OrgEndpoint(BaseAPIView):
                     country=org.get_country_code(),
                     languages=[l.iso_code for l in org.languages.order_by('iso_code')],
                     primary_language=org.primary_language.iso_code if org.primary_language else None,
-                    timezone=six.text_type(org.timezone),
+                    timezone=str(org.timezone),
                     date_style=('day_first' if org.get_dayfirst() else 'month_first'),
                     anon=org.is_anon)
 

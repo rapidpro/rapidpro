@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
-import six
 
 from datetime import timedelta
 from django.db import models
@@ -15,10 +11,8 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
-from temba.values.models import Value
 
 
-@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -113,7 +107,8 @@ class Campaign(TembaModel):
                 for event_spec in campaign_spec['events']:
                     relative_to = ContactField.get_or_create(org, user,
                                                              key=event_spec['relative_to']['key'],
-                                                             label=event_spec['relative_to']['label'])
+                                                             label=event_spec['relative_to']['label'],
+                                                             value_type='D')
 
                     # create our message flow for message events
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
@@ -223,7 +218,6 @@ class Campaign(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
@@ -273,7 +267,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        if isinstance(message, six.string_types):
+        if isinstance(message, str):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             message = {base_language: message}
 
@@ -351,7 +345,6 @@ class CampaignEvent(TembaModel):
         return offset
 
     def calculate_scheduled_fire_for_value(self, date_value, now):
-        date_value = self.campaign.org.parse_date(date_value)
         tz = self.campaign.org.timezone
 
         # nothing to base off of, nothing to fire
@@ -417,14 +410,12 @@ class CampaignEvent(TembaModel):
             self.flow.release()
 
     def calculate_scheduled_fire(self, contact):
-        date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
-        return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
+        return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
 
     def __str__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
-@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -437,18 +428,9 @@ class EventFire(Model):
     def is_firing_soon(self):
         return self.scheduled < timezone.now()
 
-    @classmethod
-    def parse_relative_to_date(cls, contact, key):
-        relative_date = contact.org.parse_date(contact.get_field_display(key))
-
-        # if we got a date, floor to the minute
-        if relative_date:
-            relative_date = relative_date.replace(second=0, microsecond=0)
-
-        return relative_date
-
     def get_relative_to_value(self):
-        return EventFire.parse_relative_to_date(self.contact, self.event.relative_to.key)
+        value = self.contact.get_field_value(self.event.relative_to)
+        return value.replace(second=0, microsecond=0) if value else None
 
     def fire(self):
         """
@@ -499,22 +481,27 @@ class EventFire(Model):
 
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
+            field = event.relative_to
+            field_uuid = str(field.uuid)
 
-            contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
-            values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
-            values = values.select_related('contact').distinct('contact')
+            contacts = (
+                event.campaign.group.contacts
+                .filter(is_active=True, is_blocked=False)
+                .exclude(is_test=True)
+                .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
+            )
 
             now = timezone.now()
             events = []
 
             org = event.campaign.org
-            for value in values:
-                formatted_date = org.format_date(value.datetime_value)
-                scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
+            for contact in contacts:
+                contact.org = org
+                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
 
                 # and if we have a date, then schedule it
                 if scheduled:
-                    events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+                    events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
 
             # bulk create our event fires
             EventFire.objects.bulk_create(events)
@@ -522,7 +509,7 @@ class EventFire(Model):
     @classmethod
     def update_field_events(cls, contact_field):
         """
-        Cancel any events for the passed in contact field
+        Updates any events for the passed in contact field
         """
         if not contact_field.is_active:
             # remove any scheduled fires for the passed in field
@@ -532,24 +519,33 @@ class EventFire(Model):
             EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
 
             now = timezone.now()
-            from temba.values.models import Value
 
             org = contact_field.org
-            for event in CampaignEvent.objects.filter(relative_to=contact_field,
-                                                      campaign__is_active=True, campaign__is_archived=False, is_active=True):
+            events = (
+                CampaignEvent.objects
+                .filter(relative_to=contact_field, campaign__is_active=True,
+                        campaign__is_archived=False, is_active=True)
+                .prefetch_related('relative_to')
+            )
+            for event in events:
+                field = event.relative_to
+                field_uuid = str(field.uuid)
 
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
-                values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=contact_field.key)
-                values = values.select_related('contact').distinct('contact')
+                contacts = (
+                    event.campaign.group.contacts
+                    .filter(is_active=True, is_blocked=False)
+                    .exclude(is_test=True)
+                    .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
+                )
 
                 events = []
-                for value in values:
-                    formatted_date = org.format_date(value.datetime_value)
-                    scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
+                for contact in contacts:
+                    contact.org = org
+                    scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
 
                     # and if we have a date, then schedule it
                     if scheduled:
-                        events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+                        events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
 
                 # bulk create our event fires
                 EventFire.objects.bulk_create(events)
@@ -581,9 +577,12 @@ class EventFire(Model):
         groups = [_.id for _ in contact.cached_user_groups]
 
         # get all events which are in one of these groups and on this field
-        for event in CampaignEvent.objects.filter(campaign__group__in=groups, relative_to__key=key,
-                                                  campaign__is_archived=False, is_active=True):
-
+        events = (
+            CampaignEvent.objects
+            .filter(campaign__group__in=groups, relative_to__key=key, campaign__is_archived=False, is_active=True)
+            .prefetch_related('relative_to')
+        )
+        for event in events:
             # remove any unfired events, they will get recreated below
             EventFire.objects.filter(event=event, contact=contact, fired=None).delete()
 

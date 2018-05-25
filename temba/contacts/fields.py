@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -44,7 +42,7 @@ class OmniboxWidget(widgets.TextInput):
 
     def render(self, name, value, attrs=None):
         value = self.get_json(value)
-        return super(OmniboxWidget, self).render(name, value, attrs)
+        return super().render(name, value, attrs)
 
     def get_json(self, value):
 
@@ -68,7 +66,7 @@ class OmniboxField(forms.Field):
     widget = OmniboxWidget(attrs={"class": "omni_widget", "style": "width:85%"})
 
     def __init__(self, **kwargs):
-        super(OmniboxField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def set_user(self, user):
         self.user = user

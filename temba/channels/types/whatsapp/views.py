@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import requests
 
@@ -26,7 +24,7 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     slug_url_kwarg = 'uuid'
 
     def get_queryset(self):
-        queryset = super(RefreshView, self).get_queryset()
+        queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
 
     def post_save(self, obj):
@@ -53,12 +51,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.cleaned_data['number'] = number
 
             try:
-                resp = requests.post(self.cleaned_data['base_url'] + '/api/check_health.php',
-                                     json=dict(payload=['gateway_status']),
+                resp = requests.post(self.cleaned_data['base_url'] + '/v1/users/login',
                                      auth=(self.cleaned_data['username'], self.cleaned_data['password']))
 
                 if resp.status_code != 200:
                     raise Exception("Received non-200 response: %d", resp.status_code)
+
+                self.cleaned_data['auth_token'] = resp.json()['users'][0]['token']
 
             except Exception:
                 raise forms.ValidationError(_("Unable to check WhatsApp enterprise account, please check username and password"))
@@ -80,6 +79,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_BASE_URL: data['base_url'],
             Channel.CONFIG_USERNAME: data['username'],
             Channel.CONFIG_PASSWORD: data['password'],
+            Channel.CONFIG_AUTH_TOKEN: data['auth_token'],
         }
 
         self.object = Channel.create(org, user, data['country'], 'WA',
@@ -88,4 +88,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                                      config=config,
                                      tps=15)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

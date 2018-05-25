@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.test import override_settings
 from django.urls import reverse
@@ -10,7 +8,7 @@ from ...models import Channel
 
 class TwitterTypeTest(TembaTest):
     def setUp(self):
-        super(TwitterTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob",
                                       role="SR", config={})

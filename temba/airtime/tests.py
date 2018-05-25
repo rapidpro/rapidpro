@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.core.urlresolvers import reverse
 from mock import patch
 from temba.airtime.models import AirtimeTransfer
@@ -10,7 +7,7 @@ from temba.tests import TembaTest, MockResponse
 
 class AirtimeEventTest(TembaTest):
     def setUp(self):
-        super(AirtimeEventTest, self).setUp()
+        super().setUp()
 
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
         self.org.connect_transferto('mylogin', 'api_token', self.admin)

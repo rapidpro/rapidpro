@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
+import iso8601
 import logging
 import time
 
@@ -11,7 +10,7 @@ from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStartCount
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowCategoryCount, FlowPathRecentRun
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
@@ -25,13 +24,15 @@ def send_email_action_task(org_id, recipients, subject, message):
         org.email_action_send(recipients, subject, message)
 
 
-@task(track_started=True, name='update_run_expirations_task')  # pragma: no cover
+@task(track_started=True, name='update_run_expirations_task')
 def update_run_expirations_task(flow_id):
     """
     Update all of our current run expirations according to our new expiration period
     """
-    for step in FlowStep.objects.filter(run__flow__id=flow_id, run__is_active=True, left_on=None).distinct('run'):  # pragma: needs cover
-        step.run.update_expiration(step.arrived_on)
+    for run in FlowRun.objects.filter(flow_id=flow_id, is_active=True):
+        if run.path:
+            last_arrived_on = iso8601.parse_date(run.path[-1]['arrived_on'])
+            run.update_expiration(last_arrived_on)
 
     # force an expiration update
     check_flows_task.apply()
@@ -42,7 +43,7 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).order_by('expires_on')
     FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
@@ -108,7 +109,7 @@ def start_msg_flow_batch_task():
 
     try:
         # instantiate all the objects we need that were serialized as JSON
-        flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
+        flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True, is_archived=False).first()
         if not flow:  # pragma: needs cover
             return
 
@@ -141,6 +142,7 @@ def squash_flowruncounts():
     FlowRunCount.squash()
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
+    FlowStartCount.squash()
 
 
 @task(track_started=True, name="deactivate_flow_runs_task")

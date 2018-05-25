@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME, FCM_SCHEME
+from temba.contacts.models import ContactURN, ContactField, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME, FCM_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME, TWILIO_SCHEME, LINE_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import ERRORED, FAILED
@@ -46,7 +44,11 @@ MISSING_VALUE = '--'
 
 @register.filter
 def contact_field(contact, arg):
-    value = contact.get_field_display(arg)
+    field = ContactField.get_by_key(contact.org, arg.lower())
+    if field is None:
+        return MISSING_VALUE
+
+    value = contact.get_field_display(field)
     return value or MISSING_VALUE
 
 

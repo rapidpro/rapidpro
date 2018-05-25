@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 import math
 import pytz
 import random
 import resource
-import six
 import sys
 import time
 import uuid
@@ -21,6 +17,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
@@ -32,8 +29,8 @@ from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
-from temba.utils.dates import ms_to_datetime, datetime_to_str, datetime_to_ms
-from temba.values.models import Value
+from temba.utils.dates import ms_to_datetime, datetime_to_ms
+from temba.values.constants import Value
 
 
 # maximum age in days of database content
@@ -44,6 +41,9 @@ USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = 'test-data/nigeria.bin'
+
+# number of each type of archive to create
+ARCHIVES = 50
 
 # organization names are generated from these components
 ORG_NAMES = (
@@ -65,7 +65,7 @@ CHANNELS = (
 )
 FIELDS = (
     {'key': 'gender', 'label': "Gender", 'value_type': Value.TYPE_TEXT},
-    {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_DECIMAL},
+    {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_NUMBER},
     {'key': 'joined', 'label': "Joined On", 'value_type': Value.TYPE_DATETIME},
     {'key': 'ward', 'label': "Ward", 'value_type': Value.TYPE_WARD},
     {'key': 'district', 'label': "District", 'value_type': Value.TYPE_DISTRICT},
@@ -98,8 +98,8 @@ FLOWS = (
 
 # contact names are generated from these components
 CONTACT_NAMES = (
-    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
-    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
+    ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
+    ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
 CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
@@ -183,6 +183,7 @@ class Command(BaseCommand):
         self.create_groups(orgs)
         self.create_labels(orgs)
         self.create_flows(orgs)
+        self.create_archives(orgs)
         self.create_contacts(orgs, locations, num_contacts)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
@@ -337,6 +338,52 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
+    def create_archives(self, orgs):
+        """
+        Creates archives for each org
+        """
+        self._log("Creating %d archives... " % (len(orgs) * ARCHIVES * 3))
+
+        MAX_RECORDS_PER_DAY = 3000000
+
+        def create_archive(max_records, start, period):
+            record_count = random.randint(0, max_records)
+            archive_size = record_count * 20
+            archive_hash = uuid.uuid4().hex
+
+            if period == Archive.DAY:
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz'
+            else:
+
+                archive_url = f'https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/' \
+                              f'{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz'
+
+            Archive.objects.create(org=org, archive_type=type[0],
+                                   url=archive_url, start_date=start, period=period,
+                                   size=archive_size, hash=archive_hash,
+                                   record_count=record_count, build_time=record_count / 123)
+
+        for org in orgs:
+            for type in Archive.TYPE_CHOICES:
+                end = timezone.now()
+
+                # daily archives up until now
+                for idx in range(0, end.day - 2):
+                    end = (end - timedelta(days=1))
+                    start = (end - timedelta(days=1))
+                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.DAY)
+
+                # month archives before that
+                end = timezone.now()
+                for idx in range(0, ARCHIVES):
+                    # last day of the previous month
+                    end = end.replace(day=1) - timedelta(days=1)
+                    start = end.replace(day=1)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.MONTH)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
     def create_fields(self, orgs):
         """
         Creates the contact fields for each org
@@ -365,7 +412,7 @@ class Command(BaseCommand):
                 if g['query']:
                     group = ContactGroup.create_dynamic(org, user, g['name'], g['query'])
                 else:
-                    group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
+                    group = ContactGroup.create_static(org, user, g['name'])
                 group.member = g['member']
                 group.count = 0
                 org.cache['groups'].append(group)
@@ -419,12 +466,12 @@ class Command(BaseCommand):
 
         # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
-        with DisableTriggersOn(Contact, ContactURN, Value, ContactGroup.contacts.through):
+        with DisableTriggersOn(Contact, ContactURN, ContactGroup.contacts.through):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 
             batch_num = 1
-            for index_batch in chunk_list(six.moves.xrange(num_contacts), self.batch_size):
+            for index_batch in chunk_list(range(num_contacts), self.batch_size):
                 batch = []
 
                 # generate flat representations and contact objects for this batch
@@ -454,6 +501,42 @@ class Command(BaseCommand):
                         'created_on': created_on,
                         'modified_on': self.random_date(created_on, self.db_ends_on),
                     }
+
+                    c['fields_as_json'] = {}
+
+                    if c['gender'] is not None:
+                        c['fields_as_json'][str(org.cache['fields']['gender'].uuid)] = {
+                            'text': str(c['gender'])
+                        }
+                    if c['age'] is not None:
+                        c['fields_as_json'][str(org.cache['fields']['age'].uuid)] = {
+                            'text': str(c['age']),
+                            'number': str(c['age'])
+                        }
+                    if c['joined'] is not None:
+                        c['fields_as_json'][str(org.cache['fields']['joined'].uuid)] = {
+                            'text': org.format_datetime(c['joined'], show_time=False),
+                            'datetime': timezone.localtime(c['joined'], org.timezone).isoformat()
+                        }
+
+                    if location:
+                        c['fields_as_json'].update({
+                            str(org.cache['fields']['ward'].uuid): {
+                                'text': str(c['ward'].path.split(' > ')[-1]),
+                                'ward': c['ward'].path,
+                                'district': c['district'].path,
+                                'state': c['state'].path
+                            },
+                            str(org.cache['fields']['district'].uuid): {
+                                'text': str(c['district'].path.split(' > ')[-1]),
+                                'district': c['district'].path,
+                                'state': c['state'].path
+                            },
+                            str(org.cache['fields']['state'].uuid): {
+                                'text': str(c['state'].path.split(' > ')[-1]),
+                                'state': c['state'].path
+                            }
+                        })
 
                     # work out which system groups this contact belongs to
                     if c['is_active']:
@@ -495,12 +578,11 @@ class Command(BaseCommand):
                                   is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
                                   is_active=c['is_active'],
                                   created_by=c['user'], created_on=c['created_on'],
-                                  modified_by=c['user'], modified_on=c['modified_on'])
+                                  modified_by=c['user'], modified_on=c['modified_on'], fields=c['fields_as_json'])
         Contact.objects.bulk_create([c['object'] for c in batch])
 
         # now that contacts have pks, bulk create the actual URN, value and group membership objects
         batch_urns = []
-        batch_values = []
         batch_memberships = []
 
         for c in batch:
@@ -513,31 +595,12 @@ class Command(BaseCommand):
             if c['twitter']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
                                             path=c['twitter'], identity=URN.from_twitter(c['twitter'])))
-            if c['gender']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
-                                          string_value=c['gender']))
-            if c['age']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
-                                          string_value=str(c['age']), decimal_value=c['age']))
-            if c['joined']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                          string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
-            if c['ward']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
-                                          string_value=c['ward'].name, location_value=c['ward']))
-            if c['district']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
-                                          string_value=c['district'].name, location_value=c['district']))
-            if c['state']:
-                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
-                                          string_value=c['state'].name, location_value=c['state']))
             for g in c['groups']:
                 batch_memberships.append(ContactGroup.contacts.through(contact=c['object'], contactgroup=g))
 
             batch_urns += c['urns']
 
         ContactURN.objects.bulk_create(batch_urns)
-        Value.objects.bulk_create(batch_values)
         ContactGroup.contacts.through.objects.bulk_create(batch_memberships)
 
     def simulate_activity(self, orgs, num_runs):
@@ -630,7 +693,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, six.text_type(urn), text)
+                    Msg.create_incoming(channel, str(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -649,7 +712,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, six.text_type(urn), text)
+                Msg.create_incoming(channel, str(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob

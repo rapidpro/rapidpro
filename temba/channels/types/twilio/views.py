@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import phonenumbers
 
@@ -39,7 +37,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def __init__(self, channel_type):
-        super(ClaimView, self).__init__(channel_type)
+        super().__init__(channel_type)
         self.account = None
         self.client = None
 
@@ -66,15 +64,15 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse('channels.types.twilio.claim')
 
     def get_context_data(self, **kwargs):
-        context = super(ClaimView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context['account_trial'] = self.account.type.lower() == 'trial'
         return context
 
     def get_existing_numbers(self, org):
         client = org.get_twilio_client()
         if client:
-            twilio_account_numbers = client.phone_numbers.list()
-            twilio_short_codes = client.sms.short_codes.list()
+            twilio_account_numbers = client.phone_numbers.list(page_size=1000)
+            twilio_short_codes = client.sms.short_codes.list(page_size=1000)
 
         numbers = []
         for number in twilio_account_numbers:
@@ -125,7 +123,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             if short_codes:
                 short_code = short_codes[0]
                 number_sid = short_code.sid
-                app_url = "https://" + callback_domain + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                app_url = "https://" + callback_domain + "%s" % reverse('courier.t', args=[channel_uuid, 'receive'])
                 client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE

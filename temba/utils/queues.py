@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import time
 import importlib
+from functools import wraps
 
 from celery import current_app, shared_task
 from django.conf import settings
@@ -128,6 +127,7 @@ def nonoverlapping_task(*task_args, **task_kwargs):
     Decorator to create an task whose executions are prevented from overlapping by a redis lock
     """
     def _nonoverlapping_task(task_func):
+        @wraps(task_func)
         def wrapper(*exec_args, **exec_kwargs):
             r = get_redis_connection()
 

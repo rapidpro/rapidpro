@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 import time
 import json
 
@@ -18,7 +14,56 @@ from uuid import uuid4
 
 
 def generate_uuid():
-    return six.text_type(uuid4())
+    return str(uuid4())
+
+
+class ProxyQuerySet(object):
+    """
+    Helper class that mimics the behavior of a Django QuerySet
+
+    The result is cached so we can't chain it as a normal QuerySet, but becuse we defined special methods that are
+    expected by templates and tests we can use it as an evaluated QuerySet
+    """
+
+    def __init__(self, object_list):
+        self.object_list = object_list
+
+    def count(self):
+        return len(self)
+
+    def __iter__(self):
+        return iter(self.object_list)
+
+    def __len__(self):
+        return len(self.object_list)
+
+    def __getitem__(self, item):
+        return self.object_list[item]
+
+
+def mapEStoDB(model, es_queryset, only_ids=False):
+    """
+    Map ElasticSearch results to Django Model objects
+    We use object PKs from ElasticSearch result set and select those objects in the database
+    """
+    pks = (result.id for result in es_queryset)
+
+    if only_ids:
+        return pks
+    else:
+        # prepare the data set
+        pairs = ','.join(str((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
+
+        if pairs:
+            return model.objects.raw(
+                f"""SELECT model.*
+                from {model._meta.db_table} AS model JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
+                    ON model.id = tmp_resultset.model_id
+                ORDER BY tmp_resultset.seq
+                """
+            )
+        else:
+            return model.objects.none()
 
 
 class TranslatableField(HStoreField):
@@ -30,20 +75,20 @@ class TranslatableField(HStoreField):
             self.max_length = max_length
 
         def __call__(self, value):
-            for lang, translation in six.iteritems(value):
+            for lang, translation in value.items():
                 if lang != 'base' and len(lang) != 3:
                     raise ValidationError("'%s' is not a valid language code." % lang)
                 if len(translation) > self.max_length:
                     raise ValidationError("Translation for '%s' exceeds the %d character limit." % (lang, self.max_length))
 
     def __init__(self, max_length, **kwargs):
-        super(TranslatableField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.max_length = max_length
 
     @cached_property
     def validators(self):
-        return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
+        return super().validators + [TranslatableField.Validator(self.max_length)]
 
 
 class CheckFieldDefaultMixin(object):
@@ -69,7 +114,7 @@ class CheckFieldDefaultMixin(object):
             return []
 
     def check(self, **kwargs):
-        errors = super(CheckFieldDefaultMixin, self).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(self._check_default())
         return errors
 
@@ -94,7 +139,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
     def __init__(self, object_pairs_hook=dict, *args, **kwargs):
 
         self.object_pairs_hook = object_pairs_hook
-        super(JSONAsTextField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
         if self.has_default() and value is None:
@@ -103,7 +148,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if value is None:
             return value
 
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
 
             if type(data) not in (list, dict, OrderedDict):
@@ -127,7 +172,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         return json.dumps(value)
 
     def to_python(self, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = json.loads(value)
         return value
 
@@ -135,7 +180,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         return 'text'
 
     def deconstruct(self):
-        name, path, args, kwargs = super(JSONAsTextField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         # Only include kwarg if it's not the default
         if self.object_pairs_hook != dict:
             kwargs['object_pairs_hook'] = self.object_pairs_hook
@@ -157,7 +202,7 @@ class RequireUpdateFieldsMixin(object):
         if self.id and 'update_fields' not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
-        return super(RequireUpdateFieldsMixin, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):

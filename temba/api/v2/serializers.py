@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import iso8601
 import json
-import six
 
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -17,7 +13,7 @@ from temba.msgs.models import QUEUED
 from temba.msgs.tasks import send_broadcast_task
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_json_date
-from temba.values.models import Value
+from temba.values.constants import Value
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -65,7 +61,7 @@ class WriteSerializer(serializers.Serializer):
                                      "To enable sending messages, please contact support."]
             })
 
-        return super(WriteSerializer, self).run_validation(data)
+        return super().run_validation(data)
 
 
 # ============================================================
@@ -104,7 +100,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context['org'].is_anon:
             return None
         else:
-            return [six.text_type(urn) for urn in obj.urns.all()]
+            return [str(urn) for urn in obj.urns.all()]
 
     class Meta:
         model = Broadcast
@@ -317,7 +313,7 @@ class ChannelReadSerializer(ReadSerializer):
     device = serializers.SerializerMethodField()
 
     def get_country(self, obj):
-        return six.text_type(obj.country) if obj.country else None
+        return str(obj.country) if obj.country else None
 
     def get_device(self, obj):
         if obj.channel_type != Channel.TYPE_ANDROID:
@@ -355,7 +351,7 @@ class ContactReadSerializer(ReadSerializer):
         if self.context['org'].is_anon or not obj.is_active:
             return []
 
-        return [six.text_type(urn) for urn in obj.get_urns()]
+        return [str(urn) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -370,8 +366,7 @@ class ContactReadSerializer(ReadSerializer):
 
         fields = {}
         for contact_field in self.context['contact_fields']:
-            value = obj.get_field(contact_field.key)
-            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value, org=self.context['org'])
+            fields[contact_field.key] = obj.get_field_serialized(contact_field)
         return fields
 
     def get_blocked(self, obj):
@@ -394,7 +389,7 @@ class ContactWriteSerializer(WriteSerializer):
     fields = fields.LimitedDictField(required=False)
 
     def __init__(self, *args, **kwargs):
-        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def validate_groups(self, value):
         # if contact is blocked, they can't be added to groups
@@ -472,7 +467,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         if custom_fields is not None:
-            for key, value in six.iteritems(custom_fields):
+            for key, value in custom_fields.items():
                 self.instance.set_field(self.context['user'], key, value)
 
         # update our groups
@@ -703,14 +698,14 @@ class FlowRunReadSerializer(ReadSerializer):
                 'time': format_datetime(created_on),
             }
 
-        return {k: convert_result(r) for k, r in six.iteritems(obj.results)}
+        return {k: convert_result(r) for k, r in obj.results.items()}
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'start', 'responded', 'path', 'values',
+        fields = ('id', 'uuid', 'flow', 'contact', 'start', 'responded', 'path', 'values',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 

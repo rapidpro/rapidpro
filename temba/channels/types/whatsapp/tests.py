@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
+from django.forms import ValidationError
 from django.urls import reverse
 from mock import patch
 
 from temba.tests import TembaTest, MockResponse
-from ...models import Channel
+from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_tokens
 from .type import WhatsAppType
-from django.forms import ValidationError
-from .tasks import refresh_whatsapp_contacts
+from ...models import Channel
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -48,36 +46,36 @@ class WhatsAppTypeTest(TembaTest):
 
         # then success
         with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(200, '{ "error": "false" }')
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
             response = self.client.post(url, post_data)
             self.assertEqual(302, response.status_code)
 
         channel = Channel.objects.get()
 
-        self.assertEqual('temba', channel.config['username'])
-        self.assertEqual('tembapasswd', channel.config['password'])
-        self.assertEqual('https://whatsapp.foo.bar', channel.config['base_url'])
+        self.assertEqual('temba', channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual('tembapasswd', channel.config[Channel.CONFIG_PASSWORD])
+        self.assertEqual('abc123', channel.config[Channel.CONFIG_AUTH_TOKEN])
+        self.assertEqual('https://whatsapp.foo.bar', channel.config[Channel.CONFIG_BASE_URL])
 
         self.assertEqual('+250788123123', channel.address)
         self.assertEqual('RW', channel.country)
         self.assertEqual('WA', channel.channel_type)
 
         # test activating the channel
-        with patch('requests.post') as mock_post:
-            mock_post.side_effect = [
+        with patch('requests.patch') as mock_patch:
+            mock_patch.side_effect = [
                 MockResponse(200, '{ "error": false }'),
                 MockResponse(200, '{ "error": false }'),
-                MockResponse(200, '{ "error": false }')
+                MockResponse(200, '{ "error": false }'),
             ]
             WhatsAppType().activate(channel)
-            self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['set_settings']['webcallbacks']["1"],
+            self.assertEqual(mock_patch.call_args_list[0][1]['json']['webhooks']['url'],
                              'https://%s%s' % (channel.org.get_brand_domain(), reverse('courier.wa', args=[channel.uuid, 'receive'])))
-            self.assertEqual(mock_post.call_args_list[1][1]['json']['payload']['set_allow_unsolicited_group_add'],
-                             False)
-            self.assertIn('set_settings', mock_post.call_args_list[2][1]['json']['payload'])
+            self.assertEqual(mock_patch.call_args_list[1][1]['json']['allow_unsolicited_add'], False)
+            self.assertEqual(mock_patch.call_args_list[2][1]['json']['messaging_api_rate_limit'], ["15", "54600", "1000000"])
 
-        with patch('requests.post') as mock_post:
-            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+        with patch('requests.patch') as mock_patch:
+            mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]
 
             try:
                 WhatsAppType().activate(channel)
@@ -85,10 +83,10 @@ class WhatsAppTypeTest(TembaTest):
             except ValidationError:
                 pass
 
-        with patch('requests.post') as mock_post:
-            mock_post.side_effect = [
+        with patch('requests.patch') as mock_patch:
+            mock_patch.side_effect = [
                 MockResponse(200, '{ "error": "false" }'),
-                MockResponse(400, '{ "error": "true" }')
+                MockResponse(400, '{ "error": "true" }'),
             ]
 
             try:
@@ -97,11 +95,11 @@ class WhatsAppTypeTest(TembaTest):
             except ValidationError:
                 pass
 
-        with patch('requests.post') as mock_post:
-            mock_post.side_effect = [
-                MockResponse(200, '{ "error": false }'),
-                MockResponse(200, '{ "error": false }'),
-                MockResponse(400, '{ "error": true }')
+        with patch('requests.patch') as mock_patch:
+            mock_patch.side_effect = [
+                MockResponse(200, '{ "error": "false" }'),
+                MockResponse(200, '{ "error": "false" }'),
+                MockResponse(400, '{ "error": "true" }'),
             ]
 
             try:
@@ -120,7 +118,7 @@ class WhatsAppTypeTest(TembaTest):
             self.create_contact("Joe", urn="whatsapp:250788382382")
             self.client.post(refresh_url)
 
-            self.assertEqual(mock_post.call_args_list[0][1]['json']['payload']['users'],
+            self.assertEqual(mock_post.call_args_list[0][1]['json']['contacts'],
                              ['+250788382382'])
 
         with patch('requests.post') as mock_post:
@@ -130,3 +128,16 @@ class WhatsAppTypeTest(TembaTest):
                 self.fail("Should have thrown exception")
             except Exception:
                 pass
+
+        # and fetching new tokens
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
+            refresh_whatsapp_tokens()
+            channel.refresh_from_db()
+            self.assertEqual('abc345', channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            refresh_whatsapp_tokens()
+            channel.refresh_from_db()
+            self.assertEqual('abc345', channel.config[Channel.CONFIG_AUTH_TOKEN])

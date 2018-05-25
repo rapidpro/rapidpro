@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -22,7 +17,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         env_name = forms.CharField(label=_('Environment Name'))
 
         def clean(self):
-            cleaned_data = super(ClaimView.Form, self).clean()
+            cleaned_data = super().clean()
             api_key = cleaned_data.get('api_key')
             api_secret = cleaned_data.get('api_secret')
             access_token = cleaned_data.get('access_token')
@@ -59,7 +54,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
         account_info = twitter.verify_credentials()
-        handle_id = six.text_type(account_info['id'])
+        handle_id = str(account_info['id'])
         screen_name = account_info['screen_name']
 
         config = {
@@ -75,4 +70,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name="@%s" % screen_name,
                                      address=screen_name, config=config)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

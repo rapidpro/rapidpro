@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 
 from django.contrib import messages
@@ -27,7 +24,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return r'^%s/%s/$' % (path, action)
 
         def pre_process(self, request, *args, **kwargs):
-            response = super(BoundaryCRUDL.Alias, self).pre_process(
+            response = super().pre_process(
                 self, request, *args, **kwargs)
 
             # we didn't shortcut for some other reason, check that they have an
@@ -64,7 +61,7 @@ class BoundaryCRUDL(SmartCRUDL):
 
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
-            return super(BoundaryCRUDL.Boundaries, self).dispatch(*args, **kwargs)
+            return super().dispatch(*args, **kwargs)
 
         @classmethod
         def derive_url_pattern(cls, path, action):

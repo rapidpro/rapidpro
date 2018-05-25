@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -15,6 +13,8 @@ class ClickatellType(ChannelType):
 
     code = 'CT'
     category = ChannelType.Category.PHONE
+
+    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
 
     name = "Clickatell"
     icon = "icon-channel-clickatell"
@@ -57,6 +57,3 @@ class ClickatellType(ChannelType):
         ),
 
     )
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Clickatell messages is only possible via Courier")

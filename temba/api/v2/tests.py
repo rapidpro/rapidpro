@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import iso8601
 import json
 import pytz
-import six
 
 from datetime import datetime
 from django.contrib.auth.models import Group
@@ -25,10 +21,10 @@ from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction,
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg
-from temba.values.models import Value
+from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
+from temba.values.constants import Value
 from uuid import uuid4
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from . import fields
 from .serializers import format_datetime
@@ -40,7 +36,7 @@ NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API reques
 class APITest(TembaTest):
 
     def setUp(self):
-        super(APITest, self).setUp()
+        super().setUp()
 
         self.joe = self.create_contact("Joe Blow", "0788123123")
         self.frank = self.create_contact("Frank", twitter="franky")
@@ -58,7 +54,7 @@ class APITest(TembaTest):
         connection.settings_dict['ATOMIC_REQUESTS'] = False
 
     def tearDown(self):
-        super(APITest, self).tearDown()
+        super().tearDown()
 
         connection.settings_dict['ATOMIC_REQUESTS'] = True
 
@@ -309,7 +305,7 @@ class APITest(TembaTest):
         # login as administrator
         self.login(self.admin)
         token = self.admin.api_token  # generates token for the user
-        self.assertIsInstance(token, six.string_types)
+        self.assertIsInstance(token, str)
         self.assertEqual(len(token), 40)
 
         with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
@@ -709,7 +705,7 @@ class APITest(TembaTest):
 
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration", value_type=Value.TYPE_DATETIME)
 
         # create our contact and set a registration date
         contact = self.create_contact("Joe", "+12065551515")
@@ -1040,7 +1036,7 @@ class APITest(TembaTest):
         hans = self.create_contact("Hans", "0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -1138,9 +1134,10 @@ class APITest(TembaTest):
         jaqen = Contact.objects.filter(name=None, language=None).order_by('-pk').first()
         self.assertEqual(set(jaqen.urns.all()), set())
         self.assertEqual(set(jaqen.user_groups.all()), set())
-        self.assertEqual(set(jaqen.values.all()), set())
+        self.assertIsNone(jaqen.fields)
 
-        dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
+        with ESMockWithScroll():
+            dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
         response = self.postJSON(url, None, {
@@ -1156,10 +1153,11 @@ class APITest(TembaTest):
         self.assertEqual(resp_json['urns'], ['twitter:jean', 'tel:+250783333333'])
 
         # URNs will be normalized
+        nickname = ContactField.get_by_key(self.org, 'nickname')
         jean = Contact.objects.filter(name="Jean", language='fra').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
-        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+        self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # create with invalid fields
         response = self.postJSON(url, None, {
@@ -1184,7 +1182,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
-        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+        self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {
@@ -1201,7 +1199,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.language, "eng")
         self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {'tel:+250784444444'})
         self.assertEqual(set(jean.user_groups.all()), set())
-        self.assertEqual(jean.get_field('nickname').string_value, "John")
+        self.assertEqual(jean.get_field_value(nickname), "John")
 
         # update by URN (which should be normalized)
         response = self.postJSON(url, 'urn=%s' % quote_plus("tel:+250-78-4444444"), {'name': "Jean III"})
@@ -1418,7 +1416,9 @@ class APITest(TembaTest):
 
         group = self.create_group("Testers")
         self.create_field('isdeveloper', "Is developer")
-        self.create_group("Developers", query="isdeveloper = YES")
+
+        with ESMockWithScroll():
+            self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.get_flow('color')
@@ -1430,7 +1430,7 @@ class APITest(TembaTest):
         self.create_msg(direction='I', contact=contact4, text="Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
-        response = self.postJSON(url, None, {'contacts': [six.text_type(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
+        response = self.postJSON(url, None, {'contacts': [str(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
         self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
@@ -1811,10 +1811,12 @@ class APITest(TembaTest):
 
         self.create_field('isdeveloper', "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        developers = self.create_group("Developers", query="isdeveloper = YES")
+        with ESMockWithScroll():
+            developers = self.create_group("Developers", query="isdeveloper = YES")
 
-        # a group which is being re-evaluated
-        unready = self.create_group("Big Group", query="isdeveloper=NO")
+            # a group which is being re-evaluated
+            unready = self.create_group("Big Group", query="isdeveloper=NO")
+
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=('status',))
 
@@ -2050,7 +2052,7 @@ class APITest(TembaTest):
             'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
-            'urn': six.text_type(msg.contact_urn),
+            'urn': str(msg.contact_urn),
             'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
@@ -2072,11 +2074,6 @@ class APITest(TembaTest):
         # make sure user rights are correct
         self.assertEndpointAccess(url, "folder=inbox")
 
-        # make sure you have to pass in something to filter by
-        response = self.fetchJSON(url)
-        self.assertResponseError(response, None,
-                                 "You must specify one of the contact, folder, label, broadcast, id parameters")
-
         # create some messages
         joe_msg1 = self.create_msg(direction='I', msg_type='F', text="Howdy", contact=self.joe)
         frank_msg1 = self.create_msg(direction='I', msg_type='I', text="Bonjour", contact=self.frank, channel=self.twitter)
@@ -2085,6 +2082,7 @@ class APITest(TembaTest):
         joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe,
                                    attachments=['image/jpeg:https://example.com/test.jpg'])
         frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
+        frank_msg4 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='F')
 
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
@@ -2109,6 +2107,13 @@ class APITest(TembaTest):
 
         frank_msg1.refresh_from_db(fields=('modified_on',))
         joe_msg3.refresh_from_db(fields=('modified_on',))
+
+        # default response is all messages sorted by created_on
+        response = self.fetchJSON(url)
+        self.assertResultsById(
+            response,
+            [joe_msg4, frank_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1]
+        )
 
         # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
@@ -2145,6 +2150,10 @@ class APITest(TembaTest):
         # filter by folder (sent)
         response = self.fetchJSON(url, 'folder=sent')
         self.assertResultsById(response, [joe_msg4, frank_msg2])
+
+        # filter by folder (failed)
+        response = self.fetchJSON(url, 'folder=failed')
+        self.assertResultsById(response, [frank_msg4])
 
         # filter by invalid view
         response = self.fetchJSON(url, 'folder=invalid')
@@ -2290,7 +2299,7 @@ class APITest(TembaTest):
         # allow Frank to run the flow in French
         self.org.set_languages(self.admin, ['eng', 'fra'], 'eng')
         self.frank.language = 'fra'
-        self.frank.save()
+        self.frank.save(update_fields=('language',))
 
         flow1 = self.get_flow('color')
         flow2 = Flow.copy(flow1, self.user)
@@ -2333,19 +2342,17 @@ class APITest(TembaTest):
         self.assertEqual(response.json()['next'], None)
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
-        joe_run1_steps = list(joe_run1.steps.order_by('pk'))
-        frank_run2_steps = list(frank_run2.steps.order_by('pk'))
-
         resp_json = response.json()
         self.assertEqual(resp_json['results'][2], {
             'id': frank_run2.pk,
+            'uuid': str(frank_run2.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'start': None,
             'responded': False,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(frank_run2.path[1]['arrived_on']))}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2355,14 +2362,15 @@ class APITest(TembaTest):
         })
         self.assertEqual(resp_json['results'][4], {
             'id': joe_run1.pk,
+            'uuid': str(joe_run1.uuid),
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': color_prompt.uuid, 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': color_ruleset.uuid, 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': blue_reply.uuid, 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': color_prompt.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[0]['arrived_on']))},
+                {'node': color_ruleset.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[1]['arrived_on']))},
+                {'node': blue_reply.uuid, 'time': format_datetime(iso8601.parse_date(joe_run1.path[2]['arrived_on']))}
             ],
             'values': {
                 'color': {
@@ -2384,6 +2392,17 @@ class APITest(TembaTest):
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by uuid
+        response = self.fetchJSON(url, 'uuid=%s' % frank_run2.uuid)
+        self.assertResultsById(response, [frank_run2])
+
+        # filter by mismatching id and uuid
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, joe_run1.pk))
+        self.assertResultsById(response, [])
+
+        response = self.fetchJSON(url, 'uuid=%s&id=%d' % (frank_run2.uuid, frank_run2.pk))
         self.assertResultsById(response, [frank_run2])
 
         # filter by flow
@@ -2789,7 +2808,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [start2, start1])
         self.assertEqual(response.json()['results'][0], {
             'id': start2.id,
-            'uuid': six.text_type(start2.uuid),
+            'uuid': str(start2.uuid),
             'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
             'contacts': [
                 {'uuid': self.joe.uuid, 'name': 'Joe Blow'},

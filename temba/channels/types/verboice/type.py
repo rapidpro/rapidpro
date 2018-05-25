@@ -1,10 +1,9 @@
-from __future__ import unicode_literals, absolute_import
 
 from django.utils.translation import ugettext_lazy as _
 
+from temba.channels.models import ChannelType
 from temba.channels.types.verboice.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
-from temba.channels.models import ChannelType
 
 
 class VerboiceType(ChannelType):
@@ -12,6 +11,8 @@ class VerboiceType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Verboice"
+
+    courier_url = r'^vb/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
 
     claim_blurb = _('Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.')
     claim_view = ClaimView
@@ -36,6 +37,3 @@ class VerboiceType(ChannelType):
 
     def is_available_to(self, user):
         return False
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Verboice messages is not supported.")

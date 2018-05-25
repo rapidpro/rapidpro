@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 
 from django import forms
@@ -32,4 +30,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name=title, address=key, config=config)
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

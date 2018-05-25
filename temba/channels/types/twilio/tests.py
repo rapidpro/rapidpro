@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.urls import reverse
 from mock import patch
@@ -147,6 +145,7 @@ class TwilioTypeTest(TembaTest):
 
                 response = self.client.get(claim_twilio)
                 self.assertContains(response, '45 33 55 00')
+                self.assertEqual(mock_numbers.call_args_list[0][1], {'page_size': 1000})
 
                 # claim it
                 response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
@@ -172,6 +171,7 @@ class TwilioTypeTest(TembaTest):
                 # claim it
                 response = self.client.post(claim_twilio, dict(country='US', phone_number='8080'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                self.assertEqual(mock_numbers.call_args_list[0][1], {'page_size': 1000})
 
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='T', org=self.org)

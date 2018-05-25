@@ -1,30 +1,25 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import logging
-import phonenumbers
-import six
 import time
-from six.moves.urllib.parse import urlparse
-
 from abc import ABCMeta
-
-from django.template import Engine
-from enum import Enum
 from datetime import timedelta
-from django.template import Context
+from enum import Enum
+from xml.sax.saxutils import escape
+
+import phonenumbers
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.template import Context
+from django.template import Engine
 from django.template import TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -34,17 +29,17 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
+from urllib.parse import urlparse
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
+from twilio import twiml, TwilioRestException
+
+from temba.orgs.models import Org, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
-from temba.utils.http import HttpEvent
-from temba.utils.nexmo import NCCOResponse
+from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
+from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
-from twilio import twiml, TwilioRestException
-from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +60,7 @@ class Encoding(Enum):
     UNICODE = 3
 
 
-class ChannelType(six.with_metaclass(ABCMeta)):
+class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
     """
@@ -82,6 +77,9 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     code = None
     slug = None
     category = None
+
+    # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
+    courier_url = None
 
     name = None
     icon = 'icon-channel-external'
@@ -114,7 +112,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         if self.available_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and six.text_type(timezone) in self.available_timezones
+            return timezone and str(timezone) in self.available_timezones
         else:
             return True
 
@@ -124,7 +122,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         if self.recommended_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and six.text_type(timezone) in self.recommended_timezones
+            return timezone and str(timezone) in self.recommended_timezones
         else:
             return False
 
@@ -142,6 +140,14 @@ class ChannelType(six.with_metaclass(ABCMeta)):
             return [self.get_claim_url()]
         else:
             return []
+
+    def get_courier_url(self):
+        """
+        Returns the url pattern for our courier URL
+        """
+        from .handlers import CourierHandler
+        courier_url = self.__class__.courier_url
+        return url(courier_url, CourierHandler.as_view(channel_name=self.name), name='courier.%s' % self.code.lower()) if courier_url else None
 
     def get_claim_url(self):
         """
@@ -183,19 +189,13 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
-        raise NotImplemented("sending for channel type '%s' should be done via Courier" % self.__class__.code)
+        raise NotImplemented("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
         Whether the given channel instance supports message attachments
         """
         return self.attachment_support
-
-    def setup_periodic_tasks(self, sender):
-        """
-        Allows a ChannelType to register periodic tasks it wants celery to run.
-        ex: sender.add_periodic_task(300, remap_twitter_ids)
-        """
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
@@ -241,10 +241,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
-    TYPE_DUMMY = 'DM'
 
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = 'base_url'
@@ -304,15 +302,19 @@ class Channel(TembaModel):
 
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
+    ROLE_CONFIG = {
+        ROLE_SEND: 'send',
+        ROLE_RECEIVE: 'receive',
+        ROLE_CALL: 'call',
+        ROLE_ANSWER: 'answer',
+        ROLE_USSD: 'ussd',
+    }
+
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
 
     # how big each batch of outgoing messages can be
     SEND_BATCH_SIZE = 100
-
-    YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
-    YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
-    YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
     CONTENT_TYPE_URLENCODED = 'urlencoded'
     CONTENT_TYPE_JSON = 'json'
@@ -334,17 +336,23 @@ class Channel(TembaModel):
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
     }
 
-    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_DUMMY, "Dummy"))
+    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),)
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
     }
 
     HIDE_CONFIG_PAGE = [TYPE_ANDROID]
+
+    SIMULATOR_CHANNEL = {
+        'uuid': '440099cf-200c-4d45-a8e7-4a564f4a0e8b',
+        'name': "Simulator Channel",
+        'address': '+18005551212',
+        'schemes': ['tel'],
+        'roles': ['send']
+    }
 
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
@@ -403,7 +411,7 @@ class Channel(TembaModel):
 
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
-        if isinstance(channel_type, six.string_types):
+        if isinstance(channel_type, str):
             channel_type = cls.get_type_from_code(channel_type)
 
         if schemes:
@@ -454,7 +462,7 @@ class Channel(TembaModel):
     @classmethod
     def get_types(cls):
         from .types import TYPES
-        return six.itervalues(TYPES)
+        return TYPES.values()
 
     @classmethod
     def get_by_category(cls, org, category):
@@ -592,26 +600,6 @@ class Channel(TembaModel):
         while cls.objects.filter(secret=code):  # pragma: no cover
             code = random_string(length)
         return code
-
-    @classmethod
-    def determine_encoding(cls, text, replace=False):
-        """
-        Determines what type of encoding should be used for the passed in SMS text.
-        """
-        # if this is plain gsm7, then we are good to go
-        if is_gsm7(text):
-            return Encoding.GSM7, text
-
-        # if this doesn't look like GSM7 try to replace characters that are close enough
-        if replace:
-            replaced = replace_non_gsm7_accents(text)
-
-            # great, this is now GSM7, let's send that
-            if is_gsm7(replaced):
-                return Encoding.REPLACED, replaced
-
-        # otherwise, this is unicode
-        return Encoding.UNICODE, text
 
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
@@ -752,7 +740,7 @@ class Channel(TembaModel):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
-        default = address if address else six.text_type(self)
+        default = address if address else str(self)
 
         # for backwards compatibility
         if TEL_SCHEME in self.schemes:
@@ -795,7 +783,7 @@ class Channel(TembaModel):
         # also save our org config, as it has twilio and nexmo keys
         org_config = self.org.config
 
-        return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
+        return dict(id=self.id, org=self.org_id, country=str(self.country), address=self.address,
                     uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
                     callback_domain=self.callback_domain, config=self.config, org_config=org_config)
 
@@ -944,11 +932,11 @@ class Channel(TembaModel):
 
             except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
-                logger.exception(six.text_type(e))
+                logger.exception(str(e))
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
-            for call in IVRCall.objects.filter(channel=self):
+            for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
                 call.close()
 
         # save off our org and gcm id before nullifying
@@ -1034,7 +1022,7 @@ class Channel(TembaModel):
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            replacement = six.text_type(variables[key])
+            replacement = str(variables[key])
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
@@ -1090,27 +1078,6 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
-
-            # Sending data to Chatbase API
-            if hasattr(msg, 'is_org_connected_to_chatbase'):
-                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
-                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
-                                      CHATBASE_TYPE_AGENT)
-
-    @classmethod
-    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
-        from temba.msgs.models import WIRED
-
-        delay = channel.config.get('delay', 1000)
-        start = time.time()
-
-        # sleep that amount
-        time.sleep(delay / float(1000))
-
-        event = HttpEvent('GET', 'http://fake')
-
-        # record the message as sent
-        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def get_pending_messages(cls, org):
@@ -1231,7 +1198,7 @@ class Channel(TembaModel):
                 sent_count -= 1
 
             except Exception as e:
-                ChannelLog.log_error(msg, six.text_type(e))
+                ChannelLog.log_error(msg, str(e))
 
                 import traceback
                 traceback.print_exc()
@@ -1259,18 +1226,6 @@ class Channel(TembaModel):
             # track success, errors and failures
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
-    @classmethod
-    def build_twilio_callback_url(cls, domain, channel_type, channel_uuid, sms_id):
-        if channel_type == 'T':
-            url = reverse('courier.t', args=[channel_uuid, 'status'])
-        elif channel_type == 'TMS':
-            url = reverse('courier.tms', args=[channel_uuid, 'status'])
-        elif channel_type == 'TW':
-            url = reverse('courier.tw', args=[channel_uuid, 'status'])
-
-        url = "https://" + domain + url + "?action=callback&id=%d" % sms_id
-        return url
-
     def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
@@ -1279,7 +1234,7 @@ class Channel(TembaModel):
         elif self.address:
             return self.address
         else:
-            return six.text_type(self.pk)
+            return str(self.pk)
 
     def get_count(self, count_types):
         count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
@@ -1323,12 +1278,7 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {
-    Channel.TYPE_DUMMY: Channel.send_dummy_message,
-}
 
-
-@six.python_2_unicode_compatible
 class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
@@ -1506,7 +1456,7 @@ class ChannelEvent(models.Model):
 class SendException(Exception):
 
     def __init__(self, description, event=None, events=None, fatal=False, start=None):
-        super(SendException, self).__init__(description)
+        super().__init__(description)
 
         if events is None and event:
             events = [event]
@@ -1559,7 +1509,7 @@ class ChannelLog(models.Model):
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=True,
-                                      description=six.text_type(e.description)[:255],
+                                      description=str(e.description)[:255],
                                       method=event.method,
                                       url=event.url,
                                       request=event.request_body,
@@ -1573,49 +1523,36 @@ class ChannelLog(models.Model):
     @classmethod
     def log_error(cls, msg, description):
         print(u"[%d] ERROR - %s" % (msg.id, description))
-        ChannelLog.objects.create(channel_id=msg.channel,
-                                  msg_id=msg.id,
-                                  is_error=True,
-                                  description=description[:255])
+        return ChannelLog.objects.create(
+            channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
+        )
 
     @classmethod
     def log_message(cls, msg, description, event, is_error=False):
-        ChannelLog.objects.create(channel_id=msg.channel_id,
-                                  msg=msg,
-                                  request=event.request_body,
-                                  response=event.response_body,
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255])
+        return ChannelLog.objects.create(
+            channel_id=msg.channel_id, msg=msg, request=event.request_body, response=event.response_body,
+            url=event.url, method=event.method, is_error=is_error, response_status=event.status_code,
+            description=description[:255]
+        )
 
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
-        ChannelLog.objects.create(channel_id=call.channel_id,
-                                  connection_id=call.id,
-                                  request=six.text_type(event.request_body),
-                                  response=six.text_type(event.response_body),
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255])
+        return ChannelLog.objects.create(
+            channel_id=call.channel_id, connection_id=call.id, request=str(event.request_body),
+            response=str(event.response_body), url=event.url, method=event.method, is_error=is_error,
+            response_status=event.status_code, description=description[:255]
+        )
 
     @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000
 
-        ChannelLog.objects.create(channel_id=channel_id,
-                                  request=six.text_type(event.request_body),
-                                  response=six.text_type(event.response_body),
-                                  url=event.url,
-                                  method=event.method,
-                                  is_error=is_error,
-                                  response_status=event.status_code,
-                                  description=description[:255],
-                                  request_time=request_time_ms)
+        return ChannelLog.objects.create(
+            channel_id=channel_id, request=str(event.request_body), response=str(event.response_body),
+            url=event.url, method=event.method, is_error=is_error, response_status=event.status_code,
+            description=description[:255], request_time=request_time_ms
+        )
 
     def get_url_host(self):
         parsed = urlparse(self.url)
@@ -1802,7 +1739,7 @@ class Alert(SmartModel):
         for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
             # are there still queued messages?
 
-            if not Msg.objects.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
+            if not Msg.objects.filter(status__in=['Q', 'P'], channel_id=alert.channel_id, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exists():
                 alert.ended_on = timezone.now()
                 alert.save()
 
@@ -1829,7 +1766,7 @@ class Alert(SmartModel):
                     continue
 
                 # if we haven't sent an alert in the past six ours
-                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
+                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)).exists():
                     alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS,
                                                  modified_by=alert_user, created_by=alert_user)
                     alert.send_alert()
@@ -1959,7 +1896,7 @@ class ChannelSession(SmartModel):
                                    help_text="The length of this session in seconds")
 
     def __init__(self, *args, **kwargs):
-        super(ChannelSession, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         """ This is needed when referencing `session` from `FlowRun`. Since
         the FK is bound to ChannelSession, when it initializes an instance from

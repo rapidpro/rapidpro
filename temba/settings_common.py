@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import iptools
 import os
@@ -53,6 +51,10 @@ OUTGOING_REQUEST_HEADERS = {'User-agent': 'RapidPro'}
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
 STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
+
+# keys to access s3
+AWS_ACCESS_KEY_ID = 'aws_access_key_id'
+AWS_SECRET_ACCESS_KEY = 'aws_secret_access_key'
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
@@ -120,7 +122,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
 FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
-STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
+STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), os.path.join(PROJECT_DIR, '../node_modules/@nyaruka/flow-editor/umd'))
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
@@ -166,17 +168,24 @@ if TESTING:
     TEMPLATES[0]['OPTIONS']['context_processors'] += ('temba.tests.add_testing_flag_to_context', )
 
 MIDDLEWARE_CLASSES = (
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'temba.middleware.ConsentMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.OrgHeaderMiddleware',
 )
+
+# security middleware configuration
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 ROOT_URLCONF = 'temba.urls'
 
@@ -222,11 +231,13 @@ INSTALLED_APPS = (
     'timezone_field',
 
     # temba apps
+    'temba.archives',
     'temba.assets',
     'temba.auth_tweaks',
     'temba.api',
     'temba.dashboard',
     'temba.public',
+    'temba.policies',
     'temba.schedules',
     'temba.orgs',
     'temba.contacts',
@@ -304,9 +315,10 @@ BRANDING = {
         'docs_link': 'http://docs.rapidpro.io',
         'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
-        'splash': '/brands/rapidpro/splash.jpg',
-        'logo': '/brands/rapidpro/logo.png',
+        'splash': 'brands/rapidpro/splash.jpg',
+        'logo': 'brands/rapidpro/logo.png',
         'allow_signups': True,
+        'flow_types': ['F', 'V', 'S', 'U'],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
         'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -445,6 +457,7 @@ PERMISSIONS = {
                    'completion',
                    'copy',
                    'editor',
+                   'editor_next',
                    'export',
                    'export_results',
                    'filter',
@@ -485,6 +498,8 @@ PERMISSIONS = {
 
     'orgs.topup': ('manage',),
 
+    'policies.policy': ('admin', 'history', 'give_consent'),
+
     'triggers.trigger': ('archived',
                          'catchall',
                          'follow',
@@ -504,7 +519,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
         'flows.flow_assets',
-        'msgs.msg_create'
+        'msgs.msg_create',
     ),
     "Alpha": (
     ),
@@ -533,6 +548,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_revisions',
         'flows.flowrun_delete',
+        'flows.flow_editor_next',
         'orgs.org_dashboard',
         'orgs.org_grant',
         'orgs.org_manage',
@@ -541,6 +557,12 @@ GROUP_PERMISSIONS = {
         'orgs.topup_create',
         'orgs.topup_manage',
         'orgs.topup_update',
+
+        'policies.policy_create',
+        'policies.policy_update',
+        'policies.policy_admin',
+        'policies.policy_history',
+
     ),
     "Administrators": (
         'airtime.airtimetransfer_list',
@@ -553,6 +575,8 @@ GROUP_PERMISSIONS = {
         'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
+
+        'archives.archive.*',
 
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',
@@ -666,6 +690,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_sent',
         'msgs.msg_update',
 
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
+
         'triggers.trigger.*',
 
     ),
@@ -767,6 +795,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_sent',
         'msgs.msg_update',
 
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
+
         'triggers.trigger.*',
 
     ),
@@ -830,6 +862,10 @@ GROUP_PERMISSIONS = {
         'msgs.msg_outbox',
         'msgs.msg_sent',
 
+        'policies.policy_read',
+        'policies.policy_list',
+        'policies.policy_give_consent',
+
         'triggers.trigger_archived',
         'triggers.trigger_list',
     )
@@ -877,6 +913,11 @@ DATABASES = {
     'default': _default_database_config,
     'direct': _direct_database_config
 }
+
+# If we are testing, set both our connections as the same, Django seems to get
+# confused on Python 3.6 with transactional tests otherwise
+if TESTING:
+    DATABASES['default'] = _direct_database_config
 
 # -----------------------------------------------------------------------------------
 # Debug Toolbar
@@ -928,13 +969,13 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_messages_task',
         'schedule': timedelta(seconds=300)
     },
+    "check-elasticsearch-lag": {
+        'task': 'check_elasticsearch_lag',
+        'schedule': timedelta(seconds=300),
+    },
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
-    },
-    "purge-broadcasts": {
-        'task': 'purge_broadcasts_task',
-        'schedule': crontab(hour=1, minute=0),
     },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
@@ -972,6 +1013,18 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "resolve-twitter-ids-task": {
+        'task': 'resolve_twitter_ids_task',
+        'schedule': timedelta(seconds=900)
+    },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600)
+    },
+    "refresh-whatsapp-tokens": {
+        'task': 'refresh_whatsapp_tokens',
+        'schedule': timedelta(hours=24)
+    }
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1174,6 +1227,8 @@ TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_S
 
 SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
 
+INTERCOM_TOKEN = os.environ.get('INTERCOM_TOKEN', '')
+
 LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
 LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 
@@ -1202,17 +1257,20 @@ SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
+FLOW_SERVER_TRIAL = 'off'  # 'on', 'off', or 'always'
 
 # -----------------------------------------------------------------------------------
-# Which channel types will be sent using Courier instead of RapidPro
+# These legacy channels still send on RapidPro:
+#   * TT is our old Twitter integration, will be removed ~June 2018
+#   * JNU is junebug USSD, which may be removed depending on future of USSD
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set(['CT', 'DK', 'MT', 'WA', 'ZV', 'MG'])
+LEGACY_CHANNELS = set(['TT', 'JNU'])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
@@ -1224,3 +1282,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
 
 # When reporting metrics we use the hostname of the physical machine, not the hostname of the service
 MACHINE_HOSTNAME = socket.gethostname().split('.')[0]
+
+
+# ElasticSearch configuration (URL RFC-1738)
+ELASTICSEARCH_URL = os.environ.get('ELASTICSEARCH_URL', 'http://localhost:9200')

@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from django.utils.translation import ugettext_lazy as _
 
+from temba.channels.models import ChannelType
 from temba.channels.types.zenvia.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
-from temba.channels.models import ChannelType
 
 
 class ZenviaType(ChannelType):
@@ -17,6 +12,8 @@ class ZenviaType(ChannelType):
 
     code = 'ZV'
     category = ChannelType.Category.PHONE
+
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
 
     name = "Zenvia"
 
@@ -49,7 +46,4 @@ class ZenviaType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['America/Sao_Paulo']
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Zenvia messages is only possible via Courier")
+        return org.timezone and str(org.timezone) in ['America/Sao_Paulo']

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 
@@ -16,4 +14,4 @@ class InstallSQL(RunSQL):
         with open(sql_path) as sql_file:
             sql = sql_file.read()
 
-        super(InstallSQL, self).__init__(sql)
+        super().__init__(sql)

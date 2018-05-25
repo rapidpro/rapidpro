@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import calendar
 import itertools
 import logging
@@ -10,11 +7,10 @@ import pycountry
 import random
 import re
 import regex
-import six
 import stripe
 import traceback
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -45,7 +41,7 @@ from temba.utils.email import send_template_email, send_simple_email, send_custo
 from temba.utils.models import SquashableModel, JSONAsTextField
 from temba.utils.text import random_string
 from timezone_field import TimeZoneField
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from uuid import uuid4
 
 
@@ -162,7 +158,6 @@ class OrgCache(Enum):
     credits = 2
 
 
-@six.python_2_unicode_compatible
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
@@ -500,7 +495,7 @@ class Org(SmartModel):
                             channel_prefixes = [sender.address.strip('+')]
 
                         for chan_prefix in channel_prefixes:
-                            for idx in range(prefix, len(chan_prefix)):
+                            for idx in range(prefix, len(chan_prefix) + 1):
                                 if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
                                     prefix = idx
                                     channel = sender
@@ -995,7 +990,7 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
 
-    def format_date(self, datetime, show_time=True):
+    def format_datetime(self, datetime, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
@@ -1003,13 +998,13 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(datetime, format, False, self.timezone)
 
-    def parse_date(self, date_string):
-        if isinstance(date_string, datetime):
-            return date_string
+    def parse_datetime(self, datetime_string):
+        if isinstance(datetime_string, datetime):
+            return datetime_string
 
-        return str_to_datetime(date_string, self.timezone, self.get_dayfirst())
+        return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
 
-    def parse_decimal(self, decimal_string):
+    def parse_number(self, decimal_string):
         parsed = None
 
         try:
@@ -1058,6 +1053,14 @@ class Org(SmartModel):
 
         return boundary
 
+    def parse_location_path(self, location_string):
+        """
+        Parses a location path into a single location, returning None if not found
+        """
+        # while technically we could resolve a full boundary path without a country, our policy is that
+        # if you don't have a country set then you don't have locations
+        return AdminBoundary.objects.filter(path__iexact=location_string.strip()).first() if self.country_id and isinstance(location_string, str) else None
+
     def parse_location(self, location_string, level, parent=None):
         """
         Attempts to parse the passed in location string at the passed in level. This does various tokenizing
@@ -1066,14 +1069,23 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, six.string_types):
+        if not self.country_id or not isinstance(location_string, str):
             return []
 
-        # now look up the boundary by full name
-        boundary = self.find_boundary_by_name(location_string, level, parent)
+        boundary = None
 
+        # try it as a path first if it looks possible
+        if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
+            boundary = self.parse_location_path(location_string)
+            if boundary:
+                boundary = [boundary]
+
+        # try to look up it by full name
         if not boundary:
-            # try removing punctuation and try that
+            boundary = self.find_boundary_by_name(location_string, level, parent)
+
+        # try removing punctuation and try that
+        if not boundary:
             bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
@@ -1473,7 +1485,7 @@ class Org(SmartModel):
                     break
 
             # update items in the database with their new topups
-            for topup, items in six.iteritems(new_topup_items):
+            for topup, items in new_topup_items.items():
                 msg_ids = [item.id for item in items if isinstance(item, Msg)]
                 Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
@@ -1518,9 +1530,13 @@ class Org(SmartModel):
     @cached_property
     def cached_contact_fields(self):
         from temba.contacts.models import ContactField
-        fields = ContactField.objects.filter(org=self, is_active=True)
-        for field in fields:
-            field.org = self
+
+        # build an ordered dictionary of key->contact field
+        fields = OrderedDict()
+        for cf in ContactField.objects.filter(org=self, is_active=True).order_by('key'):
+            cf.org = self
+            fields[cf.key] = cf
+
         return fields
 
     def clear_cached_groups(self):
@@ -1766,7 +1782,7 @@ class Org(SmartModel):
             for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
                 campaigns_by_group[campaign.group].append(campaign)
 
-        for c, deps in six.iteritems(dependencies):
+        for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
                     if isinstance(d, ContactGroup):
@@ -1779,7 +1795,7 @@ class Org(SmartModel):
                 dependencies[trigger] = {trigger.flow}
 
         # make dependencies symmetric, i.e. if A depends on B, B depends on A
-        for c, deps in six.iteritems(dependencies.copy()):
+        for c, deps in dependencies.copy().items():
             for d in deps:
                 dependencies[d].add(c)
 
@@ -2018,7 +2034,6 @@ def get_stripe_credentials():
     return (public_key, private_key)
 
 
-@six.python_2_unicode_compatible
 class Language(SmartModel):
     """
     A Language that has been added to the org. In the end and language is just an iso_code and name
@@ -2094,7 +2109,7 @@ class Invitation(SmartModel):
 
             self.secret = secret
 
-        return super(Invitation, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     @classmethod
     def generate_random_string(cls, length):  # pragma: needs cover
@@ -2141,7 +2156,6 @@ class UserSettings(models.Model):
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
 
-@six.python_2_unicode_compatible
 class TopUp(SmartModel):
     """
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
@@ -2190,9 +2204,11 @@ class TopUp(SmartModel):
             if transfer:
                 comment = _('Transfer from %s' % transfer.topup.org.name)
             else:
-                if self.price > 0:
+                price = -1 if self.price is None else self.price
+
+                if price > 0:
                     comment = _('Purchased Credits')
-                elif self.price == 0:
+                elif price == 0:
                     comment = _('Complimentary Credits')
                 else:
                     comment = _('Credits')
@@ -2304,7 +2320,7 @@ class Debit(SquashableModel):
 
     @classmethod
     def get_unsquashed(cls):
-        return super(Debit, cls).get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
+        return super().get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
 
     @classmethod
     def get_squash_query(cls, distinct_set):

@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 # coding=utf-8
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import fnmatch
 import json
@@ -14,7 +12,7 @@ from django.utils.timezone import now
 from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
-from temba.utils import datetime_to_str, get_datetime_format
+from temba.utils.dates import datetime_to_str, get_datetime_format
 
 # default number of times per org to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3

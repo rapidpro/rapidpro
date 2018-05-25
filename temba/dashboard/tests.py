@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.core.urlresolvers import reverse
 
 from temba.channels.models import Channel
@@ -10,7 +7,7 @@ from temba.tests import TembaTest
 
 class DashboardTest(TembaTest):
     def setUp(self):
-        super(DashboardTest, self).setUp()
+        super().setUp()
 
         self.user = self.create_user("tito")
         self.flow_label = Label.label_objects.create(name="Color", org=self.org,

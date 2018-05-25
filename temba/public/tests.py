@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from smartmin.tests import SmartminTest, _CRUDLTest
@@ -36,10 +33,6 @@ class PublicTest(SmartminTest):
         post_data['email'] = 'immortal@temba.com'
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_signup'))
-
-    def test_privacy(self):
-        response = self.client.get(reverse('public.public_privacy'))
-        self.assertContains(response, "Privacy")
 
     def test_welcome(self):
         welcome_url = reverse('public.public_welcome')
@@ -138,7 +131,7 @@ class PublicTest(SmartminTest):
 class VideoCRUDLTest(_CRUDLTest):
 
     def setUp(self):
-        super(VideoCRUDLTest, self).setUp()
+        super().setUp()
         self.crudl = VideoCRUDL
         self.user = User.objects.create_superuser('admin', 'a@b.com', 'admin')
 

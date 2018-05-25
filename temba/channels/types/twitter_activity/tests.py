@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.contrib.auth.models import Group
 from django.test import override_settings
@@ -14,7 +12,7 @@ from .tasks import resolve_twitter_ids
 
 class TwitterActivityTypeTest(TembaTest):
     def setUp(self):
-        super(TwitterActivityTypeTest, self).setUp()
+        super().setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TWT', name="Twitter Beta", address="beta_bob",
                                       role="SR",

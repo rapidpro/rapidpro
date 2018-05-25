@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from datetime import timedelta
-
-import six
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -14,10 +9,10 @@ from temba.utils import on_transaction_commit
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super(IVRManager, self).create(*args, session_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, session_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super(IVRManager, self).get_queryset().filter(session_type=IVRCall.IVR)
+        return super().get_queryset().filter(session_type=IVRCall.IVR)
 
 
 class IVRCall(ChannelSession):
@@ -97,7 +92,7 @@ class IVRCall(ChannelSession):
                 self.save()
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
-                    ActionLog.create(run[0], "Call ended. %s" % six.text_type(e))
+                    ActionLog.create(run[0], "Call ended. %s" % str(e))
 
             except Exception as e:  # pragma: no cover
                 import traceback

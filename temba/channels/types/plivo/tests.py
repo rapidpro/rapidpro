@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 
@@ -146,3 +144,8 @@ class PlivoTypeTest(TembaTest):
                 self.assertEqual(mock_post.call_args_list[0][0][0], "https://api.plivo.com/v1/Account/auth-id/Application/")
                 self.assertEqual(mock_post.call_args_list[1][0][0], "https://api.plivo.com/v1/Account/auth-id/PhoneNumber/16062681440/")
                 self.assertEqual(mock_post.call_args_list[2][0][0], "https://api.plivo.com/v1/Account/auth-id/Number/16062681440/")
+
+        with patch('requests.delete') as mock_delete:
+            response_body = MockResponse(200, json.dumps({'status': 'ok'}))
+            channel.get_type().deactivate(channel)
+            mock_delete.assert_called_once()

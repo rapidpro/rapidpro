@@ -6,14 +6,11 @@ sudo:
 
 language: python
 python:
-  - "2.7.11"
-
+  - "3.6.4"
 addons:
   apt:
     packages:
       - postgresql-9.6-postgis-2.3
-      - python3
-      - python3-pip
   postgresql: "9.6"
 
 services:
@@ -23,23 +20,24 @@ cache:
   directories:
     - "$HOME/.cache/pip"
 
+before_install:
+  - wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.deb && sudo dpkg -i --force-confnew elasticsearch-6.2.3.deb
+  - sudo service elasticsearch start
+  - sleep 10
+
 install:
   # install all Python dependencies
-  - pip install --upgrade pip
+  - travis_retry pip install --upgrade pip
   - pip --version
-  - pip install -r pip-freeze.txt --upgrade
+  - travis_retry pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
-
-  # install flake8 on Python 3
-  - export PATH=$HOME/.local/bin:$PATH
-  - python3 --version
-  - pip3 --version
-  - pip3 install flake8 --user `whoami`
+  - pip install flake8
 
   # switch to Node 6 and install our node dependencies
   - nvm install 6
   - nvm use 6
   - npm install
+  - npm run build
 
 before_script:
   # setup test database
@@ -54,9 +52,14 @@ before_script:
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
   # setup a goflow server instance
-  - GOFLOW_VERSION=0.5.0
+  - GOFLOW_VERSION=0.10.3
   - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
   - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+
+    # prepare rp-indexer binary
+  - RPINDEXER_VERSION=1.0.22
+  - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
+  - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
 script:
   # any non-zero error code should be treated as an immediate failure
@@ -64,8 +67,7 @@ script:
 
   # test PEP8 compliance on both Python 2 and 3
   - flake8
-  - /home/travis/.local/bin/flake8
-  
+
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
 
@@ -77,9 +79,9 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # fire up goflow
-  - ./flowserver &
+  - ./flowserver --log-level=warn &
   - jobs
-    
+
   # run our Python tests
   - coverage run manage.py test --settings=temba.settings_travis --noinput --verbosity=2
 

@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?3d1go2');
-  src:  url('fonts/temba.eot?3d1go2#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?3d1go2') format('truetype'),
-    url('fonts/temba.woff?3d1go2') format('woff'),
-    url('fonts/temba.svg?3d1go2#temba') format('svg');
+  src:  url('fonts/temba.eot?z6lkm7');
+  src:  url('fonts/temba.eot?z6lkm7#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?z6lkm7') format('truetype'),
+    url('fonts/temba.woff?z6lkm7') format('woff'),
+    url('fonts/temba.svg?z6lkm7#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,11 +24,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-arrow-up5:before {
+  content: "\edc7";
+}
 .icon-mtarget:before {
   content: "\e902";
 }
 .icon-whatsapp:before {
   content: "\ea93";
+}
+.icon-wechat:before {
+  content: "\ea94";
 }
 .icon-circle-2:before {
   content: "\e000";

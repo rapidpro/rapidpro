@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
+import logging
 import time
 import requests
 
@@ -10,6 +9,9 @@ from django_redis import get_redis_connection
 from temba.channels.models import Channel
 from temba.contacts.models import ContactURN, WHATSAPP_SCHEME
 from temba.utils import chunk_list
+
+
+logger = logging.getLogger(__name__)
 
 
 @task(track_started=True, name='refresh_whatsapp_contacts')
@@ -43,19 +45,16 @@ def refresh_whatsapp_contacts(channel_id):
                 time.sleep(10)
 
             # build a list of the fully qualified numbers we have
-            users = ["+%s" % u.path for u in urn_batch]
+            contacts = ["+%s" % u.path for u in urn_batch]
             payload = {
-                "payload": {
-                    "blocking": "wait",
-                    "users": users
-                }
+                "blocking": "wait",
+                "contacts": contacts
             }
 
             # go fetch our contacts
-            resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/api/check_contacts.php',
-                                 json=payload,
-                                 auth=(channel.config[Channel.CONFIG_USERNAME],
-                                       channel.config[Channel.CONFIG_PASSWORD]))
+            headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
+            resp = requests.post(channel.config[Channel.CONFIG_BASE_URL] + '/v1/contacts',
+                                 json=payload, headers=headers)
 
             # if we had an error, break out
             if resp.status_code != 200 or resp.json().get('error', True):
@@ -64,3 +63,24 @@ def refresh_whatsapp_contacts(channel_id):
             refreshed += len(urn_batch)
 
         print("refreshed %d whatsapp urns for channel %d" % (refreshed, channel_id))
+
+
+@task(track_started=True, name='refresh_whatsapp_tokens')
+def refresh_whatsapp_tokens():
+    r = get_redis_connection()
+    # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering
+    if r.get('refresh_whatsapp_tokens'):  # pragma: no cover
+        return
+
+    with r.lock('refresh_whatsapp_tokens', 1800):
+        # iterate across each of our whatsapp channels and get a new token
+        for channel in Channel.objects.filter(is_active=True, channel_type='WA'):
+            resp = requests.post(channel.config['base_url'] + '/v1/users/login',
+                                 auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]))
+
+            if resp.status_code != 200:
+                logger.error("Received non-200 response refreshing whatsapp token: %s", resp.content)
+                continue
+
+            channel.config['auth_token'] = resp.json()['users'][0]['token']
+            channel.save(update_fields=['config'])
