@@ -18,10 +18,6 @@ ON contacts_contact (org_id, modified_on DESC, id DESC)
 WHERE is_test = false AND is_active = false;
     """
 
-    dependencies = [
-        ('contacts', '0048_install_triggers'),
-    ]
+    dependencies = [("contacts", "0048_install_triggers")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

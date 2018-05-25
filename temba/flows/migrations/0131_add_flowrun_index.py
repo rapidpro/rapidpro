@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
     CREATE INDEX CONCURRENTLY flows_flowrun_contact_flow_created_on_id_idx ON flows_flowrun(contact_id, flow_id, created_on desc, id desc) WHERE is_active = TRUE;
     """
 
-    dependencies = [
-        ('flows', '0130_auto_20171128_1618'),
-    ]
+    dependencies = [("flows", "0130_auto_20171128_1618")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

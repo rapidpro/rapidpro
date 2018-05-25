@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0072_migrate_twilio_apps'),
-    ]
+    dependencies = [("channels", "0072_migrate_twilio_apps")]
 
     operations = [
         migrations.AlterField(
-            model_name='channel',
-            name='channel_type',
-            field=models.CharField(max_length=3, verbose_name='Channel Type'),
-        ),
+            model_name="channel",
+            name="channel_type",
+            field=models.CharField(max_length=3, verbose_name="Channel Type"),
+        )
     ]

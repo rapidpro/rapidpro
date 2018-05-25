@@ -5,14 +5,16 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('archives', '0001_initial'),
-    ]
+    dependencies = [("archives", "0001_initial")]
 
     operations = [
         migrations.AlterField(
-            model_name='archive',
-            name='archive_type',
-            field=models.CharField(choices=[('messages', 'Message'), ('runs', 'Run')], help_text='The type of record this is an archive for', max_length=16),
-        ),
+            model_name="archive",
+            name="archive_type",
+            field=models.CharField(
+                choices=[("messages", "Message"), ("runs", "Run")],
+                help_text="The type of record this is an archive for",
+                max_length=16,
+            ),
+        )
     ]

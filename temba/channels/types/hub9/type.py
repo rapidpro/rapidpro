@@ -1,12 +1,13 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dartmedia.views import ClaimView
-from temba.contacts.models import TEL_SCHEME, EXTERNAL_SCHEME
+from temba.contacts.models import EXTERNAL_SCHEME, TEL_SCHEME
+
 from ...models import ChannelType
 
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
+HUB9_ENDPOINT = "http://175.103.48.29:28078/testing/smsmt.php"
 
 
 class Hub9Type(ChannelType):
@@ -14,10 +15,10 @@ class Hub9Type(ChannelType):
     An DartMedia channel (http://dartmedia.biz/)
     """
 
-    code = 'H9'
+    code = "H9"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$'
+    courier_url = r"^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$"
 
     name = "Hub9"
 

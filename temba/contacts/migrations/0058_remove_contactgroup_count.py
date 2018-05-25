@@ -5,13 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0057_omnibox_indexes'),
-    ]
+    dependencies = [("contacts", "0057_omnibox_indexes")]
 
-    operations = [
-        migrations.RemoveField(
-            model_name='contactgroup',
-            name='count',
-        ),
-    ]
+    operations = [migrations.RemoveField(model_name="contactgroup", name="count")]

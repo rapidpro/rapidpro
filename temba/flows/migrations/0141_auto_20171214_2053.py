@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0140_flowrun_current_node_index'),
-    ]
+    dependencies = [("flows", "0140_flowrun_current_node_index")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowstep',
-            name='step_uuid',
-            field=models.CharField(help_text='The UUID of the ActionSet or RuleSet for this step', max_length=36),
-        ),
+            model_name="flowstep",
+            name="step_uuid",
+            field=models.CharField(help_text="The UUID of the ActionSet or RuleSet for this step", max_length=36),
+        )
     ]

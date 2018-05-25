@@ -5,16 +5,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0143_populate_recent_runs'),
-    ]
+    dependencies = [("flows", "0143_populate_recent_runs")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='flowpathrecentmessage',
-            name='run',
-        ),
-        migrations.DeleteModel(
-            name='FlowPathRecentMessage',
-        ),
+        migrations.RemoveField(model_name="flowpathrecentmessage", name="run"),
+        migrations.DeleteModel(name="FlowPathRecentMessage"),
     ]

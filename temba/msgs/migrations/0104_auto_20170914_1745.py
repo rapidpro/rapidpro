@@ -16,11 +16,6 @@ class Migration(migrations.Migration):
     DROP INDEX CONCURRENTLY msgs_msg_external_id_where_nonnull;
     """
 
-    dependencies = [
-        ('msgs', '0103_auto_20170824_1553'),
-    ]
+    dependencies = [("msgs", "0103_auto_20170824_1553")]
 
-    operations = [
-        migrations.RunSQL(CREATE_SQL),
-        migrations.RunSQL(DROP_SQL),
-    ]
+    operations = [migrations.RunSQL(CREATE_SQL), migrations.RunSQL(DROP_SQL)]

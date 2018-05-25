@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('values', '0011_new_string_value_index'),
-    ]
+    dependencies = [("values", "0011_new_string_value_index")]
 
     operations = [
         migrations.AlterField(
-            model_name='value',
-            name='string_value',
-            field=models.TextField(help_text='The string value or string representation of this value'),
-        ),
+            model_name="value",
+            name="string_value",
+            field=models.TextField(help_text="The string value or string representation of this value"),
+        )
     ]

@@ -6,14 +6,14 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0071_contactgroup_status'),
-    ]
+    dependencies = [("contacts", "0071_contactgroup_status")]
 
     operations = [
         migrations.AddField(
-            model_name='contact',
-            name='fields',
-            field=django.contrib.postgres.fields.jsonb.JSONField(help_text='The fields set for this contact, keyed by UUID', null=True, verbose_name='Fields'),
-        ),
+            model_name="contact",
+            name="fields",
+            field=django.contrib.postgres.fields.jsonb.JSONField(
+                help_text="The fields set for this contact, keyed by UUID", null=True, verbose_name="Fields"
+            ),
+        )
     ]

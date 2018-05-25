@@ -1,14 +1,10 @@
 
 import json
-
-from django.utils.encoding import force_text
 from urllib.parse import urlencode
 
-from twilio.rest import Messages, Calls
-from twilio.rest import TwilioRestClient
-from twilio.rest import UNSET_TIMEOUT
-from twilio.rest.resources import Resource
-from twilio.rest.resources import make_twilio_request
+from django.utils.encoding import force_text
+from twilio.rest import UNSET_TIMEOUT, Calls, Messages, TwilioRestClient
+from twilio.rest.resources import Resource, make_twilio_request
 
 from temba.utils.http import HttpEvent
 
@@ -17,10 +13,9 @@ def encode_atom(atom):  # pragma: no cover
     if isinstance(atom, (int, bytes)):
         return atom
     elif isinstance(atom, str):
-        return atom.encode('utf-8')
+        return atom.encode("utf-8")
     else:
-        raise ValueError('list elements should be an integer, '
-                         'binary, or string')
+        raise ValueError("list elements should be an integer, " "binary, or string")
 
 
 class LoggingResource(Resource):  # pragma: no cover
@@ -35,21 +30,20 @@ class LoggingResource(Resource):  # pragma: no cover
 
         :raises: a :exc:`~twilio.TwilioRestException`
         """
-        if 'timeout' not in kwargs and self.timeout is not UNSET_TIMEOUT:
-            kwargs['timeout'] = self.timeout
+        if "timeout" not in kwargs and self.timeout is not UNSET_TIMEOUT:
+            kwargs["timeout"] = self.timeout
 
-        data = kwargs.get('data')
+        data = kwargs.get("data")
         if data is not None:
             udata = {}
             for k, v in data.items():
-                key = k.encode('utf-8')
+                key = k.encode("utf-8")
                 if isinstance(v, (list, tuple, set)):
                     udata[key] = [encode_atom(x) for x in v]
                 elif isinstance(v, (int, bytes, str)):
                     udata[key] = encode_atom(v)
                 else:
-                    raise ValueError('data should be an integer, '
-                                     'binary, or string, or sequence ')
+                    raise ValueError("data should be an integer, " "binary, or string, or sequence ")
             data = urlencode(udata, doseq=True)
 
         event = HttpEvent(method, uri, data)

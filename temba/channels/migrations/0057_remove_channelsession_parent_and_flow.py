@@ -5,17 +5,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0056_remove_child_sessions'),
-    ]
+    dependencies = [("channels", "0056_remove_child_sessions")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='channelsession',
-            name='flow',
-        ),
-        migrations.RemoveField(
-            model_name='channelsession',
-            name='parent',
-        ),
+        migrations.RemoveField(model_name="channelsession", name="flow"),
+        migrations.RemoveField(model_name="channelsession", name="parent"),
     ]

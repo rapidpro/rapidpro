@@ -1,11 +1,12 @@
 
 import json
-import pytz
-
 from datetime import timedelta
+
+import pytz
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django_redis import get_redis_connection
+
 from . import chunk_list
 
 
@@ -56,15 +57,7 @@ def incrby_existing(key, delta, r=None):
     if not r:
         r = get_redis_connection()
 
-    lua = "local ttl = redis.call('pttl', KEYS[1])\n" \
-          "local val = redis.call('get', KEYS[1])\n" \
-          "if val ~= false then\n" \
-          "  val = tonumber(val) + ARGV[1]\n" \
-          "  redis.call('set', KEYS[1], val)\n" \
-          "  if ttl > 0 then\n" \
-          "    redis.call('pexpire', KEYS[1], ttl)\n" \
-          "  end\n" \
-          "end"
+    lua = "local ttl = redis.call('pttl', KEYS[1])\n" "local val = redis.call('get', KEYS[1])\n" "if val ~= false then\n" "  val = tonumber(val) + ARGV[1]\n" "  redis.call('set', KEYS[1], val)\n" "  if ttl > 0 then\n" "    redis.call('pexpire', KEYS[1], ttl)\n" "  end\n" "end"
     r.eval(lua, 1, key, delta)
 
 
@@ -74,10 +67,11 @@ class QueueRecord(object):
     objects as queued, which is more efficient than having separate keys for each item. By having these expire after
     24 hours we ensure that our Redis sets can't grow indefinitely even if things fail.
     """
+
     def __init__(self, key_prefix, item_val=None):
         self.item_val = item_val or str
 
-        key_format = key_prefix + '_%y_%m_%d'
+        key_format = key_prefix + "_%y_%m_%d"
 
         self.today_set_key = timezone.now().strftime(key_format)
         self.yesterday_set_key = (timezone.now() - timedelta(days=1)).strftime(key_format)

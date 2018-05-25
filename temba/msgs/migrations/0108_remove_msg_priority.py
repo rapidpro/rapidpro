@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 ----------------------------------------------------------------------
 -- Determines the (mutually exclusive) system label for a msg record
@@ -39,14 +38,9 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0107_auto_20171017_1917'),
-    ]
+    dependencies = [("msgs", "0107_auto_20171017_1917")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='msg',
-            name='priority',
-        ),
-        migrations.RunSQL(SQL)  # need to recreate trigger after removing field
+        migrations.RemoveField(model_name="msg", name="priority"),
+        migrations.RunSQL(SQL),  # need to recreate trigger after removing field
     ]

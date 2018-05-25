@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 -- drop the trigger
 DROP TRIGGER IF EXISTS when_contact_groups_truncate_then_update_count_trg on contacts_contactgroup_contacts;
@@ -44,10 +43,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0078_create_field_key_index'),
-    ]
+    dependencies = [("contacts", "0078_create_field_key_index")]
 
-    operations = [
-        migrations.RunSQL(SQL, '')
-    ]
+    operations = [migrations.RunSQL(SQL, "")]
