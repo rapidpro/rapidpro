@@ -4995,7 +4995,7 @@ class FlowsTest(FlowFileTest):
 
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(dict(name='Ben Haggerty', uuid=self.contact.uuid, urn='tel:+12065552020'), payload['contact'])
-            self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid), payload['flow'])
+            self.assertEqual(dict(name='Webhook Payload Test', uuid=flow.uuid, revision=1), payload['flow'])
             self.assertDictContainsSubset(dict(name='Test Channel', uuid=self.channel.uuid), payload['channel'])
             self.assertEqual(path_length, len(payload['path']))
             self.assertEqual(result_count, len(payload['results']))
@@ -9187,7 +9187,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=102, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=103, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
