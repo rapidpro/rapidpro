@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0055_auto_20170228_0837'),
-    ]
+    dependencies = [("contacts", "0055_auto_20170228_0837")]
 
     operations = [
         migrations.AddField(
-            model_name='exportcontactstask',
-            name='search',
-            field=models.TextField(blank=True, help_text='The search query', null=True),
-        ),
+            model_name="exportcontactstask",
+            name="search",
+            field=models.TextField(blank=True, help_text="The search query", null=True),
+        )
     ]

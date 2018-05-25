@@ -2,18 +2,22 @@ import regex
 
 from temba.utils.dates import FULL_ISO8601_REGEX
 
-UUID4_REGEX = regex.compile(r'[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', regex.IGNORECASE)
+UUID4_REGEX = regex.compile(
+    r"[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}", regex.IGNORECASE
+)
 
 
 class MatcherMixin(object):
+
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __repr__(self):
-        return '<Any:%s>' % self.__class__.__name__
+        return "<Any:%s>" % self.__class__.__name__
 
 
 class String(MatcherMixin, str):
+
     def __new__(cls, pattern=None):
         s = str.__new__(cls, "xxx")
         s.pattern = pattern
@@ -31,6 +35,7 @@ class ISODate(String):
     """
     Matches any ISO8601 formatted datetime string
     """
+
     def __new__(cls):
         return super().__new__(cls, pattern=FULL_ISO8601_REGEX)
 
@@ -39,5 +44,6 @@ class UUID4String(String):
     """
     Matches any UUID v4 string
     """
+
     def __new__(cls):
         return super().__new__(cls, pattern=UUID4_REGEX)

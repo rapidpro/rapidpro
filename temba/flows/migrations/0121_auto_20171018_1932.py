@@ -105,10 +105,6 @@ CREATE TRIGGER temba_flowrun_update_flowcategorycount
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0120_flowcategorycount'),
-    ]
+    dependencies = [("flows", "0120_flowcategorycount")]
 
-    operations = [
-        migrations.RunSQL(SQL),
-    ]
+    operations = [migrations.RunSQL(SQL)]

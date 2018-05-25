@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 CREATE INDEX CONCURRENTLY msgs_msg_uuid_not_null ON msgs_msg (uuid) WHERE uuid IS NOT NULL;
 """
@@ -12,10 +11,6 @@ class Migration(migrations.Migration):
 
     atomic = False
 
-    dependencies = [
-        ('msgs', '0116_auto_20180502_1620'),
-    ]
+    dependencies = [("msgs", "0116_auto_20180502_1620")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

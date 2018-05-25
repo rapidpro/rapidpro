@@ -5,19 +5,19 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0100_auto_20170606_1155'),
-    ]
+    dependencies = [("flows", "0100_auto_20170606_1155")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowpathrecentmessage',
-            name='text',
-            field=models.TextField(help_text='The message text'),
+            model_name="flowpathrecentmessage", name="text", field=models.TextField(help_text="The message text")
         ),
         migrations.AlterField(
-            model_name='flowstep',
-            name='rule_value',
-            field=models.CharField(help_text='The value that was matched in our category for this ruleset, null on ActionSets', max_length=8000, null=True),
+            model_name="flowstep",
+            name="rule_value",
+            field=models.CharField(
+                help_text="The value that was matched in our category for this ruleset, null on ActionSets",
+                max_length=8000,
+                null=True,
+            ),
         ),
     ]

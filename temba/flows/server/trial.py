@@ -10,14 +10,15 @@ import time
 
 from django.conf import settings
 from django_redis import get_redis_connection
-from .client import get_client, Events
-from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
 from jsondiff import diff as jsondiff
+
+from .client import Events, get_client
+from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
 
 
-TRIAL_LOCK = 'flowserver_trial'
+TRIAL_LOCK = "flowserver_trial"
 TRIAL_PERIOD = 15  # only perform a trial every 15 seconds
 
 
@@ -25,6 +26,7 @@ class ResumeTrial(object):
     """
     A trial of resuming a run in the flowserver
     """
+
     def __init__(self, run):
         self.run = run
         self.session_before = reconstruct_session(run)
@@ -47,7 +49,12 @@ def is_flow_suitable(flow):
                 return False
 
     for rule_set in flow.rule_sets.all():
-        if rule_set.ruleset_type in (RuleSet.TYPE_AIRTIME, RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK, RuleSet.TYPE_SUBFLOW):
+        if rule_set.ruleset_type in (
+            RuleSet.TYPE_AIRTIME,
+            RuleSet.TYPE_WEBHOOK,
+            RuleSet.TYPE_RESTHOOK,
+            RuleSet.TYPE_SUBFLOW,
+        ):
             return False
 
     return True
@@ -57,19 +64,19 @@ def maybe_start_resume(run):
     """
     Either starts a new trial resume or returns nothing
     """
-    if settings.FLOW_SERVER_TRIAL == 'off':
+    if settings.FLOW_SERVER_TRIAL == "off":
         return None
-    elif settings.FLOW_SERVER_TRIAL == 'on':
+    elif settings.FLOW_SERVER_TRIAL == "on":
         # very basic throttling
         r = get_redis_connection()
-        if not r.set(TRIAL_LOCK, 'x', TRIAL_PERIOD, nx=True):
+        if not r.set(TRIAL_LOCK, "x", TRIAL_PERIOD, nx=True):
             return None
 
         if not is_flow_suitable(run.flow):
             r.delete(TRIAL_LOCK)
             return None
 
-    elif settings.FLOW_SERVER_TRIAL == 'always':
+    elif settings.FLOW_SERVER_TRIAL == "always":
         pass
 
     try:
@@ -97,7 +104,9 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             return True
 
     except Exception as e:
-        logger.error("flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True)
+        logger.error(
+            "flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True
+        )
         return False
 
 
@@ -114,10 +123,10 @@ def report_failure(trial):  # pragma: no cover
     """
     print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
 
-    logger.error("trial resume in flowserver produced different output", extra={
-        'run_id': trial.run.id,
-        'differences': trial.differences
-    })
+    logger.error(
+        "trial resume in flowserver produced different output",
+        extra={"run_id": trial.run.id, "differences": trial.differences},
+    )
 
 
 def resume(org, session, msg_in=None, expired_child_run=None):
@@ -128,7 +137,7 @@ def resume(org, session, msg_in=None, expired_child_run=None):
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server().set_config('disable_webhooks', True)
+    request = client.request_builder(org, asset_timestamp).asset_server().set_config("disable_webhooks", True)
 
     if settings.TESTING:
         request.include_all()
@@ -162,32 +171,29 @@ def reconstruct_session(run):
     session_root_run = session_runs[0]
 
     trigger = {
-        'contact': serialize_contact(run.contact),
-        'environment': serialize_environment(run.org),
-        'flow': {'uuid': str(session_root_run.flow.uuid), 'name': session_root_run.flow.name},
-        'triggered_on': session_root_run.created_on.isoformat(),
-        'params': session_root_run.fields
+        "contact": serialize_contact(run.contact),
+        "environment": serialize_environment(run.org),
+        "flow": {"uuid": str(session_root_run.flow.uuid), "name": session_root_run.flow.name},
+        "triggered_on": session_root_run.created_on.isoformat(),
+        "params": session_root_run.fields,
     }
 
     if trigger_run:
-        trigger['type'] = 'flow_action'
-        trigger['run'] = serialize_run_summary(trigger_run)
+        trigger["type"] = "flow_action"
+        trigger["run"] = serialize_run_summary(trigger_run)
     else:
-        trigger['type'] = 'manual'
+        trigger["type"] = "manual"
 
     runs = [serialize_run(r) for r in session_runs]
-    runs[-1]['status'] = 'waiting'
+    runs[-1]["status"] = "waiting"
 
     session = {
-        'contact': serialize_contact(run.contact),
-        'environment': serialize_environment(run.org),
-        'runs': runs,
-        'status': 'waiting',
-        'trigger': trigger,
-        'wait': {
-            'timeout_on': run.timeout_on.isoformat() if run.timeout_on else None,
-            'type': 'msg'
-        }
+        "contact": serialize_contact(run.contact),
+        "environment": serialize_environment(run.org),
+        "runs": runs,
+        "status": "waiting",
+        "trigger": trigger,
+        "wait": {"timeout_on": run.timeout_on.isoformat() if run.timeout_on else None, "type": "msg"},
     }
 
     # ensure that we are a deep copy - i.e. subsequent changes to the run won't affect this snapshot of session state
@@ -196,65 +202,60 @@ def reconstruct_session(run):
 
 def serialize_run(run):
     serialized = {
-        'uuid': str(run.uuid),
-        'status': 'completed' if run.exited_on else 'active',
-        'created_on': run.created_on.isoformat(),
-        'exited_on': run.exited_on.isoformat() if run.exited_on else None,
-        'expires_on': run.expires_on.isoformat() if run.expires_on else None,
-        'flow': {'uuid': str(run.flow.uuid), 'name': run.flow.name},
-        'path': run.path,
+        "uuid": str(run.uuid),
+        "status": "completed" if run.exited_on else "active",
+        "created_on": run.created_on.isoformat(),
+        "exited_on": run.exited_on.isoformat() if run.exited_on else None,
+        "expires_on": run.expires_on.isoformat() if run.expires_on else None,
+        "flow": {"uuid": str(run.flow.uuid), "name": run.flow.name},
+        "path": run.path,
     }
 
     if run.results:
-        serialized['results'] = run.results
+        serialized["results"] = run.results
     if run.events:
-        serialized['events'] = run.events
+        serialized["events"] = run.events
     if run.parent_id and run.parent.contact == run.contact:
-        serialized['parent_uuid'] = str(run.parent.uuid)
+        serialized["parent_uuid"] = str(run.parent.uuid)
 
     msg_in = run.get_last_msg()
     if msg_in:
-        serialized['input'] = serialize_input(msg_in)
+        serialized["input"] = serialize_input(msg_in)
 
     # things in @extra might not have come from a webhook call but at least they'll be accessible if we make one
     if run.fields:
         payload = json.dumps(run.fields)
-        serialized['webhook'] = {
-            'request': "GET / HTTP/1.1\r\nHost: fakewebhooks.com\r\nUser-Agent: goflow-trials\r\n\r\n",
-            'response': "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n\r\n" + payload,
-            'status': "success",
-            'status_code': 200,
-            'url': "http://fakewebhooks.com/"
+        serialized["webhook"] = {
+            "request": "GET / HTTP/1.1\r\nHost: fakewebhooks.com\r\nUser-Agent: goflow-trials\r\n\r\n",
+            "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n\r\n" + payload,
+            "status": "success",
+            "status_code": 200,
+            "url": "http://fakewebhooks.com/",
         }
 
     return serialized
 
 
 def serialize_input(msg):
-    serialized = {
-        'created_on': msg.created_on.isoformat(),
-        'text': msg.text,
-        'type': 'msg',
-        'uuid': str(msg.uuid)
-    }
+    serialized = {"created_on": msg.created_on.isoformat(), "text": msg.text, "type": "msg", "uuid": str(msg.uuid)}
 
     if msg.channel_id:
-        serialized['channel'] = serialize_channel_ref(msg.channel)
+        serialized["channel"] = serialize_channel_ref(msg.channel)
     if msg.contact_urn_id:
-        serialized['urn'] = msg.contact_urn.urn
+        serialized["urn"] = msg.contact_urn.urn
     if msg.attachments:
-        serialized['attachments'] = msg.attachments
+        serialized["attachments"] = msg.attachments
 
     return serialized
 
 
 def serialize_run_summary(run):
     return {
-        'uuid': str(run.uuid),
-        'flow': {'uuid': str(run.flow.uuid), 'name': run.flow.name},
-        'contact': serialize_contact(run.contact),
-        'status': 'active',
-        'results': run.results,
+        "uuid": str(run.uuid),
+        "flow": {"uuid": str(run.flow.uuid), "name": run.flow.name},
+        "contact": serialize_contact(run.contact),
+        "status": "active",
+        "results": run.results,
     }
 
 
@@ -264,46 +265,42 @@ def compare_run(run, session):
     """
     # find equivalent run in the session
     session_run = None
-    for r in session['runs']:
-        if r['uuid'] == str(run.uuid):
+    for r in session["runs"]:
+        if r["uuid"] == str(run.uuid):
             session_run = r
             break
 
     if not session_run:
-        return {'session': "run %s not found" % str(run.uuid)}
+        return {"session": "run %s not found" % str(run.uuid)}
 
     legacy_run = {
-        'path': reduce_path(run.path),
-        'results': reduce_results(run.results),
-        'events': reduce_events(run.events),
+        "path": reduce_path(run.path),
+        "results": reduce_results(run.results),
+        "events": reduce_events(run.events),
     }
 
     new_run = {
-        'path': reduce_path(session_run['path']),
-        'results': reduce_results(session_run.get('results', {})),
-        'events': reduce_events(session_run.get('events', [])),
+        "path": reduce_path(session_run["path"]),
+        "results": reduce_results(session_run.get("results", {})),
+        "events": reduce_events(session_run.get("events", [])),
     }
 
     diffs = jsondiff(legacy_run, new_run)
     if not diffs:
         return None
 
-    return {
-        'diffs': diffs,
-        'legacy': legacy_run,
-        'new': new_run,
-    }
+    return {"diffs": diffs, "legacy": legacy_run, "new": new_run}
 
 
 def reduce_path(path):
     """
     Reduces path to just node/exit. Other fields are datetimes or generated step UUIDs which are non-deterministic
     """
-    reduced = [copy_keys(step, {'node_uuid', 'exit_uuid'}) for step in path]
+    reduced = [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
 
     # rapidpro doesn't set exit_uuid on terminal actions
-    if 'exit_uuid' in reduced[-1]:
-        del reduced[-1]['exit_uuid']
+    if "exit_uuid" in reduced[-1]:
+        del reduced[-1]["exit_uuid"]
 
     return reduced
 
@@ -312,7 +309,7 @@ def reduce_results(results):
     """
     Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
     """
-    return {k: copy_keys(v, {'category', 'name', 'value', 'node_uuid'}) for k, v in results.items()}
+    return {k: copy_keys(v, {"category", "name", "value", "node_uuid"}) for k, v in results.items()}
 
 
 def reduce_events(events):
@@ -321,11 +318,11 @@ def reduce_events(events):
     """
     reduced = []
     for event in events:
-        if event['type'] not in (Events.msg_created.name, Events.msg_received.name):
+        if event["type"] not in (Events.msg_created.name, Events.msg_received.name):
             continue
 
-        new_event = copy_keys(event, {'type', 'msg'})
-        new_event['msg'] = copy_keys(event['msg'], {'text', 'urn', 'channel', 'attachments'})
+        new_event = copy_keys(event, {"type", "msg"})
+        new_event["msg"] = copy_keys(event["msg"], {"text", "urn", "channel", "attachments"})
 
         reduced.append(new_event)
     return reduced

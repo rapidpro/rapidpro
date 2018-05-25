@@ -1,16 +1,17 @@
 from celery.task import task
-from temba.contacts.models import ContactURN
-from temba.utils.mage import handle_new_contact
-from temba.channels.models import Channel, ChannelEvent
 from django.utils import timezone
 
+from temba.channels.models import Channel, ChannelEvent
+from temba.contacts.models import ContactURN
+from temba.utils.mage import handle_new_contact
 
-@task(track_started=True, name='fire_follow_triggers')  # pragma: no cover
+
+@task(track_started=True, name="fire_follow_triggers")  # pragma: no cover
 def fire_follow_triggers(channel_id, contact_urn_id, new_mage_contact=False):
     """
     Fires a follow trigger
     """
-    urn = ContactURN.objects.select_related('contact').get(pk=contact_urn_id)
+    urn = ContactURN.objects.select_related("contact").get(pk=contact_urn_id)
     contact = urn.contact  # for now, flows start against contacts rather than URNs
     channel = Channel.objects.get(id=channel_id)
 

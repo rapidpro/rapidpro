@@ -5,14 +5,26 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0052_baseexporttask_2'),
-    ]
+    dependencies = [("contacts", "0052_baseexporttask_2")]
 
     operations = [
         migrations.AlterField(
-            model_name='contacturn',
-            name='urn',
-            field=models.CharField(choices=[('tel', 'Phone number'), ('facebook', 'Facebook identifier'), ('twitter', 'Twitter handle'), ('viber', 'Viber identifier'), ('line', 'LINE identifier'), ('telegram', 'Telegram identifier'), ('mailto', 'Email address'), ('ext', 'External identifier'), ('fcm', 'Firebase Cloud Messaging identifier')], help_text='The Universal Resource Name as a string. ex: tel:+250788383383', max_length=255),
-        ),
+            model_name="contacturn",
+            name="urn",
+            field=models.CharField(
+                choices=[
+                    ("tel", "Phone number"),
+                    ("facebook", "Facebook identifier"),
+                    ("twitter", "Twitter handle"),
+                    ("viber", "Viber identifier"),
+                    ("line", "LINE identifier"),
+                    ("telegram", "Telegram identifier"),
+                    ("mailto", "Email address"),
+                    ("ext", "External identifier"),
+                    ("fcm", "Firebase Cloud Messaging identifier"),
+                ],
+                help_text="The Universal Resource Name as a string. ex: tel:+250788383383",
+                max_length=255,
+            ),
+        )
     ]

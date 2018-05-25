@@ -5,14 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0090_auto_20170407_2017'),
-    ]
+    dependencies = [("msgs", "0090_auto_20170407_2017")]
 
     operations = [
         migrations.AddField(
-            model_name='exportmessagestask',
-            name='system_label',
-            field=models.CharField(max_length=1, null=True),
-        ),
+            model_name="exportmessagestask", name="system_label", field=models.CharField(max_length=1, null=True)
+        )
     ]

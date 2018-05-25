@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 ----------------------------------------------------------------------
 -- Inserts a new flowpathrecentrun
@@ -137,10 +136,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0144_auto_20180110_1859'),
-    ]
+    dependencies = [("flows", "0144_auto_20180110_1859")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

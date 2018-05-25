@@ -7,15 +7,15 @@ class Migration(migrations.Migration):
 
     atomic = False
 
-    dependencies = [
-        ('values', '0010_value_indexes'),
-    ]
+    dependencies = [("values", "0010_value_indexes")]
 
     operations = [
-        migrations.RunSQL("""
+        migrations.RunSQL(
+            """
                 CREATE INDEX CONCURRENTLY values_value_field_string_value_concat_new
                 ON values_value((contact_field_id || '|' || UPPER(SUBSTRING(string_value, 1, 32))));
-        """),
+        """
+        ),
         migrations.RunSQL("DROP INDEX values_value_field_string_value_concat;"),
         migrations.RunSQL("ANALYZE values_value;"),
     ]

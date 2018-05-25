@@ -24,7 +24,7 @@ def init_analytics():  # pragma: no cover
     Initializes our analytics libraries based on our settings
     """
     # configure Segment if configured
-    segment_key = getattr(settings, 'SEGMENT_IO_KEY', '')
+    segment_key = getattr(settings, "SEGMENT_IO_KEY", "")
     if segment_key:
         global _segment
         segment_analytics.send = settings.IS_PROD
@@ -33,14 +33,14 @@ def init_analytics():  # pragma: no cover
         _segment = True
 
     # configure Intercom if configured
-    intercom_key = getattr(settings, 'INTERCOM_TOKEN', '')
+    intercom_key = getattr(settings, "INTERCOM_TOKEN", "")
     if intercom_key:
         global _intercom
         _intercom = IntercomClient(personal_access_token=intercom_key)
 
     # configure Librato if configured
-    librato_user = getattr(settings, 'LIBRATO_USER', None)
-    librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
+    librato_user = getattr(settings, "LIBRATO_USER", None)
+    librato_token = getattr(settings, "LIBRATO_TOKEN", None)
     if librato_user and librato_token:
         global _librato
         _librato = LibratoClient(librato_user, librato_token)
@@ -55,7 +55,7 @@ def gauge(event, value=None):  # pragma: no cover
 
     # settings.HOSTNAME is actually service name (like textit.in), and settings.MACHINE_NAME is the name of the machine
     # (virtual/physical) that is part of the service
-    reporting_hostname = '%s.%s' % (settings.MACHINE_HOSTNAME, settings.HOSTNAME)
+    reporting_hostname = "%s.%s" % (settings.MACHINE_HOSTNAME, settings.HOSTNAME)
 
     if _librato:
         _librato.gauge(event, value, reporting_hostname)
@@ -78,7 +78,7 @@ def identify(email, name, attributes):  # pragma: no cover
     if _intercom:
         try:
             # rip out duplicate fields for intercom
-            for key in ('first_name', 'last_name', 'email'):
+            for key in ("first_name", "last_name", "email"):
                 attributes.pop(key, None)
 
             _intercom.users.create(email=email, name=name, custom_attributes=attributes)
@@ -101,15 +101,15 @@ def track(email, event, properties=None, context=None):  # pragma: no cover
             context = dict()
 
         # set our source according to our hostname (name of the platform instance, and not machine hostname)
-        context['source'] = settings.HOSTNAME
+        context["source"] = settings.HOSTNAME
 
         # create properties if none were passed in
         if properties is None:
             properties = dict()
 
         # populate value=1 in our properties if it isn't present
-        if 'value' not in properties:
-            properties['value'] = 1
+        if "value" not in properties:
+            properties["value"] = 1
 
         # call through to the real segment.io analytics
         segment_analytics.track(email, event, properties, context)

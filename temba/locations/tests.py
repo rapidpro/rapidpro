@@ -1,12 +1,14 @@
-import os
 import json
-import responses
+import os
 import shutil
 import tempfile
 
+import responses
 from django.core.management import call_command
 from django.core.urlresolvers import reverse
+
 from temba.tests import TembaTest
+
 from .models import AdminBoundary
 
 
@@ -27,70 +29,67 @@ class LocationTest(TembaTest):
         self.assertEqual(AdminBoundary.strip_last_path("Rwanda > Kigali City"), "Rwanda")
 
         # get the aliases for our user org
-        response = self.client.get(reverse('locations.adminboundary_alias'))
+        response = self.client.get(reverse("locations.adminboundary_alias"))
 
         # should be a redirect to our org home
-        self.assertRedirect(response, reverse('orgs.org_home'))
+        self.assertRedirect(response, reverse("orgs.org_home"))
 
         # now set it to rwanda
         self.org.country = self.country
         self.org.save()
 
         # our country is set to rwanda, we should get it as the main object
-        response = self.client.get(reverse('locations.adminboundary_alias'))
-        self.assertEqual(self.country, response.context['object'])
+        response = self.client.get(reverse("locations.adminboundary_alias"))
+        self.assertEqual(self.country, response.context["object"])
 
         # ok, now get the geometry for rwanda
-        response = self.client.get(
-            reverse('locations.adminboundary_geometry', args=[self.country.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_geometry", args=[self.country.osm_id]))
 
         # should be json
         response_json = response.json()
 
         # should have features in it
-        self.assertIn('features', response_json)
+        self.assertIn("features", response_json)
 
         # should have our two top level states
-        self.assertEqual(2, len(response_json['features']))
+        self.assertEqual(2, len(response_json["features"]))
 
         # now get it for one of the sub areas
-        response = self.client.get(
-            reverse('locations.adminboundary_geometry', args=[self.district1.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_geometry", args=[self.district1.osm_id]))
         response_json = response.json()
 
         # should have features in it
-        self.assertIn('features', response_json)
+        self.assertIn("features", response_json)
 
         # should have our single district in it
-        self.assertEqual(1, len(response_json['features']))
+        self.assertEqual(1, len(response_json["features"]))
 
         # now grab our aliases
-        response = self.client.get(
-            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
         # should just be kigali, without any aliases
         self.assertEqual(2, len(response_json))
-        self.assertEqual("Eastern Province", response_json[0]['name'])
-        self.assertEqual("Kigali City", response_json[1]['name'])
-        self.assertEqual('', response_json[1]['aliases'])
+        self.assertEqual("Eastern Province", response_json[0]["name"])
+        self.assertEqual("Kigali City", response_json[1]["name"])
+        self.assertEqual("", response_json[1]["aliases"])
 
         # update our alias for kigali
-        response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    json.dumps(
-                                        [dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")]),
-                                    content_type='application/json')
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+            json.dumps([dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")]),
+            content_type="application/json",
+        )
 
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases again
-        response = self.client.get(
-            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
         # now have kigs as an alias
-        self.assertEqual("Kigali City", response_json[1]['name'])
-        self.assertEqual('kig\nkigs', response_json[1]['aliases'])
+        self.assertEqual("Kigali City", response_json[1]["name"])
+        self.assertEqual("kig\nkigs", response_json[1]["aliases"])
 
         # test nested admin level aliases update
         geo_data = [
@@ -101,92 +100,93 @@ class LocationTest(TembaTest):
                     dict(
                         osm_id=self.district1.osm_id,
                         aliases="Gatsibo",
-                        children=[
-                            dict(
-                                osm_id=self.ward1.osm_id,
-                                aliases="Kageyo Gat"
-                            )
-                        ]
+                        children=[dict(osm_id=self.ward1.osm_id, aliases="Kageyo Gat")],
                     )
-                ]
+                ],
             )
         ]
-        response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    json.dumps(geo_data), content_type='application/json')
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+            json.dumps(geo_data),
+            content_type="application/json",
+        )
 
         self.assertEqual(200, response.status_code)
 
         # exact match
-        boundary = self.org.find_boundary_by_name('kigali city', AdminBoundary.LEVEL_STATE, self.country)
+        boundary = self.org.find_boundary_by_name("kigali city", AdminBoundary.LEVEL_STATE, self.country)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # try to find the location by alias
-        boundary = self.org.find_boundary_by_name('kigs', AdminBoundary.LEVEL_STATE, self.country)
+        boundary = self.org.find_boundary_by_name("kigs", AdminBoundary.LEVEL_STATE, self.country)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # also try with no parent
-        boundary = self.org.find_boundary_by_name('kigs', AdminBoundary.LEVEL_STATE, None)
+        boundary = self.org.find_boundary_by_name("kigs", AdminBoundary.LEVEL_STATE, None)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # test no match
-        boundary = self.org.find_boundary_by_name('foobar', AdminBoundary.LEVEL_STATE, None)
+        boundary = self.org.find_boundary_by_name("foobar", AdminBoundary.LEVEL_STATE, None)
         self.assertFalse(boundary)
 
         # fetch aliases again
-        response = self.client.get(
-            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
-        self.assertEqual(response_json[0].get('name'), self.state2.name)
-        self.assertEqual(response_json[0].get('aliases'), 'Eastern P')
-        self.assertIn('Kageyo Gat', response_json[0].get('match'))
+        self.assertEqual(response_json[0].get("name"), self.state2.name)
+        self.assertEqual(response_json[0].get("aliases"), "Eastern P")
+        self.assertIn("Kageyo Gat", response_json[0].get("match"))
 
         # trigger wrong request data using bad json
-        response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    """{"data":"foo \r\n bar"}""",
-                                    content_type='application/json')
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+            """{"data":"foo \r\n bar"}""",
+            content_type="application/json",
+        )
 
         response_json = response.json()
         self.assertEqual(400, response.status_code)
-        self.assertEqual(response_json.get('status'), 'error')
+        self.assertEqual(response_json.get("status"), "error")
 
         # Get geometry of admin boundary without sub-levels, should return one feature
-        response = self.client.get(
-            reverse('locations.adminboundary_geometry', args=[self.ward3.osm_id]))
+        response = self.client.get(reverse("locations.adminboundary_geometry", args=[self.ward3.osm_id]))
         self.assertEqual(200, response.status_code)
         response_json = response.json()
-        self.assertEqual(len(response_json.get('features')), 1)
+        self.assertEqual(len(response_json.get("features")), 1)
 
     def test_adminboundary_create(self):
         # create a simple boundary
-        boundary = AdminBoundary.create(osm_id='-1', name='Null Island', level=0)
-        self.assertEqual(boundary.path, 'Null Island')
+        boundary = AdminBoundary.create(osm_id="-1", name="Null Island", level=0)
+        self.assertEqual(boundary.path, "Null Island")
         self.assertIsNone(boundary.simplified_geometry)
 
         # create a simple boundary with parent
-        child_boundary = AdminBoundary.create(osm_id='-2', name='Palm Tree', level=1, parent=boundary)
-        self.assertEqual(child_boundary.path, 'Null Island > Palm Tree')
+        child_boundary = AdminBoundary.create(osm_id="-2", name="Palm Tree", level=1, parent=boundary)
+        self.assertEqual(child_boundary.path, "Null Island > Palm Tree")
         self.assertIsNone(child_boundary.geometry)
 
         wkb_geometry = (
-            '0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27'
-            '400000000080443DC040848F2D272C304000000000407241C01395356EBA0B3040'
+            "0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27"
+            "400000000080443DC040848F2D272C304000000000407241C01395356EBA0B3040"
         )
 
         # create a simple boundary with parent and geometry
         geom_boundary = AdminBoundary.create(
-            osm_id='-3', name='Plum Tree', level=1, parent=boundary,
+            osm_id="-3",
+            name="Plum Tree",
+            level=1,
+            parent=boundary,
             simplified_geometry=wkb_geometry,
-            geometry=wkb_geometry
+            geometry=wkb_geometry,
         )
-        self.assertEqual(geom_boundary.path, 'Null Island > Plum Tree')
+        self.assertEqual(geom_boundary.path, "Null Island > Plum Tree")
         self.assertIsNotNone(geom_boundary.simplified_geometry)
         self.assertIsNotNone(geom_boundary.geometry)
 
         # path should not be defined when calling AdminBoundary.create
-        self.assertRaises(TypeError, AdminBoundary.create, osm_id='-1', name='Null Island', level=0, path='some path')
+        self.assertRaises(TypeError, AdminBoundary.create, osm_id="-1", name="Null Island", level=0, path="some path")
 
 
 class DownloadGeoJsonTest(TembaTest):
@@ -194,19 +194,22 @@ class DownloadGeoJsonTest(TembaTest):
     def setUp(self):
         responses.add(
             responses.GET,
-            'https://api.github.com/repos/nyaruka/posm-extracts/git/trees/master',
-            body=json.dumps({'tree': [{"path": "geojson", "sha": "the-sha"}]}),
-            content_type='application/json')
+            "https://api.github.com/repos/nyaruka/posm-extracts/git/trees/master",
+            body=json.dumps({"tree": [{"path": "geojson", "sha": "the-sha"}]}),
+            content_type="application/json",
+        )
         responses.add(
             responses.GET,
-            'https://api.github.com/repos/nyaruka/posm-extracts/git/trees/the-sha',
-            body=json.dumps({'tree': [{"path": "R12345_simplified.json"},
-                                      {"path": "R45678_simplified.json"}]}),
-            content_type='application/json')
+            "https://api.github.com/repos/nyaruka/posm-extracts/git/trees/the-sha",
+            body=json.dumps({"tree": [{"path": "R12345_simplified.json"}, {"path": "R45678_simplified.json"}]}),
+            content_type="application/json",
+        )
         responses.add(
             responses.GET,
-            'https://raw.githubusercontent.com/nyaruka/posm-extracts/master/geojson/R12345_simplified.json',
-            body='the-relation-json', content_type='application/json')
+            "https://raw.githubusercontent.com/nyaruka/posm-extracts/master/geojson/R12345_simplified.json",
+            body="the-relation-json",
+            content_type="application/json",
+        )
         self.testdir = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -214,11 +217,11 @@ class DownloadGeoJsonTest(TembaTest):
 
     @responses.activate
     def test_download_geojson(self):
-        destination_dir = os.path.join(self.testdir, 'geojson')
-        good_path = os.path.join(destination_dir, 'R12345_simplified.json')
-        bad_path = os.path.join(destination_dir, 'R45678_simplified.json')
-        call_command('download_geojson', '12345', '--dir', destination_dir)
+        destination_dir = os.path.join(self.testdir, "geojson")
+        good_path = os.path.join(destination_dir, "R12345_simplified.json")
+        bad_path = os.path.join(destination_dir, "R45678_simplified.json")
+        call_command("download_geojson", "12345", "--dir", destination_dir)
         self.assertFalse(os.path.exists(bad_path))
         self.assertTrue(os.path.exists(good_path))
-        with open(good_path, 'r') as fp:
-            self.assertEqual(fp.read(), 'the-relation-json')
+        with open(good_path, "r") as fp:
+            self.assertEqual(fp.read(), "the-relation-json")
