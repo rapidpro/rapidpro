@@ -18,6 +18,8 @@ class MessangiType(ChannelType):
     CONFIG_CARRIER_ID = "carrier_id"
     CONFIG_INSTANCE_ID = "instance_id"
 
+    courier_url = r"^mg/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+
     code = "MG"
     category = ChannelType.Category.PHONE
 
