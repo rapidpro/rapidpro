@@ -75,6 +75,7 @@ coverage
 flake8
 flake8-deprecated
 flake8-print
+isort
 mock
 responses
 selenium
