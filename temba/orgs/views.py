@@ -1729,7 +1729,15 @@ class OrgCRUDL(SmartCRUDL):
                 self.request.session['org_id'] = org.pk
 
             #Now check if have to add to another org
-
+            if org.parent:
+                if '_produccion' in org.parent.name:
+                    org.parent.viewers.add(self.request.user)
+            else:
+                #Search for their sons
+                org_children = Org.objects.filter(parent=org)
+                for org_child in org_children:
+                    if org_child and '_desarrollo' in org_child.name:
+                        org_child.administrators.add(self.request.user)
 
         def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == 'S':
