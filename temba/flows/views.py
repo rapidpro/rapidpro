@@ -38,10 +38,11 @@ from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
+from temba.utils import analytics, on_transaction_commit, chunk_list, str_to_bool
+from temba.flows import server
 from temba.utils.dates import datetime_to_str, datetime_to_ms
 from temba.utils.expressions import get_function_listing
-from temba.utils.goflow import get_client
+from temba.flows.server import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
 from .models import RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
@@ -1487,12 +1488,12 @@ class FlowCRUDL(SmartCRUDL):
                 return org.country
 
         resources = {
-            'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
-            'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
-            'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), goflow.serialize_flow),
-            'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), goflow.serialize_group),
-            'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
-            'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
+            'channel': Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
+            'field': Resource(ContactField.objects.filter(is_active=True), server.serialize_field),
+            'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
+            'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), server.serialize_group),
+            'label': Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
+            'location_hierarchy': BoundaryResource(server.serialize_location_hierarchy),
         }
 
         simulator_extras = {

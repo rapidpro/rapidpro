@@ -31,7 +31,6 @@ from temba.tests import (
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils.dates import datetime_to_str
-from temba.utils.goflow import FlowServerException, get_client, serialize_contact
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 from .flow_migrations import (
@@ -51,6 +50,7 @@ from .models import (
     DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction, UssdAction, FlowPathRecentRun,
     FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException, FlowNodeCount, FlowStartCount
 )
+from .server import FlowServerException, get_client, serialize_contact
 from .views import FlowCRUDL
 from .tasks import update_run_expirations_task, squash_flowruncounts, squash_flowpathcounts, check_flow_timeouts_task
 
@@ -9389,7 +9389,7 @@ class FlowServerTest(TembaTest):
         self.assertTrue(run5_output['events'][0]['msg']['text'], "Hello")
 
         # when flowserver returns an error
-        with patch('temba.utils.goflow.FlowServerClient.start') as mock_start:
+        with patch('temba.flows.server.FlowServerClient.start') as mock_start:
             mock_start.side_effect = FlowServerException("nope")
 
             self.assertEqual(flow.start([], [self.contact], restart_participants=True), [])
@@ -9409,7 +9409,7 @@ class FlowServerTest(TembaTest):
         self.assertIn('color', run1.results)
 
         # when flowserver returns an error
-        with patch('temba.utils.goflow.FlowServerClient.resume') as mock_resume:
+        with patch('temba.flows.server.FlowServerClient.resume') as mock_resume:
             mock_resume.side_effect = FlowServerException("nope")
 
             msg2 = self.create_msg(direction='I', text="Primus", contact=self.contact)
