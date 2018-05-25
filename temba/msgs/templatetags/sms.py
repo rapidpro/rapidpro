@@ -1,6 +1,7 @@
 
 from django import template
 from django.utils.safestring import mark_safe
+
 from temba.channels.models import ChannelEvent
 
 register = template.Library()

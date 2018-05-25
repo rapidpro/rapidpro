@@ -1,10 +1,11 @@
-import traceback
 import time
+import traceback
+from itertools import chain
 
 from django.core.management.base import BaseCommand
+
 from temba.orgs.models import Org
 from temba.utils import analytics
-from itertools import chain
 
 
 class Command(BaseCommand):  # pragma: no cover

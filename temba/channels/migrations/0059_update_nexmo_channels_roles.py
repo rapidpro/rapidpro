@@ -1,8 +1,9 @@
 
-from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.db import migrations
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID
+
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID, Org
 
 
 class Migration(migrations.Migration):

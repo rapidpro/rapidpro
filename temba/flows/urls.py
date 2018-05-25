@@ -1,5 +1,6 @@
 
 from django.conf.urls import url
+
 from .views import FlowCRUDL, FlowLabelCRUDL, FlowRunCRUDL, PartialTemplate
 
 urlpatterns = FlowCRUDL().as_urlpatterns()

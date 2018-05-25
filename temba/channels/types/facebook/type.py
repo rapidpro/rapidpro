@@ -4,8 +4,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FACEBOOK_SCHEME
 from temba.triggers.models import Trigger
-from .views import ClaimView
+
 from ...models import Channel, ChannelType
+from .views import ClaimView
 
 
 class FacebookType(ChannelType):

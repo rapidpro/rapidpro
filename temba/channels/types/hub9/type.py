@@ -1,7 +1,8 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dartmedia.views import ClaimView
-from temba.contacts.models import TEL_SCHEME, EXTERNAL_SCHEME
+from temba.contacts.models import EXTERNAL_SCHEME, TEL_SCHEME
+
 from ...models import ChannelType
 
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service

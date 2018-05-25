@@ -1,12 +1,15 @@
 from gettext import gettext as _
-from django.core.urlresolvers import reverse
+
 from django import forms
+from django.core.urlresolvers import reverse
 from django.db.models import Max
-from django.utils import timezone
 from django.http import HttpResponseRedirect
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartCreateView, SmartFormView
+from django.utils import timezone
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView
+
 from temba.orgs.views import OrgPermsMixin
-from .models import Policy, Consent
+
+from .models import Consent, Policy
 
 
 class PolicyCRUDL(SmartCRUDL):

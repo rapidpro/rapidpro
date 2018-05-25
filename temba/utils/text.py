@@ -1,14 +1,13 @@
 
+import base64
 import random
 import re
 import string
+import sys
 from collections import Counter
 
 import regex
-import sys
-import base64
 from django.utils.encoding import force_text
-
 from django.utils.text import slugify
 
 CONTROL_CHARACTERES_REGEX = r"[\000-\010]|[\013-\014]|[\016-\037]"

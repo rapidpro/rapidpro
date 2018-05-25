@@ -1,8 +1,11 @@
-from uuid import uuid4
-from temba.tests import TembaTest
-from django.core.urlresolvers import reverse
-from .models import Archive
 from datetime import date
+from uuid import uuid4
+
+from django.core.urlresolvers import reverse
+
+from temba.tests import TembaTest
+
+from .models import Archive
 
 
 class ArchiveViewTest(TembaTest):

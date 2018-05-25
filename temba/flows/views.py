@@ -1,21 +1,24 @@
 
-import iso8601
 import json
 import logging
-import regex
 import time
 import traceback
-
-from random import randint
 from datetime import datetime, timedelta
+from functools import cmp_to_key
+from itertools import chain
+from random import randint
+from uuid import uuid4
+
+import iso8601
+import regex
+from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Min, Max, Sum, QuerySet
-from django import forms
+from django.db.models import Count, Max, Min, QuerySet, Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.encoding import force_text
@@ -23,30 +26,46 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
-from functools import cmp_to_key
-from itertools import chain
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, smart_url
-from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+    smart_url,
+)
+
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import Contact, ContactField, TEL_SCHEME, ContactURN, ContactGroup
-from temba.ivr.models import IVRCall
-from temba.ussd.models import USSDSession
-from temba.orgs.models import Org
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
-from temba.flows.tasks import export_flow_results_task
-from temba.msgs.models import Msg, Label, PENDING
-from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list, str_to_bool
+from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows import server
-from temba.utils.dates import datetime_to_str, datetime_to_ms
-from temba.utils.expressions import get_function_listing
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount
 from temba.flows.server import get_client
+from temba.flows.tasks import export_flow_results_task
+from temba.ivr.models import IVRCall
+from temba.msgs.models import PENDING, Label, Msg
+from temba.orgs.models import Org
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.triggers.models import Trigger
+from temba.ussd.models import USSDSession
+from temba.utils import analytics, chunk_list, on_transaction_commit, str_to_bool
+from temba.utils.dates import datetime_to_ms, datetime_to_str
+from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
-from uuid import uuid4
-from .models import RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
-from .models import FlowUserConflictException, FlowVersionConflictException, FlowInvalidCycleException
+
+from .models import (
+    ActionLog,
+    ExportFlowResultsTask,
+    FlowInvalidCycleException,
+    FlowLabel,
+    FlowPathRecentRun,
+    FlowUserConflictException,
+    FlowVersionConflictException,
+    RuleSet,
+)
 
 logger = logging.getLogger(__name__)
 

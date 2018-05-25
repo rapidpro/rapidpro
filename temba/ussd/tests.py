@@ -1,19 +1,18 @@
 
 import json
-
 from datetime import datetime, timedelta
-from mock import patch
 
-from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun
-from temba.msgs.models import WIRED, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED, HANDLED
-from temba.tests import TembaTest, MockResponse
+from temba.msgs.models import DELIVERED, FAILED, HANDLED, INCOMING, OUTGOING, SENT, USSD, WIRED, Msg
+from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 
 from .models import USSDSession

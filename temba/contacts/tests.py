@@ -1,55 +1,65 @@
 
+import copy
 import json
 import subprocess
-import pytz
-import copy
 import time
+from datetime import date, datetime, timedelta
 
-from datetime import date
-from datetime import datetime, timedelta
+import pytz
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
-from django.conf import settings
 from django.db.models import Value as DbValue
-from django.db.models.functions import Substr, Concat
+from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
-from smartmin.models import SmartImportRowError
-from smartmin.tests import _CRUDLTest, SmartminTestMixin
 from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError
+from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
-from temba.contacts.views import ContactListView
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_phonenumber, evaluate_query, contact_es_search
+from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
+from temba.contacts.views import ContactListView
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest, ESMockWithScroll, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
+from temba.utils.es import ES
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
-from temba.utils.es import ES
-from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
-from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
-from .search import (
-    parse_query,
-    ContactQuery,
-    Condition,
-    IsSetCondition,
-    BoolCombination,
-    SinglePropCombination,
-    SearchException,
+
+from .models import (
+    EXTERNAL_SCHEME,
+    TEL_SCHEME,
+    TWITTER_SCHEME,
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+    ExportContactsTask,
 )
-from .tasks import squash_contactgroupcounts, check_elasticsearch_lag
-from .templatetags.contacts import contact_field, activity_icon, history_class
+from .search import (
+    BoolCombination,
+    Condition,
+    ContactQuery,
+    IsSetCondition,
+    SearchException,
+    SinglePropCombination,
+    parse_query,
+)
+from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
+from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
 class ContactCRUDLTest(_CRUDLTest):

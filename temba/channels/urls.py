@@ -1,5 +1,6 @@
 
-from django.conf.urls import url, include
+from django.conf.urls import include, url
+
 from .handlers import MageHandler, get_channel_handlers
 from .models import Channel
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL

@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 CREATE OR REPLACE FUNCTION temba_update_flowcategorycount() RETURNS TRIGGER AS $$
 BEGIN

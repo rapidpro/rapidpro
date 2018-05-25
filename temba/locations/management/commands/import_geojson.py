@@ -1,10 +1,11 @@
 import os.path
+from zipfile import ZipFile
+
 import geojson
 import regex
-
-from zipfile import ZipFile
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.core.management.base import BaseCommand
+
 from temba.locations.models import AdminBoundary
 
 

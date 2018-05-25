@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 --- Drop the triggers
 DROP TRIGGER IF EXISTS temba_flowrun_truncate_flowruncount on flows_flowrun;

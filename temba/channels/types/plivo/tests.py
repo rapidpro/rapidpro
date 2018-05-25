@@ -5,7 +5,7 @@ from django.urls import reverse
 from mock import patch
 
 from temba.channels.models import Channel
-from temba.tests import TembaTest, MockResponse
+from temba.tests import MockResponse, TembaTest
 
 
 class PlivoTypeTest(TembaTest):

@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from smartmin.tests import SmartminTest, _CRUDLTest
+
 from .models import Lead, Video
 from .views import VideoCRUDL
 

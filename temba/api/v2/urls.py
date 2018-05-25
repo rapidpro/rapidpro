@@ -1,19 +1,34 @@
 
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
-from .views import (
-    RootView,
-    ExplorerView,
-    AuthenticateView,
-    BroadcastsEndpoint,
-    ChannelsEndpoint,
-    ChannelEventsEndpoint,
-)
-from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
-from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, ResthooksEndpoint, ResthookEventsEndpoint, ResthookSubscribersEndpoint, RunsEndpoint
-from .views import BoundariesEndpoint, ContactActionsEndpoint, MessageActionsEndpoint
 
+from .views import (
+    AuthenticateView,
+    BoundariesEndpoint,
+    BroadcastsEndpoint,
+    CampaignEventsEndpoint,
+    CampaignsEndpoint,
+    ChannelEventsEndpoint,
+    ChannelsEndpoint,
+    ContactActionsEndpoint,
+    ContactsEndpoint,
+    DefinitionsEndpoint,
+    ExplorerView,
+    FieldsEndpoint,
+    FlowsEndpoint,
+    FlowStartsEndpoint,
+    GroupsEndpoint,
+    LabelsEndpoint,
+    MediaEndpoint,
+    MessageActionsEndpoint,
+    MessagesEndpoint,
+    OrgEndpoint,
+    ResthookEventsEndpoint,
+    ResthooksEndpoint,
+    ResthookSubscribersEndpoint,
+    RootView,
+    RunsEndpoint,
+)
 
 urlpatterns = [
     url(r"^$", RootView.as_view(), name="api.v2"),

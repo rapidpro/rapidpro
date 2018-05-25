@@ -10,9 +10,10 @@ import time
 
 from django.conf import settings
 from django_redis import get_redis_connection
-from .client import get_client, Events
-from .serialize import serialize_contact, serialize_environment, serialize_channel_ref
 from jsondiff import diff as jsondiff
+
+from .client import Events, get_client
+from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
 

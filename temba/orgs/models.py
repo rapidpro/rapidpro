@@ -3,47 +3,47 @@ import itertools
 import logging
 import mimetypes
 import os
-import pycountry
 import random
 import re
-import regex
-import stripe
 import traceback
-
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-from django.conf import settings
-from django.contrib.auth.models import User, Group
-from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
-from django.core.urlresolvers import reverse
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
-from django.db.models import Sum, F, Q, Prefetch
-from django.utils import timezone
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from django.utils.text import slugify
-from django_redis import get_redis_connection
 from enum import Enum
-from requests import Session
-from smartmin.models import SmartModel
-from temba.bundles import get_brand_bundles, get_bundle_map
-from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, languages
-from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
-from temba.utils.currencies import currency_for_country
-from temba.utils.dates import str_to_datetime, get_datetime_format, datetime_to_str
-from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
-from temba.utils.models import SquashableModel, JSONAsTextField
-from temba.utils.text import random_string
-from timezone_field import TimeZoneField
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import pycountry
+import regex
+import stripe
+from dateutil.relativedelta import relativedelta
+from django.conf import settings
+from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
+from django.core.files import File
+from django.core.files.storage import default_storage
+from django.core.files.temp import NamedTemporaryFile
+from django.core.urlresolvers import reverse
+from django.db import models, transaction
+from django.db.models import F, Prefetch, Q, Sum
+from django.utils import timezone
+from django.utils.functional import cached_property
+from django.utils.text import slugify
+from django.utils.translation import ugettext_lazy as _
+from django_redis import get_redis_connection
+from requests import Session
+from smartmin.models import SmartModel
+from timezone_field import TimeZoneField
+
+from temba.bundles import get_brand_bundles, get_bundle_map
+from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.utils import analytics, languages
+from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from temba.utils.currencies import currency_for_country
+from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
+from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
+from temba.utils.models import JSONAsTextField, SquashableModel
+from temba.utils.text import random_string
 
 EARLIEST_IMPORT_VERSION = "3"
 

@@ -1,10 +1,9 @@
 
 import phonenumbers
-
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin, AuthenticatedExternalCallbackClaimView
+from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalCallbackClaimView, ClaimViewMixin
 
 
 class ClaimView(AuthenticatedExternalCallbackClaimView):

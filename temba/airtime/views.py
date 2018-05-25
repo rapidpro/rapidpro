@@ -1,7 +1,8 @@
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartListView, SmartReadView, SmartCRUDL
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+
 from temba.airtime.models import AirtimeTransfer
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
 
 class AirtimeCRUDL(SmartCRUDL):

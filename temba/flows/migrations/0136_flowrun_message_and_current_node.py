@@ -3,7 +3,6 @@
 import django.contrib.postgres.fields
 from django.db import migrations, models
 
-
 # there are no changes to the functions below but we need to re-add them after changing the schema of flows_flowrun
 SQL = """
 ----------------------------------------------------------------------

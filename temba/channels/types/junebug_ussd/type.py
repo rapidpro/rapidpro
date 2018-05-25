@@ -8,12 +8,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelType, Channel, SendException
+from temba.channels.models import Channel, ChannelType, SendException
+from temba.channels.types.junebug_ussd.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
-from temba.msgs.models import Msg, WIRED
+from temba.msgs.models import WIRED, Msg
 from temba.ussd.models import USSDSession
 from temba.utils.http import HttpEvent, http_headers
-from temba.channels.types.junebug_ussd.views import ClaimView
 
 
 class JunebugUSSDType(ChannelType):

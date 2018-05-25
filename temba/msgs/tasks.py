@@ -1,22 +1,34 @@
 
-import iso8601
+import json
 import logging
 import time
-import json
-
-from celery.task import task
 from datetime import timedelta
+
+import iso8601
+from celery.task import task
 from django.core.cache import cache
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django_redis import get_redis_connection
-from temba.contacts.models import Contact, STOP_CONTACT_EVENT
-from temba.channels.models import ChannelEvent, CHANNEL_EVENT
-from temba.utils import chunk_list, analytics
-from temba.utils.mage import handle_new_message, handle_new_contact
-from temba.utils.queues import start_task, complete_task, nonoverlapping_task
-from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
-from .models import FIRE_EVENT, TIMEOUT_EVENT, LabelCount, SystemLabelCount
+
+from temba.channels.models import CHANNEL_EVENT, ChannelEvent
+from temba.contacts.models import STOP_CONTACT_EVENT, Contact
+from temba.utils import analytics, chunk_list
+from temba.utils.mage import handle_new_contact, handle_new_message
+from temba.utils.queues import complete_task, nonoverlapping_task, start_task
+
+from .models import (
+    FIRE_EVENT,
+    HANDLE_EVENT_TASK,
+    MSG_EVENT,
+    PENDING,
+    TIMEOUT_EVENT,
+    Broadcast,
+    ExportMessagesTask,
+    LabelCount,
+    Msg,
+    SystemLabelCount,
+)
 
 logger = logging.getLogger(__name__)
 

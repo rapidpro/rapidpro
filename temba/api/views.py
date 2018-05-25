@@ -1,13 +1,15 @@
-import requests
+from urllib.parse import parse_qs
 
+import requests
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
-from urllib.parse import parse_qs
-from smartmin.views import SmartTemplateView, SmartReadView, SmartListView, SmartView
+from smartmin.views import SmartListView, SmartReadView, SmartTemplateView, SmartView
+
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
-from .models import WebHookEvent, APIToken, Resthook
+
+from .models import APIToken, Resthook, WebHookEvent
 
 
 class RefreshAPITokenView(OrgPermsMixin, SmartView, View):

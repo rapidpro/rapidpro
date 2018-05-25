@@ -9,7 +9,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from temba.utils.queues import nonoverlapping_task
-from .models import ExportContactsTask, ContactGroupCount, ContactGroup, Contact
+
+from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
 
 logger = logging.getLogger(__name__)
 

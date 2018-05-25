@@ -1,4 +1,5 @@
 from temba.msgs.handler import MessageHandler
+
 from .models import Trigger
 
 

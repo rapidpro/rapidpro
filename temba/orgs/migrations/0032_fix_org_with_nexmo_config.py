@@ -1,13 +1,14 @@
 import json
-import nexmo as nx
+from uuid import uuid4
 
+import nexmo as nx
 from django.conf import settings
 from django.core.cache import cache
 from django.db import migrations
 from django.urls import reverse
+
 from temba.ivr.clients import NexmoClient
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
-from uuid import uuid4
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID
 
 
 def update_nexmo_config(Org):

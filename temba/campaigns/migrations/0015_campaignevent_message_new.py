@@ -1,8 +1,9 @@
 import json
-import temba.utils.models
 
 from django.contrib.postgres.operations import HStoreExtension
 from django.db import migrations
+
+import temba.utils.models
 
 
 def populate_message_new(apps, schema_editor):

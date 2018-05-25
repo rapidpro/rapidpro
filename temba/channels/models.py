@@ -5,22 +5,21 @@ import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
+from urllib.parse import urlparse
 from xml.sax.saxutils import escape
 
 import phonenumbers
 from django.conf import settings
 from django.conf.urls import url
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import Q, Max, Sum
+from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.template import Context
-from django.template import Engine
-from django.template import TemplateDoesNotExist
+from django.template import Context, Engine, TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -29,15 +28,14 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
-from urllib.parse import urlparse
 from smartmin.models import SmartModel
-from twilio import twiml, TwilioRestException
+from twilio import TwilioRestException, twiml
 
-from temba.orgs.models import Org, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET
-from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
+from temba.utils import analytics, dict_to_json, dict_to_struct, get_anonymous_user, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
-from temba.utils.models import SquashableModel, TembaModel, generate_uuid, JSONAsTextField
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 

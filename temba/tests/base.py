@@ -1,16 +1,19 @@
 import inspect
 import json
 import os
-import pytz
-import regex
-import redis
 import shutil
 import string
 import time
-
 from datetime import datetime, timedelta
+from functools import wraps
+from unittest import skipIf
+from uuid import uuid4
+
+import pytz
+import redis
+import regex
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
@@ -19,23 +22,21 @@ from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
-from functools import wraps
 from future.moves.html.parser import HTMLParser
 from mock import patch
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, ContactField, URN
-from temba.orgs.models import Org
+
 from temba.channels.models import Channel
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, clear_flow_users
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowRevision, clear_flow_users
-from temba.msgs.models import Msg, INCOMING
+from temba.msgs.models import INCOMING, Msg
+from temba.orgs.models import Org
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.constants import Value
-from unittest import skipIf
-from uuid import uuid4
-from .http import MockServer
 
+from .http import MockServer
 
 mock_server = MockServer()
 

@@ -1,48 +1,72 @@
 import copy
 import datetime
-import iso8601
 import json
+import os
+from decimal import Decimal
+
+import iso8601
 import pycountry
 import pytz
-import os
-
 from celery.app.task import Task
-from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
-from django.core.management import call_command, CommandError
+from django.core.management import CommandError, call_command
 from django.core.urlresolvers import reverse
-from django.db import models, connection
-from django.test import override_settings, TestCase, TransactionTestCase
+from django.db import connection, models
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from mock import patch, PropertyMock
+from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
+from temba_expressions.evaluator import DateStyle, EvaluationContext
+
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings
-from temba.tests import TembaTest, matchers, ESMockWithScroll
-from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_number, dict_to_struct, dict_to_json, str_to_bool, percentage
-from . import chunk_list, get_country_code_by_name, voicexml, sizeof_fmt
-from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
+from temba.tests import ESMockWithScroll, TembaTest, matchers
+
+from . import (
+    chunk_list,
+    dict_to_json,
+    dict_to_struct,
+    format_number,
+    get_country_code_by_name,
+    percentage,
+    sizeof_fmt,
+    str_to_bool,
+    voicexml,
+)
+from .cache import QueueRecord, get_cacheable_attr, get_cacheable_result, incrby_existing
 from .currencies import currency_for_country
-from .dates import str_to_datetime, str_to_time, date_to_utc_range, datetime_to_ms, ms_to_datetime, datetime_to_epoch
-from .dates import datetime_to_str, datetime_to_json_date
-from .email import send_simple_email, is_valid_address
+from .dates import (
+    date_to_utc_range,
+    datetime_to_epoch,
+    datetime_to_json_date,
+    datetime_to_ms,
+    datetime_to_str,
+    ms_to_datetime,
+    str_to_datetime,
+    str_to_time,
+)
+from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
-from .expressions import _build_function_signature
-from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
+from .expressions import (
+    _build_function_signature,
+    evaluate_template,
+    evaluate_template_compat,
+    get_function_listing,
+    migrate_template,
+)
+from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
-from .nexmo import NCCOException, NCCOResponse
-from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
-from .timezones import TimeZoneFormField, timezone_to_country_code
-from .text import clean_string, decode_base64, truncate, slugify_with, random_string
-from .voicexml import VoiceXMLException
+from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
-from .locks import NonBlockingLock, LockNotAcquiredException
+from .nexmo import NCCOException, NCCOResponse
+from .queues import HIGH_PRIORITY, LOW_PRIORITY, complete_task, nonoverlapping_task, push_task, start_task
+from .text import clean_string, decode_base64, random_string, slugify_with, truncate
+from .timezones import TimeZoneFormField, timezone_to_country_code
+from .voicexml import VoiceXMLException
 
 
 class InitTest(TembaTest):

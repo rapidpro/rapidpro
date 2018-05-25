@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 -- this is performed in Python-land now
 DROP FUNCTION temba_squash_flowruncount(INT, CHAR(1));

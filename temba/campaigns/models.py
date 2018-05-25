@@ -1,11 +1,12 @@
 import json
-
 from datetime import timedelta
+
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import ContactGroup, ContactField, Contact
+
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Org

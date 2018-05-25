@@ -1,6 +1,6 @@
 from django.conf.urls import url
-from .views import AssetDownloadView, AssetStreamView
 
+from .views import AssetDownloadView, AssetStreamView
 
 urlpatterns = [
     url(r"download/(?P<type>\w+)/(?P<pk>\d+)/$", AssetDownloadView.as_view(), name="assets.download"),

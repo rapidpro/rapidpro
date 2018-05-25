@@ -1,11 +1,11 @@
-import boto3
+from gettext import gettext as _
 from urllib.parse import urlparse
 
+import boto3
 from django.conf import settings
 from django.db import models
-
-from gettext import gettext as _
 from django.utils import timezone
+
 from temba.utils import sizeof_fmt
 
 

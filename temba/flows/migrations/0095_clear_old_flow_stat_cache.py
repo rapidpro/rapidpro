@@ -3,7 +3,6 @@
 from django.db import migrations
 from django_redis import get_redis_connection
 
-
 KEY_NAMES = (
     "runs_started_count",
     "runs_completed_count",

@@ -1,7 +1,7 @@
 import os
-import requests
-import regex
 
+import regex
+import requests
 from django.core.management.base import BaseCommand
 
 

@@ -1,10 +1,12 @@
 import re
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives, send_mail, get_connection as get_smtp_connection
+from django.core.mail import EmailMultiAlternatives
+from django.core.mail import get_connection as get_smtp_connection
+from django.core.mail import send_mail
 from django.core.validators import EmailValidator
 from django.template import loader
-from django.conf import settings
 
 
 class TembaEmailValidator(EmailValidator):

@@ -12,26 +12,46 @@ from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
-from django.db.models.functions import Upper, Lower
-from django.http import HttpResponseRedirect, HttpResponse
+from django.db.models.functions import Lower, Upper
+from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from smartmin.csv_imports.models import ImportTask
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
-from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartTemplateView, smart_url
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartCSVImportView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+    smart_url,
+)
 
 from temba.msgs.views import SendMessageForm
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, ContactListPaginationMixin
 from temba.values.constants import Value
-from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
-from .models import ExportContactsTask, TEL_SCHEME
+
+from .models import (
+    TEL_SCHEME,
+    URN,
+    URN_SCHEME_CONFIG,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+    ExportContactsTask,
+)
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
 from .tasks import export_contacts_task

@@ -1,9 +1,8 @@
 import json
-
 from cgi import parse_header, parse_multipart
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse
 from threading import Thread
+from urllib.parse import urlparse
 
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):

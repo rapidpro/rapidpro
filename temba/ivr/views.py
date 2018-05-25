@@ -6,10 +6,11 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.encoding import force_text
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+
 from temba.channels.models import Channel, ChannelLog, ChannelType
+from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.utils.http import HttpEvent
-from temba.flows.models import Flow, FlowRun
 
 
 class CallHandler(View):

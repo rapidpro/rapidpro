@@ -1,8 +1,8 @@
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-
 from smartmin.views import SmartFormView
+
 from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin
 from temba.contacts.models import TEL_SCHEME

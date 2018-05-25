@@ -3,7 +3,8 @@ import json
 
 from django import forms
 from django.forms import widgets
-from .models import Contact, ContactGroup, ContactURN, URN
+
+from .models import URN, Contact, ContactGroup, ContactURN
 
 
 class OmniboxWidget(widgets.TextInput):

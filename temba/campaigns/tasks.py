@@ -1,16 +1,16 @@
 import logging
+from collections import defaultdict
 
 from celery.task import task
-from collections import defaultdict
 from django.db import transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
+
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
+from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK, HANDLER_QUEUE
 from temba.utils import chunk_list
 from temba.utils.cache import QueueRecord
-from temba.utils.queues import push_task, nonoverlapping_task
-
+from temba.utils.queues import nonoverlapping_task, push_task
 
 logger = logging.getLogger(__name__)
 

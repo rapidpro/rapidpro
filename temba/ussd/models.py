@@ -1,7 +1,8 @@
 from django.db import models
 from django.utils import timezone
+
 from temba.channels.models import ChannelSession
-from temba.contacts.models import Contact, URN, ContactURN
+from temba.contacts.models import URN, Contact, ContactURN
 from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user

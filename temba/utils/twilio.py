@@ -1,14 +1,10 @@
 
 import json
-
-from django.utils.encoding import force_text
 from urllib.parse import urlencode
 
-from twilio.rest import Messages, Calls
-from twilio.rest import TwilioRestClient
-from twilio.rest import UNSET_TIMEOUT
-from twilio.rest.resources import Resource
-from twilio.rest.resources import make_twilio_request
+from django.utils.encoding import force_text
+from twilio.rest import UNSET_TIMEOUT, Calls, Messages, TwilioRestClient
+from twilio.rest.resources import Resource, make_twilio_request
 
 from temba.utils.http import HttpEvent
 

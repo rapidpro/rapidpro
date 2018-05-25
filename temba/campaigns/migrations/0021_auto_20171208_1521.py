@@ -1,5 +1,6 @@
-from temba.utils.languages import iso6392_to_iso6393
 from django.db import migrations
+
+from temba.utils.languages import iso6392_to_iso6393
 
 
 def migrate_event_languages(apps, schema_editor):

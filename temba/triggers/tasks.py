@@ -1,8 +1,9 @@
 from celery.task import task
+from django.utils import timezone
+
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import ContactURN
 from temba.utils.mage import handle_new_contact
-from temba.channels.models import Channel, ChannelEvent
-from django.utils import timezone
 
 
 @task(track_started=True, name="fire_follow_triggers")  # pragma: no cover

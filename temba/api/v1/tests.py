@@ -1,7 +1,8 @@
 import json
-import pytz
-
 from datetime import datetime, timedelta
+from uuid import uuid4
+
+import pytz
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
@@ -12,19 +13,26 @@ from mock import patch
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
+
+from temba.api.models import APIToken
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import FlowLabel, FlowRun, RuleSet, ActionSet, Flow
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, Contact, ContactField, ContactGroup
+from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
-from temba.api.models import APIToken
-from uuid import uuid4
-from .serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
-from .serializers import MsgCreateSerializer
+
+from .serializers import (
+    ChannelField,
+    DateTimeField,
+    MsgCreateSerializer,
+    PhoneArrayField,
+    StringArrayField,
+    StringDictField,
+)
 
 
 class APITest(TembaTest):

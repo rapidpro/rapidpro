@@ -1,15 +1,15 @@
 
+import importlib
 import json
 import time
-import importlib
 from functools import wraps
 
 from celery import current_app, shared_task
 from django.conf import settings
 from django.utils.encoding import force_text
 from django_redis import get_redis_connection
-from temba.utils import dict_to_json
 
+from temba.utils import dict_to_json
 
 LOW_PRIORITY = +10000000  # +10M ~ 110 days
 DEFAULT_PRIORITY = 0

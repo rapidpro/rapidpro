@@ -4,12 +4,13 @@ import fnmatch
 import json
 import sys
 import time
-
 from datetime import datetime, timedelta
+
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
-from django.utils.timezone import now
 from django.utils.http import urlquote_plus
+from django.utils.timezone import now
+
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
 from temba.utils.dates import datetime_to_str, get_datetime_format

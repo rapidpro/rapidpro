@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 FUNCTION_SQL = """
 CREATE OR REPLACE FUNCTION
   extract_jsonb_keys(_jsonb JSONB)

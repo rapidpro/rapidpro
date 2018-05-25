@@ -1,11 +1,13 @@
 
 from django.urls import reverse
 from mock import patch
-from temba.contacts.models import URN
-from temba.tests import TembaTest, MockResponse
-from temba.utils.jiochat import JiochatClient
-from ...models import Channel, ChannelLog
+
 from temba.channels.types.jiochat.tasks import refresh_jiochat_access_tokens
+from temba.contacts.models import URN
+from temba.tests import MockResponse, TembaTest
+from temba.utils.jiochat import JiochatClient
+
+from ...models import Channel, ChannelLog
 
 
 class JioChatTypeTest(TembaTest):

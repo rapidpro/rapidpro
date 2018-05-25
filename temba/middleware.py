@@ -2,14 +2,15 @@
 import cProfile
 import pstats
 import traceback
+from io import StringIO
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.utils import timezone, translation
-from io import StringIO
-from temba.orgs.models import Org
+
 from temba.contacts.models import Contact
+from temba.orgs.models import Org
 from temba.policies.models import Policy
 
 

@@ -2,8 +2,9 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME
-from .views import ClaimView
+
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class MtargetType(ChannelType):

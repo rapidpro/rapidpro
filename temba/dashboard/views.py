@@ -1,12 +1,13 @@
 import time
+from datetime import datetime, timedelta
 
-from datetime import timedelta, datetime
-from django.db.models import Sum, Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.utils import timezone
 from smartmin.views import SmartTemplateView
+
+from temba.channels.models import Channel, ChannelCount
 from temba.orgs.models import Org
-from temba.channels.models import ChannelCount, Channel
 from temba.orgs.views import OrgPermsMixin
 
 

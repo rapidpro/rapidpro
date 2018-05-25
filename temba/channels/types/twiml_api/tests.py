@@ -3,7 +3,7 @@ from django.urls import reverse
 from mock import patch
 
 from temba.tests import TembaTest
-from temba.tests.twilio import MockTwilioClient, MockRequestValidator
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 
 class TwimlAPITypeTest(TembaTest):

@@ -3,12 +3,12 @@ from django import forms
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.utils.functional import cached_property
-from django.views import View
 from django.utils.translation import ugettext_lazy as _
+from django.views import View
 
-from temba.utils.es import ModelESSearch
-from temba.utils.models import mapEStoDB, ProxyQuerySet
 from temba.contacts.models import ContactGroupCount
+from temba.utils.es import ModelESSearch
+from temba.utils.models import ProxyQuerySet, mapEStoDB
 
 
 class PostOnlyMixin(View):

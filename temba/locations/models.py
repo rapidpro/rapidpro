@@ -1,9 +1,9 @@
-import geojson
 import logging
 
+import geojson
 from django.contrib.gis.db import models
+from django.db.models import F, Value
 from django.db.models.functions import Concat
-from django.db.models import Value, F
 from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 

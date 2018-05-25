@@ -5,7 +5,7 @@ import json
 from django.conf import settings
 from django.db import migrations
 
-from temba.orgs.models import Org, NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
 
 
 class Migration(migrations.Migration):

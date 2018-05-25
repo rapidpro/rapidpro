@@ -1,8 +1,9 @@
 from django.core.urlresolvers import reverse
 from mock import patch
+
 from temba.airtime.models import AirtimeTransfer
 from temba.flows.models import RuleSet
-from temba.tests import TembaTest, MockResponse
+from temba.tests import MockResponse, TembaTest
 
 
 class AirtimeEventTest(TembaTest):

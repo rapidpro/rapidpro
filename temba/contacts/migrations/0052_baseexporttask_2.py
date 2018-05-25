@@ -2,6 +2,7 @@
 
 from django.db import migrations, models
 from django.db.models import Case, Value, When
+
 from temba.utils.models import generate_uuid
 
 

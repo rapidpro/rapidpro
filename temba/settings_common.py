@@ -1,11 +1,11 @@
 
-import iptools
 import os
-import sys
 import socket
-
-from celery.schedules import crontab
+import sys
 from datetime import timedelta
+
+import iptools
+from celery.schedules import crontab
 from django.utils.translation import ugettext_lazy as _
 
 # -----------------------------------------------------------------------------------

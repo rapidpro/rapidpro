@@ -3,10 +3,11 @@ from django.forms import ValidationError
 from django.urls import reverse
 from mock import patch
 
-from temba.tests import TembaTest, MockResponse
+from temba.tests import MockResponse, TembaTest
+
+from ...models import Channel
 from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_tokens
 from .type import WhatsAppType
-from ...models import Channel
 
 
 class WhatsAppTypeTest(TembaTest):

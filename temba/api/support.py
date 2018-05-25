@@ -8,6 +8,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import exception_handler
+
 from .models import APIToken
 
 logger = logging.getLogger(__name__)

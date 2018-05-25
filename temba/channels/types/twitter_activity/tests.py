@@ -3,9 +3,11 @@ from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
 from mock import patch
+
+from temba.contacts.models import URN
 from temba.tests import TembaTest
 from temba.utils.twitter import TwythonError
-from temba.contacts.models import URN
+
 from ...models import Channel
 from .tasks import resolve_twitter_ids
 

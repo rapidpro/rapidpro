@@ -1,51 +1,68 @@
+import io
 import json
+from datetime import timedelta
+from decimal import Decimal
+from uuid import uuid4
+
 import nexmo
 import pytz
-import io
 import stripe
-
 from bs4 import BeautifulSoup
-from datetime import timedelta
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.http import HttpRequest
 from django.test.utils import override_settings
 from django.utils import timezone
-from mock import patch, Mock
+from mock import Mock, patch
 from smartmin.tests import SmartminTest
+
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import (
-    Contact,
-    ContactGroup,
-    ContactField,
-    ContactURN,
     TEL_SCHEME,
     TWITTER_SCHEME,
     TWITTERID_SCHEME,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactURN,
 )
-from temba.flows.models import Flow, ActionSet, AddToGroupAction
+from temba.flows.models import ActionSet, AddToGroupAction, Flow
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Label, Msg, INCOMING
-from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
-from temba.tests import TembaTest, MockResponse
-from temba.tests.twilio import MockTwilioClient, MockRequestValidator
+from temba.msgs.models import INCOMING, Label, Msg
+from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
+from temba.tests import MockResponse, TembaTest
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
+from temba.utils import dict_to_struct, languages
 from temba.utils.email import link_components
-from temba.utils import languages, dict_to_struct
-from uuid import uuid4
-from .models import Org, TopUp, Invitation, Language, TopUpCredits, DAYFIRST, MONTHFIRST, get_current_export_version
-from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING, WHITELISTED, SUSPENDED, RESTORED
-from .tasks import squash_topupcredits
+
 from .context_processors import GroupPermWrapper
+from .models import (
+    DAYFIRST,
+    MONTHFIRST,
+    ORG_CREDIT_EXPIRING,
+    ORG_CREDIT_LOW,
+    ORG_CREDIT_OVER,
+    RESTORED,
+    SUSPENDED,
+    WHITELISTED,
+    CreditAlert,
+    Invitation,
+    Language,
+    Org,
+    TopUp,
+    TopUpCredits,
+    get_current_export_version,
+)
+from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):

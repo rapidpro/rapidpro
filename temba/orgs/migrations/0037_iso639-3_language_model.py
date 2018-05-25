@@ -1,6 +1,6 @@
 from django.db import migrations, transaction
 
-from temba.utils.languages import iso6392_to_iso6393, get_language_name
+from temba.utils.languages import get_language_name, iso6392_to_iso6393
 
 country_code_cache = {}
 

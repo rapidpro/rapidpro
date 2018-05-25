@@ -1,12 +1,14 @@
-import iso8601
 import json
-import pytz
-
 from datetime import datetime
+from urllib.parse import quote_plus
+from uuid import uuid4
+
+import iso8601
+import pytz
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
-from django.conf import settings
 from django.db import connection
 from django.db.models import Q
 from django.test import override_settings
@@ -14,21 +16,20 @@ from django.utils import timezone
 from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
+
+from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction, ActionSet, RuleSet
+from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, ReplyAction, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
-from temba.tests import TembaTest, AnonymousOrg, ESMockWithScroll
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
 from temba.values.constants import Value
-from uuid import uuid4
-from urllib.parse import quote_plus
-from temba.api.models import APIToken, Resthook, WebHookEvent
+
 from . import fields
 from .serializers import format_datetime
-
 
 NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
 

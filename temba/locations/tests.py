@@ -1,12 +1,14 @@
-import os
 import json
-import responses
+import os
 import shutil
 import tempfile
 
+import responses
 from django.core.management import call_command
 from django.core.urlresolvers import reverse
+
 from temba.tests import TembaTest
+
 from .models import AdminBoundary
 
 

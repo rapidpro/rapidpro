@@ -1,27 +1,29 @@
 import json
-import regex
-
 from datetime import timedelta
+
+import regex
 from django import forms
 from django.core.urlresolvers import reverse
-from django.utils.timezone import get_current_timezone_name
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponseRedirect, HttpResponse
-from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
 from django.db.models import Min
-from smartmin.views import SmartCRUDL, SmartListView, SmartCreateView, SmartTemplateView, SmartUpdateView
-from temba.contacts.models import ContactGroup, ContactURN
+from django.http import HttpResponse, HttpResponseRedirect
+from django.utils import timezone
+from django.utils.timezone import get_current_timezone_name
+from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
+
+from temba.channels.models import Channel, ChannelType
 from temba.contacts.fields import OmniboxField
+from temba.contacts.models import ContactGroup, ContactURN
+from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.channels.models import Channel, ChannelType
-from temba.flows.models import Flow
-from temba.msgs.views import ModalMixin
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.views import BaseActionForm
+
 from .models import Trigger
 
 

@@ -1,7 +1,7 @@
 
-import phonenumbers
-
 from uuid import uuid4
+
+import phonenumbers
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -14,9 +14,15 @@ from twilio import TwilioRestException
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
+
 from ...models import Channel
-from ...views import ClaimViewMixin, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberMixin, ALL_COUNTRIES
-from ...views import TWILIO_SEARCH_COUNTRIES
+from ...views import (
+    ALL_COUNTRIES,
+    TWILIO_SEARCH_COUNTRIES,
+    TWILIO_SUPPORTED_COUNTRIES,
+    BaseClaimNumberMixin,
+    ClaimViewMixin,
+)
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):

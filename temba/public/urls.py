@@ -1,11 +1,20 @@
 from django.conf.urls import url
+from django.contrib.sitemaps.views import sitemap
 from django.views.decorators.csrf import csrf_exempt
 
-from django.contrib.sitemaps.views import sitemap
 from .sitemaps import PublicViewSitemap, VideoSitemap
-from .views import LeadCRUDL, LeadViewer, VideoCRUDL
-from .views import IndexView, Blog, Welcome, Deploy, WelcomeRedirect, OrderStatus, GenerateCoupon
-
+from .views import (
+    Blog,
+    Deploy,
+    GenerateCoupon,
+    IndexView,
+    LeadCRUDL,
+    LeadViewer,
+    OrderStatus,
+    VideoCRUDL,
+    Welcome,
+    WelcomeRedirect,
+)
 
 sitemaps = {"public": PublicViewSitemap, "video": VideoSitemap}
 

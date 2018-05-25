@@ -1,14 +1,15 @@
 import json
 import math
-import pytz
 import random
 import resource
 import sys
 import time
 import uuid
-
 from collections import defaultdict
 from datetime import timedelta
+from subprocess import CalledProcessError, check_call
+
+import pytz
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
@@ -16,21 +17,21 @@ from django.core.management.base import CommandParser
 from django.db import connection, transaction
 from django.utils import timezone
 from django_redis import get_redis_connection
-from subprocess import check_call, CalledProcessError
+
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import (
+    TEL_SCHEME,
+    TWITTER_SCHEME,
+    URN,
     Contact,
     ContactField,
     ContactGroup,
-    ContactURN,
     ContactGroupCount,
-    URN,
-    TEL_SCHEME,
-    TWITTER_SCHEME,
+    ContactURN,
 )
-from temba.flows.models import FlowStart, FlowRun
+from temba.flows.models import FlowRun, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
@@ -38,9 +39,8 @@ from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
-from temba.utils.dates import ms_to_datetime, datetime_to_ms
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.values.constants import Value
-
 
 # maximum age in days of database content
 CONTENT_AGE = 3 * 365

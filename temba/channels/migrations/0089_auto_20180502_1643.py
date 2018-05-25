@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL_channelevent = """
 -- drop triggers
 DROP TRIGGER IF EXISTS temba_channelevent_on_truncate_trg on channels_channelevent;

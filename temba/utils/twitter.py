@@ -3,16 +3,13 @@ import base64
 import hashlib
 import hmac
 import json
+from urllib.parse import quote_plus
 
 import requests
 from django.conf import settings
 from django.db.models import Model
 from django.utils.http import urlencode
-from urllib.parse import quote_plus
-from twython import Twython
-from twython import TwythonAuthError
-from twython import TwythonError
-from twython import TwythonRateLimitError
+from twython import Twython, TwythonAuthError, TwythonError, TwythonRateLimitError
 from twython.helpers import _transparent_params
 
 from temba.utils.http import HttpEvent

@@ -1,8 +1,9 @@
 # Generated from ContactQL.g4 by ANTLR 4.7
 # encoding: utf-8
-from antlr4 import *
-from io import StringIO
 import sys
+from io import StringIO
+
+from antlr4 import *
 
 
 def serializedATN():

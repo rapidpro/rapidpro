@@ -7,8 +7,9 @@ from smartmin.views import SmartFormView
 from twilio import TwilioRestException
 
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
+
 from ...models import Channel
-from ...views import ClaimViewMixin, TWILIO_SUPPORTED_COUNTRIES
+from ...views import TWILIO_SUPPORTED_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):

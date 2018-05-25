@@ -1,6 +1,5 @@
 from django.db import migrations, models
 
-
 SQL = """
 -- indexes for fast fetching of unsquashed rows
 CREATE INDEX orgs_debit_unsquashed_purged

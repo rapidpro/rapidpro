@@ -2,6 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.yo.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 YO_API_URL_1 = "http://smgw1.yo.co.ug:9100/sendsms"

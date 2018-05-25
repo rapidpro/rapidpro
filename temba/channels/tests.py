@@ -6,8 +6,9 @@ import hmac
 import json
 import time
 import uuid
-
 from datetime import timedelta
+from urllib.parse import quote
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -17,53 +18,53 @@ from django.template import loader
 from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
-from django.utils.encoding import force_text, force_bytes
+from django.utils.encoding import force_bytes, force_text
 from django_redis import get_redis_connection
-from mock import patch, ANY
-from urllib.parse import quote
+from mock import ANY, patch
 from smartmin.tests import SmartminTest
+from twython import TwythonError
 
 from temba.api.models import WebHookEvent
 from temba.channels.views import channel_status_processor
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import (
-    Broadcast,
-    Msg,
-    IVR,
-    WIRED,
-    FAILED,
-    SENT,
     DELIVERED,
     ERRORED,
+    FAILED,
+    HANDLE_EVENT_TASK,
+    HANDLER_QUEUE,
     INCOMING,
+    IVR,
     PENDING,
     QUEUED,
-    HANDLER_QUEUE,
-    HANDLE_EVENT_TASK,
+    SENT,
+    WIRED,
+    Broadcast,
+    Msg,
+    SystemLabel,
 )
-from temba.msgs.models import SystemLabel
 from temba.orgs.models import (
-    Org,
-    ALL_EVENTS,
     ACCOUNT_SID,
     ACCOUNT_TOKEN,
+    ALL_EVENTS,
     APPLICATION_SID,
-    NEXMO_KEY,
-    NEXMO_SECRET,
     FREE_PLAN,
-    NEXMO_UUID,
     NEXMO_APP_ID,
     NEXMO_APP_PRIVATE_KEY,
+    NEXMO_KEY,
+    NEXMO_SECRET,
+    NEXMO_UUID,
+    Org,
 )
-from temba.tests import TembaTest, MockResponse, ESMockWithScroll
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import push_task
-from twython import TwythonError
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelSession, CHANNEL_EVENT
+
+from .models import CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, ChannelSession, SyncEvent
 from .tasks import check_channels_task, squash_channelcounts
 
 

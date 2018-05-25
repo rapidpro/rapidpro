@@ -3,7 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import pytz
 from django.urls import reverse
+
 from temba.tests import TembaTest
+
 from ...models import Channel
 
 

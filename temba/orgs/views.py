@@ -1,53 +1,89 @@
 import itertools
 import json
 import logging
+from collections import OrderedDict
+from datetime import datetime, timedelta
+from decimal import Decimal
+from email.utils import parseaddr
+from functools import cmp_to_key
+
 import nexmo
 import requests
-
-from collections import OrderedDict
-from datetime import datetime
-from decimal import Decimal
 from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
+from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
-from django.utils.encoding import force_text, DjangoUnicodeDecodeError
+from django.utils.encoding import DjangoUnicodeDecodeError, force_text
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from email.utils import parseaddr
-from functools import cmp_to_key
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView
-from smartmin.views import SmartTemplateView, SmartModelFormView, SmartModelActionView
-from datetime import timedelta
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartFormView,
+    SmartListView,
+    SmartModelActionView,
+    SmartModelFormView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
+from twilio.rest import TwilioRestClient
+
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
+from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.email import is_valid_address
-from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, ACCOUNT_TOKEN
-from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
-from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
-from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
-from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
-from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
+
+from .models import (
+    ACCOUNT_SID,
+    ACCOUNT_TOKEN,
+    ALARM_EVENTS,
+    CHATBASE_AGENT_NAME,
+    CHATBASE_API_KEY,
+    CHATBASE_VERSION,
+    MO_CALL_EVENTS,
+    MO_SMS_EVENTS,
+    MT_CALL_EVENTS,
+    MT_SMS_EVENTS,
+    NEXMO_KEY,
+    NEXMO_SECRET,
+    NEXMO_UUID,
+    RESTORED,
+    SMTP_ENCRYPTION,
+    SMTP_FROM_EMAIL,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
+    SUSPENDED,
+    TRANSFERTO_ACCOUNT_LOGIN,
+    TRANSFERTO_AIRTIME_API_TOKEN,
+    WHITELISTED,
+    Invitation,
+    Org,
+    OrgCache,
+    TopUp,
+    UserSettings,
+    get_stripe_credentials,
+)
 from .tasks import apply_topups_task
 
 

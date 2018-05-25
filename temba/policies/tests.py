@@ -1,5 +1,7 @@
-from temba.tests import TembaTest
 from django.core.urlresolvers import reverse
+
+from temba.tests import TembaTest
+
 from .models import Policy
 
 

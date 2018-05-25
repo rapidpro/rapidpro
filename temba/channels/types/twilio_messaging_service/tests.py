@@ -6,7 +6,7 @@ from twilio import TwilioRestException
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
 from temba.tests import TembaTest
-from temba.tests.twilio import MockTwilioClient, MockRequestValidator
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):

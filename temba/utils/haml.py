@@ -8,8 +8,7 @@ import os
 
 from django.template import TemplateDoesNotExist
 from django.template.base import Origin
-from django.template.loaders import filesystem, app_directories
-
+from django.template.loaders import app_directories, filesystem
 from hamlpy import HAML_EXTENSIONS
 from hamlpy.compiler import Compiler
 from hamlpy.template.utils import get_django_template_loaders

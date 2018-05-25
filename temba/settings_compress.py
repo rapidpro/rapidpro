@@ -1,6 +1,6 @@
 
-from .settings import STATIC_URL
 from .settings import *  # noqa
+from .settings import STATIC_URL
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True

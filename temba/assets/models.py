@@ -4,7 +4,6 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 
-
 ASSET_STORES_BY_KEY = {}
 ASSET_STORES_BY_MODEL = {}
 

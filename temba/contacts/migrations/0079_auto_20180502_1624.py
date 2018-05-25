@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 -- drop the trigger
 DROP TRIGGER IF EXISTS when_contact_groups_truncate_then_update_count_trg on contacts_contactgroup_contacts;

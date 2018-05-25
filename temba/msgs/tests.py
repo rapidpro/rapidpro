@@ -1,11 +1,11 @@
 import json
-import pytz
-
 from datetime import datetime, timedelta
+
+import pytz
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from django.db import transaction, connection
+from django.db import connection, transaction
 from django.test import override_settings
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -13,24 +13,48 @@ from mock import patch
 from openpyxl import load_workbook
 
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT, ContactGroup
+from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs import models
-from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import HANDLER_QUEUE, MSG_EVENT
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.orgs.models import Language, Debit, Org
+from temba.msgs.models import (
+    DELIVERED,
+    ERRORED,
+    FAILED,
+    FLOW,
+    HANDLE_EVENT_TASK,
+    HANDLED,
+    HANDLER_QUEUE,
+    INBOX,
+    INCOMING,
+    MSG_EVENT,
+    OUTGOING,
+    PENDING,
+    QUEUED,
+    RESENT,
+    SENT,
+    WIRED,
+    Attachment,
+    Broadcast,
+    BroadcastRecipient,
+    ExportMessagesTask,
+    Label,
+    Msg,
+    SystemLabel,
+    SystemLabelCount,
+    UnreachableException,
+)
+from temba.orgs.models import Debit, Language, Org
 from temba.schedules.models import Schedule
-from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct, dict_to_json
-from temba.utils.dates import datetime_to_str, datetime_to_s
+from temba.tests import AnonymousOrg, TembaTest
+from temba.utils import dict_to_json, dict_to_struct
+from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.queues import push_task, DEFAULT_PRIORITY
+from temba.utils.queues import DEFAULT_PRIORITY, push_task
 from temba.values.constants import Value
+
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_labelcounts, clear_old_msg_external_ids, process_message_task
+from .tasks import clear_old_msg_external_ids, process_message_task, squash_labelcounts
 from .templatetags.sms import as_icon
 
 

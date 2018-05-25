@@ -1,7 +1,8 @@
 from django.core.urlresolvers import reverse
+
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import SystemLabel, ExportMessagesTask
+from temba.msgs.models import ExportMessagesTask, SystemLabel
 from temba.tests import TembaTest
 
 

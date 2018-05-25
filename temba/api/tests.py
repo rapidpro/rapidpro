@@ -1,22 +1,23 @@
 import json
-
 from datetime import timedelta
+from urllib.parse import parse_qs
+from uuid import uuid4
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
 from mock import patch
+
 from temba.api.models import APIToken, WebHookEvent, WebHookResult
 from temba.api.tasks import trim_webhook_event_task
 from temba.channels.models import ChannelEvent, SyncEvent
-from temba.contacts.models import Contact, TEL_SCHEME
-from temba.flows.models import ActionSet, WebhookAction, Flow
-from temba.msgs.models import Broadcast, FAILED
+from temba.contacts.models import TEL_SCHEME, Contact
+from temba.flows.models import ActionSet, Flow, WebhookAction
+from temba.msgs.models import FAILED, Broadcast
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest, matchers
-from urllib.parse import parse_qs
-from uuid import uuid4
 
 
 class APITokenTest(TembaTest):

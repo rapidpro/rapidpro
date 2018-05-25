@@ -1,5 +1,4 @@
 import time
-
 from datetime import timedelta
 from uuid import uuid4
 
@@ -10,11 +9,12 @@ from mock import patch
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
-from temba.flows.models import Flow, ActionSet, FlowRun
-from temba.msgs.models import Msg, INCOMING
+from temba.flows.models import ActionSet, Flow, FlowRun
+from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import TembaTest, MockResponse
+from temba.tests import MockResponse, TembaTest
+
 from .models import Trigger
 from .views import DefaultTriggerForm, RegisterTriggerForm
 

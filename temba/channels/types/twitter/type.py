@@ -2,13 +2,14 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import Contact, TWITTER_SCHEME, TWITTERID_SCHEME, URN
+from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME, URN, Contact
 from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython
-from .views import ClaimView
+
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
 from ...views import UpdateTwitterForm
+from .views import ClaimView
 
 
 class TwitterType(ChannelType):

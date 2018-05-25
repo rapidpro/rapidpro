@@ -1,19 +1,20 @@
 
 import json
-import requests
+from enum import Enum
 
+import requests
 from django.conf import settings
 from django.utils import timezone
-from enum import Enum
+
 from .serialize import (
-    serialize_contact,
-    serialize_label,
-    serialize_field,
     serialize_channel,
+    serialize_contact,
+    serialize_environment,
+    serialize_field,
     serialize_flow,
     serialize_group,
+    serialize_label,
     serialize_location_hierarchy,
-    serialize_environment,
     serialize_message,
 )
 

@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 DROP INDEX values_value_contact_field_location_not_null;
 DROP INDEX values_value_field_datetime_value_not_null;

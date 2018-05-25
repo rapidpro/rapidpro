@@ -2,7 +2,7 @@
 import requests
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelType, Channel
+from temba.channels.models import Channel, ChannelType
 from temba.channels.types.plivo.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.utils.http import http_headers

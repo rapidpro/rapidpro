@@ -1,9 +1,11 @@
 
 import os
+
 import requests
 from django.conf import settings
-from temba.contacts.models import ContactGroup
 from django.core.management.base import BaseCommand
+
+from temba.contacts.models import ContactGroup
 
 
 class Command(BaseCommand):  # pragma: no cover

@@ -1,11 +1,12 @@
 
 import json
-import pytz
-
 from datetime import timedelta
+
+import pytz
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django_redis import get_redis_connection
+
 from . import chunk_list
 
 

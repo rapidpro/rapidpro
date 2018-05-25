@@ -3,8 +3,9 @@
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
+
 from ...models import Channel
-from ...views import ClaimViewMixin, ALL_COUNTRIES
+from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):

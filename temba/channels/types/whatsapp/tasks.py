@@ -1,15 +1,14 @@
 
 import logging
 import time
-import requests
 
+import requests
 from celery.task import task
 from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
-from temba.contacts.models import ContactURN, WHATSAPP_SCHEME
+from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
 from temba.utils import chunk_list
-
 
 logger = logging.getLogger(__name__)
 

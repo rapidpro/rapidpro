@@ -3,6 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.clickatell.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 

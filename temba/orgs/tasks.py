@@ -1,6 +1,8 @@
 from celery.task import task
+
 from temba.utils.queues import nonoverlapping_task
-from .models import CreditAlert, Invitation, TopUpCredits, Org
+
+from .models import CreditAlert, Invitation, Org, TopUpCredits
 
 
 @task(track_started=True, name="send_invitation_email_task")

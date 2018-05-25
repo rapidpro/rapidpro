@@ -3,9 +3,11 @@ from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
-from temba.contacts.models import ContactURN, TEL_SCHEME, TWITTER_SCHEME
+
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, ContactURN
+
 from ...models import Channel
-from ...views import ClaimViewMixin, ALL_COUNTRIES
+from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):

@@ -1,20 +1,20 @@
 import operator
-import regex
-
-from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
-from antlr4.error.Errors import ParseCancellationException, NoViableAltException
-from antlr4.error.ErrorStrategy import BailErrorStrategy
 from collections import OrderedDict
 from decimal import Decimal
+from functools import reduce
+
+import regex
+from antlr4 import CommonTokenStream, InputStream, ParseTreeVisitor
+from antlr4.error.Errors import NoViableAltException, ParseCancellationException
+from antlr4.error.ErrorStrategy import BailErrorStrategy
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q as es_Q
-from functools import reduce
-from temba.utils.dates import str_to_datetime, date_to_utc_range
+
+from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
+from temba.utils.dates import date_to_utc_range, str_to_datetime
 from temba.utils.es import ModelESSearch
 from temba.values.constants import Value
-from temba.contacts.models import ContactField, Contact, URN_SCHEME_CONFIG
-
 
 TEL_VALUE_REGEX = regex.compile(r"^[+ \d\-\(\)]+$", flags=regex.V0)
 CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r"[+ \-\(\)]+", flags=regex.V0)

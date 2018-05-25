@@ -1,11 +1,12 @@
 import cmd
 
-from colorama import init as colorama_init, Fore, Style
+from colorama import Fore, Style
+from colorama import init as colorama_init
 from django.core.management.base import BaseCommand, CommandError
-from temba.contacts.models import Contact, URN
-from temba.orgs.models import Org
-from temba.msgs.models import Msg, OUTGOING
 
+from temba.contacts.models import URN, Contact
+from temba.msgs.models import OUTGOING, Msg
+from temba.orgs.models import Org
 
 DEFAULT_ORG = "1"
 DEFAULT_URN = "tel:+250788123123"

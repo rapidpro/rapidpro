@@ -1,6 +1,6 @@
 from django.db import migrations, models
+from django.db.models import F, Value
 from django.db.models.functions import Concat
-from django.db.models import Value, F
 
 
 def apply_as_migration(apps, schema_editor):

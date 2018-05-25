@@ -1,8 +1,8 @@
 import json
 import logging
-import pytz
-
 from datetime import datetime
+
+import pytz
 from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -13,9 +13,9 @@ from twilio import twiml
 
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
-from temba.contacts.models import Contact, URN
+from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, Msg
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession

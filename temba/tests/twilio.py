@@ -1,5 +1,6 @@
-from temba.ivr.clients import TwilioClient
 from twilio.util import RequestValidator
+
+from temba.ivr.clients import TwilioClient
 
 
 class MockRequestValidator(RequestValidator):

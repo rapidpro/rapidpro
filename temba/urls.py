@@ -1,14 +1,15 @@
 
-import debug_toolbar
 import importlib
 
+import debug_toolbar
 from celery.signals import worker_process_init
-from django.conf.urls import include, url
-from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
-from temba.channels.views import register, sync
-from django.views.i18n import javascript_catalog
+from django.conf.urls import include, url
 from django.conf.urls.static import static
+from django.contrib.auth.models import AnonymousUser, User
+from django.views.i18n import javascript_catalog
+
+from temba.channels.views import register, sync
 from temba.utils.analytics import init_analytics
 
 # javascript translation packages

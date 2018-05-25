@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.query import Q
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 

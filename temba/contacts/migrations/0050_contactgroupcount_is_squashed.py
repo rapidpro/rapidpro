@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 
-
 SQL = """
 -- index for fast fetching of unsquashed rows
 CREATE INDEX contacts_contactgroupcount_unsquashed

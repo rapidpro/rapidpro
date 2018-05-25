@@ -1,7 +1,10 @@
-from django.http import HttpResponseRedirect
 from gettext import gettext as _
+
+from django.http import HttpResponseRedirect
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+
 from temba.orgs.views import OrgPermsMixin
+
 from .models import Archive
 
 

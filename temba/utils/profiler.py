@@ -1,10 +1,9 @@
 import logging
-import django
 import textwrap
 import traceback
 
+import django
 from django.db.backends.utils import CursorWrapper
-
 
 logger = logging.getLogger(__name__)
 

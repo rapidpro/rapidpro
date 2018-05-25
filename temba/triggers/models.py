@@ -1,18 +1,18 @@
 import regex
-
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
+from temba_expressions.utils import tokenize
+
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba_expressions.utils import tokenize
 
 
 class Trigger(SmartModel):

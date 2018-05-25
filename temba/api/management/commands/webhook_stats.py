@@ -1,9 +1,11 @@
 from array import array
 from collections import defaultdict
 from datetime import timedelta
+from urllib.parse import urlparse
+
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
-from urllib.parse import urlparse
+
 from temba.api.models import WebHookResult
 
 

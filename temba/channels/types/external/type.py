@@ -2,8 +2,8 @@
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
-from .views import ClaimView
 from ...models import Channel, ChannelType
+from .views import ClaimView
 
 
 class ExternalType(ChannelType):

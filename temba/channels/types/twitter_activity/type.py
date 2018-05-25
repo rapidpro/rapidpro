@@ -5,9 +5,10 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.utils.twitter import TembaTwython
-from .views import ClaimView
+
 from ...models import ChannelType
 from ...views import UpdateTwitterForm
+from .views import ClaimView
 
 logger = logging.getLogger(__name__)
 

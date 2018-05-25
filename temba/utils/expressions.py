@@ -1,7 +1,7 @@
 import pytz
 import regex
+from temba_expressions.evaluator import DEFAULT_FUNCTION_MANAGER, EvaluationContext, EvaluationStrategy, Evaluator
 
-from temba_expressions.evaluator import Evaluator, EvaluationContext, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
 from temba.contacts.models import ContactField
 
 ALLOWED_TOP_LEVELS = ("channel", "contact", "date", "extra", "flow", "step", "parent", "child")
