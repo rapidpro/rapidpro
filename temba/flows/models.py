@@ -38,12 +38,11 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAI
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
-from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
+from temba.utils import analytics, chunk_list, on_transaction_commit
 from temba.utils.dates import str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.goflow import trial
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
@@ -51,6 +50,8 @@ from temba.values.constants import Value
 from temba_expressions.utils import tokenize
 from urllib.request import urlopen
 from uuid import uuid4
+from . import server
+from .server import trial
 
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ class FlowSession(models.Model):
 
         Contact.bulk_cache_initialize(flow.org, contacts)
 
-        client = goflow.get_client()
+        client = server.get_client()
 
         asset_timestamp = int(time.time() * 1000000)
 
@@ -179,7 +180,7 @@ class FlowSession(models.Model):
                 else:
                     output = request.start_manual(contact, flow, params)
 
-            except goflow.FlowServerException:
+            except server.FlowServerException:
                 continue
 
             status = FlowSession.GOFLOW_STATUSES[output.session['status']]
@@ -221,7 +222,7 @@ class FlowSession(models.Model):
         if not waiting_run:  # pragma: no cover
             raise ValueError("Can't resume a session with no waiting run")
 
-        client = goflow.get_client()
+        client = server.get_client()
 
         # build request to flow server
         asset_timestamp = int(time.time() * 1000000)
@@ -255,7 +256,7 @@ class FlowSession(models.Model):
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
 
-        except goflow.FlowServerException:
+        except server.FlowServerException:
             # something has gone wrong so this session is over
             self.status = FlowSession.STATUS_FAILED
             self.save(update_fields=('status',))
@@ -2885,7 +2886,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         # for now we only store message events
-        events = [e for e in run_output['events'] if e['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name)]
+        events = [e for e in run_output['events'] if e['type'] in (
+            server.Events.msg_received.name, server.Events.msg_created.name)]
 
         if existing:
             existing.path = path
@@ -3457,7 +3459,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         existing_msg_uuids = set()
         for e in self.events:
-            if e['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name):
+            if e['type'] in (server.Events.msg_received.name, server.Events.msg_created.name):
                 msg_uuid = e['msg'].get('uuid')
                 if msg_uuid:
                     existing_msg_uuids.add(msg_uuid)
@@ -3474,10 +3476,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 continue
 
             self.events.append({
-                'type': goflow.Events.msg_received.name if msg.direction == INCOMING else goflow.Events.msg_created.name,
+                'type': server.Events.msg_received.name if msg.direction == INCOMING else server.Events.msg_created.name,
                 'created_on': msg.created_on.isoformat(),
                 'step_uuid': path_step.get('uuid'),
-                'msg': goflow.serialize_message(msg)
+                'msg': server.serialize_message(msg)
             })
 
             existing_msg_uuids.add(str(msg.uuid))
@@ -3511,7 +3513,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((goflow.Events.msg_received, goflow.Events.msg_created))
+        return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
 
     def get_messages(self):
         """
@@ -4939,7 +4941,7 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes out any messages associated with the given run
         """
         for event in run.get_msg_events():
-            msg_direction = "IN" if event['type'] == goflow.Events.msg_received.name else "OUT"
+            msg_direction = "IN" if event['type'] == server.Events.msg_received.name else "OUT"
 
             msg = event['msg']
             msg_text = msg.get('text', "")
