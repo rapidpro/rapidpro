@@ -139,8 +139,8 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='on')
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
         action_packed = self.get_flow('action_packed')
         favorites = self.get_flow('favorites')
@@ -167,8 +167,8 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_resume_with_message(self, mock_report_success, mock_report_failure):
         favorites = self.get_flow('favorites')
 
@@ -210,8 +210,8 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_resume_with_message_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow('subflow')
         parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
@@ -250,8 +250,8 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_resume_with_expiration_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow('subflow')
         parent_flow = Flow.objects.get(org=self.org, name='Parent Flow')
@@ -275,8 +275,8 @@ class TrialTest(TembaTest):
         self.assertEqual(mock_report_failure.call_count, 0)
 
     @skip_if_no_flowserver
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_resume_in_triggered_session(self, mock_report_success, mock_report_failure):
         parent_flow = self.get_flow('action_packed')
         child_flow = Flow.objects.get(org=self.org, name='Favorite Color')
@@ -316,12 +316,12 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
-    @patch('temba.utils.goflow.trial.report_failure')
+    @patch('temba.flows.server.trial.report_failure')
     def test_trial_fault_tolerance(self, mock_report_failure):
         favorites = self.get_flow('favorites')
 
         # an exception in maybe_start_resume shouldn't prevent normal flow execution
-        with patch('temba.utils.goflow.trial.reconstruct_session') as mock_reconstruct_session:
+        with patch('temba.flows.server.trial.reconstruct_session') as mock_reconstruct_session:
             mock_reconstruct_session.side_effect = ValueError("BOOM")
 
             run, = favorites.start([], [self.contact])
@@ -330,7 +330,7 @@ class TrialTest(TembaTest):
             self.assertEqual(len(run.path), 4)
 
         # an exception in end_resume also shouldn't prevent normal flow execution
-        with patch('temba.utils.goflow.trial.resume') as mock_resume:
+        with patch('temba.flows.server.trial.resume') as mock_resume:
             mock_resume.side_effect = ValueError("BOOM")
 
             run, = favorites.start([], [self.contact], restart_participants=True)
@@ -339,7 +339,7 @@ class TrialTest(TembaTest):
             self.assertEqual(len(run.path), 4)
 
         # detected differences should be reported but shouldn't effect normal flow execution
-        with patch('temba.utils.goflow.trial.compare_run') as mock_compare_run:
+        with patch('temba.flows.server.trial.compare_run') as mock_compare_run:
             mock_compare_run.return_value = {'diffs': ['a', 'b']}
 
             run, = favorites.start([], [self.contact], restart_participants=True)
@@ -351,8 +351,8 @@ class TrialTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL='always')
-    @patch('temba.utils.goflow.trial.report_failure')
-    @patch('temba.utils.goflow.trial.report_success')
+    @patch('temba.flows.server.trial.report_failure')
+    @patch('temba.flows.server.trial.report_success')
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
         # checks that we got a mocked response back from the webhook call
         def failure(t):
