@@ -4,7 +4,7 @@
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -e '\.py$')
 
 if [ -n "$FILES" ]; then
-    isort -rc temba
+    isort -q $FILES
 fi
 
 if [ -n "$FILES" ]; then
