@@ -70,8 +70,8 @@ def get_channel_handlers():
     return all_subclasses(BaseChannelHandler)
 
 
-class TWIMLCallHandler(BaseChannelHandler):
 
+class TWIMLCallHandler(BaseChannelHandler):
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
