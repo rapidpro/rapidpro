@@ -3,15 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django.views.generic import RedirectView
 
-from .views import (
-    RefreshAPITokenView,
-    ResthookList,
-    WebHookEventListView,
-    WebHookEventReadView,
-    WebHookSimulatorView,
-    WebHookTunnelView,
-    WebHookView,
-)
+from .views import (RefreshAPITokenView, ResthookList, WebHookEventListView,
+                    WebHookEventReadView, WebHookSimulatorView,
+                    WebHookTunnelView, WebHookView)
 
 urlpatterns = [
     url(r"^api/$", RedirectView.as_view(pattern_name="api.v2", permanent=False), name="api"),

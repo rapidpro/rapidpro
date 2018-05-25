@@ -2,7 +2,8 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME, URN, Contact
+from temba.contacts.models import (TWITTER_SCHEME, TWITTERID_SCHEME, URN,
+                                   Contact)
 from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython
 

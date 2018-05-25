@@ -16,7 +16,8 @@ from rest_framework.test import APIClient
 
 from temba.api.models import APIToken
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import (TEL_SCHEME, TWITTER_SCHEME, Contact,
+                                   ContactField, ContactGroup)
 from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
@@ -25,14 +26,8 @@ from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 
-from .serializers import (
-    ChannelField,
-    DateTimeField,
-    MsgCreateSerializer,
-    PhoneArrayField,
-    StringArrayField,
-    StringDictField,
-)
+from .serializers import (ChannelField, DateTimeField, MsgCreateSerializer,
+                          PhoneArrayField, StringArrayField, StringDictField)
 
 
 class APITest(TembaTest):

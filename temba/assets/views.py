@@ -1,11 +1,13 @@
 import mimetypes
 
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseRedirect
+from django.http import (HttpResponse, HttpResponseForbidden,
+                         HttpResponseNotFound, HttpResponseRedirect)
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from smartmin.views import SmartTemplateView, SmartView
 
-from .models import AssetAccessDenied, AssetEntityNotFound, AssetFileNotFound, get_asset_store
+from .models import (AssetAccessDenied, AssetEntityNotFound, AssetFileNotFound,
+                     get_asset_store)
 
 
 def handle_asset_request(user, asset_store, pk):

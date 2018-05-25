@@ -29,17 +29,10 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartFormView,
-    SmartListView,
-    SmartModelActionView,
-    SmartModelFormView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import (SmartCreateView, SmartCRUDL, SmartFormView,
+                            SmartListView, SmartModelActionView,
+                            SmartModelFormView, SmartReadView,
+                            SmartTemplateView, SmartUpdateView)
 from twilio.rest import TwilioRestClient
 
 from temba.api.models import APIToken
@@ -52,38 +45,15 @@ from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 
-from .models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    ALARM_EVENTS,
-    CHATBASE_AGENT_NAME,
-    CHATBASE_API_KEY,
-    CHATBASE_VERSION,
-    MO_CALL_EVENTS,
-    MO_SMS_EVENTS,
-    MT_CALL_EVENTS,
-    MT_SMS_EVENTS,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    RESTORED,
-    SMTP_ENCRYPTION,
-    SMTP_FROM_EMAIL,
-    SMTP_HOST,
-    SMTP_PASSWORD,
-    SMTP_PORT,
-    SMTP_USERNAME,
-    SUSPENDED,
-    TRANSFERTO_ACCOUNT_LOGIN,
-    TRANSFERTO_AIRTIME_API_TOKEN,
-    WHITELISTED,
-    Invitation,
-    Org,
-    OrgCache,
-    TopUp,
-    UserSettings,
-    get_stripe_credentials,
-)
+from .models import (ACCOUNT_SID, ACCOUNT_TOKEN, ALARM_EVENTS,
+                     CHATBASE_AGENT_NAME, CHATBASE_API_KEY, CHATBASE_VERSION,
+                     MO_CALL_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS,
+                     MT_SMS_EVENTS, NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID,
+                     RESTORED, SMTP_ENCRYPTION, SMTP_FROM_EMAIL, SMTP_HOST,
+                     SMTP_PASSWORD, SMTP_PORT, SMTP_USERNAME, SUSPENDED,
+                     TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN,
+                     WHITELISTED, Invitation, Org, OrgCache, TopUp,
+                     UserSettings, get_stripe_credentials)
 from .tasks import apply_topups_task
 
 

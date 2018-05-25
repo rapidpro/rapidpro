@@ -5,7 +5,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelLog, ChannelSession, ChannelType
+from temba.channels.models import (Channel, ChannelLog, ChannelSession,
+                                   ChannelType)
 from temba.utils import on_transaction_commit
 
 

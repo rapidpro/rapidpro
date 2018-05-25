@@ -27,13 +27,17 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import Debit, Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
+from temba.utils import (analytics, chunk_list, dict_to_json,
+                         get_anonymous_user, on_transaction_commit)
 from temba.utils.cache import check_and_mark_in_timerange
-from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
+from temba.utils.dates import (datetime_to_s, datetime_to_str,
+                               get_datetime_format)
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
-from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, push_task
+from temba.utils.models import (JSONAsTextField, SquashableModel, TembaModel,
+                                TranslatableField)
+from temba.utils.queues import (DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY,
+                                push_task)
 from temba.utils.text import clean_string
 
 from .handler import MessageHandler

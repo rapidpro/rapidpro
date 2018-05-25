@@ -28,13 +28,16 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import (analytics, chunk_list, format_number,
+                         get_anonymous_user, on_transaction_commit)
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.dates import str_to_datetime
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.export import (BaseExportAssetStore, BaseExportTask,
+                                TableExporter)
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.locks import NonBlockingLock
-from temba.utils.models import RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
+from temba.utils.models import (RequireUpdateFieldsMixin, SquashableModel,
+                                TembaModel, mapEStoDB)
 from temba.utils.text import clean_string, truncate
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value

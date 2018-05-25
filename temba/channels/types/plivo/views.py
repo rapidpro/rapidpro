@@ -11,12 +11,9 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartFormView
 
 from temba.channels.models import Channel
-from temba.channels.views import (
-    PLIVO_SUPPORTED_COUNTRIES,
-    PLIVO_SUPPORTED_COUNTRY_CODES,
-    BaseClaimNumberMixin,
-    ClaimViewMixin,
-)
+from temba.channels.views import (PLIVO_SUPPORTED_COUNTRIES,
+                                  PLIVO_SUPPORTED_COUNTRY_CODES,
+                                  BaseClaimNumberMixin, ClaimViewMixin)
 from temba.utils import analytics
 from temba.utils.http import http_headers
 from temba.utils.models import generate_uuid

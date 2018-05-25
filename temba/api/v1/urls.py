@@ -5,17 +5,9 @@ from django.http import HttpResponseGone
 from django.views.generic.base import RedirectView
 from rest_framework.urlpatterns import format_suffix_patterns
 
-from .views import (
-    AuthenticateEndpoint,
-    BoundaryEndpoint,
-    ContactEndpoint,
-    FieldEndpoint,
-    FlowDefinitionEndpoint,
-    FlowEndpoint,
-    FlowStepEndpoint,
-    OrgEndpoint,
-    RootView,
-)
+from .views import (AuthenticateEndpoint, BoundaryEndpoint, ContactEndpoint,
+                    FieldEndpoint, FlowDefinitionEndpoint, FlowEndpoint,
+                    FlowStepEndpoint, OrgEndpoint, RootView)
 
 
 def v1_gone(request, *args, **kwargs):

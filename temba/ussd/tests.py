@@ -11,7 +11,8 @@ from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun
-from temba.msgs.models import DELIVERED, FAILED, HANDLED, INCOMING, OUTGOING, SENT, USSD, WIRED, Msg
+from temba.msgs.models import (DELIVERED, FAILED, HANDLED, INCOMING, OUTGOING,
+                               SENT, USSD, WIRED, Msg)
 from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 

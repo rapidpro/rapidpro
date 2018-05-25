@@ -26,21 +26,14 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-    smart_url,
-)
+from smartmin.views import (SmartCreateView, SmartCRUDL, SmartDeleteView,
+                            SmartFormView, SmartListView, SmartReadView,
+                            SmartTemplateView, SmartUpdateView, smart_url)
 
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import (TEL_SCHEME, Contact, ContactField,
+                                   ContactGroup, ContactURN)
 from temba.flows import server
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount
 from temba.flows.server import get_client
@@ -51,21 +44,16 @@ from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import analytics, chunk_list, on_transaction_commit, str_to_bool
+from temba.utils import (analytics, chunk_list, on_transaction_commit,
+                         str_to_bool)
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import (
-    ActionLog,
-    ExportFlowResultsTask,
-    FlowInvalidCycleException,
-    FlowLabel,
-    FlowPathRecentRun,
-    FlowUserConflictException,
-    FlowVersionConflictException,
-    RuleSet,
-)
+from .models import (ActionLog, ExportFlowResultsTask,
+                     FlowInvalidCycleException, FlowLabel, FlowPathRecentRun,
+                     FlowUserConflictException, FlowVersionConflictException,
+                     RuleSet)
 
 logger = logging.getLogger(__name__)
 

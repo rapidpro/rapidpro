@@ -26,45 +26,25 @@ from twython import TwythonError
 
 from temba.api.models import WebHookEvent
 from temba.channels.views import channel_status_processor
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import (TEL_SCHEME, TWITTER_SCHEME, URN, Contact,
+                                   ContactGroup, ContactURN)
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
-from temba.msgs.models import (
-    DELIVERED,
-    ERRORED,
-    FAILED,
-    HANDLE_EVENT_TASK,
-    HANDLER_QUEUE,
-    INCOMING,
-    IVR,
-    PENDING,
-    QUEUED,
-    SENT,
-    WIRED,
-    Broadcast,
-    Msg,
-    SystemLabel,
-)
-from temba.orgs.models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    ALL_EVENTS,
-    APPLICATION_SID,
-    FREE_PLAN,
-    NEXMO_APP_ID,
-    NEXMO_APP_PRIVATE_KEY,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    Org,
-)
+from temba.msgs.models import (DELIVERED, ERRORED, FAILED, HANDLE_EVENT_TASK,
+                               HANDLER_QUEUE, INCOMING, IVR, PENDING, QUEUED,
+                               SENT, WIRED, Broadcast, Msg, SystemLabel)
+from temba.orgs.models import (ACCOUNT_SID, ACCOUNT_TOKEN, ALL_EVENTS,
+                               APPLICATION_SID, FREE_PLAN, NEXMO_APP_ID,
+                               NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET,
+                               NEXMO_UUID, Org)
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import push_task
 
-from .models import CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, ChannelSession, SyncEvent
+from .models import (CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent,
+                     ChannelLog, ChannelSession, SyncEvent)
 from .tasks import check_channels_task, squash_channelcounts
 
 

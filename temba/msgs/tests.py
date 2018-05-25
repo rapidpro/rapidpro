@@ -12,38 +12,20 @@ from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 
-from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.channels.models import (Channel, ChannelCount, ChannelEvent,
+                                   ChannelLog)
+from temba.contacts.models import (STOP_CONTACT_EVENT, TEL_SCHEME, Contact,
+                                   ContactField, ContactGroup, ContactURN)
 from temba.flows.models import RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs import models
-from temba.msgs.models import (
-    DELIVERED,
-    ERRORED,
-    FAILED,
-    FLOW,
-    HANDLE_EVENT_TASK,
-    HANDLED,
-    HANDLER_QUEUE,
-    INBOX,
-    INCOMING,
-    MSG_EVENT,
-    OUTGOING,
-    PENDING,
-    QUEUED,
-    RESENT,
-    SENT,
-    WIRED,
-    Attachment,
-    Broadcast,
-    BroadcastRecipient,
-    ExportMessagesTask,
-    Label,
-    Msg,
-    SystemLabel,
-    SystemLabelCount,
-    UnreachableException,
-)
+from temba.msgs.models import (DELIVERED, ERRORED, FAILED, FLOW,
+                               HANDLE_EVENT_TASK, HANDLED, HANDLER_QUEUE,
+                               INBOX, INCOMING, MSG_EVENT, OUTGOING, PENDING,
+                               QUEUED, RESENT, SENT, WIRED, Attachment,
+                               Broadcast, BroadcastRecipient,
+                               ExportMessagesTask, Label, Msg, SystemLabel,
+                               SystemLabelCount, UnreachableException)
 from temba.orgs.models import Debit, Language, Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
@@ -54,7 +36,8 @@ from temba.utils.queues import DEFAULT_PRIORITY, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
-from .tasks import clear_old_msg_external_ids, process_message_task, squash_labelcounts
+from .tasks import (clear_old_msg_external_ids, process_message_task,
+                    squash_labelcounts)
 from .templatetags.sms import as_icon
 
 

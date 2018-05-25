@@ -5,7 +5,8 @@ from functools import reduce
 
 import regex
 from antlr4 import CommonTokenStream, InputStream, ParseTreeVisitor
-from antlr4.error.Errors import NoViableAltException, ParseCancellationException
+from antlr4.error.Errors import (NoViableAltException,
+                                 ParseCancellationException)
 from antlr4.error.ErrorStrategy import BailErrorStrategy
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _

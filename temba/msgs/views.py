@@ -7,20 +7,15 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.http import (HttpResponse, HttpResponseBadRequest,
+                         HttpResponseRedirect)
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartUpdateView,
-)
+from smartmin.views import (SmartCreateView, SmartCRUDL, SmartDeleteView,
+                            SmartFormView, SmartListView, SmartReadView,
+                            SmartUpdateView)
 
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
@@ -31,7 +26,8 @@ from temba.utils import analytics, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import (Broadcast, ExportMessagesTask, Label, Msg, Schedule,
+                     SystemLabel)
 from .tasks import export_messages_task
 
 

@@ -18,10 +18,12 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
 
-from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
+from temba.api.models import (APIToken, Resthook, ResthookSubscriber,
+                              WebHookEvent)
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import (URN, Contact, ContactField, ContactGroup,
+                                   ContactGroupCount, ContactURN)
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
@@ -29,36 +31,24 @@ from temba.utils import splitting_getlist, str_to_bool
 
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
-from .serializers import (
-    AdminBoundaryReadSerializer,
-    BroadcastReadSerializer,
-    BroadcastWriteSerializer,
-    CampaignEventReadSerializer,
-    CampaignEventWriteSerializer,
-    CampaignReadSerializer,
-    CampaignWriteSerializer,
-    ChannelEventReadSerializer,
-    ChannelReadSerializer,
-    ContactBulkActionSerializer,
-    ContactFieldReadSerializer,
-    ContactFieldWriteSerializer,
-    ContactGroupReadSerializer,
-    ContactGroupWriteSerializer,
-    ContactReadSerializer,
-    ContactWriteSerializer,
-    FlowReadSerializer,
-    FlowRunReadSerializer,
-    FlowStartReadSerializer,
-    FlowStartWriteSerializer,
-    LabelReadSerializer,
-    LabelWriteSerializer,
-    MsgBulkActionSerializer,
-    MsgReadSerializer,
-    ResthookReadSerializer,
-    ResthookSubscriberReadSerializer,
-    ResthookSubscriberWriteSerializer,
-    WebHookEventReadSerializer,
-)
+from .serializers import (AdminBoundaryReadSerializer, BroadcastReadSerializer,
+                          BroadcastWriteSerializer,
+                          CampaignEventReadSerializer,
+                          CampaignEventWriteSerializer, CampaignReadSerializer,
+                          CampaignWriteSerializer, ChannelEventReadSerializer,
+                          ChannelReadSerializer, ContactBulkActionSerializer,
+                          ContactFieldReadSerializer,
+                          ContactFieldWriteSerializer,
+                          ContactGroupReadSerializer,
+                          ContactGroupWriteSerializer, ContactReadSerializer,
+                          ContactWriteSerializer, FlowReadSerializer,
+                          FlowRunReadSerializer, FlowStartReadSerializer,
+                          FlowStartWriteSerializer, LabelReadSerializer,
+                          LabelWriteSerializer, MsgBulkActionSerializer,
+                          MsgReadSerializer, ResthookReadSerializer,
+                          ResthookSubscriberReadSerializer,
+                          ResthookSubscriberWriteSerializer,
+                          WebHookEventReadSerializer)
 
 
 class RootView(views.APIView):

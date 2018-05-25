@@ -3,20 +3,11 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import (
-    EMAIL_SCHEME,
-    EXTERNAL_SCHEME,
-    FACEBOOK_SCHEME,
-    FCM_SCHEME,
-    LINE_SCHEME,
-    TEL_SCHEME,
-    TELEGRAM_SCHEME,
-    TWILIO_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    ContactField,
-    ContactURN,
-)
+from temba.contacts.models import (EMAIL_SCHEME, EXTERNAL_SCHEME,
+                                   FACEBOOK_SCHEME, FCM_SCHEME, LINE_SCHEME,
+                                   TEL_SCHEME, TELEGRAM_SCHEME, TWILIO_SCHEME,
+                                   TWITTER_SCHEME, TWITTERID_SCHEME,
+                                   ContactField, ContactURN)
 from temba.ivr.models import IVRCall
 from temba.msgs.models import ERRORED, FAILED
 

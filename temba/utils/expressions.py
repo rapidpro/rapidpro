@@ -1,6 +1,8 @@
 import pytz
 import regex
-from temba_expressions.evaluator import DEFAULT_FUNCTION_MANAGER, EvaluationContext, EvaluationStrategy, Evaluator
+from temba_expressions.evaluator import (DEFAULT_FUNCTION_MANAGER,
+                                         EvaluationContext, EvaluationStrategy,
+                                         Evaluator)
 
 from temba.contacts.models import ContactField
 

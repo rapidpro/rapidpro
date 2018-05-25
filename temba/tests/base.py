@@ -29,7 +29,8 @@ from smartmin.tests import SmartminTest
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, clear_flow_users
+from temba.flows.models import (ActionSet, Flow, FlowRevision, RuleSet,
+                                clear_flow_users)
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org

@@ -24,15 +24,9 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.contacts.models import (TEL_SCHEME, TWITTER_SCHEME,
+                                   TWITTERID_SCHEME, Contact, ContactField,
+                                   ContactGroup, ContactURN)
 from temba.flows.models import ActionSet, AddToGroupAction, Flow
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -45,23 +39,10 @@ from temba.utils import dict_to_struct, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import (
-    DAYFIRST,
-    MONTHFIRST,
-    ORG_CREDIT_EXPIRING,
-    ORG_CREDIT_LOW,
-    ORG_CREDIT_OVER,
-    RESTORED,
-    SUSPENDED,
-    WHITELISTED,
-    CreditAlert,
-    Invitation,
-    Language,
-    Org,
-    TopUp,
-    TopUpCredits,
-    get_current_export_version,
-)
+from .models import (DAYFIRST, MONTHFIRST, ORG_CREDIT_EXPIRING, ORG_CREDIT_LOW,
+                     ORG_CREDIT_OVER, RESTORED, SUSPENDED, WHITELISTED,
+                     CreditAlert, Invitation, Language, Org, TopUp,
+                     TopUpCredits, get_current_export_version)
 from .tasks import squash_topupcredits
 
 

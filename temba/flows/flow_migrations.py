@@ -5,17 +5,9 @@ from uuid import uuid4
 import regex
 
 from temba.contacts.models import ContactField
-from temba.flows.models import (
-    ContainsAnyTest,
-    ContainsTest,
-    Flow,
-    RegexTest,
-    ReplyAction,
-    RuleSet,
-    SayAction,
-    SendAction,
-    StartsWithTest,
-)
+from temba.flows.models import (ContainsAnyTest, ContainsTest, Flow, RegexTest,
+                                ReplyAction, RuleSet, SayAction, SendAction,
+                                StartsWithTest)
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 

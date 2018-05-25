@@ -9,7 +9,8 @@ import requests
 from django.conf import settings
 from django.db.models import Model
 from django.utils.http import urlencode
-from twython import Twython, TwythonAuthError, TwythonError, TwythonRateLimitError
+from twython import (Twython, TwythonAuthError, TwythonError,
+                     TwythonRateLimitError)
 from twython.helpers import _transparent_params
 
 from temba.utils.http import HttpEvent
