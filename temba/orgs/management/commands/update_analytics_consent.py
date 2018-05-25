@@ -7,7 +7,7 @@ from temba.utils import analytics
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = 'Updates consent status for each user'
+    help = "Updates consent status for each user"
 
     def handle(self, *args, **options):
         analytics.init_analytics()
@@ -15,7 +15,7 @@ class Command(BaseCommand):  # pragma: no cover
         consented = 0
 
         # now all users
-        users = User.objects.all().order_by('id')
+        users = User.objects.all().order_by("id")
         total = users.count()
         for user in users:
 

@@ -8,22 +8,21 @@ from temba.utils import analytics
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = 'Updates org membership'
+    help = "Updates org membership"
 
     def handle(self, *args, **options):
         analytics.init_analytics()
         count = 0
 
-        users = User.objects.all().order_by('id')
+        users = User.objects.all().order_by("id")
         total = users.count()
         for user in users:
 
             # update their orgs
             users = (user,)
-            orgs = Org.objects.filter(Q(administrators__in=users) |
-                                      Q(editors__in=users) |
-                                      Q(viewers__in=users),
-                                      is_active=True)
+            orgs = Org.objects.filter(
+                Q(administrators__in=users) | Q(editors__in=users) | Q(viewers__in=users), is_active=True
+            )
 
             analytics.set_orgs(user.email, orgs)
             time.sleep(.1)
