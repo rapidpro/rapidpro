@@ -11,10 +11,6 @@ ON values_value(contact_field_id, location_value_id)
 WHERE contact_field_id IS NOT NULL AND location_value_id IS NOT NULL;
     """
 
-    dependencies = [
-        ('values', '0008_reset_1'),
-    ]
+    dependencies = [("values", "0008_reset_1")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

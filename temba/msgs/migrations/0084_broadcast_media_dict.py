@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0083_auto_20170228_0837'),
-    ]
+    dependencies = [("msgs", "0083_auto_20170228_0837")]
 
     operations = [
         migrations.AddField(
-            model_name='broadcast',
-            name='media_dict',
-            field=models.TextField(help_text='The localized versions of the media', null=True, verbose_name='Media'),
-        ),
+            model_name="broadcast",
+            name="media_dict",
+            field=models.TextField(help_text="The localized versions of the media", null=True, verbose_name="Media"),
+        )
     ]

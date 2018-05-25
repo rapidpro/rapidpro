@@ -7,7 +7,7 @@ from temba.utils import chunk_list
 def migrate_flows_forward():
     from temba.flows.models import Flow
 
-    flow_ids = list(Flow.objects.filter(is_active=True).values_list('id', flat=True))
+    flow_ids = list(Flow.objects.filter(is_active=True).values_list("id", flat=True))
     total = len(flow_ids)
     updated = 0
     for id_batch in chunk_list(flow_ids, 1000):
@@ -37,10 +37,6 @@ def apply_as_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0115_auto_20171023_1951'),
-    ]
+    dependencies = [("flows", "0115_auto_20171023_1951")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

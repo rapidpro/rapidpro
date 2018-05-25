@@ -1,2 +1,2 @@
 
-from .type import ArabiaCellType # noqa
+from .type import ArabiaCellType  # noqa

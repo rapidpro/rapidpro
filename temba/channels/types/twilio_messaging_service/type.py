@@ -13,10 +13,10 @@ class TwilioMessagingServiceType(ChannelType):
     An Twilio Messaging Service channel
     """
 
-    code = 'TMS'
+    code = "TMS"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_url = r"^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     name = "Twilio Messaging Service"
     slug = "twilio_messaging_service"
@@ -39,7 +39,9 @@ class TwilioMessagingServiceType(ChannelType):
         dict(
             label=_("Request URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.tms' channel.uuid 'receive' %}",
-            description=_("This endpoint should be called by Twilio when new messages are received by your Messaging Service."),
+            description=_(
+                "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
+            ),
         ),
     )
 

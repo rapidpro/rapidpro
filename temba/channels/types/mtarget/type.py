@@ -10,13 +10,13 @@ class MtargetType(ChannelType):
     """
     An Mtarget channel type (https://www.mtarget.fr/)
     """
-    code = 'MT'
+    code = "MT"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_url = r"^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Mtarget"
-    icon = 'icon-mtarget'
+    icon = "icon-mtarget"
 
     available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
     recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]

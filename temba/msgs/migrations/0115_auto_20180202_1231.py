@@ -6,19 +6,19 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0114_auto_20180126_1452'),
-    ]
+    dependencies = [("msgs", "0114_auto_20180126_1452")]
 
     operations = [
         migrations.AlterField(
-            model_name='broadcast',
-            name='metadata',
-            field=temba.utils.models.JSONAsTextField(help_text='The metadata for messages of this broadcast', null=True, default=dict),
+            model_name="broadcast",
+            name="metadata",
+            field=temba.utils.models.JSONAsTextField(
+                help_text="The metadata for messages of this broadcast", null=True, default=dict
+            ),
         ),
         migrations.AlterField(
-            model_name='msg',
-            name='metadata',
-            field=temba.utils.models.JSONAsTextField(help_text='The metadata for this msg', null=True, default=dict),
+            model_name="msg",
+            name="metadata",
+            field=temba.utils.models.JSONAsTextField(help_text="The metadata for this msg", null=True, default=dict),
         ),
     ]

@@ -31,7 +31,7 @@ def process_run_timeout(run_id, timeout_on):
     run = FlowRun.objects.filter(id=run_id, is_active=True, flow__is_active=True).first()
 
     if run:
-        key = 'pcm_%d' % run.contact_id
+        key = "pcm_%d" % run.contact_id
         if not r.get(key):
             with r.lock(key, timeout=120):
                 print("T[%09d] Processing timeout" % run.id)
@@ -60,10 +60,10 @@ def process_fire_events(fire_ids):
 
     # lock on the flow so we know non-one else is updating these event fires
     r = get_redis_connection()
-    with r.lock('process_fire_events:%d' % flow.id, timeout=300):
+    with r.lock("process_fire_events:%d" % flow.id, timeout=300):
 
         # only fetch fires that haven't been somehow already handled
-        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related('contact'))
+        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related("contact"))
         if fires:
             print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
 
@@ -90,7 +90,7 @@ def process_message(msg, new_message=False, new_contact=False):
     print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
 
 
-@task(track_started=True, name='process_message_task')
+@task(track_started=True, name="process_message_task")
 def process_message_task(msg_event):
     """
     Given the task JSON from our queue, processes the message, is two implementations to deal with
@@ -99,9 +99,9 @@ def process_message_task(msg_event):
     r = get_redis_connection()
 
     # we have a contact id, we want to get the msg from that queue after acquiring our lock
-    if msg_event.get('contact_id'):
-        key = 'pcm_%d' % msg_event['contact_id']
-        contact_queue = Msg.CONTACT_HANDLING_QUEUE % msg_event['contact_id']
+    if msg_event.get("contact_id"):
+        key = "pcm_%d" % msg_event["contact_id"]
+        contact_queue = Msg.CONTACT_HANDLING_QUEUE % msg_event["contact_id"]
 
         # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
@@ -120,40 +120,45 @@ def process_message_task(msg_event):
                 # we have a message in our contact queue, look it up
                 msg_event = json.loads(force_text(contact_msg[0]))
                 msg = (
-                    Msg.objects.filter(id=msg_event['id'])
+                    Msg.objects.filter(id=msg_event["id"])
                     .order_by()
-                    .select_related('org', 'contact', 'contact_urn', 'channel')
+                    .select_related("org", "contact", "contact_urn", "channel")
                     .first()
                 )
 
                 # make sure we are still pending
                 if msg and msg.status == PENDING:
-                    process_message(msg, msg_event.get('from_mage', msg_event.get('new_message', False)), msg_event.get('new_contact', False))
+                    process_message(
+                        msg,
+                        msg_event.get("from_mage", msg_event.get("new_message", False)),
+                        msg_event.get("new_contact", False),
+                    )
                     return
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(id=msg_event['id']).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        msg = Msg.objects.filter(id=msg_event["id"]).select_related("org", "contact", "contact_urn", "channel").first()
         if msg and msg.status == PENDING:
             # grab our contact lock and handle this message
-            key = 'pcm_%d' % msg.contact_id
+            key = "pcm_%d" % msg.contact_id
             with r.lock(key, timeout=120):
-                process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
+                process_message(msg, msg_event.get("from_mage", False), msg_event.get("new_contact", False))
 
 
-@task(track_started=True, name='send_broadcast')
+@task(track_started=True, name="send_broadcast")
 def send_broadcast_task(broadcast_id, **kwargs):
     # get our broadcast
     from .models import Broadcast
+
     broadcast = Broadcast.objects.get(pk=broadcast_id)
 
-    high_priority = (broadcast.recipient_count == 1)
-    expressions_context = {} if kwargs.get('with_expressions', True) else None
+    high_priority = broadcast.recipient_count == 1
+    expressions_context = {} if kwargs.get("with_expressions", True) else None
 
     broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
 
 
-@task(track_started=True, name='send_to_flow_node')
+@task(track_started=True, name="send_to_flow_node")
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
     from temba.contacts.models import Contact
@@ -162,26 +167,25 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
-    simulation = kwargs.get('simulation', 'false') == 'true'
-    node_uuid = kwargs.get('s', None)
+    simulation = kwargs.get("simulation", "false") == "true"
+    node_uuid = kwargs.get("s", None)
 
     runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
     contact_ids = (
-        Contact.objects
-        .filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
-        .filter(id__in=runs.values_list('contact', flat=True))
-        .values_list('id', flat=True)
+        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+        .filter(id__in=runs.values_list("contact", flat=True))
+        .values_list("id", flat=True)
     )
 
     broadcast = Broadcast.create(org, user, text, recipients=[])
     broadcast.update_contacts(contact_ids)
     broadcast.send(expressions_context={})
 
-    analytics.track(user.username, 'temba.broadcast_created', dict(contacts=len(contact_ids), groups=0, urns=0))
+    analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
-@task(track_started=True, name='send_spam')
+@task(track_started=True, name="send_spam")
 def send_spam(user_id, contact_id):  # pragma: no cover
     """
     Processses a single incoming message through our queue.
@@ -198,8 +202,7 @@ def send_spam(user_id, contact_id):  # pragma: no cover
         print("Sorry, no channel to be all spammy with")
         return
 
-    long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " \
-                "selfish and the tyranny of evil men. Blessed is your face."
+    long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " "selfish and the tyranny of evil men. Blessed is your face."
 
     # only trigger sync on the last one
     for idx in range(10):
@@ -207,12 +210,12 @@ def send_spam(user_id, contact_id):  # pragma: no cover
         broadcast.send(trigger_send=(idx == 149))
 
 
-@task(track_started=True, name='fail_old_messages')
+@task(track_started=True, name="fail_old_messages")
 def fail_old_messages():  # pragma: needs cover
     Msg.fail_old_messages()
 
 
-@nonoverlapping_task(track_started=True, name='collect_message_metrics_task', time_limit=900)
+@nonoverlapping_task(track_started=True, name="collect_message_metrics_task", time_limit=900)
 def collect_message_metrics_task():  # pragma: needs cover
     """
     Collects message metrics and sends them to our analytics.
@@ -221,35 +224,64 @@ def collect_message_metrics_task():  # pragma: needs cover
     from temba.utils import analytics
 
     # current # of queued messages (excluding Android)
-    count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
-        exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
-    analytics.gauge('temba.current_outgoing_queued', count)
+    count = (
+        Msg.objects.filter(direction=OUTGOING, status=QUEUED)
+        .exclude(channel=None)
+        .exclude(topup=None)
+        .exclude(channel__channel_type="A")
+        .exclude(next_attempt__gte=timezone.now())
+        .count()
+    )
+    analytics.gauge("temba.current_outgoing_queued", count)
 
     # current # of initializing messages (excluding Android)
-    count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-    analytics.gauge('temba.current_outgoing_initializing', count)
+    count = (
+        Msg.objects.filter(direction=OUTGOING, status=INITIALIZING)
+        .exclude(channel=None)
+        .exclude(topup=None)
+        .exclude(channel__channel_type="A")
+        .count()
+    )
+    analytics.gauge("temba.current_outgoing_initializing", count)
 
     # current # of pending messages (excluding Android)
-    count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-    analytics.gauge('temba.current_outgoing_pending', count)
+    count = (
+        Msg.objects.filter(direction=OUTGOING, status=PENDING)
+        .exclude(channel=None)
+        .exclude(topup=None)
+        .exclude(channel__channel_type="A")
+        .count()
+    )
+    analytics.gauge("temba.current_outgoing_pending", count)
 
     # current # of errored messages (excluding Android)
-    count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-    analytics.gauge('temba.current_outgoing_errored', count)
+    count = (
+        Msg.objects.filter(direction=OUTGOING, status=ERRORED)
+        .exclude(channel=None)
+        .exclude(topup=None)
+        .exclude(channel__channel_type="A")
+        .count()
+    )
+    analytics.gauge("temba.current_outgoing_errored", count)
 
     # current # of android outgoing messages waiting to be sent
-    count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
-    analytics.gauge('temba.current_outgoing_android', count)
+    count = (
+        Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type="A")
+        .exclude(channel=None)
+        .exclude(topup=None)
+        .count()
+    )
+    analytics.gauge("temba.current_outgoing_android", count)
 
     # current # of pending incoming messages that haven't yet been handled
     count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
-    analytics.gauge('temba.current_incoming_pending', count)
+    analytics.gauge("temba.current_incoming_pending", count)
 
     # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
-    cache.set('last_cron', timezone.now())
+    cache.set("last_cron", timezone.now())
 
 
-@nonoverlapping_task(track_started=True, name='check_messages_task', time_limit=900)
+@nonoverlapping_task(track_started=True, name="check_messages_task", time_limit=900)
 def check_messages_task():  # pragma: needs cover
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.
@@ -267,16 +299,16 @@ def check_messages_task():  # pragma: needs cover
     # for any org that sent messages in the past five minutes, check for pending messages
     for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
         # more than 1,000 messages queued? don't do anything, wait for our queue to go down
-        queued = r.zcard('send_message_task:%d' % org.id)
+        queued = r.zcard("send_message_task:%d" % org.id)
         if queued < 1000:
             org.trigger_send()
 
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
-        send_msg_task.apply_async(queue='msgs')
-        handle_event_task.apply_async(queue='handler')
-        start_msg_flow_batch_task.apply_async(queue='flows')
+        send_msg_task.apply_async(queue="msgs")
+        handle_event_task.apply_async(queue="handler")
+        start_msg_flow_batch_task.apply_async(queue="flows")
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
@@ -289,7 +321,7 @@ def check_messages_task():  # pragma: needs cover
             msg.handle()
 
 
-@task(track_started=True, name='export_sms_task')
+@task(track_started=True, name="export_sms_task")
 def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
@@ -317,23 +349,23 @@ def handle_event_task():
         return
 
     try:
-        if event_task['type'] == MSG_EVENT:
+        if event_task["type"] == MSG_EVENT:
             process_message_task(event_task)
 
-        elif event_task['type'] == FIRE_EVENT:
-            fire_ids = event_task.get('fires') if 'fires' in event_task else [event_task.get('id')]
+        elif event_task["type"] == FIRE_EVENT:
+            fire_ids = event_task.get("fires") if "fires" in event_task else [event_task.get("id")]
             process_fire_events(fire_ids)
 
-        elif event_task['type'] == TIMEOUT_EVENT:
-            timeout_on = iso8601.parse_date(event_task['timeout_on'])
-            process_run_timeout(event_task['run'], timeout_on)
+        elif event_task["type"] == TIMEOUT_EVENT:
+            timeout_on = iso8601.parse_date(event_task["timeout_on"])
+            process_run_timeout(event_task["run"], timeout_on)
 
-        elif event_task['type'] == STOP_CONTACT_EVENT:
-            contact = Contact.objects.get(id=event_task['contact_id'])
+        elif event_task["type"] == STOP_CONTACT_EVENT:
+            contact = Contact.objects.get(id=event_task["contact_id"])
             contact.stop(contact.modified_by)
 
-        elif event_task['type'] == CHANNEL_EVENT:
-            event = ChannelEvent.objects.get(id=event_task['event_id'])
+        elif event_task["type"] == CHANNEL_EVENT:
+            event = ChannelEvent.objects.get(id=event_task["event_id"])
             event.handle()
 
         else:  # pragma: needs cover
@@ -348,7 +380,7 @@ def squash_labelcounts():
     LabelCount.squash()
 
 
-@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)
+@nonoverlapping_task(track_started=True, name="clear_old_msg_external_ids", time_limit=60 * 60 * 36)
 def clear_old_msg_external_ids():
     """
     Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced
@@ -356,7 +388,7 @@ def clear_old_msg_external_ids():
     """
     threshold = timezone.now() - timedelta(days=30)  # 30 days ago
 
-    msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
+    msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list("id", flat=True))
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
         Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)

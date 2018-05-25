@@ -6,49 +6,87 @@ import django.utils.timezone
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0090_baseexporttask_2'),
-    ]
+    dependencies = [("flows", "0090_baseexporttask_2")]
 
     operations = [
         migrations.AlterField(
-            model_name='exportflowresultstask',
-            name='created_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created'),
+            model_name="exportflowresultstask",
+            name="created_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was originally created",
+            ),
         ),
         migrations.AlterField(
-            model_name='exportflowresultstask',
-            name='modified_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified'),
+            model_name="exportflowresultstask",
+            name="modified_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was last modified",
+            ),
         ),
         migrations.AlterField(
-            model_name='flow',
-            name='created_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created'),
+            model_name="flow",
+            name="created_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was originally created",
+            ),
         ),
         migrations.AlterField(
-            model_name='flow',
-            name='modified_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified'),
+            model_name="flow",
+            name="modified_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was last modified",
+            ),
         ),
         migrations.AlterField(
-            model_name='flowrevision',
-            name='created_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created'),
+            model_name="flowrevision",
+            name="created_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was originally created",
+            ),
         ),
         migrations.AlterField(
-            model_name='flowrevision',
-            name='modified_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified'),
+            model_name="flowrevision",
+            name="modified_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was last modified",
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='created_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created'),
+            model_name="flowstart",
+            name="created_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was originally created",
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='modified_on',
-            field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified'),
+            model_name="flowstart",
+            name="modified_on",
+            field=models.DateTimeField(
+                blank=True,
+                default=django.utils.timezone.now,
+                editable=False,
+                help_text="When this item was last modified",
+            ),
         ),
     ]

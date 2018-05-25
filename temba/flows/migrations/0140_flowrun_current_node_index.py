@@ -13,10 +13,6 @@ class Migration(migrations.Migration):
 
     atomic = False
 
-    dependencies = [
-        ('flows', '0139_fix_results'),
-    ]
+    dependencies = [("flows", "0139_fix_results")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

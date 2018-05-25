@@ -53,10 +53,10 @@ $$ LANGUAGE plpgsql;
 
 
 def delete_inactive_channelevents(apps, schema_editor):
-    ChannelEvent = apps.get_model('channels', 'ChannelEvent')
+    ChannelEvent = apps.get_model("channels", "ChannelEvent")
 
     # delete all channel events that are inactive, we don't care to keep those around
-    ids = ChannelEvent.objects.filter(is_active=False).values_list('id', flat=True)
+    ids = ChannelEvent.objects.filter(is_active=False).values_list("id", flat=True)
     if ids:
         print("Found %d channel events to delete" % len(ids))
 
@@ -68,16 +68,18 @@ def delete_inactive_channelevents(apps, schema_editor):
 
 
 def migrate_duration_extra(apps, schema_editor):
-    ChannelEvent = apps.get_model('channels', 'ChannelEvent')
+    ChannelEvent = apps.get_model("channels", "ChannelEvent")
 
     # find all events with a duration and convert them to extra
-    ids = ChannelEvent.objects.filter(duration__gte=0).values_list('id', flat=True)
+    ids = ChannelEvent.objects.filter(duration__gte=0).values_list("id", flat=True)
     if ids:
         print("Found %d channel events to set extra on" % len(ids))
 
     count = 0
     for chunk in chunk_list(ids, 250):
-        ChannelEvent.objects.filter(id__in=chunk).update(extra=Concat(Value('{"duration":'), F('duration'), Value('}'), output_field=TextField()))
+        ChannelEvent.objects.filter(id__in=chunk).update(
+            extra=Concat(Value('{"duration":'), F("duration"), Value("}"), output_field=TextField())
+        )
         count += len(chunk)
         print("Updated %d" % count)
 
@@ -88,42 +90,45 @@ def noop(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0077_auto_20170824_1555'),
-        ('msgs', '0076_install_triggers'),
-    ]
+    dependencies = [("channels", "0077_auto_20170824_1555"), ("msgs", "0076_install_triggers")]
 
     operations = [
         migrations.RunPython(delete_inactive_channelevents, noop),
         migrations.AlterField(
-            model_name='channelevent',
-            name='event_type',
-            field=models.CharField(choices=[('unknown', 'Unknown Call Type'), ('mt_call', 'Outgoing Call'), ('mt_miss', 'Missed Outgoing Call'), ('mo_call', 'Incoming Call'), ('mo_miss', 'Missed Incoming Call'), ('new_conversation', 'New Conversation'), ('referral', 'Referral'), ('follow', 'Follow')], help_text='The type of event', max_length=16, verbose_name='Event Type'),
+            model_name="channelevent",
+            name="event_type",
+            field=models.CharField(
+                choices=[
+                    ("unknown", "Unknown Call Type"),
+                    ("mt_call", "Outgoing Call"),
+                    ("mt_miss", "Missed Outgoing Call"),
+                    ("mo_call", "Incoming Call"),
+                    ("mo_miss", "Missed Incoming Call"),
+                    ("new_conversation", "New Conversation"),
+                    ("referral", "Referral"),
+                    ("follow", "Follow"),
+                ],
+                help_text="The type of event",
+                max_length=16,
+                verbose_name="Event Type",
+            ),
         ),
-        migrations.RemoveField(
-            model_name='channelevent',
-            name='is_active',
-        ),
-        migrations.RenameField(
-            model_name='channelevent',
-            old_name='time', new_name='occurred_on'
-        ),
+        migrations.RemoveField(model_name="channelevent", name="is_active"),
+        migrations.RenameField(model_name="channelevent", old_name="time", new_name="occurred_on"),
         migrations.AlterField(
-            model_name='channelevent',
-            name='occurred_on',
-            field=models.DateTimeField(help_text='When this event took place', verbose_name='Occurred On'),
+            model_name="channelevent",
+            name="occurred_on",
+            field=models.DateTimeField(help_text="When this event took place", verbose_name="Occurred On"),
         ),
         migrations.AddField(
-            model_name='channelevent',
-            name='extra',
-            field=models.TextField(help_text='Any extra properties on this event as JSON', null=True,
-                                   verbose_name='Extra'),
+            model_name="channelevent",
+            name="extra",
+            field=models.TextField(
+                help_text="Any extra properties on this event as JSON", null=True, verbose_name="Extra"
+            ),
         ),
         migrations.RunSQL(SQL_UPDATE_CHANNELEVENT, ""),
         migrations.RunPython(migrate_duration_extra, noop),
-        migrations.RemoveField(
-            model_name='channelevent',
-            name='duration',
-        ),
+        migrations.RemoveField(model_name="channelevent", name="duration"),
         migrations.RunSQL(SQL_UPDATE_CHANNELEVENT, ""),
     ]

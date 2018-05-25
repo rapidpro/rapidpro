@@ -11,19 +11,29 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('flows', '0079_reset_1'),
-        ('channels', '0051_reset_2'),
+        ("flows", "0079_reset_1"),
+        ("channels", "0051_reset_2"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='channelsession',
-            name='flow',
-            field=models.ForeignKey(help_text='The flow this session was part of', null=True, on_delete=django.db.models.deletion.CASCADE, to='flows.Flow'),
+            model_name="channelsession",
+            name="flow",
+            field=models.ForeignKey(
+                help_text="The flow this session was part of",
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="flows.Flow",
+            ),
         ),
         migrations.AddField(
-            model_name='channelsession',
-            name='modified_by',
-            field=models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.CASCADE, related_name='channels_channelsession_modifications', to=settings.AUTH_USER_MODEL),
+            model_name="channelsession",
+            name="modified_by",
+            field=models.ForeignKey(
+                help_text="The user which last modified this item",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="channels_channelsession_modifications",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

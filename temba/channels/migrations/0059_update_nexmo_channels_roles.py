@@ -7,15 +7,13 @@ from temba.orgs.models import Org, NEXMO_UUID, NEXMO_KEY, NEXMO_SECRET, NEXMO_AP
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0058_add_junebug_channel_type'),
-    ]
+    dependencies = [("channels", "0058_add_junebug_channel_type")]
 
     def update_nexmo_channels_roles(apps, schema_editor):
-        Channel = apps.get_model('channels', 'Channel')
+        Channel = apps.get_model("channels", "Channel")
 
         if settings.IS_PROD:
-            nexmo_channels = Channel.objects.filter(is_active=True, channel_type='NX')
+            nexmo_channels = Channel.objects.filter(is_active=True, channel_type="NX")
 
             updated = []
             updated_orgs = []
@@ -37,19 +35,17 @@ class Migration(migrations.Migration):
 
                         nexmo_client = org.get_nexmo_client()
 
-                        mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
+                        mo_path = reverse("handlers.nexmo_handler", args=["receive", org_uuid])
 
-                        nexmo_client.update_nexmo_number(channel.country, channel.address,
-                                                         'http://%s%s' % (settings.HOSTNAME, mo_path),
-                                                         app_id)
+                        nexmo_client.update_nexmo_number(
+                            channel.country, channel.address, "http://%s%s" % (settings.HOSTNAME, mo_path), app_id
+                        )
 
                     updated.append(channel.id)
                 except Exception:
                     pass
 
             # change role for those we successfully updated the callback URLs
-            Channel.objects.filter(id__in=updated).update(role='SRCA')
+            Channel.objects.filter(id__in=updated).update(role="SRCA")
 
-    operations = [
-        migrations.RunPython(update_nexmo_channels_roles)
-    ]
+    operations = [migrations.RunPython(update_nexmo_channels_roles)]

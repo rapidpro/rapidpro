@@ -5,14 +5,16 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0108_remove_msg_priority'),
-    ]
+    dependencies = [("msgs", "0108_remove_msg_priority")]
 
     operations = [
         migrations.AlterField(
-            model_name='msg',
-            name='has_template_error',
-            field=models.NullBooleanField(default=False, help_text='Whether data for variable substitution are missing', verbose_name='Has Template Error'),
-        ),
+            model_name="msg",
+            name="has_template_error",
+            field=models.NullBooleanField(
+                default=False,
+                help_text="Whether data for variable substitution are missing",
+                verbose_name="Has Template Error",
+            ),
+        )
     ]

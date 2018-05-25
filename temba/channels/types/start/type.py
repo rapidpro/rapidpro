@@ -10,14 +10,16 @@ class StartType(ChannelType):
     An Start Mobile channel (https://bulk.startmobile.ua/)
     """
 
-    code = 'ST'
+    code = "ST"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_url = r"^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "Start Mobile"
 
-    claim_blurb = _("""Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.""")
+    claim_blurb = _(
+        """Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs."""
+    )
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [TEL_SCHEME]

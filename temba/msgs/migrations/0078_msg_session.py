@@ -6,15 +6,17 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0055_install_indexes'),
-        ('msgs', '0077_install_indexes'),
-    ]
+    dependencies = [("channels", "0055_install_indexes"), ("msgs", "0077_install_indexes")]
 
     operations = [
         migrations.AddField(
-            model_name='msg',
-            name='session',
-            field=models.ForeignKey(help_text='The session this message was a part of if any', null=True, on_delete=django.db.models.deletion.CASCADE, to='channels.ChannelSession'),
-        ),
+            model_name="msg",
+            name="session",
+            field=models.ForeignKey(
+                help_text="The session this message was a part of if any",
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="channels.ChannelSession",
+            ),
+        )
     ]

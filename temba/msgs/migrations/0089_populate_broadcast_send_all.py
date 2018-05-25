@@ -5,11 +5,11 @@ from temba.utils import chunk_list
 
 
 def do_populate_send_all(Broadcast):
-    broadcast_ids = Broadcast.objects.all().values_list('id', flat=True)
+    broadcast_ids = Broadcast.objects.all().values_list("id", flat=True)
 
     broadcast_count = len(broadcast_ids)
     if broadcast_count:
-        print('Starting to update %d broadcasts send all field...' % broadcast_count)
+        print("Starting to update %d broadcasts send all field..." % broadcast_count)
 
     updated = 0
     for chunk in chunk_list(broadcast_ids, 5000):
@@ -18,27 +18,27 @@ def do_populate_send_all(Broadcast):
 
 
 def apply_as_migration(apps, schema_editor):
-    Broadcast = apps.get_model('msgs', 'Broadcast')
+    Broadcast = apps.get_model("msgs", "Broadcast")
     do_populate_send_all(Broadcast)
 
 
 def apply_manual():
     from temba.msgs.models import Broadcast
+
     do_populate_send_all(Broadcast)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0088_broadcast_send_all'),
-    ]
+    dependencies = [("msgs", "0088_broadcast_send_all")]
 
     operations = [
         migrations.AlterField(
-            model_name='broadcast',
-            name='send_all',
-            field=models.NullBooleanField(default=False,
-                                          help_text='Whether this broadcast should send to all URNs for each contact'),
+            model_name="broadcast",
+            name="send_all",
+            field=models.NullBooleanField(
+                default=False, help_text="Whether this broadcast should send to all URNs for each contact"
+            ),
         ),
         migrations.RunPython(apply_as_migration),
     ]

@@ -155,12 +155,10 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0088_fix_twiml_configs'),
-    ]
+    dependencies = [("channels", "0088_fix_twiml_configs")]
 
     operations = [
-        migrations.RunSQL(SQL_channelevent, ''),
-        migrations.RunSQL(SQL_channelcount, ''),
-        migrations.RunSQL(SQL_channellogcount, '')
+        migrations.RunSQL(SQL_channelevent, ""),
+        migrations.RunSQL(SQL_channelcount, ""),
+        migrations.RunSQL(SQL_channellogcount, ""),
     ]

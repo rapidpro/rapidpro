@@ -23,7 +23,7 @@ from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer
 from .serializers import FlowRunReadSerializer, FlowRunWriteSerializer
 
 # caching of counts from API requests
-REQUEST_COUNT_CACHE_KEY = 'org:%d:cache:api_request_counts:%s'
+REQUEST_COUNT_CACHE_KEY = "org:%d:cache:api_request_counts:%s"
 REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 
 
@@ -45,9 +45,9 @@ class AuthenticateEndpoint(SmartFormView):
         return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
-        username = form.cleaned_data.get('email')
-        password = form.cleaned_data.get('password')
-        role_code = form.cleaned_data.get('role')
+        username = form.cleaned_data.get("email")
+        password = form.cleaned_data.get("password")
+        role_code = form.cleaned_data.get("role")
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
@@ -88,7 +88,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
-        if not kwargs.get('format', None):
+        if not kwargs.get("format", None):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
@@ -98,17 +98,17 @@ class ListAPIMixin(mixins.ListModelMixin):
         if self.cache_counts:
             # total counts can be expensive so we let some views cache counts based on the query parameters
             query_params = self.request.query_params.copy()
-            if 'page' in query_params:
-                del query_params['page']
+            if "page" in query_params:
+                del query_params["page"]
 
             # param values should be in UTF8
-            encoded_params = [(p[0], [v.encode('utf-8') for v in p[1]]) for p in query_params.lists()]
+            encoded_params = [(p[0], [v.encode("utf-8") for v in p[1]]) for p in query_params.lists()]
 
             query_key = urlencode(sorted(encoded_params), doseq=True)
             count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
 
             # only try to use cached count for pages other than the first
-            if int(self.request.query_params.get('page', 1)) != 1:
+            if int(self.request.query_params.get("page", 1)) != 1:
                 cached_count = cache.get(count_key)
                 if cached_count is not None:
                     queryset.count = lambda: int(cached_count)  # monkey patch the queryset count() method
@@ -249,7 +249,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             }]
         }
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -259,7 +259,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
 
         # if they pass in deleted=true then only return deleted contacts
-        if str_to_bool(request.query_params.get('deleted', '')):
+        if str_to_bool(request.query_params.get("deleted", "")):
             return queryset.filter(is_active=False)
         else:
             return queryset.filter(is_active=True)
@@ -267,7 +267,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
 
-        before = self.request.query_params.get('before', None)
+        before = self.request.query_params.get("before", None)
         if before:
             try:
                 before = iso8601.parse_date(before)
@@ -275,7 +275,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.query_params.get('after', None)
+        after = self.request.query_params.get("after", None)
         if after:
             try:
                 after = iso8601.parse_date(after)
@@ -283,32 +283,36 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
-        phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
+        phones = splitting_getlist(self.request, "phone")  # deprecated, use urns
         if phones:
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
-        urns = self.request.query_params.getlist('urns', None)
+        urns = self.request.query_params.getlist("urns", None)
         if urns:
             queryset = queryset.filter(urns__identity__in=urns)
 
-        groups = self.request.query_params.getlist('group', None)  # deprecated, use group_uuids
+        groups = self.request.query_params.getlist("group", None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(all_groups__name__in=groups,
-                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
+            queryset = queryset.filter(
+                all_groups__name__in=groups, all_groups__group_type=ContactGroup.TYPE_USER_DEFINED
+            )
 
-        group_uuids = self.request.query_params.getlist('group_uuids', None)
+        group_uuids = self.request.query_params.getlist("group_uuids", None)
         if group_uuids:
-            queryset = queryset.filter(all_groups__uuid__in=group_uuids,
-                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
+            queryset = queryset.filter(
+                all_groups__uuid__in=group_uuids, all_groups__group_type=ContactGroup.TYPE_USER_DEFINED
+            )
 
-        uuids = self.request.query_params.getlist('uuid', None)
+        uuids = self.request.query_params.getlist("uuid", None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
         # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
-        user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
+        user_groups_prefetch = Prefetch(
+            "all_groups", queryset=ContactGroup.user_groups.all(), to_attr="prefetched_user_groups"
+        )
 
-        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on', 'pk')
+        return queryset.select_related("org").prefetch_related(user_groups_prefetch).order_by("-modified_on", "pk")
 
     def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
@@ -320,7 +324,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         So that we only fetch active contact fields once for all contacts
         """
         context = super(BaseAPIView, self).get_serializer_context()
-        context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
 
@@ -408,7 +412,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "value_type": "T"
         }
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
     write_serializer_class = ContactFieldWriteSerializer
@@ -416,7 +420,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
 
-        key = self.request.query_params.get('key', None)
+        key = self.request.query_params.get("key", None)
         if key:  # pragma: needs cover
             queryset = queryset.filter(key__icontains=key)
 
@@ -480,7 +484,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = AdminBoundary
 
     def get_queryset(self):
@@ -489,17 +493,17 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         if not org.country:  # pragma: needs cover
             return []
 
-        queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
+        queryset = org.country.get_descendants(include_self=True).order_by("level", "name")
 
-        if self.request.GET.get('aliases'):
+        if self.request.GET.get("aliases"):
             queryset = queryset.prefetch_related(
-                Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
+                Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name"))
             )
 
-        return queryset.select_related('parent')
+        return queryset.select_related("parent")
 
     def get_serializer_class(self):
-        if self.request.GET.get('aliases'):
+        if self.request.GET.get("aliases"):
             return AliasSerializer
         else:
             return BoundarySerializer
@@ -584,12 +588,12 @@ class FlowDefinitionEndpoint(BaseAPIView):
         }
 
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = Flow
 
     def get(self, request, *args, **kwargs):
 
-        uuid = request.GET.get('uuid')
+        uuid = request.GET.get("uuid")
         flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
 
         if flow:
@@ -656,22 +660,22 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = Flow
     serializer_class = FlowReadSerializer
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by("-created_on")
 
-        uuids = self.request.query_params.getlist('uuid', None)
+        uuids = self.request.query_params.getlist("uuid", None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        ids = self.request.query_params.getlist('flow', None)  # deprecated, use uuid
+        ids = self.request.query_params.getlist("flow", None)  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
-        before = self.request.query_params.get('before', None)
+        before = self.request.query_params.get("before", None)
         if before:  # pragma: needs cover
             try:
                 before = iso8601.parse_date(before)
@@ -679,7 +683,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.query_params.get('after', None)
+        after = self.request.query_params.get("after", None)
         if after:  # pragma: needs cover
             try:
                 after = iso8601.parse_date(after)
@@ -687,19 +691,19 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        label = self.request.query_params.getlist('label', None)
+        label = self.request.query_params.getlist("label", None)
         if label:
             queryset = queryset.filter(labels__name__in=label)
 
-        archived = self.request.query_params.get('archived', None)
+        archived = self.request.query_params.get("archived", None)
         if archived is not None:
             queryset = queryset.filter(is_archived=str_to_bool(archived))
 
-        flow_type = self.request.query_params.getlist('type', None)
+        flow_type = self.request.query_params.getlist("type", None)
         if flow_type:  # pragma: needs cover
             queryset = queryset.filter(flow_type__in=flow_type)
 
-        return queryset.prefetch_related('labels')
+        return queryset.prefetch_related("labels")
 
 
 class OrgEndpoint(BaseAPIView):
@@ -724,24 +728,26 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
 
-        data = dict(name=org.name,
-                    country=org.get_country_code(),
-                    languages=[l.iso_code for l in org.languages.order_by('iso_code')],
-                    primary_language=org.primary_language.iso_code if org.primary_language else None,
-                    timezone=str(org.timezone),
-                    date_style=('day_first' if org.get_dayfirst() else 'month_first'),
-                    anon=org.is_anon)
+        data = dict(
+            name=org.name,
+            country=org.get_country_code(),
+            languages=[l.iso_code for l in org.languages.order_by("iso_code")],
+            primary_language=org.primary_language.iso_code if org.primary_language else None,
+            timezone=str(org.timezone),
+            date_style=("day_first" if org.get_dayfirst() else "month_first"),
+            anon=org.is_anon,
+        )
 
         return Response(data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):  # pragma: needs cover
-        return dict(method="GET", title="View Current Org", url=reverse('api.v1.org'), slug='org-read', request="")
+        return dict(method="GET", title="View Current Org", url=reverse("api.v1.org"), slug="org-read", request="")
 
 
 class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
@@ -780,7 +786,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
 
     Response is the updated or created flow run.
     """
-    permission = 'orgs.org_surveyor'
+    permission = "orgs.org_surveyor"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     write_serializer_class = FlowRunWriteSerializer

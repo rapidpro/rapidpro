@@ -27,20 +27,18 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('orgs', '0030_install_triggers'),
-    ]
+    dependencies = [("orgs", "0030_install_triggers")]
 
     operations = [
         migrations.AddField(
-            model_name='debit',
-            name='is_squashed',
-            field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
+            model_name="debit",
+            name="is_squashed",
+            field=models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
         ),
         migrations.AddField(
-            model_name='topupcredits',
-            name='is_squashed',
-            field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
+            model_name="topupcredits",
+            name="is_squashed",
+            field=models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
         ),
         migrations.RunSQL(SQL),
     ]

@@ -6,14 +6,12 @@ import uuid
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0101_msg_uuid'),
-    ]
+    dependencies = [("msgs", "0101_msg_uuid")]
 
     operations = [
         migrations.AlterField(
-            model_name='msg',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, help_text='The UUID for this message', null=True),
-        ),
+            model_name="msg",
+            name="uuid",
+            field=models.UUIDField(default=uuid.uuid4, help_text="The UUID for this message", null=True),
+        )
     ]

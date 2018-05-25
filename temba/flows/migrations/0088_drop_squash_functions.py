@@ -13,10 +13,6 @@ DROP FUNCTION temba_squash_flowpathcount(INTEGER, UUID, UUID, TIMESTAMP WITH TIM
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0087_fix_open_ended_ruleset_with_timeout'),
-    ]
+    dependencies = [("flows", "0087_fix_open_ended_ruleset_with_timeout")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

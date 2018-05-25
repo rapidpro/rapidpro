@@ -13,20 +13,20 @@ from temba.utils import chunk_list
 from temba.utils.management.commands.migrate_flows import migrate_flows
 
 # these are called out here because we can't reference the real FlowRun in this migration
-PATH_NODE_UUID = 'node_uuid'
-PATH_ARRIVED_ON = 'arrived_on'
-PATH_EXIT_UUID = 'exit_uuid'
+PATH_NODE_UUID = "node_uuid"
+PATH_ARRIVED_ON = "arrived_on"
+PATH_EXIT_UUID = "exit_uuid"
 PATH_MAX_STEPS = 100
 
-CACHE_KEY_HIGHPOINT = 'path_mig_highpoint'
-CACHE_KEY_MAX_RUN_ID = 'path_mig_max_run_id'
+CACHE_KEY_HIGHPOINT = "path_mig_highpoint"
+CACHE_KEY_MAX_RUN_ID = "path_mig_max_run_id"
 
 
 def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     cache = get_redis_connection()
 
     # start by ensuring all flows are at a minimum version
-    if not migrate_flows('10.4'):
+    if not migrate_flows("10.4"):
         raise ValueError("Migration can't proceed because some flows couldn't be migrated")
 
     # get all flow action sets
@@ -45,7 +45,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         )
 
     # are we running on just a partition of the runs?
-    partition = os.environ.get('PARTITION')
+    partition = os.environ.get("PARTITION")
     if partition is not None:
         partition = int(partition)
         if partition < 0 or partition > 3:
@@ -56,7 +56,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     # has this migration been run before but didn't complete?
     highpoint = None
     if partition is not None:
-        highpoint = cache.get(CACHE_KEY_HIGHPOINT + (':%d' % partition))
+        highpoint = cache.get(CACHE_KEY_HIGHPOINT + (":%d" % partition))
     if highpoint is None:
         highpoint = cache.get(CACHE_KEY_HIGHPOINT)
 
@@ -65,7 +65,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     max_run_id = cache.get(CACHE_KEY_MAX_RUN_ID)
     if max_run_id is None:
         print("Getting if of last run which will need migrated...")
-        max_run = FlowRun.objects.filter(flow__is_active=True).order_by('-id').first()
+        max_run = FlowRun.objects.filter(flow__is_active=True).order_by("-id").first()
         if max_run:
             max_run_id = max_run.id
             cache.set(CACHE_KEY_MAX_RUN_ID, max_run_id, 60 * 60 * 24 * 7)
@@ -73,7 +73,7 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         max_run_id = int(max_run_id)
 
     # get all flow runs we're going to migrate
-    runs = FlowRun.objects.filter(flow__is_active=True).only('id').order_by('id')
+    runs = FlowRun.objects.filter(flow__is_active=True).only("id").order_by("id")
 
     if highpoint:
         print("Resuming from previous highpoint at run #%d" % highpoint)
@@ -91,9 +91,11 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
     start = None
 
     # we want to prefetch steps with each flow run, in chronological order
-    steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.only('step_uuid', 'step_type', 'rule_uuid', 'arrived_on').order_by('id'))
+    steps_prefetch = Prefetch(
+        "steps", queryset=FlowStep.objects.only("step_uuid", "step_type", "rule_uuid", "arrived_on").order_by("id")
+    )
 
-    for run_batch in chunk_list(runs.using('direct').iterator(), 1000):
+    for run_batch in chunk_list(runs.using("direct").iterator(), 1000):
         # first call is gonna take a while to complete the query on the db, so start timer after that
         if start is None:
             start = time.time()
@@ -104,13 +106,13 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
             else:
                 run_ids = [r.id for r in run_batch]
 
-            batch = FlowRun.objects.filter(id__in=run_ids).order_by('id').prefetch_related(steps_prefetch)
+            batch = FlowRun.objects.filter(id__in=run_ids).order_by("id").prefetch_related(steps_prefetch)
 
             for run in batch:
                 path = []
                 for step in run.steps.all():
                     step_dict = {PATH_NODE_UUID: step.step_uuid, PATH_ARRIVED_ON: step.arrived_on.isoformat()}
-                    if step.step_type == 'R':
+                    if step.step_type == "R":
                         step_dict[PATH_EXIT_UUID] = step.rule_uuid
                     else:
                         exit_uuid = action_set_uuid_to_exit.get(step.step_uuid)
@@ -121,11 +123,11 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
 
                 # trim path if necessary
                 if len(path) > PATH_MAX_STEPS:
-                    path = path[len(path) - PATH_MAX_STEPS:]
+                    path = path[len(path) - PATH_MAX_STEPS :]
                     num_trimmed += 1
 
                 run.path = json.dumps(path)
-                run.save(update_fields=('path',))
+                run.save(update_fields=("path",))
 
                 highpoint = run.id
                 if partition is not None:
@@ -140,34 +142,39 @@ def backfill_flowrun_path(ActionSet, FlowRun, FlowStep):
         num_remaining = ((max_run_id - highpoint) // 4) if partition is not None else (max_run_id - highpoint)
         time_remaining = num_remaining / updated_per_sec
         finishes = timezone.now() + timedelta(seconds=time_remaining)
-        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_updated, remaining_estimate, updated_per_sec, finishes)
+        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (
+            num_updated,
+            remaining_estimate,
+            updated_per_sec,
+            finishes,
+        )
 
         if partition is not None:
-            status += ' [PARTITION %d]' % partition
+            status += " [PARTITION %d]" % partition
 
         print(status)
 
-    print("Run path migration completed in %d mins. %d paths were trimmed" % ((int(time.time() - start) // 60), num_trimmed))
+    print(
+        "Run path migration completed in %d mins. %d paths were trimmed"
+        % ((int(time.time() - start) // 60), num_trimmed)
+    )
 
 
 def apply_manual():
     from temba.flows.models import ActionSet, FlowRun, FlowStep
+
     backfill_flowrun_path(ActionSet, FlowRun, FlowStep)
 
 
 def apply_as_migration(apps, schema_editor):
-    ActionSet = apps.get_model('flows', 'ActionSet')
-    FlowRun = apps.get_model('flows', 'FlowRun')
-    FlowStep = apps.get_model('flows', 'FlowStep')
+    ActionSet = apps.get_model("flows", "ActionSet")
+    FlowRun = apps.get_model("flows", "FlowRun")
+    FlowStep = apps.get_model("flows", "FlowStep")
     backfill_flowrun_path(ActionSet, FlowRun, FlowStep)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0126_flowrun_path'),
-    ]
+    dependencies = [("flows", "0126_flowrun_path")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

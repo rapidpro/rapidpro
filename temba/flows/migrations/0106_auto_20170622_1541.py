@@ -6,14 +6,10 @@ import uuid
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0105_populate_flow_start_uuid'),
-    ]
+    dependencies = [("flows", "0105_populate_flow_start_uuid")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowstart',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, unique=True),
-        ),
+            model_name="flowstart", name="uuid", field=models.UUIDField(default=uuid.uuid4, unique=True)
+        )
     ]

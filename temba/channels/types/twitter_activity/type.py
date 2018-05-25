@@ -16,16 +16,18 @@ class TwitterActivityType(ChannelType):
     """
     A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
     """
-    code = 'TWT'
+    code = "TWT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r'^twt/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_url = r"^twt/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Twitter Activity API"
-    icon = 'icon-twitter'
+    icon = "icon-twitter"
 
-    claim_blurb = _("""If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
-    Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
+    claim_blurb = _(
+        """If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
+    Activity API</a> which is currently in beta, you can add a Twitter channel for that here."""
+    )
     claim_view = ClaimView
 
     update_form = UpdateTwitterForm
@@ -39,16 +41,20 @@ class TwitterActivityType(ChannelType):
 
     def activate(self, channel):
         config = channel.config
-        client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
+        client = TembaTwython(
+            config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
+        )
 
-        callback_url = 'https://%s%s' % (channel.callback_domain, reverse('courier.twt', args=[channel.uuid]))
+        callback_url = "https://%s%s" % (channel.callback_domain, reverse("courier.twt", args=[channel.uuid]))
         try:
-            client.register_webhook(config['env_name'], callback_url)
-            client.subscribe_to_webhook(config['env_name'])
+            client.register_webhook(config["env_name"], callback_url)
+            client.subscribe_to_webhook(config["env_name"])
         except Exception as e:  # pragma: no cover
             logger.exception(str(e))
 
     def deactivate(self, channel):
         config = channel.config
-        client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
-        client.delete_webhook(config['env_name'])
+        client = TembaTwython(
+            config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
+        )
+        client.delete_webhook(config["env_name"])

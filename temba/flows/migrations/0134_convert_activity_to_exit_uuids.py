@@ -10,10 +10,10 @@ def migrate_flow_activity(Flow, FlowPathCount, FlowPathRecentMessage):
     Converts old path count and recent message records (rule_uuid/node_uuid -> node_uuid) to be (exit_uuid -> node_uuid)
     """
     # start by ensuring all flows are at a minimum version (the one that added exit_uuid to actionsets)
-    if not migrate_flows('10.4'):
+    if not migrate_flows("10.4"):
         raise ValueError("Migration can't proceed because some flows couldn't be migrated")
 
-    flow_ids = list(Flow.objects.filter(is_active=True).values_list('id', flat=True))
+    flow_ids = list(Flow.objects.filter(is_active=True).values_list("id", flat=True))
     if not flow_ids:
         return
 
@@ -21,13 +21,17 @@ def migrate_flow_activity(Flow, FlowPathCount, FlowPathRecentMessage):
 
     num_updated = 0
     for id_batch in chunk_list(flow_ids, 1000):
-        flows = Flow.objects.filter(id__in=id_batch).prefetch_related('action_sets')
+        flows = Flow.objects.filter(id__in=id_batch).prefetch_related("action_sets")
 
         for flow in flows:
             with transaction.atomic():
                 for action_set in flow.action_sets.all():
-                    FlowPathCount.objects.filter(flow=flow, from_uuid=action_set.uuid).update(from_uuid=action_set.exit_uuid)
-                    FlowPathRecentMessage.objects.filter(from_uuid=action_set.uuid).update(from_uuid=action_set.exit_uuid)
+                    FlowPathCount.objects.filter(flow=flow, from_uuid=action_set.uuid).update(
+                        from_uuid=action_set.exit_uuid
+                    )
+                    FlowPathRecentMessage.objects.filter(from_uuid=action_set.uuid).update(
+                        from_uuid=action_set.exit_uuid
+                    )
 
             num_updated += 1
 
@@ -36,22 +40,19 @@ def migrate_flow_activity(Flow, FlowPathCount, FlowPathRecentMessage):
 
 def apply_manual():
     from temba.flows.models import Flow, FlowPathCount, FlowPathRecentMessage
+
     migrate_flow_activity(Flow, FlowPathCount, FlowPathRecentMessage)
 
 
 def apply_as_migration(apps, schema_editor):
-    Flow = apps.get_model('flows', 'Flow')
-    FlowPathCount = apps.get_model('flows', 'FlowPathCount')
-    FlowPathRecentMessage = apps.get_model('flows', 'FlowPathRecentMessage')
+    Flow = apps.get_model("flows", "Flow")
+    FlowPathCount = apps.get_model("flows", "FlowPathCount")
+    FlowPathRecentMessage = apps.get_model("flows", "FlowPathRecentMessage")
     migrate_flow_activity(Flow, FlowPathCount, FlowPathRecentMessage)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0133_auto_20171208_1742'),
-    ]
+    dependencies = [("flows", "0133_auto_20171208_1742")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

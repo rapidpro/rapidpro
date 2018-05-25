@@ -5,7 +5,7 @@ from django.db import migrations
 
 def backfill_flowstart_counts(FlowRun, FlowStart, FlowStartCount):
     # for every start
-    for start_id in FlowStart.objects.all().order_by('id').values_list('id', flat=True):
+    for start_id in FlowStart.objects.all().order_by("id").values_list("id", flat=True):
         count = FlowRun.objects.filter(start_id=start_id).count()
         FlowStartCount.objects.create(start_id=start_id, count=count, is_squashed=True)
         print("start %d populated with %d runs" % (start_id, count))
@@ -13,22 +13,19 @@ def backfill_flowstart_counts(FlowRun, FlowStart, FlowStartCount):
 
 def apply_manual():
     from temba.flows.models import FlowRun, FlowStart, FlowStartCount
+
     backfill_flowstart_counts(FlowRun, FlowStart, FlowStartCount)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowRun = apps.get_model('flows', 'FlowRun')
-    FlowStart = apps.get_model('flows', 'FlowStart')
-    FlowStartCount = apps.get_model('flows', 'FlowStartCount')
+    FlowRun = apps.get_model("flows", "FlowRun")
+    FlowStart = apps.get_model("flows", "FlowStart")
+    FlowStartCount = apps.get_model("flows", "FlowStartCount")
     backfill_flowstart_counts(FlowRun, FlowStart, FlowStartCount)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0153_flowstartcount'),
-    ]
+    dependencies = [("flows", "0153_flowstartcount")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

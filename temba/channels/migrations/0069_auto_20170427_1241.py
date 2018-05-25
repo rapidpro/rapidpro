@@ -5,14 +5,31 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0068_junebug_ussd_channel_type'),
-    ]
+    dependencies = [("channels", "0068_junebug_ussd_channel_type")]
 
     operations = [
         migrations.AlterField(
-            model_name='channelsession',
-            name='status',
-            field=models.CharField(choices=[('P', 'Pending'), ('Q', 'Queued'), ('R', 'Ringing'), ('I', 'In Progress'), ('D', 'Complete'), ('B', 'Busy'), ('F', 'Failed'), ('N', 'No Answer'), ('C', 'Canceled'), ('X', 'Interrupted'), ('T', 'Triggered'), ('A', 'Initiated'), ('E', 'Ending')], default='P', help_text='The status of this session', max_length=1),
-        ),
+            model_name="channelsession",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("P", "Pending"),
+                    ("Q", "Queued"),
+                    ("R", "Ringing"),
+                    ("I", "In Progress"),
+                    ("D", "Complete"),
+                    ("B", "Busy"),
+                    ("F", "Failed"),
+                    ("N", "No Answer"),
+                    ("C", "Canceled"),
+                    ("X", "Interrupted"),
+                    ("T", "Triggered"),
+                    ("A", "Initiated"),
+                    ("E", "Ending"),
+                ],
+                default="P",
+                help_text="The status of this session",
+                max_length=1,
+            ),
+        )
     ]

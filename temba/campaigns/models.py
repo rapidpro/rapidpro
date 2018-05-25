@@ -16,14 +16,10 @@ from temba.utils.models import TembaModel, TranslatableField
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
-    name = models.CharField(max_length=MAX_NAME_LEN,
-                            help_text="The name of this campaign")
-    group = models.ForeignKey(ContactGroup,
-                              help_text="The group this campaign operates on")
-    is_archived = models.BooleanField(default=False,
-                                      help_text="Whether this campaign is archived or not")
-    org = models.ForeignKey(Org,
-                            help_text="The organization this campaign exists for")
+    name = models.CharField(max_length=MAX_NAME_LEN, help_text="The name of this campaign")
+    group = models.ForeignKey(ContactGroup, help_text="The group this campaign operates on")
+    is_archived = models.BooleanField(default=False, help_text="Whether this campaign is archived or not")
+    org = models.ForeignKey(Org, help_text="The organization this campaign exists for")
 
     @classmethod
     def create(cls, org, user, name, group):
@@ -45,7 +41,7 @@ class Campaign(TembaModel):
             if not campaigns.exists():
                 break
 
-            name = '%s %d' % (base_name[:255].strip(), count)
+            name = "%s %d" % (base_name[:255].strip(), count)
             count += 1
 
         return name
@@ -56,37 +52,38 @@ class Campaign(TembaModel):
         Import campaigns from our export file
         """
         from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if Flow.is_before_version(exported_json.get('version', "0"), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
-        if 'campaigns' in exported_json:
-            for campaign_spec in exported_json['campaigns']:
-                name = campaign_spec['name']
+        if Flow.is_before_version(exported_json.get("version", "0"), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
+            raise ValueError(_("Unknown version (%s)" % exported_json.get("version", 0)))
+
+        if "campaigns" in exported_json:
+            for campaign_spec in exported_json["campaigns"]:
+                name = campaign_spec["name"]
                 campaign = None
                 group = None
 
                 # first check if we have the objects by id
                 if same_site:
-                    group = ContactGroup.user_groups.filter(uuid=campaign_spec['group']['uuid'], org=org).first()
+                    group = ContactGroup.user_groups.filter(uuid=campaign_spec["group"]["uuid"], org=org).first()
                     if group:  # pragma: needs cover
-                        group.name = campaign_spec['group']['name']
+                        group.name = campaign_spec["group"]["name"]
                         group.save()
 
-                    campaign = Campaign.objects.filter(org=org, uuid=campaign_spec['uuid']).first()
+                    campaign = Campaign.objects.filter(org=org, uuid=campaign_spec["uuid"]).first()
                     if campaign:  # pragma: needs cover
                         campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                         campaign.save()
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.get_user_group(org, campaign_spec['group']['name'])
+                    group = ContactGroup.get_user_group(org, campaign_spec["group"]["name"])
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.create_static(org, user, campaign_spec['group']['name'])
+                    group = ContactGroup.create_static(org, user, campaign_spec["group"]["name"])
 
                 if not campaign:
                     campaign_name = Campaign.get_unique_name(org, name)
@@ -104,17 +101,20 @@ class Campaign(TembaModel):
                 campaign.events.all().delete()
 
                 # fill our campaign with events
-                for event_spec in campaign_spec['events']:
-                    relative_to = ContactField.get_or_create(org, user,
-                                                             key=event_spec['relative_to']['key'],
-                                                             label=event_spec['relative_to']['label'],
-                                                             value_type='D')
+                for event_spec in campaign_spec["events"]:
+                    relative_to = ContactField.get_or_create(
+                        org,
+                        user,
+                        key=event_spec["relative_to"]["key"],
+                        label=event_spec["relative_to"]["label"],
+                        value_type="D",
+                    )
 
                     # create our message flow for message events
-                    if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
+                    if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
 
-                        message = event_spec['message']
-                        base_language = event_spec.get('base_language')
+                        message = event_spec["message"]
+                        base_language = event_spec.get("base_language")
 
                         if not isinstance(message, dict):
                             try:
@@ -122,30 +122,44 @@ class Campaign(TembaModel):
                             except ValueError:
                                 # if it's not a language dict, turn it into one
                                 message = dict(base=message)
-                                base_language = 'base'
+                                base_language = "base"
 
-                        event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
-                                                                   event_spec['offset'],
-                                                                   event_spec['unit'],
-                                                                   message,
-                                                                   event_spec['delivery_hour'],
-                                                                   base_language=base_language)
+                        event = CampaignEvent.create_message_event(
+                            org,
+                            user,
+                            campaign,
+                            relative_to,
+                            event_spec["offset"],
+                            event_spec["unit"],
+                            message,
+                            event_spec["delivery_hour"],
+                            base_language=base_language,
+                        )
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec["flow"]["uuid"]).first()
                         if flow:
-                            CampaignEvent.create_flow_event(org, user, campaign, relative_to,
-                                                            event_spec['offset'],
-                                                            event_spec['unit'],
-                                                            flow,
-                                                            event_spec['delivery_hour'])
+                            CampaignEvent.create_flow_event(
+                                org,
+                                user,
+                                campaign,
+                                relative_to,
+                                event_spec["offset"],
+                                event_spec["unit"],
+                                flow,
+                                event_spec["delivery_hour"],
+                            )
 
                 # update our scheduled events for this campaign
                 EventFire.update_campaign_events(campaign)
 
     @classmethod
     def restore_flows(cls, campaign):
-        events = campaign.events.filter(is_active=True, event_type=CampaignEvent.TYPE_FLOW).exclude(flow=None).select_related('flow')
+        events = (
+            campaign.events.filter(is_active=True, event_type=CampaignEvent.TYPE_FLOW)
+            .exclude(flow=None)
+            .select_related("flow")
+        )
         for event in events:
             event.flow.restore()
 
@@ -171,7 +185,7 @@ class Campaign(TembaModel):
         return [each_campaign.pk for each_campaign in campaigns]
 
     def get_events(self):
-        return self.events.filter(is_active=True).order_by('relative_to', 'offset')
+        return self.events.filter(is_active=True).order_by("relative_to", "offset")
 
     def as_json(self):
         """
@@ -181,25 +195,28 @@ class Campaign(TembaModel):
         definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
-        for event in self.events.all().order_by('flow__uuid'):
-            event_definition = dict(uuid=event.uuid, offset=event.offset,
-                                    unit=event.unit,
-                                    event_type=event.event_type,
-                                    delivery_hour=event.delivery_hour,
-                                    message=event.message,
-                                    relative_to=dict(label=event.relative_to.label, key=event.relative_to.key))
+        for event in self.events.all().order_by("flow__uuid"):
+            event_definition = dict(
+                uuid=event.uuid,
+                offset=event.offset,
+                unit=event.unit,
+                event_type=event.event_type,
+                delivery_hour=event.delivery_hour,
+                message=event.message,
+                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
+            )
 
             # only include the flow definition for standalone flows
             if event.event_type == CampaignEvent.TYPE_FLOW:
-                event_definition['flow'] = dict(uuid=event.flow.uuid, name=event.flow.name)
+                event_definition["flow"] = dict(uuid=event.flow.uuid, name=event.flow.name)
 
             # include the flow base language for message flows
             elif event.event_type == CampaignEvent.TYPE_MESSAGE:
-                event_definition['base_language'] = event.flow.base_language
+                event_definition["base_language"] = event.flow.base_language
 
             events.append(event_definition)
 
-        definition['events'] = events
+        definition["events"] = events
         return definition
 
     def get_sorted_events(self):
@@ -222,40 +239,44 @@ class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
-    TYPE_FLOW = 'F'
-    TYPE_MESSAGE = 'M'
+    TYPE_FLOW = "F"
+    TYPE_MESSAGE = "M"
 
     # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_FLOW, _("Flow Event"), 'flow'),
-                   (TYPE_MESSAGE, _("Message Event"), 'message'))
+    TYPE_CONFIG = ((TYPE_FLOW, _("Flow Event"), "flow"), (TYPE_MESSAGE, _("Message Event"), "message"))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
-    UNIT_MINUTES = 'M'
-    UNIT_HOURS = 'H'
-    UNIT_DAYS = 'D'
-    UNIT_WEEKS = 'W'
+    UNIT_MINUTES = "M"
+    UNIT_HOURS = "H"
+    UNIT_DAYS = "D"
+    UNIT_WEEKS = "W"
 
-    UNIT_CONFIG = ((UNIT_MINUTES, _("Minutes"), 'minutes'),
-                   (UNIT_HOURS, _("Hours"), 'hours'),
-                   (UNIT_DAYS, _("Days"), 'days'),
-                   (UNIT_WEEKS, _("Weeks"), 'weeks'))
+    UNIT_CONFIG = (
+        (UNIT_MINUTES, _("Minutes"), "minutes"),
+        (UNIT_HOURS, _("Hours"), "hours"),
+        (UNIT_DAYS, _("Days"), "days"),
+        (UNIT_WEEKS, _("Weeks"), "weeks"),
+    )
 
     UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
-    campaign = models.ForeignKey(Campaign, related_name='events',
-                                 help_text="The campaign this event is part of")
-    offset = models.IntegerField(default=0,
-                                 help_text="The offset in days from our date (positive is after, negative is before)")
-    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS,
-                            help_text="The unit for the offset for this event")
-    relative_to = models.ForeignKey(ContactField, related_name='campaigns',
-                                    help_text="The field our offset is relative to")
+    campaign = models.ForeignKey(Campaign, related_name="events", help_text="The campaign this event is part of")
+    offset = models.IntegerField(
+        default=0, help_text="The offset in days from our date (positive is after, negative is before)"
+    )
+    unit = models.CharField(
+        max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS, help_text="The unit for the offset for this event"
+    )
+    relative_to = models.ForeignKey(
+        ContactField, related_name="campaigns", help_text="The field our offset is relative to"
+    )
 
-    flow = models.ForeignKey(Flow, related_name='events', help_text="The flow that will be triggered")
+    flow = models.ForeignKey(Flow, related_name="events", help_text="The flow that will be triggered")
 
-    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
-                                  help_text='The type of this event')
+    event_type = models.CharField(
+        max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW, help_text="The type of this event"
+    )
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
     message = TranslatableField(max_length=Msg.MAX_TEXT_LEN, null=True)
@@ -263,40 +284,59 @@ class CampaignEvent(TembaModel):
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
     @classmethod
-    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None):
+    def create_message_event(
+        cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None
+    ):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
         if isinstance(message, str):
-            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            base_language = org.primary_language.iso_code if org.primary_language else "base"
             message = {base_language: message}
 
         flow = Flow.create_single_message(org, user, message, base_language)
 
-        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
-                                  created_by=user, modified_by=user)
+        return cls.objects.create(
+            campaign=campaign,
+            relative_to=relative_to,
+            offset=offset,
+            unit=unit,
+            event_type=cls.TYPE_MESSAGE,
+            message=message,
+            flow=flow,
+            delivery_hour=delivery_hour,
+            created_by=user,
+            modified_by=user,
+        )
 
     @classmethod
     def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=cls.TYPE_FLOW, flow=flow, delivery_hour=delivery_hour,
-                                  created_by=user, modified_by=user)
+        return cls.objects.create(
+            campaign=campaign,
+            relative_to=relative_to,
+            offset=offset,
+            unit=unit,
+            event_type=cls.TYPE_FLOW,
+            flow=flow,
+            delivery_hour=delivery_hour,
+            created_by=user,
+            modified_by=user,
+        )
 
     @classmethod
     def get_hour_choices(cls):
-        hours = [(-1, 'during the same hour',), (0, 'at Midnight')]
-        period = 'a.m.'
+        hours = [(-1, "during the same hour"), (0, "at Midnight")]
+        period = "a.m."
         for i in range(1, 24):
             hour = i
             if i >= 12:
-                period = 'p.m.'
+                period = "p.m."
                 if i > 12:
                     hour -= 12
-            hours.append((i, 'at %s:00 %s' % (hour, period)))
+            hours.append((i, "at %s:00 %s" % (hour, period)))
         return hours
 
     def get_message(self, contact=None):
@@ -316,7 +356,7 @@ class CampaignEvent(TembaModel):
             return
 
         self.flow.name = "Single Message (%d)" % self.pk
-        self.flow.save(update_fields=['name'])
+        self.flow.save(update_fields=["name"])
 
     def single_unit_display(self):
         return self.get_unit_display()[:-1]
@@ -375,14 +415,14 @@ class CampaignEvent(TembaModel):
             scheduled = date_value + delta
 
             # normalize according to our timezone (puts us in the right DST timezone if our date changed)
-            if str(tz) != 'UTC':
+            if str(tz) != "UTC":
                 scheduled = tz.normalize(scheduled)
 
             if self.delivery_hour != -1:
                 scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
 
             # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-            elif str(tz) != 'UTC' and date_value.utcoffset() != scheduled.utcoffset():
+            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():
                 scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
 
             # ignore anything in the past
@@ -417,13 +457,16 @@ class CampaignEvent(TembaModel):
 
 
 class EventFire(Model):
-    event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
-                              help_text="The event that will be fired")
-    contact = models.ForeignKey(Contact, related_name="fire_events",
-                                help_text="The contact that is scheduled to have an event run")
+    event = models.ForeignKey(
+        "campaigns.CampaignEvent", related_name="event_fires", help_text="The event that will be fired"
+    )
+    contact = models.ForeignKey(
+        Contact, related_name="fire_events", help_text="The contact that is scheduled to have an event run"
+    )
     scheduled = models.DateTimeField(help_text="When this event is scheduled to run")
-    fired = models.DateTimeField(null=True, blank=True,
-                                 help_text="When this event actually fired, null if not yet fired")
+    fired = models.DateTimeField(
+        null=True, blank=True, help_text="When this event actually fired, null if not yet fired"
+    )
 
     def is_firing_soon(self):
         return self.scheduled < timezone.now()
@@ -438,7 +481,7 @@ class EventFire(Model):
         """
         self.fired = timezone.now()
         self.event.flow.start([], [self.contact], restart_participants=True)
-        self.save(update_fields=('fired',))
+        self.save(update_fields=("fired",))
 
     @classmethod
     def batch_fire(cls, fires, flow):
@@ -462,6 +505,7 @@ class EventFire(Model):
         Should be called anytime a campaign changes.
         """
         from temba.campaigns.tasks import update_event_fires_for_campaign
+
         on_transaction_commit(lambda: update_event_fires_for_campaign.delay(campaign.pk))
 
     @classmethod
@@ -472,6 +516,7 @@ class EventFire(Model):
     @classmethod
     def update_eventfires_for_event(cls, event):
         from temba.campaigns.tasks import update_event_fires
+
         on_transaction_commit(lambda: update_event_fires.delay(event.pk))
 
     @classmethod
@@ -485,10 +530,11 @@ class EventFire(Model):
             field_uuid = str(field.uuid)
 
             contacts = (
-                event.campaign.group.contacts
-                .filter(is_active=True, is_blocked=False)
+                event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
                 .exclude(is_test=True)
-                .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
+                .extra(
+                    where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
+                )
             )
 
             now = timezone.now()
@@ -521,21 +567,20 @@ class EventFire(Model):
             now = timezone.now()
 
             org = contact_field.org
-            events = (
-                CampaignEvent.objects
-                .filter(relative_to=contact_field, campaign__is_active=True,
-                        campaign__is_archived=False, is_active=True)
-                .prefetch_related('relative_to')
-            )
+            events = CampaignEvent.objects.filter(
+                relative_to=contact_field, campaign__is_active=True, campaign__is_archived=False, is_active=True
+            ).prefetch_related("relative_to")
             for event in events:
                 field = event.relative_to
                 field_uuid = str(field.uuid)
 
                 contacts = (
-                    event.campaign.group.contacts
-                    .filter(is_active=True, is_blocked=False)
+                    event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
                     .exclude(is_test=True)
-                    .extra(where=["%s::text[] <@ (extract_jsonb_keys(\"contacts_contact\".\"fields\"))"], params=[[field_uuid]])
+                    .extra(
+                        where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'],
+                        params=[[field_uuid]],
+                    )
                 )
 
                 events = []
@@ -563,7 +608,9 @@ class EventFire(Model):
         groups = [g.id for g in contact.cached_user_groups]
 
         # for each campaign that might affect us
-        for campaign in Campaign.objects.filter(group__in=groups, org=contact.org, is_active=True, is_archived=False).distinct():
+        for campaign in Campaign.objects.filter(
+            group__in=groups, org=contact.org, is_active=True, is_archived=False
+        ).distinct():
             # update all the events for the campaign
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
@@ -577,11 +624,9 @@ class EventFire(Model):
         groups = [_.id for _ in contact.cached_user_groups]
 
         # get all events which are in one of these groups and on this field
-        events = (
-            CampaignEvent.objects
-            .filter(campaign__group__in=groups, relative_to__key=key, campaign__is_archived=False, is_active=True)
-            .prefetch_related('relative_to')
-        )
+        events = CampaignEvent.objects.filter(
+            campaign__group__in=groups, relative_to__key=key, campaign__is_archived=False, is_active=True
+        ).prefetch_related("relative_to")
         for event in events:
             # remove any unfired events, they will get recreated below
             EventFire.objects.filter(event=event, contact=contact, fired=None).delete()
@@ -617,4 +662,4 @@ class EventFire(Model):
         return "%s - %s" % (self.event, self.contact)
 
     class Meta:
-        ordering = ('scheduled',)
+        ordering = ("scheduled",)

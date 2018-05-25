@@ -5,18 +5,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('orgs', '0036_ensure_anon_user_exists'),
-        ('contacts', '0066_auto_20170804_2110'),
-    ]
+    dependencies = [("orgs", "0036_ensure_anon_user_exists"), ("contacts", "0066_auto_20170804_2110")]
 
     operations = [
-        migrations.AlterUniqueTogether(
-            name='contacturn',
-            unique_together=set([('identity', 'org')]),
-        ),
-        migrations.RemoveField(
-            model_name='contacturn',
-            name='urn',
-        ),
+        migrations.AlterUniqueTogether(name="contacturn", unique_together=set([("identity", "org")])),
+        migrations.RemoveField(model_name="contacturn", name="urn"),
     ]

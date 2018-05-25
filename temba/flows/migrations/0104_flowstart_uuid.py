@@ -6,14 +6,8 @@ import uuid
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0103_auto_20170614_0918'),
-    ]
+    dependencies = [("flows", "0103_auto_20170614_0918")]
 
     operations = [
-        migrations.AddField(
-            model_name='flowstart',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, null=True),
-        ),
+        migrations.AddField(model_name="flowstart", name="uuid", field=models.UUIDField(default=uuid.uuid4, null=True))
     ]

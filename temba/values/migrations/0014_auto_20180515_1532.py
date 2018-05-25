@@ -13,37 +13,15 @@ DROP INDEX values_value_field_string_value_concat_new;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('values', '0013_remove_nones'),
-    ]
+    dependencies = [("values", "0013_remove_nones")]
 
     operations = [
         migrations.RunSQL(SQL),
-        migrations.RemoveField(
-            model_name='value',
-            name='contact',
-        ),
-        migrations.RemoveField(
-            model_name='value',
-            name='contact_field',
-        ),
-        migrations.RemoveField(
-            model_name='value',
-            name='location_value',
-        ),
-        migrations.RemoveField(
-            model_name='value',
-            name='org',
-        ),
-        migrations.RemoveField(
-            model_name='value',
-            name='ruleset',
-        ),
-        migrations.RemoveField(
-            model_name='value',
-            name='run',
-        ),
-        migrations.DeleteModel(
-            name='Value',
-        ),
+        migrations.RemoveField(model_name="value", name="contact"),
+        migrations.RemoveField(model_name="value", name="contact_field"),
+        migrations.RemoveField(model_name="value", name="location_value"),
+        migrations.RemoveField(model_name="value", name="org"),
+        migrations.RemoveField(model_name="value", name="ruleset"),
+        migrations.RemoveField(model_name="value", name="run"),
+        migrations.DeleteModel(name="Value"),
     ]

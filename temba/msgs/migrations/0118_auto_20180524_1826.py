@@ -13,10 +13,6 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS msgs_msg_org_id_created_on_id_idx on msg
 class Migration(migrations.Migration):
     atomic = False
 
-    dependencies = [
-        ('msgs', '0117_msg_uuid_index'),
-    ]
+    dependencies = [("msgs", "0117_msg_uuid_index")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

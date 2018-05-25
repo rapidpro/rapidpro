@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
         CREATE INDEX CONCURRENTLY IF NOT EXISTS contacts_fields_idx ON contacts_contact USING GIN(fields);
     """
 
-    dependencies = [
-        ('contacts', '0073_backfill_contact_fields'),
-    ]
+    dependencies = [("contacts", "0073_backfill_contact_fields")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL, "")
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL, "")]

@@ -14,17 +14,19 @@ class MessangiType(ChannelType):
     """
     An Messangi channel (http://messangi.com/)
     """
-    CONFIG_PUBLIC_KEY = 'public_key'
-    CONFIG_PRIVATE_KEY = 'private_key'
-    CONFIG_CARRIER_ID = 'carrier_id'
-    CONFIG_INSTANCE_ID = 'instance_id'
+    CONFIG_PUBLIC_KEY = "public_key"
+    CONFIG_PRIVATE_KEY = "private_key"
+    CONFIG_CARRIER_ID = "carrier_id"
+    CONFIG_INSTANCE_ID = "instance_id"
 
-    code = 'MG'
+    code = "MG"
     category = ChannelType.Category.PHONE
 
     name = "Messangi"
 
-    claim_blurb = _("""If you are based in Jamaica, you can purchase a short code from <a href="http://www.messangi.com/">Messangi</a> and connect it in a few simple steps.""")
+    claim_blurb = _(
+        """If you are based in Jamaica, you can purchase a short code from <a href="http://www.messangi.com/">Messangi</a> and connect it in a few simple steps."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -42,13 +44,13 @@ class MessangiType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.mg' channel.uuid 'receive' %}",
-            description=_("To receive incoming messages, you need to set the receive URL for your Messangi account.")
+            description=_("To receive incoming messages, you need to set the receive URL for your Messangi account."),
         ),
     )
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['America/Jamaica']
+        return org.timezone and six.text_type(org.timezone) in ["America/Jamaica"]
 
     def send(self, channel, msg, text):  # pragma: no cover
         raise Exception("Sending Messangi messages is only possible via Courier")

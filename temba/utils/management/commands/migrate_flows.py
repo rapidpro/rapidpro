@@ -13,7 +13,7 @@ def migrate_flows(min_version=None):  # pragma: no cover
 
     flows_to_migrate = Flow.objects.filter(is_active=True, version_number__in=old_versions)
 
-    flow_ids = list(flows_to_migrate.values_list('id', flat=True))
+    flow_ids = list(flows_to_migrate.values_list("id", flat=True))
     total = len(flow_ids)
 
     if not total:

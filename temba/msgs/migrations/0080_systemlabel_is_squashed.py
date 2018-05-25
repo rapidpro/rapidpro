@@ -26,15 +26,13 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0079_populate_msg_session'),
-    ]
+    dependencies = [("msgs", "0079_populate_msg_session")]
 
     operations = [
         migrations.AddField(
-            model_name='systemlabel',
-            name='is_squashed',
-            field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
+            model_name="systemlabel",
+            name="is_squashed",
+            field=models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
         ),
         migrations.RunSQL(SQL),
     ]

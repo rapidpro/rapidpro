@@ -6,19 +6,11 @@ import uuid
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0060_auto_20170512_2001'),
-    ]
+    dependencies = [("contacts", "0060_auto_20170512_2001")]
 
     operations = [
-        migrations.AddField(
-            model_name='contactfield',
-            name='uuid',
-            field=models.UUIDField(null=True),
-        ),
+        migrations.AddField(model_name="contactfield", name="uuid", field=models.UUIDField(null=True)),
         migrations.AlterField(
-            model_name='contactfield',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, null=True),
+            model_name="contactfield", name="uuid", field=models.UUIDField(default=uuid.uuid4, null=True)
         ),
     ]

@@ -7,9 +7,8 @@ urlpatterns += TopUpCRUDL().as_urlpatterns()
 urlpatterns += UserCRUDL().as_urlpatterns()
 
 urlpatterns += [
-    url(r'^login/$', check_login, name='users.user_check_login'),
-    url(r'^handlers/stripe/$', StripeHandler.as_view(), name='handlers.stripe_handler'),
-
+    url(r"^login/$", check_login, name="users.user_check_login"),
+    url(r"^handlers/stripe/$", StripeHandler.as_view(), name="handlers.stripe_handler"),
     # for backwards compatibility
-    url(r'^api/v1/stripe/$', StripeHandler.as_view())
+    url(r"^api/v1/stripe/$", StripeHandler.as_view()),
 ]

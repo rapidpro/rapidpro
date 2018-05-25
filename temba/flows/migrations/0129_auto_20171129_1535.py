@@ -6,14 +6,14 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0128_trigger_optimization'),
-    ]
+    dependencies = [("flows", "0128_trigger_optimization")]
 
     operations = [
         migrations.AlterField(
-            model_name='ruleset',
-            name='flow',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='rule_sets', to='flows.Flow'),
-        ),
+            model_name="ruleset",
+            name="flow",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, related_name="rule_sets", to="flows.Flow"
+            ),
+        )
     ]

@@ -6,23 +6,27 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0050_contactgroupcount_is_squashed'),
-    ]
+    dependencies = [("contacts", "0050_contactgroupcount_is_squashed")]
 
     operations = [
         migrations.AddField(
-            model_name='exportcontactstask',
-            name='status',
-            field=models.CharField(choices=[('P', 'Pending'), ('O', 'Processing'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1),
+            model_name="exportcontactstask",
+            name="status",
+            field=models.CharField(
+                choices=[("P", "Pending"), ("O", "Processing"), ("C", "Complete"), ("F", "Failed")],
+                default="P",
+                max_length=1,
+            ),
         ),
         migrations.AlterField(
-            model_name='exportcontactstask',
-            name='org',
-            field=models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.CASCADE, related_name='exportcontactstasks', to='orgs.Org'),
+            model_name="exportcontactstask",
+            name="org",
+            field=models.ForeignKey(
+                help_text="The organization of the user.",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="exportcontactstasks",
+                to="orgs.Org",
+            ),
         ),
-        migrations.RemoveField(
-            model_name='exportcontactstask',
-            name='task_id',
-        ),
+        migrations.RemoveField(model_name="exportcontactstask", name="task_id"),
     ]

@@ -4,5 +4,9 @@
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -e '\.py$')
 
 if [ -n "$FILES" ]; then
-    flake8 $FILES
+    black --line-length=119 --quiet $FILES 
+fi
+
+if [ -n "$FILES" ]; then
+    flake8 $FILES 
 fi

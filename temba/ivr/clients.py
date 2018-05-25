@@ -53,27 +53,27 @@ class NexmoClient(NexmoCli):
             raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
-        url = 'https://%s%s' % (self.org.get_brand_domain(), reverse('ivr.ivrcall_handle', args=[call.pk]))
+        url = "https://%s%s" % (self.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
 
         params = dict()
-        params['answer_url'] = [url]
-        params['answer_method'] = 'POST'
-        params['to'] = [dict(type='phone', number=to.strip('+'))]
-        params['from'] = dict(type='phone', number=from_.strip('+'))
-        params['event_url'] = ["%s?has_event=1" % url]
-        params['event_method'] = "POST"
+        params["answer_url"] = [url]
+        params["answer_method"] = "POST"
+        params["to"] = [dict(type="phone", number=to.strip("+"))]
+        params["from"] = dict(type="phone", number=from_.strip("+"))
+        params["event_url"] = ["%s?has_event=1" % url]
+        params["event_method"] = "POST"
 
         try:
             response = self.create_call(params=params)
-            call_uuid = response.get('uuid', None)
+            call_uuid = response.get("uuid", None)
             call.external_id = str(call_uuid)
             call.save()
             for event in self.events:
-                ChannelLog.log_ivr_interaction(call, 'Started call', event)
+                ChannelLog.log_ivr_interaction(call, "Started call", event)
 
         except Exception as e:
-            event = HttpEvent('POST', 'https://api.nexmo.com/v1/calls', json.dumps(params), response_body=str(e))
-            ChannelLog.log_ivr_interaction(call, 'Call start failed', event, is_error=True)
+            event = HttpEvent("POST", "https://api.nexmo.com/v1/calls", json.dumps(params), response_body=str(e))
+            ChannelLog.log_ivr_interaction(call, "Call start failed", event, is_error=True)
 
             call.status = IVRCall.FAILED
             call.save()
@@ -106,14 +106,14 @@ class NexmoClient(NexmoCli):
             event = HttpEvent(request.method, request.url, request.body, response.status_code, downloaded)
             ChannelLog.log_ivr_interaction(call, "Downloaded media", event)
 
-            return '%s:%s' % (content_type, downloaded)
+            return "%s:%s" % (content_type, downloaded)
 
         return None
 
     def hangup(self, call):
-        self.update_call(call.external_id, action='hangup', call_id=call.external_id)
+        self.update_call(call.external_id, action="hangup", call_id=call.external_id)
         for event in self.events:
-            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
+            ChannelLog.log_ivr_interaction(call, "Hung up call", event)
 
 
 class TwilioClient(TembaTwilioRestClient):
@@ -127,26 +127,25 @@ class TwilioClient(TembaTwilioRestClient):
             raise IVRException("SEND_CALLS set to False, skipping call start")
 
         try:
-            twilio_call = self.calls.create(to=to,
-                                            from_=call.channel.address,
-                                            url=status_callback,
-                                            status_callback=status_callback)
+            twilio_call = self.calls.create(
+                to=to, from_=call.channel.address, url=status_callback, status_callback=status_callback
+            )
             call.external_id = str(twilio_call.sid)
             call.save()
 
             for event in self.calls.events:
-                ChannelLog.log_ivr_interaction(call, 'Started call', event)
+                ChannelLog.log_ivr_interaction(call, "Started call", event)
 
         except TwilioRestException as twilio_error:
-            message = 'Twilio Error: %s' % twilio_error.msg
+            message = "Twilio Error: %s" % twilio_error.msg
             if twilio_error.code == 20003:
-                message = _('Could not authenticate with your Twilio account. Check your token and try again.')
+                message = _("Could not authenticate with your Twilio account. Check your token and try again.")
 
             raise IVRException(message)
 
     def validate(self, request):  # pragma: needs cover
         validator = RequestValidator(self.auth[1])
-        signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
+        signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
 
         url = "https://%s%s" % (request.get_host(), request.get_full_path())
         return validator.validate(url, request.POST, signature)
@@ -172,27 +171,27 @@ class TwilioClient(TembaTwilioRestClient):
 
         content_type, downloaded = self.org.save_response_media(response)
         if content_type:
-            return '%s:%s' % (content_type, downloaded)
+            return "%s:%s" % (content_type, downloaded)
 
         return None  # pragma: needs cover
 
     def hangup(self, call):
         response = self.calls.hangup(call.external_id)
         for event in self.calls.events:
-            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
+            ChannelLog.log_ivr_interaction(call, "Hung up call", event)
         return response
 
 
 class VerboiceClient:  # pragma: needs cover
 
     def __init__(self, channel):
-        self.endpoint = 'https://verboice.instedd.org/api/call'
+        self.endpoint = "https://verboice.instedd.org/api/call"
 
         config = channel.config
-        self.auth = (config.get('username', None), config.get('password', None))
+        self.auth = (config.get("username", None), config.get("password", None))
 
         # this is the verboice channel, not our channel
-        self.verboice_channel = config.get('channel', None)
+        self.verboice_channel = config.get("channel", None)
 
     def validate(self, request):
         # verboice isn't smart here
@@ -212,10 +211,10 @@ class VerboiceClient:  # pragma: needs cover
         url = "%s?%s" % (self.endpoint, urlencode(dict(channel=self.verboice_channel, address=to)))
         response = requests.post(url, data=payload, auth=self.auth).json()
 
-        if 'call_id' not in response:
-            raise IVRException(_('Verboice connection failed.'))
+        if "call_id" not in response:
+            raise IVRException(_("Verboice connection failed."))
 
         # store the verboice call id in our IVRCall
-        call.external_id = response['call_id']
+        call.external_id = response["call_id"]
         call.status = IVRCall.IN_PROGRESS
         call.save()

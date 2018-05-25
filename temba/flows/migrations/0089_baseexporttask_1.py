@@ -6,23 +6,27 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0088_drop_squash_functions'),
-    ]
+    dependencies = [("flows", "0088_drop_squash_functions")]
 
     operations = [
         migrations.AddField(
-            model_name='exportflowresultstask',
-            name='status',
-            field=models.CharField(choices=[('P', 'Pending'), ('O', 'Processing'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1),
+            model_name="exportflowresultstask",
+            name="status",
+            field=models.CharField(
+                choices=[("P", "Pending"), ("O", "Processing"), ("C", "Complete"), ("F", "Failed")],
+                default="P",
+                max_length=1,
+            ),
         ),
         migrations.AlterField(
-            model_name='exportflowresultstask',
-            name='org',
-            field=models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.CASCADE, related_name='exportflowresultstasks', to='orgs.Org'),
+            model_name="exportflowresultstask",
+            name="org",
+            field=models.ForeignKey(
+                help_text="The organization of the user.",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="exportflowresultstasks",
+                to="orgs.Org",
+            ),
         ),
-        migrations.RemoveField(
-            model_name='exportflowresultstask',
-            name='task_id',
-        ),
+        migrations.RemoveField(model_name="exportflowresultstask", name="task_id"),
     ]

@@ -199,12 +199,10 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0115_auto_20180202_1231'),
-    ]
+    dependencies = [("msgs", "0115_auto_20180202_1231")]
 
     operations = [
-        migrations.RunSQL(SQL_msgs_labels, ''),
-        migrations.RunSQL(SQL_msgs_broadcast, ''),
-        migrations.RunSQL(SQL_msgs_on_change, '')
+        migrations.RunSQL(SQL_msgs_labels, ""),
+        migrations.RunSQL(SQL_msgs_broadcast, ""),
+        migrations.RunSQL(SQL_msgs_on_change, ""),
     ]

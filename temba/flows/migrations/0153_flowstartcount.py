@@ -95,22 +95,26 @@ CREATE TRIGGER temba_flowrun_update_flowstartcount
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0152_auto_20180502_1603'),
-    ]
+    dependencies = [("flows", "0152_auto_20180502_1603")]
 
     operations = [
         migrations.CreateModel(
-            name='FlowStartCount',
+            name="FlowStartCount",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_squashed', models.BooleanField(default=False, help_text='Whether this row was created by squashing')),
-                ('count', models.IntegerField(default=0)),
-                ('start', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='counts', to='flows.FlowStart')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_squashed",
+                    models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
+                ),
+                ("count", models.IntegerField(default=0)),
+                (
+                    "start",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="counts", to="flows.FlowStart"
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False},
         ),
         migrations.RunSQL(SQL),
     ]

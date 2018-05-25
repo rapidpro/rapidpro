@@ -35,10 +35,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0127_backfill_flowrun_path'),
-    ]
+    dependencies = [("flows", "0127_backfill_flowrun_path")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

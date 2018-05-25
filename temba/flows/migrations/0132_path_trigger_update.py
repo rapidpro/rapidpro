@@ -66,10 +66,6 @@ DROP FUNCTION temba_step_from_uuid(flows_flowstep);
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0131_add_flowrun_index'),
-    ]
+    dependencies = [("flows", "0131_add_flowrun_index")]
 
-    operations = [
-        migrations.RunSQL(SQL),
-    ]
+    operations = [migrations.RunSQL(SQL)]

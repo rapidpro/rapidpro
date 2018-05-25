@@ -7,14 +7,14 @@ from temba.utils import chunk_list
 
 
 def apply_as_migration(apps, schema_editor):
-    Flow = apps.get_model('flows', "Flow")
-    FlowRun = apps.get_model('flows', "FlowRun")
-    FlowStep = apps.get_model('flows', "FlowStep")
+    Flow = apps.get_model("flows", "Flow")
+    FlowRun = apps.get_model("flows", "FlowRun")
+    FlowStep = apps.get_model("flows", "FlowStep")
 
     flows = Flow.objects.filter(is_archived=True)
     for flow in flows:
         runs = FlowRun.objects.filter(is_active=True, exit_type=None, flow_id=flow.id)
-        run_ids = list(runs.values_list('id', flat=True))
+        run_ids = list(runs.values_list("id", flat=True))
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
@@ -24,7 +24,7 @@ def apply_as_migration(apps, schema_editor):
             FlowStep.objects.filter(run__id__in=id_batch, left_on=None).update(left_on=now)
 
             runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(is_active=False, exited_on=now, exit_type='I', modified_on=now)
+            runs.update(is_active=False, exited_on=now, exit_type="I", modified_on=now)
 
 
 def apply_manual():
@@ -38,10 +38,6 @@ def apply_manual():
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0096_populate_flownodecount'),
-    ]
+    dependencies = [("flows", "0096_populate_flownodecount")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

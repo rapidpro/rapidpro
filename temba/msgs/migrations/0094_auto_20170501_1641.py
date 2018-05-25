@@ -21,39 +21,26 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0093_populate_translatables'),
-    ]
+    dependencies = [("msgs", "0093_populate_translatables")]
 
     operations = [
         migrations.AlterField(
-            model_name='broadcast',
-            name='base_language',
-            field=models.CharField(help_text='The language used to send this to contacts without a language',
-                                   max_length=4),
+            model_name="broadcast",
+            name="base_language",
+            field=models.CharField(
+                help_text="The language used to send this to contacts without a language", max_length=4
+            ),
         ),
         migrations.AlterField(
-            model_name='broadcast',
-            name='translations',
-            field=temba.utils.models.TranslatableField(help_text='The localized versions of the message text',
-                                                       max_length=640, verbose_name='Translations'),
+            model_name="broadcast",
+            name="translations",
+            field=temba.utils.models.TranslatableField(
+                help_text="The localized versions of the message text", max_length=640, verbose_name="Translations"
+            ),
         ),
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='language_dict',
-        ),
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='media_dict',
-        ),
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='text',
-        ),
-        migrations.RenameField(
-            model_name='broadcast',
-            old_name='translations',
-            new_name='text',
-        ),
-        migrations.RunSQL(SQL)  # recreate trigger after removing fields
+        migrations.RemoveField(model_name="broadcast", name="language_dict"),
+        migrations.RemoveField(model_name="broadcast", name="media_dict"),
+        migrations.RemoveField(model_name="broadcast", name="text"),
+        migrations.RenameField(model_name="broadcast", old_name="translations", new_name="text"),
+        migrations.RunSQL(SQL),  # recreate trigger after removing fields
     ]

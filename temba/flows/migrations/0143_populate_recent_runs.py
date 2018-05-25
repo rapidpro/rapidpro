@@ -5,10 +5,10 @@ from temba.utils import chunk_list
 
 
 def populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun):
-    recent_msgs = FlowPathRecentMessage.objects.order_by('id')
+    recent_msgs = FlowPathRecentMessage.objects.order_by("id")
 
     # don't convert any records that have already been added for new runs
-    new_for_run = FlowPathRecentRun.objects.order_by('id').first()
+    new_for_run = FlowPathRecentRun.objects.order_by("id").first()
     if new_for_run:
         recent_msgs = recent_msgs.filter(created_on__lt=new_for_run.visited_on)
 
@@ -17,7 +17,7 @@ def populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun):
         return
 
     num_converted = 0
-    for recent_msg_batch in chunk_list(recent_msgs.using('direct').iterator(), 1000):
+    for recent_msg_batch in chunk_list(recent_msgs.using("direct").iterator(), 1000):
         with transaction.atomic():
             for recent_msg in recent_msg_batch:
 
@@ -25,7 +25,7 @@ def populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun):
                     from_uuid=recent_msg.from_uuid,
                     to_uuid=recent_msg.to_uuid,
                     run=recent_msg.run,
-                    visited_on=recent_msg.created_on
+                    visited_on=recent_msg.created_on,
                 )
 
             num_converted += len(recent_msg_batch)
@@ -35,21 +35,18 @@ def populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun):
 
 def apply_manual():
     from temba.flows.models import FlowPathRecentMessage, FlowPathRecentRun
+
     populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowPathRecentMessage = apps.get_model('flows', 'FlowPathRecentMessage')
-    FlowPathRecentRun = apps.get_model('flows', 'FlowPathRecentRun')
+    FlowPathRecentMessage = apps.get_model("flows", "FlowPathRecentMessage")
+    FlowPathRecentRun = apps.get_model("flows", "FlowPathRecentRun")
     populate_recent_runs(FlowPathRecentMessage, FlowPathRecentRun)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0142_flowpathrecentrun'),
-    ]
+    dependencies = [("flows", "0142_flowpathrecentrun")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

@@ -5,9 +5,9 @@ import uuid
 
 
 def populate_contact_field_uuids(apps, schema_editor):
-    ContactField = apps.get_model('contacts', 'ContactField')
+    ContactField = apps.get_model("contacts", "ContactField")
 
-    field_ids = list(ContactField.objects.filter(uuid=None).values_list('id', flat=True))
+    field_ids = list(ContactField.objects.filter(uuid=None).values_list("id", flat=True))
     if not field_ids:
         return
 
@@ -24,10 +24,6 @@ def populate_contact_field_uuids(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0061_contactfield_uuid'),
-    ]
+    dependencies = [("contacts", "0061_contactfield_uuid")]
 
-    operations = [
-        migrations.RunPython(populate_contact_field_uuids)
-    ]
+    operations = [migrations.RunPython(populate_contact_field_uuids)]

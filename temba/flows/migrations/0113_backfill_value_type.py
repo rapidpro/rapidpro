@@ -7,7 +7,7 @@ from temba.utils import chunk_list
 def backfill_value_type(apps, schema_editor):
     from temba.flows.models import RuleSet
 
-    ruleset_ids = RuleSet.objects.all().only('id').values_list('id', flat=True)
+    ruleset_ids = RuleSet.objects.all().only("id").values_list("id", flat=True)
     if ruleset_ids:
         print("found %d rulesets to set value type on" % len(ruleset_ids))
     count = 0
@@ -17,9 +17,9 @@ def backfill_value_type(apps, schema_editor):
         for ruleset in rulesets:
             try:
                 value_type = ruleset.get_value_type()
-                if value_type != 'T':
+                if value_type != "T":
                     ruleset.value_type = value_type
-                    ruleset.save(update_fields=['value_type'])
+                    ruleset.save(update_fields=["value_type"])
 
             except Exception:  # pragma: no cover
                 # unmigrated rulesets may blow up, that's ok, their value type will be set when brought forwards by a run
@@ -31,10 +31,6 @@ def backfill_value_type(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0112_fix_sql_func'),
-    ]
+    dependencies = [("flows", "0112_fix_sql_func")]
 
-    operations = [
-        migrations.RunPython(backfill_value_type)
-    ]
+    operations = [migrations.RunPython(backfill_value_type)]

@@ -6,23 +6,27 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0080_systemlabel_is_squashed'),
-    ]
+    dependencies = [("msgs", "0080_systemlabel_is_squashed")]
 
     operations = [
         migrations.AddField(
-            model_name='exportmessagestask',
-            name='status',
-            field=models.CharField(choices=[('P', 'Pending'), ('O', 'Processing'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1),
+            model_name="exportmessagestask",
+            name="status",
+            field=models.CharField(
+                choices=[("P", "Pending"), ("O", "Processing"), ("C", "Complete"), ("F", "Failed")],
+                default="P",
+                max_length=1,
+            ),
         ),
         migrations.AlterField(
-            model_name='exportmessagestask',
-            name='org',
-            field=models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.CASCADE, related_name='exportmessagestasks', to='orgs.Org'),
+            model_name="exportmessagestask",
+            name="org",
+            field=models.ForeignKey(
+                help_text="The organization of the user.",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="exportmessagestasks",
+                to="orgs.Org",
+            ),
         ),
-        migrations.RemoveField(
-            model_name='exportmessagestask',
-            name='task_id',
-        ),
+        migrations.RemoveField(model_name="exportmessagestask", name="task_id"),
     ]

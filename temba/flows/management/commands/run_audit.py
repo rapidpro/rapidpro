@@ -23,26 +23,25 @@ def audit_runs(max_id=0):  # pragma: no cover
     num_problems = 0
 
     problem_finders = {
-        'unparseable_fields': has_unparseble_fields,
-        'has_duplicate_message_events': has_duplicate_message_events,
-        'has_none_string_in_path': lambda r: has_none_string_in(r.path),
-        'has_none_string_in_results': lambda r: has_none_string_in(r.results),
-        'has_none_string_in_events': lambda r: has_none_string_in(r.events),
+        "unparseable_fields": has_unparseble_fields,
+        "has_duplicate_message_events": has_duplicate_message_events,
+        "has_none_string_in_path": lambda r: has_none_string_in(r.path),
+        "has_none_string_in_results": lambda r: has_none_string_in(r.results),
+        "has_none_string_in_events": lambda r: has_none_string_in(r.events),
         # 'has_empty_path_for_active_flow': has_empty_path_for_active_flow,  # not worrying about this for now
     }
 
-    problem_log = open('run_problems.log', 'w')
+    problem_log = open("run_problems.log", "w")
 
     start = time.time()
 
     while True:
         run_batch = list(
-            FlowRun.objects
-            .filter(id__gt=max_run_id)
-            .extra(select={'fields_raw': 'fields'})
-            .prefetch_related(Prefetch('flow', queryset=Flow.objects.only('id', 'is_active')))
-            .defer('fields')
-            .order_by('id')[:5000]
+            FlowRun.objects.filter(id__gt=max_run_id)
+            .extra(select={"fields_raw": "fields"})
+            .prefetch_related(Prefetch("flow", queryset=Flow.objects.only("id", "is_active")))
+            .defer("fields")
+            .order_by("id")[:5000]
         )
         if not run_batch:
             break
@@ -64,7 +63,10 @@ def audit_runs(max_id=0):  # pragma: no cover
         time_per_run = time_taken / num_audited
         time_remaining = (total_runs - num_audited) * time_per_run
 
-        print(" > Audited %d / ~%d runs (est %d mins remaining, %d problems found)" % (num_audited, total_runs, int(time_remaining / 60), num_problems))
+        print(
+            " > Audited %d / ~%d runs (est %d mins remaining, %d problems found)"
+            % (num_audited, total_runs, int(time_remaining / 60), num_problems)
+        )
 
     print("Finished run audit in %.1f secs" % (time.time() - start))
 
@@ -86,9 +88,9 @@ def has_empty_path_for_active_flow(run):
 
 def has_duplicate_message_events(run):
     seen_msg_uuids = set()
-    for event in (run.events or []):
-        if event['type'] in ('msg_created', 'msg_received'):
-            msg_uuid = event['msg'].get('uuid')
+    for event in run.events or []:
+        if event["type"] in ("msg_created", "msg_received"):
+            msg_uuid = event["msg"].get("uuid")
             if msg_uuid:
                 if msg_uuid in seen_msg_uuids:
                     return True
@@ -100,8 +102,9 @@ class Command(BaseCommand):  # pragma: no cover
     help = "Audits all runs"
 
     def add_arguments(self, parser):
-        parser.add_argument('--resume-from', type=int, action='store', dest='resume_from', default=0,
-                            help="Resume from max run id")
+        parser.add_argument(
+            "--resume-from", type=int, action="store", dest="resume_from", default=0, help="Resume from max run id"
+        )
 
     def handle(self, resume_from, *args, **options):
         audit_runs(resume_from)
@@ -117,7 +120,7 @@ def has_none_string_in(json_frag):
             if has_none_string_in(v):
                 return True
     elif isinstance(json_frag, str):
-        if json_frag == 'None':
+        if json_frag == "None":
             return True
 
     return False

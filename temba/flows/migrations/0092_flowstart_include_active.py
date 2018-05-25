@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0091_auto_20170228_0837'),
-    ]
+    dependencies = [("flows", "0091_auto_20170228_0837")]
 
     operations = [
         migrations.AddField(
-            model_name='flowstart',
-            name='include_active',
-            field=models.BooleanField(default=True, help_text='Include contacts currently active in flows'),
-        ),
+            model_name="flowstart",
+            name="include_active",
+            field=models.BooleanField(default=True, help_text="Include contacts currently active in flows"),
+        )
     ]

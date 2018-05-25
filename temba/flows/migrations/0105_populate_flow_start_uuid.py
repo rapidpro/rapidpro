@@ -5,7 +5,7 @@ from uuid import uuid4
 
 
 def populate_flow_start_uuid(FlowStart):
-    start_ids = list(FlowStart.objects.values_list('id', flat=True))
+    start_ids = list(FlowStart.objects.values_list("id", flat=True))
     if not start_ids:
         return
 
@@ -22,20 +22,17 @@ def populate_flow_start_uuid(FlowStart):
 
 def apply_manual():
     from temba.flows.models import FlowStart
+
     populate_flow_start_uuid(FlowStart)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowStart = apps.get_model('flows', 'FlowStart')
+    FlowStart = apps.get_model("flows", "FlowStart")
     populate_flow_start_uuid(FlowStart)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0104_flowstart_uuid'),
-    ]
+    dependencies = [("flows", "0104_flowstart_uuid")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

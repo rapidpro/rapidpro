@@ -216,20 +216,23 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0135_new_path_trigger'),
-    ]
+    dependencies = [("flows", "0135_new_path_trigger")]
 
     operations = [
         migrations.AddField(
-            model_name='flowrun',
-            name='message_ids',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.BigIntegerField(), help_text='The IDs of messages associated with this run', null=True, size=None),
+            model_name="flowrun",
+            name="message_ids",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.BigIntegerField(),
+                help_text="The IDs of messages associated with this run",
+                null=True,
+                size=None,
+            ),
         ),
         migrations.AddField(
-            model_name='flowrun',
-            name='current_node_uuid',
-            field=models.UUIDField(help_text='The current node location of this run in the flow', null=True),
+            model_name="flowrun",
+            name="current_node_uuid",
+            field=models.UUIDField(help_text="The current node location of this run in the flow", null=True),
         ),
-        migrations.RunSQL(SQL)
+        migrations.RunSQL(SQL),
     ]

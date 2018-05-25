@@ -152,10 +152,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0156_auto_20180521_2211'),
-    ]
+    dependencies = [("flows", "0156_auto_20180521_2211")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

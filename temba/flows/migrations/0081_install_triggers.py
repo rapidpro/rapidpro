@@ -6,10 +6,6 @@ from temba.sql import InstallSQL
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0080_reset_2'),
-    ]
+    dependencies = [("flows", "0080_reset_2")]
 
-    operations = [
-        InstallSQL('0081_flows')
-    ]
+    operations = [InstallSQL("0081_flows")]

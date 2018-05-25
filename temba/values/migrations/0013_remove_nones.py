@@ -6,10 +6,7 @@ from temba.utils import chunk_list
 
 def remove_none_values(Value):
     values = Value.objects.filter(
-        contact_field__value_type__in=('N', 'D'),
-        string_value="None",
-        decimal_value=None,
-        datetime_value=None
+        contact_field__value_type__in=("N", "D"), string_value="None", decimal_value=None, datetime_value=None
     )
     none_count = values.count()
     if not none_count:
@@ -18,7 +15,7 @@ def remove_none_values(Value):
     print("Found %d none values to delete..." % none_count)
 
     num_deleted = 0
-    for values_batch in chunk_list(values.using('direct').iterator(), 5000):
+    for values_batch in chunk_list(values.using("direct").iterator(), 5000):
         Value.objects.filter(id__in=[v.id for v in values_batch]).delete()
         num_deleted += len(values_batch)
 
@@ -27,20 +24,17 @@ def remove_none_values(Value):
 
 def apply_manual():
     from temba.values.models import Value
+
     remove_none_values(Value)
 
 
 def apply_as_migration(apps, schema_editor):
-    Value = apps.get_model('values', 'Value')
+    Value = apps.get_model("values", "Value")
     remove_none_values(Value)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('values', '0012_auto_20170606_1326'),
-    ]
+    dependencies = [("values", "0012_auto_20170606_1326")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

@@ -15,7 +15,7 @@ class ModelESSearch(es_Search):
     is_none = False
 
     def __init__(self, **kwargs):
-        self.model = kwargs.pop('model', None)
+        self.model = kwargs.pop("model", None)
 
         super().__init__(**kwargs)
 

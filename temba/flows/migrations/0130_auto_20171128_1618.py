@@ -7,19 +7,23 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0129_auto_20171129_1535'),
-    ]
+    dependencies = [("flows", "0129_auto_20171129_1535")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowrun',
-            name='submitted_by',
-            field=models.ForeignKey(db_index=False, help_text='The user which submitted this flow run', null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+            model_name="flowrun",
+            name="submitted_by",
+            field=models.ForeignKey(
+                db_index=False,
+                help_text="The user which submitted this flow run",
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstep',
-            name='left_on',
-            field=models.DateTimeField(help_text='When the user left this step in the flow', null=True),
+            model_name="flowstep",
+            name="left_on",
+            field=models.DateTimeField(help_text="When the user left this step in the flow", null=True),
         ),
     ]

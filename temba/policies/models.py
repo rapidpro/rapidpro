@@ -8,14 +8,14 @@ import markdown
 
 
 class Policy(SmartModel):
-    TYPE_PRIVACY = 'privacy'
-    TYPE_TOS = 'tos'
-    TYPE_COOKIE = 'cookie'
+    TYPE_PRIVACY = "privacy"
+    TYPE_TOS = "tos"
+    TYPE_COOKIE = "cookie"
 
     TYPE_CHOICES = (
         (TYPE_PRIVACY, _("Privacy Policy")),
         (TYPE_TOS, _("Terms of Service")),
-        (TYPE_COOKIE, _("Cookie Policy"))
+        (TYPE_COOKIE, _("Cookie Policy")),
     )
 
     policy_type = models.CharField(choices=TYPE_CHOICES, max_length=16, help_text=_("Choose the type of policy"))
@@ -37,7 +37,7 @@ class Policy(SmartModel):
 
     @classmethod
     def get_policies_needing_consent(cls, user):
-        consented = Consent.objects.filter(user=user, revoked_on=None).values_list('policy_id', flat=True)
+        consented = Consent.objects.filter(user=user, revoked_on=None).values_list("policy_id", flat=True)
         return Policy.objects.filter(requires_consent=True).exclude(id__in=consented)
 
 
@@ -49,5 +49,6 @@ class Consent(models.Model):
 
     revoked_on = models.DateTimeField(null=True, default=None, help_text="When this consent was revoked")
 
-    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
-                                      help_text="When consent was given by clicking on web form")
+    created_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When consent was given by clicking on web form"
+    )

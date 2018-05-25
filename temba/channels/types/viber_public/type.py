@@ -12,13 +12,13 @@ class ViberPublicType(ChannelType):
     """
     A Viber public account channel (https://www.viber.com/public-accounts/)
     """
-    code = 'VP'
+    code = "VP"
     category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r'^vp/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_url = r"^vp/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Viber"
-    icon = 'icon-viber'
+    icon = "icon-viber"
 
     schemes = [VIBER_SCHEME]
     max_length = 7000
@@ -43,22 +43,22 @@ class ViberPublicType(ChannelType):
     )
 
     configuration_urls = (
-        dict(
-            label=_("Webhook URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.vp' channel.uuid %}",
-        ),
+        dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.vp' channel.uuid %}"),
     )
 
     def activate(self, channel):
-        auth_token = channel.config['auth_token']
-        handler_url = "https://" + channel.callback_domain + reverse('courier.vp', args=[channel.uuid])
+        auth_token = channel.config["auth_token"]
+        handler_url = "https://" + channel.callback_domain + reverse("courier.vp", args=[channel.uuid])
 
-        requests.post('https://chatapi.viber.com/pa/set_webhook', json={
-            'auth_token': auth_token,
-            'url': handler_url,
-            'event_types': ['delivered', 'failed', 'conversation_started']
-        })
+        requests.post(
+            "https://chatapi.viber.com/pa/set_webhook",
+            json={
+                "auth_token": auth_token,
+                "url": handler_url,
+                "event_types": ["delivered", "failed", "conversation_started"],
+            },
+        )
 
     def deactivate(self, channel):
-        auth_token = channel.config['auth_token']
-        requests.post('https://chatapi.viber.com/pa/set_webhook', json={'auth_token': auth_token, 'url': ''})
+        auth_token = channel.config["auth_token"]
+        requests.post("https://chatapi.viber.com/pa/set_webhook", json={"auth_token": auth_token, "url": ""})

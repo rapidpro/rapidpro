@@ -30,7 +30,12 @@ from .serializers import CampaignReadSerializer, CampaignWriteSerializer, Campai
 from .serializers import CampaignEventWriteSerializer, ChannelReadSerializer, ChannelEventReadSerializer
 from .serializers import ContactReadSerializer, ContactWriteSerializer, ContactBulkActionSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactGroupReadSerializer
-from .serializers import ContactGroupWriteSerializer, FlowReadSerializer, FlowRunReadSerializer, FlowStartReadSerializer
+from .serializers import (
+    ContactGroupWriteSerializer,
+    FlowReadSerializer,
+    FlowRunReadSerializer,
+    FlowStartReadSerializer,
+)
 from .serializers import FlowStartWriteSerializer, LabelReadSerializer, LabelWriteSerializer, MsgReadSerializer
 from .serializers import MsgBulkActionSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer
 from .serializers import ResthookSubscriberWriteSerializer, WebHookEventReadSerializer
@@ -140,29 +145,31 @@ class RootView(views.APIView):
     permission_classes = (SSLPermission, IsAuthenticated)
 
     def get(self, request, *args, **kwargs):
-        return Response({
-            'boundaries': reverse('api.v2.boundaries', request=request),
-            'broadcasts': reverse('api.v2.broadcasts', request=request),
-            'campaigns': reverse('api.v2.campaigns', request=request),
-            'campaign_events': reverse('api.v2.campaign_events', request=request),
-            'channels': reverse('api.v2.channels', request=request),
-            'channel_events': reverse('api.v2.channel_events', request=request),
-            'contacts': reverse('api.v2.contacts', request=request),
-            'contact_actions': reverse('api.v2.contact_actions', request=request),
-            'definitions': reverse('api.v2.definitions', request=request),
-            'fields': reverse('api.v2.fields', request=request),
-            'flow_starts': reverse('api.v2.flow_starts', request=request),
-            'flows': reverse('api.v2.flows', request=request),
-            'groups': reverse('api.v2.groups', request=request),
-            'labels': reverse('api.v2.labels', request=request),
-            'messages': reverse('api.v2.messages', request=request),
-            'message_actions': reverse('api.v2.message_actions', request=request),
-            'org': reverse('api.v2.org', request=request),
-            'resthooks': reverse('api.v2.resthooks', request=request),
-            'resthook_events': reverse('api.v2.resthook_events', request=request),
-            'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
-            'runs': reverse('api.v2.runs', request=request),
-        })
+        return Response(
+            {
+                "boundaries": reverse("api.v2.boundaries", request=request),
+                "broadcasts": reverse("api.v2.broadcasts", request=request),
+                "campaigns": reverse("api.v2.campaigns", request=request),
+                "campaign_events": reverse("api.v2.campaign_events", request=request),
+                "channels": reverse("api.v2.channels", request=request),
+                "channel_events": reverse("api.v2.channel_events", request=request),
+                "contacts": reverse("api.v2.contacts", request=request),
+                "contact_actions": reverse("api.v2.contact_actions", request=request),
+                "definitions": reverse("api.v2.definitions", request=request),
+                "fields": reverse("api.v2.fields", request=request),
+                "flow_starts": reverse("api.v2.flow_starts", request=request),
+                "flows": reverse("api.v2.flows", request=request),
+                "groups": reverse("api.v2.groups", request=request),
+                "labels": reverse("api.v2.labels", request=request),
+                "messages": reverse("api.v2.messages", request=request),
+                "message_actions": reverse("api.v2.message_actions", request=request),
+                "org": reverse("api.v2.org", request=request),
+                "resthooks": reverse("api.v2.resthooks", request=request),
+                "resthook_events": reverse("api.v2.resthook_events", request=request),
+                "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
+                "runs": reverse("api.v2.runs", request=request),
+            }
+        )
 
 
 class ExplorerView(SmartTemplateView):
@@ -173,7 +180,7 @@ class ExplorerView(SmartTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['endpoints'] = [
+        context["endpoints"] = [
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_write_explorer(),
@@ -208,7 +215,7 @@ class ExplorerView(SmartTemplateView):
             ResthookSubscribersEndpoint.get_read_explorer(),
             ResthookSubscribersEndpoint.get_write_explorer(),
             ResthookSubscribersEndpoint.get_delete_explorer(),
-            RunsEndpoint.get_read_explorer()
+            RunsEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -217,8 +224,9 @@ class AuthenticateView(SmartFormView):
     """
     Provides a login form view for app users to generate and access their API tokens
     """
+
     class LoginForm(forms.Form):
-        ROLE_CHOICES = (('A', _("Administrator")), ('E', _("Editor")), ('S', _("Surveyor")))
+        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")))
 
         username = forms.CharField()
         password = forms.CharField(widget=forms.PasswordInput)
@@ -232,9 +240,9 @@ class AuthenticateView(SmartFormView):
         return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form, *args, **kwargs):
-        username = form.cleaned_data.get('username')
-        password = form.cleaned_data.get('password')
-        role_code = form.cleaned_data.get('role')
+        username = form.cleaned_data.get("username")
+        password = form.cleaned_data.get("password")
+        role_code = form.cleaned_data.get("role")
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
@@ -247,22 +255,22 @@ class AuthenticateView(SmartFormView):
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role)
-                    tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token.key})
+                    tokens.append({"org": {"id": org.pk, "name": org.name}, "token": token.key})
             else:  # pragma: needs cover
                 return HttpResponse(status=404)
 
-            return JsonResponse({'tokens': tokens})
+            return JsonResponse({"tokens": tokens})
         else:
             return HttpResponse(status=403)
 
 
 class CreatedOnCursorPagination(CursorPagination):
-    ordering = ('-created_on', '-id')
+    ordering = ("-created_on", "-id")
     offset_cutoff = 1000000
 
 
 class ModifiedOnCursorPagination(CursorPagination):
-    ordering = ('-modified_on', '-id')
+    ordering = ("-modified_on", "-id")
     offset_cutoff = 1000000
 
 
@@ -271,10 +279,10 @@ class BaseAPIView(generics.GenericAPIView):
     Base class of all our API endpoints
     """
     permission_classes = (SSLPermission, APIPermission)
-    throttle_scope = 'v2'
+    throttle_scope = "v2"
     model = None
-    model_manager = 'objects'
-    lookup_params = {'uuid': 'uuid'}
+    model_manager = "objects"
+    lookup_params = {"uuid": "uuid"}
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
@@ -301,13 +309,15 @@ class BaseAPIView(generics.GenericAPIView):
                 param_value = self.request.query_params[param]
 
                 # try to normalize URN lookup values
-                if param == 'urn':
+                if param == "urn":
                     param_value = self.normalize_urn(param_value)
 
                 lookup_values[field] = param_value
 
         if len(lookup_values) > 1:
-            raise InvalidQueryError("URL can only contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys())))
+            raise InvalidQueryError(
+                "URL can only contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
+            )
 
         return lookup_values
 
@@ -332,8 +342,8 @@ class BaseAPIView(generics.GenericAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['org'] = self.request.user.get_org()
-        context['user'] = self.request.user
+        context["org"] = self.request.user.get_org()
+        context["user"] = self.request.user
         return context
 
     def normalize_urn(self, value):
@@ -358,7 +368,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     def list(self, request, *args, **kwargs):
         self.check_query(self.request.query_params)
 
-        if not kwargs.get('format', None):
+        if not kwargs.get("format", None):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
@@ -373,19 +383,19 @@ class ListAPIMixin(mixins.ListModelMixin):
         """
         Filters the queryset by the before/after params if are provided
         """
-        before = self.request.query_params.get('before')
+        before = self.request.query_params.get("before")
         if before:
             try:
                 before = iso8601.parse_date(before)
-                queryset = queryset.filter(**{field + '__lte': before})
+                queryset = queryset.filter(**{field + "__lte": before})
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.query_params.get('after')
+        after = self.request.query_params.get("after")
         if after:
             try:
                 after = iso8601.parse_date(after)
-                queryset = queryset.filter(**{field + '__gte': after})
+                queryset = queryset.filter(**{field + "__gte": after})
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
@@ -430,8 +440,8 @@ class WriteAPIMixin(object):
             instance = None
 
         context = self.get_serializer_context()
-        context['lookup_values'] = self.lookup_values
-        context['instance'] = instance
+        context["lookup_values"] = self.lookup_values
+        context["instance"] = instance
 
         serializer = self.write_serializer_class(instance=instance, data=request.data, context=context)
 
@@ -447,7 +457,7 @@ class WriteAPIMixin(object):
         response_serializer = self.serializer_class(instance=write_output, context=context)
 
         # if we created a new object, notify caller by returning 201
-        status_code = status.HTTP_200_OK if context['instance'] else status.HTTP_201_CREATED
+        status_code = status.HTTP_200_OK if context["instance"] else status.HTTP_201_CREATED
 
         return Response(response_serializer.data, status=status_code)
 
@@ -456,12 +466,13 @@ class BulkWriteAPIMixin(object):
     """
     Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
     """
+
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
 
         if serializer.is_valid():
             serializer.save()
-            return Response('', status=status.HTTP_204_NO_CONTENT)
+            return Response("", status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -470,11 +481,14 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
     """
     Mixin for any endpoint that can delete objects with a DELETE request
     """
+
     def delete(self, request, *args, **kwargs):
         self.lookup_values = self.get_lookup_values()
 
         if not self.lookup_values:
-            raise InvalidQueryError("URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys())))
+            raise InvalidQueryError(
+                "URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
+            )
 
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -540,10 +554,11 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    class Pagination(CursorPagination):
-        ordering = ('osm_id',)
 
-    permission = 'locations.adminboundary_api'
+    class Pagination(CursorPagination):
+        ordering = ("osm_id",)
+
+    permission = "locations.adminboundary_api"
     model = AdminBoundary
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
@@ -556,24 +571,24 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         queryset = org.country.get_descendants(include_self=True)
 
         queryset = queryset.prefetch_related(
-            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
+            Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name"))
         )
 
-        return queryset.defer(None).defer('geometry').select_related('parent')
+        return queryset.defer(None).defer("geometry").select_related("parent")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['include_geometry'] = str_to_bool(self.request.query_params.get('geometry', 'false'))
+        context["include_geometry"] = str_to_bool(self.request.query_params.get("geometry", "false"))
         return context
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Administrative Boundaries",
-            'url': reverse('api.v2.boundaries'),
-            'slug': 'boundary-list',
-            'params': []
+            "method": "GET",
+            "title": "List Administrative Boundaries",
+            "url": reverse("api.v2.boundaries"),
+            "slug": "boundary-list",
+            "params": [],
         }
 
 
@@ -642,7 +657,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "created_on": "2013-03-02T17:28:12.123456Z"
         }
     """
-    permission = 'msgs.broadcast_api'
+    permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
@@ -654,48 +669,58 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         queryset = queryset.filter(is_active=True)
 
         # filter by id (optional)
-        broadcast_id = self.get_int_param('id')
+        broadcast_id = self.get_int_param("id")
         if broadcast_id:
             queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
+            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
         )
 
         if not org.is_anon:
-            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('scheme', 'path', 'display').order_by('pk')))
+            queryset = queryset.prefetch_related(
+                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("pk"))
+            )
 
-        return self.filter_before_after(queryset, 'created_on')
+        return self.filter_before_after(queryset, "created_on")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Broadcasts",
-            'url': reverse('api.v2.broadcasts'),
-            'slug': 'broadcast-list',
-            'params': [
-                {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
-                {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            "method": "GET",
+            "title": "List Broadcasts",
+            "url": reverse("api.v2.broadcasts"),
+            "slug": "broadcast-list",
+            "params": [
+                {"name": "id", "required": False, "help": "A broadcast ID to filter by, ex: 123456"},
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000",
+                },
+            ],
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Send Broadcasts",
-            'url': reverse('api.v2.broadcasts'),
-            'slug': 'broadcast-write',
-            'fields': [
-                {'name': 'text', 'required': True, 'help': "The text of the message you want to send"},
-                {'name': 'urns', 'required': False, 'help': "The URNs of contacts you want to send to"},
-                {'name': 'contacts', 'required': False, 'help': "The UUIDs of contacts you want to send to"},
-                {'name': 'groups', 'required': False, 'help': "The UUIDs of contact groups you want to send to"},
-                {'name': 'channel', 'required': False, 'help': "The UUID of the channel you want to use for sending"}
-            ]
+            "method": "POST",
+            "title": "Send Broadcasts",
+            "url": reverse("api.v2.broadcasts"),
+            "slug": "broadcast-write",
+            "fields": [
+                {"name": "text", "required": True, "help": "The text of the message you want to send"},
+                {"name": "urns", "required": False, "help": "The URNs of contacts you want to send to"},
+                {"name": "contacts", "required": False, "help": "The UUIDs of contacts you want to send to"},
+                {"name": "groups", "required": False, "help": "The UUIDs of contact groups you want to send to"},
+                {"name": "channel", "required": False, "help": "The UUID of the channel you want to use for sending"},
+            ],
         }
 
 
@@ -772,7 +797,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'campaigns.campaign_api'
+    permission = "campaigns.campaign_api"
     model = Campaign
     serializer_class = CampaignReadSerializer
     write_serializer_class = CampaignWriteSerializer
@@ -783,42 +808,40 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         queryset = queryset.filter(is_active=True)
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        queryset = queryset.prefetch_related(
-            Prefetch('group', queryset=ContactGroup.user_groups.only('uuid', 'name')),
-        )
+        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.user_groups.only("uuid", "name")))
 
         return queryset
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Campaigns",
-            'url': reverse('api.v2.campaigns'),
-            'slug': 'campaign-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by"},
-            ]
+            "method": "GET",
+            "title": "List Campaigns",
+            "url": reverse("api.v2.campaigns"),
+            "slug": "campaign-list",
+            "params": [{"name": "uuid", "required": False, "help": "A campaign UUID to filter by"}],
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Campaigns",
-            'url': reverse('api.v2.campaigns'),
-            'slug': 'campaign-write',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "UUID of the campaign to be updated"},
+            "method": "POST",
+            "title": "Add or Update Campaigns",
+            "url": reverse("api.v2.campaigns"),
+            "slug": "campaign-write",
+            "params": [{"name": "uuid", "required": False, "help": "UUID of the campaign to be updated"}],
+            "fields": [
+                {"name": "name", "required": True, "help": "The name of the campaign"},
+                {
+                    "name": "group",
+                    "required": True,
+                    "help": "The UUID of the contact group operated on by the campaign",
+                },
             ],
-            'fields': [
-                {'name': "name", 'required': True, 'help': "The name of the campaign"},
-                {'name': "group", 'required': True, 'help': "The UUID of the contact group operated on by the campaign"}
-            ]
         }
 
 
@@ -929,7 +952,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
 
     """
-    permission = 'campaigns.campaignevent_api'
+    permission = "campaigns.campaignevent_api"
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
     write_serializer_class = CampaignEventWriteSerializer
@@ -944,12 +967,12 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         org = self.request.user.get_org()
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # filter by campaign name/uuid (optional)
-        campaign_ref = params.get('campaign')
+        campaign_ref = params.get("campaign")
         if campaign_ref:
             campaign = Campaign.objects.filter(org=org).filter(Q(uuid=campaign_ref) | Q(name=campaign_ref)).first()
             if campaign:
@@ -958,9 +981,9 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
                 queryset = queryset.filter(pk=-1)
 
         queryset = queryset.prefetch_related(
-            Prefetch('campaign', queryset=Campaign.objects.only('uuid', 'name')),
-            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
-            Prefetch('relative_to', queryset=ContactField.objects.only('key', 'label')),
+            Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
+            Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
+            Prefetch("relative_to", queryset=ContactField.objects.only("key", "label")),
         )
 
         return queryset
@@ -968,48 +991,68 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Campaign Events",
-            'url': reverse('api.v2.campaign_events'),
-            'slug': 'campaign-event-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A campaign event UUID to filter by"},
-                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter"},
-            ]
+            "method": "GET",
+            "title": "List Campaign Events",
+            "url": reverse("api.v2.campaign_events"),
+            "slug": "campaign-event-list",
+            "params": [
+                {"name": "uuid", "required": False, "help": "A campaign event UUID to filter by"},
+                {"name": "campaign", "required": False, "help": "A campaign UUID or name to filter"},
+            ],
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Campaign Events",
-            'url': reverse('api.v2.campaign_events'),
-            'slug': 'campaign-event-write',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to update"},
+            "method": "POST",
+            "title": "Add or Update Campaign Events",
+            "url": reverse("api.v2.campaign_events"),
+            "slug": "campaign-event-write",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the campaign event to update"}],
+            "fields": [
+                {"name": "campaign", "required": False, "help": "The UUID of the campaign this event belongs to"},
+                {
+                    "name": "relative_to",
+                    "required": True,
+                    "help": "The key of the contact field this event is relative to. (string)",
+                },
+                {
+                    "name": "offset",
+                    "required": True,
+                    "help": "The offset from the relative_to field value (integer, positive or negative)",
+                },
+                {
+                    "name": "unit",
+                    "required": True,
+                    "help": 'The unit of the offset (one of "minutes, "hours", "days", "weeks")',
+                },
+                {
+                    "name": "delivery_hour",
+                    "required": True,
+                    "help": "The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)",
+                },
+                {
+                    "name": "message",
+                    "required": False,
+                    "help": "The message that should be sent to the contact when this event is triggered (string)",
+                },
+                {
+                    "name": "flow",
+                    "required": False,
+                    "help": "The UUID of the flow that the contact should start when this event is triggered (string)",
+                },
             ],
-            'fields': [
-                {'name': "campaign", 'required': False, 'help': "The UUID of the campaign this event belongs to"},
-                {'name': "relative_to", 'required': True, 'help': "The key of the contact field this event is relative to. (string)"},
-                {'name': "offset", 'required': True, 'help': "The offset from the relative_to field value (integer, positive or negative)"},
-                {'name': "unit", 'required': True, 'help': 'The unit of the offset (one of "minutes, "hours", "days", "weeks")'},
-                {'name': "delivery_hour", 'required': True, 'help': "The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)"},
-                {'name': "message", 'required': False, 'help': "The message that should be sent to the contact when this event is triggered (string)"},
-                {'name': "flow", 'required': False, 'help': "The UUID of the flow that the contact should start when this event is triggered (string)"}
-            ]
         }
 
     @classmethod
     def get_delete_explorer(cls):
         return {
-            'method': "DELETE",
-            'title': "Delete Campaign Events",
-            'url': reverse('api.v2.campaign_events'),
-            'slug': 'campaign-event-delete',
-            'request': '',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to delete"}
-            ],
+            "method": "DELETE",
+            "title": "Delete Campaign Events",
+            "url": reverse("api.v2.campaign_events"),
+            "slug": "campaign-event-delete",
+            "request": "",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the campaign event to delete"}],
         }
 
 
@@ -1063,7 +1106,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'channels.channel_api'
+    permission = "channels.channel_api"
     model = Channel
     serializer_class = ChannelReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1073,12 +1116,12 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.filter(is_active=True)
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # filter by address (optional)
-        address = params.get('address')
+        address = params.get("address")
         if address:
             queryset = queryset.filter(address=address)
 
@@ -1087,14 +1130,18 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Channels",
-            'url': reverse('api.v2.channels'),
-            'slug': 'channel-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': "address", 'required': False, 'help': "A channel address to filter by. ex: +250783530001"},
-            ]
+            "method": "GET",
+            "title": "List Channels",
+            "url": reverse("api.v2.channels"),
+            "slug": "channel-list",
+            "params": [
+                {
+                    "name": "uuid",
+                    "required": False,
+                    "help": "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {"name": "address", "required": False, "help": "A channel address to filter by. ex: +250783530001"},
+            ],
         }
 
 
@@ -1136,7 +1183,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'channels.channelevent_api'
+    permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1146,12 +1193,12 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        call_id = self.get_int_param('id')
+        call_id = self.get_int_param("id")
         if call_id:
             queryset = queryset.filter(id=call_id)
 
         # filter by contact (optional)
-        contact_uuid = params.get('contact')
+        contact_uuid = params.get("contact")
         if contact_uuid:
             contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
             if contact:
@@ -1160,25 +1207,37 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         queryset = queryset.prefetch_related(
-            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+            Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
         )
 
-        return self.filter_before_after(queryset, 'created_on')
+        return self.filter_before_after(queryset, "created_on")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Channel Events",
-            'url': reverse('api.v2.channel_events'),
-            'slug': 'channel-event-list',
-            'params': [
-                {'name': "id", 'required': False, 'help': "An event ID to filter by. ex: 12345"},
-                {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': 'before', 'required': False, 'help': "Only return events created before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return events created after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            "method": "GET",
+            "title": "List Channel Events",
+            "url": reverse("api.v2.channel_events"),
+            "slug": "channel-event-list",
+            "params": [
+                {"name": "id", "required": False, "help": "An event ID to filter by. ex: 12345"},
+                {
+                    "name": "contact",
+                    "required": False,
+                    "help": "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return events created before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return events created after this date, ex: 2015-01-28T18:00:00.000",
+                },
+            ],
         }
 
 
@@ -1308,33 +1367,33 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
-    permission = 'contacts.contact_api'
+    permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
     pagination_class = ModifiedOnCursorPagination
-    throttle_scope = 'v2.contacts'
-    lookup_params = {'uuid': 'uuid', 'urn': 'urns__identity'}
+    throttle_scope = "v2.contacts"
+    lookup_params = {"uuid": "uuid", "urn": "urns__identity"}
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
         org = self.request.user.get_org()
 
-        deleted_only = str_to_bool(params.get('deleted'))
+        deleted_only = str_to_bool(params.get("deleted"))
         queryset = queryset.filter(is_test=False, is_active=(not deleted_only))
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # filter by URN (optional)
-        urn = params.get('urn')
+        urn = params.get("urn")
         if urn:
             queryset = queryset.filter(urns__identity=self.normalize_urn(urn))
 
         # filter by group name/uuid (optional)
-        group_ref = params.get('group')
+        group_ref = params.get("group")
         if group_ref:
             group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
@@ -1344,11 +1403,14 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk'),
-                     to_attr='prefetched_user_groups')
+            Prefetch(
+                "all_groups",
+                queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
+                to_attr="prefetched_user_groups",
+            )
         )
 
-        return self.filter_before_after(queryset, 'modified_on')
+        return self.filter_before_after(queryset, "modified_on")
 
     def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
@@ -1360,14 +1422,14 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         So that we only fetch active contact fields once for all contacts
         """
         context = super().get_serializer_context()
-        context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
     def get_object(self):
         queryset = self.get_queryset().filter(**self.lookup_values)
 
         # don't blow up if posted a URN that doesn't exist - we'll let the serializer create a new contact
-        if self.request.method == 'POST' and 'urns__identity' in self.lookup_values:
+        if self.request.method == "POST" and "urns__identity" in self.lookup_values:
             return queryset.first()
         else:
             return generics.get_object_or_404(queryset)
@@ -1378,52 +1440,68 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Contacts",
-            'url': reverse('api.v2.contacts'),
-            'slug': 'contact-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': "urn", 'required': False, 'help': "A contact URN to filter by. ex: tel:+250788123123"},
-                {'name': "group", 'required': False, 'help': "A group name or UUID to filter by. ex: Customers"},
-                {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
-                {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
+            "method": "GET",
+            "title": "List Contacts",
+            "url": reverse("api.v2.contacts"),
+            "slug": "contact-list",
+            "params": [
+                {
+                    "name": "uuid",
+                    "required": False,
+                    "help": "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {"name": "urn", "required": False, "help": "A contact URN to filter by. ex: tel:+250788123123"},
+                {"name": "group", "required": False, "help": "A group name or UUID to filter by. ex: Customers"},
+                {"name": "deleted", "required": False, "help": "Whether to return only deleted contacts. ex: false"},
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000",
+                },
             ],
-            'example': {'query': "urn=tel%3A%2B250788123123"},
+            "example": {"query": "urn=tel%3A%2B250788123123"},
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Contacts",
-            'url': reverse('api.v2.contacts'),
-            'slug': 'contact-write',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "UUID of the contact to be updated"},
-                {'name': "urn", 'required': False, 'help': "URN of the contact to be updated. ex: tel:+250788123123"},
+            "method": "POST",
+            "title": "Add or Update Contacts",
+            "url": reverse("api.v2.contacts"),
+            "slug": "contact-write",
+            "params": [
+                {"name": "uuid", "required": False, "help": "UUID of the contact to be updated"},
+                {"name": "urn", "required": False, "help": "URN of the contact to be updated. ex: tel:+250788123123"},
             ],
-            'fields': [
-                {'name': "name", 'required': False, 'help': "List of UUIDs of this contact's groups."},
-                {'name': "language", 'required': False, 'help': "Preferred language of the contact (3-letter ISO code). ex: fre, eng"},
-                {'name': "urns", 'required': False, 'help': "List of URNs belonging to the contact."},
-                {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
-                {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
+            "fields": [
+                {"name": "name", "required": False, "help": "List of UUIDs of this contact's groups."},
+                {
+                    "name": "language",
+                    "required": False,
+                    "help": "Preferred language of the contact (3-letter ISO code). ex: fre, eng",
+                },
+                {"name": "urns", "required": False, "help": "List of URNs belonging to the contact."},
+                {"name": "groups", "required": False, "help": "List of UUIDs of groups that the contact belongs to."},
+                {"name": "fields", "required": False, "help": "Custom fields as a JSON dictionary."},
             ],
-            'example': {'body': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}'},
+            "example": {"body": '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}'},
         }
 
     @classmethod
     def get_delete_explorer(cls):
         return {
-            'method': "DELETE",
-            'title': "Delete Contacts",
-            'url': reverse('api.v2.contacts'),
-            'slug': 'contact-delete',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
-                {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
+            "method": "DELETE",
+            "title": "Delete Contacts",
+            "url": reverse("api.v2.contacts"),
+            "slug": "contact-delete",
+            "params": [
+                {"name": "uuid", "required": False, "help": "UUID of the contact to be deleted"},
+                {"name": "urn", "required": False, "help": "URN of the contact to be deleted. ex: tel:+250788123123"},
             ],
         }
 
@@ -1458,7 +1536,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
-    permission = 'contacts.contact_api'
+    permission = "contacts.contact_api"
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -1466,15 +1544,15 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         actions = cls.serializer_class.ACTIONS
 
         return {
-            'method': "POST",
-            'title': "Update Multiple Contacts",
-            'url': reverse('api.v2.contact_actions'),
-            'slug': 'contact-actions',
-            'fields': [
-                {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
-                {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
-            ]
+            "method": "POST",
+            "title": "Update Multiple Contacts",
+            "url": reverse("api.v2.contact_actions"),
+            "slug": "contact-actions",
+            "fields": [
+                {"name": "contacts", "required": True, "help": "The UUIDs of the contacts to update"},
+                {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
+                {"name": "group", "required": False, "help": "The UUID or name of a contact group"},
+            ],
         }
 
 
@@ -1564,7 +1642,7 @@ class DefinitionsEndpoint(BaseAPIView):
           }]
         }
     """
-    permission = 'orgs.org_api'
+    permission = "orgs.org_api"
 
     class Depends(Enum):
         none = 0
@@ -1575,16 +1653,18 @@ class DefinitionsEndpoint(BaseAPIView):
         org = request.user.get_org()
         params = request.query_params
 
-        if 'flow_uuid' in params or 'campaign_uuid' in params:  # deprecated
-            flow_uuids = splitting_getlist(self.request, 'flow_uuid')
-            campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        if "flow_uuid" in params or "campaign_uuid" in params:  # deprecated
+            flow_uuids = splitting_getlist(self.request, "flow_uuid")
+            campaign_uuids = splitting_getlist(self.request, "campaign_uuid")
         else:
-            flow_uuids = params.getlist('flow')
-            campaign_uuids = params.getlist('campaign')
+            flow_uuids = params.getlist("flow")
+            campaign_uuids = params.getlist("campaign")
 
-        include = params.get('dependencies', 'all')
+        include = params.get("dependencies", "all")
         if include not in DefinitionsEndpoint.Depends.__members__:
-            raise InvalidQueryError("dependencies must be one of %s" % ', '.join(DefinitionsEndpoint.Depends.__members__))
+            raise InvalidQueryError(
+                "dependencies must be one of %s" % ", ".join(DefinitionsEndpoint.Depends.__members__)
+            )
 
         include = DefinitionsEndpoint.Depends[include]
 
@@ -1605,22 +1685,26 @@ class DefinitionsEndpoint(BaseAPIView):
         else:
             components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
 
-        export = org.export_definitions(self.request.branding['link'], components)
+        export = org.export_definitions(self.request.branding["link"], components)
 
         return Response(export, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "Export Definitions",
-            'url': reverse('api.v2.definitions'),
-            'slug': 'definition-list',
-            'params': [
-                {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
-                {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
-                {'name': "dependencies", 'required': False, 'help': "Whether to include dependencies of the requested items. ex: false"}
-            ]
+            "method": "GET",
+            "title": "Export Definitions",
+            "url": reverse("api.v2.definitions"),
+            "slug": "definition-list",
+            "params": [
+                {"name": "flow", "required": False, "help": "One or more flow UUIDs to include"},
+                {"name": "campaign", "required": False, "help": "One or more campaign UUIDs to include"},
+                {
+                    "name": "dependencies",
+                    "required": False,
+                    "help": "Whether to include dependencies of the requested items. ex: false",
+                },
+            ],
         }
 
 
@@ -1698,18 +1782,18 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "value_type": "text"
         }
     """
-    permission = 'contacts.contactfield_api'
+    permission = "contacts.contactfield_api"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
     write_serializer_class = ContactFieldWriteSerializer
     pagination_class = CreatedOnCursorPagination
-    lookup_params = {'key': 'key'}
+    lookup_params = {"key": "key"}
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
         # filter by key (optional)
-        key = params.get('key')
+        key = params.get("key")
         if key:
             queryset = queryset.filter(key=key)
 
@@ -1718,31 +1802,27 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Fields",
-            'url': reverse('api.v2.fields'),
-            'slug': 'field-list',
-            'params': [
-                {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
-            ],
-            'example': {'query': "key=nick_name"},
+            "method": "GET",
+            "title": "List Fields",
+            "url": reverse("api.v2.fields"),
+            "slug": "field-list",
+            "params": [{"name": "key", "required": False, "help": "A field key to filter by. ex: nick_name"}],
+            "example": {"query": "key=nick_name"},
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Fields",
-            'url': reverse('api.v2.fields'),
-            'slug': 'field-write',
-            'params': [
-                {'name': "key", 'required': False, 'help': "Key of an existing field to update"}
+            "method": "POST",
+            "title": "Add or Update Fields",
+            "url": reverse("api.v2.fields"),
+            "slug": "field-write",
+            "params": [{"name": "key", "required": False, "help": "Key of an existing field to update"}],
+            "fields": [
+                {"name": "label", "required": True, "help": "The label of the field"},
+                {"name": "value_type", "required": True, "help": "The value type of the field"},
             ],
-            'fields': [
-                {'name': "label", 'required': True, 'help': "The label of the field"},
-                {'name': "value_type", 'required': True, 'help': "The value type of the field"}
-            ],
-            'example': {'query': "key=nick_name"},
+            "example": {"query": "key=nick_name"},
         }
 
 
@@ -1792,7 +1872,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             ]
         }
     """
-    permission = 'flows.flow_api'
+    permission = "flows.flow_api"
     model = Flow
     serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1803,26 +1883,38 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE)
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        queryset = queryset.prefetch_related('labels')
+        queryset = queryset.prefetch_related("labels")
 
-        return self.filter_before_after(queryset, 'modified_on')
+        return self.filter_before_after(queryset, "modified_on")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Flows",
-            'url': reverse('api.v2.flows'),
-            'slug': 'flow-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"},
-                {'name': 'before', 'required': False, 'help': "Only return flows modified before this date, ex: 2017-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000"}
-            ]
+            "method": "GET",
+            "title": "List Flows",
+            "url": reverse("api.v2.flows"),
+            "slug": "flow-list",
+            "params": [
+                {
+                    "name": "uuid",
+                    "required": False,
+                    "help": "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+                },
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return flows modified before this date, ex: 2017-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000",
+                },
+            ],
         }
 
 
@@ -1910,24 +2002,24 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
-    permission = 'contacts.contactgroup_api'
+    permission = "contacts.contactgroup_api"
     model = ContactGroup
-    model_manager = 'user_groups'
+    model_manager = "user_groups"
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
-    exclusive_params = ('uuid', 'name')
+    exclusive_params = ("uuid", "name")
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # filter by name (optional)
-        name = params.get('name')
+        name = params.get("name")
         if name:
             queryset = queryset.filter(name__iexact=name)
 
@@ -1941,41 +2033,35 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Contact Groups",
-            'url': reverse('api.v2.groups'),
-            'slug': 'group-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"},
-                {'name': "name", 'required': False, 'help': "A contact group name to filter by"}
-            ]
+            "method": "GET",
+            "title": "List Contact Groups",
+            "url": reverse("api.v2.groups"),
+            "slug": "group-list",
+            "params": [
+                {"name": "uuid", "required": False, "help": "A contact group UUID to filter by"},
+                {"name": "name", "required": False, "help": "A contact group name to filter by"},
+            ],
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Contact Groups",
-            'url': reverse('api.v2.groups'),
-            'slug': 'group-write',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"}
-            ],
-            'fields': [
-                {'name': "name", 'required': True, 'help': "The name of the contact group"}
-            ]
+            "method": "POST",
+            "title": "Add or Update Contact Groups",
+            "url": reverse("api.v2.groups"),
+            "slug": "group-write",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the contact group to update"}],
+            "fields": [{"name": "name", "required": True, "help": "The name of the contact group"}],
         }
 
     @classmethod
     def get_delete_explorer(cls):
         return {
-            'method': "DELETE",
-            'title': "Delete Contact Groups",
-            'url': reverse('api.v2.groups'),
-            'slug': 'group-delete',
-            'params': [
-                {'name': "uuid", 'required': True, 'help': "The UUID of the contact group to delete"}
-            ],
+            "method": "DELETE",
+            "title": "Delete Contact Groups",
+            "url": reverse("api.v2.groups"),
+            "slug": "group-delete",
+            "params": [{"name": "uuid", "required": True, "help": "The UUID of the contact group to delete"}],
         }
 
 
@@ -2060,24 +2146,24 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
-    permission = 'contacts.label_api'
+    permission = "contacts.label_api"
     model = Label
-    model_manager = 'label_objects'
+    model_manager = "label_objects"
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
-    exclusive_params = ('uuid', 'name')
+    exclusive_params = ("uuid", "name")
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
         # filter by UUID (optional)
-        uuid = params.get('uuid')
+        uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # filter by name (optional)
-        name = params.get('name')
+        name = params.get("name")
         if name:
             queryset = queryset.filter(name__iexact=name)
 
@@ -2091,41 +2177,35 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Message Labels",
-            'url': reverse('api.v2.labels'),
-            'slug': 'label-list',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"},
-                {'name': "name", 'required': False, 'help': "A message label name to filter by"}
-            ]
+            "method": "GET",
+            "title": "List Message Labels",
+            "url": reverse("api.v2.labels"),
+            "slug": "label-list",
+            "params": [
+                {"name": "uuid", "required": False, "help": "A message label UUID to filter by"},
+                {"name": "name", "required": False, "help": "A message label name to filter by"},
+            ],
         }
 
     @classmethod
     def get_write_explorer(cls):
         return {
-            'method': "POST",
-            'title': "Add or Update Message Labels",
-            'url': reverse('api.v2.labels'),
-            'slug': 'label-write',
-            'params': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the message label to update"},
-            ],
-            'fields': [
-                {'name': "name", 'required': True, 'help': "The name of the message label"}
-            ]
+            "method": "POST",
+            "title": "Add or Update Message Labels",
+            "url": reverse("api.v2.labels"),
+            "slug": "label-write",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the message label to update"}],
+            "fields": [{"name": "name", "required": True, "help": "The name of the message label"}],
         }
 
     @classmethod
     def get_delete_explorer(cls):
         return {
-            'method': "DELETE",
-            'title': "Delete Message Labels",
-            'url': reverse('api.v2.labels'),
-            'slug': 'label-delete',
-            'params': [
-                {'name': "uuid", 'required': True, 'help': "The UUID of the message label to delete"}
-            ],
+            "method": "DELETE",
+            "title": "Delete Message Labels",
+            "url": reverse("api.v2.labels"),
+            "slug": "label-delete",
+            "params": [{"name": "uuid", "required": True, "help": "The UUID of the message label to delete"}],
         }
 
 
@@ -2137,14 +2217,14 @@ class MediaEndpoint(BaseAPIView):
 
     By making a `POST` request to the endpoint you can add a new media files
     """
-    parser_classes = (MultiPartParser, FormParser,)
-    permission = 'msgs.msg_api'
+    parser_classes = (MultiPartParser, FormParser)
+    permission = "msgs.msg_api"
 
     def post(self, request, format=None, *args, **kwargs):
 
         org = self.request.user.get_org()
-        media_file = request.data.get('media_file', None)
-        extension = request.data.get('extension', None)
+        media_file = request.data.get("media_file", None)
+        extension = request.data.get("extension", None)
 
         if media_file and extension:
             location = org.save_media(media_file, extension)
@@ -2215,41 +2295,45 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     class Pagination(CreatedOnCursorPagination):
         """
         Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
         at all incoming messages.
         """
+
         def get_ordering(self, request, queryset, view=None):
-            if request.query_params.get('folder', '').lower() == 'incoming':
+            if request.query_params.get("folder", "").lower() == "incoming":
                 return ModifiedOnCursorPagination.ordering
             else:
                 return CreatedOnCursorPagination.ordering
 
-    permission = 'msgs.msg_api'
+    permission = "msgs.msg_api"
     model = Msg
     serializer_class = MsgReadSerializer
     pagination_class = Pagination
-    exclusive_params = ('contact', 'folder', 'label', 'broadcast')
-    throttle_scope = 'v2.messages'
+    exclusive_params = ("contact", "folder", "label", "broadcast")
+    throttle_scope = "v2.messages"
 
-    FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
-                      'flows': SystemLabel.TYPE_FLOWS,
-                      'archived': SystemLabel.TYPE_ARCHIVED,
-                      'outbox': SystemLabel.TYPE_OUTBOX,
-                      'failed': SystemLabel.TYPE_FAILED,
-                      'sent': SystemLabel.TYPE_SENT}
+    FOLDER_FILTERS = {
+        "inbox": SystemLabel.TYPE_INBOX,
+        "flows": SystemLabel.TYPE_FLOWS,
+        "archived": SystemLabel.TYPE_ARCHIVED,
+        "outbox": SystemLabel.TYPE_OUTBOX,
+        "failed": SystemLabel.TYPE_FAILED,
+        "sent": SystemLabel.TYPE_SENT,
+    }
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        folder = self.request.query_params.get('folder')
+        folder = self.request.query_params.get("folder")
 
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
-            elif folder == 'incoming':
-                return self.model.objects.filter(org=org, direction='I')
+            elif folder == "incoming":
+                return self.model.objects.filter(org=org, direction="I")
             else:
                 return self.model.objects.filter(pk=-1)
         else:
@@ -2260,17 +2344,17 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        msg_id = self.get_int_param('id')
+        msg_id = self.get_int_param("id")
         if msg_id:
             queryset = queryset.filter(id=msg_id)
 
         # filter by broadcast (optional)
-        broadcast_id = params.get('broadcast')
+        broadcast_id = params.get("broadcast")
         if broadcast_id:
             queryset = queryset.filter(broadcast_id=broadcast_id)
 
         # filter by contact (optional)
-        contact_uuid = params.get('contact')
+        contact_uuid = params.get("contact")
         if contact_uuid:
             contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
             if contact:
@@ -2279,11 +2363,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
         else:
             # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list('pk', flat=True))
+            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
             queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # filter by label name/uuid (optional)
-        label_ref = params.get('label')
+        label_ref = params.get("label")
         if label_ref:
             label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
@@ -2293,37 +2377,53 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('contact_urn', queryset=ContactURN.objects.only('scheme', 'path', 'display')),
-            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
-            Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name').order_by('pk')),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+            Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
+            Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
+            Prefetch("labels", queryset=Label.label_objects.only("uuid", "name").order_by("pk")),
         )
 
         # incoming folder gets sorted by 'modified_on'
-        if self.request.query_params.get('folder', '').lower() == 'incoming':
-            return self.filter_before_after(queryset, 'modified_on')
+        if self.request.query_params.get("folder", "").lower() == "incoming":
+            return self.filter_before_after(queryset, "modified_on")
 
         # everything else by 'created_on'
         else:
-            return self.filter_before_after(queryset, 'created_on')
+            return self.filter_before_after(queryset, "created_on")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Messages",
-            'url': reverse('api.v2.messages'),
-            'slug': 'msg-list',
-            'params': [
-                {'name': 'id', 'required': False, 'help': "A message ID to filter by, ex: 123456"},
-                {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
-                {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': 'folder', 'required': False, 'help': "A folder name to filter by, one of: inbox, flows, archived, outbox, sent, incoming"},
-                {'name': 'label', 'required': False, 'help': "A label name or UUID to filter by, ex: Spam"},
-                {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
+            "method": "GET",
+            "title": "List Messages",
+            "url": reverse("api.v2.messages"),
+            "slug": "msg-list",
+            "params": [
+                {"name": "id", "required": False, "help": "A message ID to filter by, ex: 123456"},
+                {"name": "broadcast", "required": False, "help": "A broadcast ID to filter by, ex: 12345"},
+                {
+                    "name": "contact",
+                    "required": False,
+                    "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {
+                    "name": "folder",
+                    "required": False,
+                    "help": "A folder name to filter by, one of: inbox, flows, archived, outbox, sent, incoming",
+                },
+                {"name": "label", "required": False, "help": "A label name or UUID to filter by, ex: Spam"},
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return messages created before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return messages created after this date, ex: 2015-01-28T18:00:00.000",
+                },
             ],
-            'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
+            "example": {"query": "folder=incoming&after=2014-01-01T00:00:00.000"},
         }
 
 
@@ -2360,7 +2460,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
-    permission = 'msgs.msg_api'
+    permission = "msgs.msg_api"
     serializer_class = MsgBulkActionSerializer
 
     @classmethod
@@ -2368,15 +2468,15 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         actions = cls.serializer_class.ACTIONS
 
         return {
-            'method': "POST",
-            'title': "Update Multiple Messages",
-            'url': reverse('api.v2.message_actions'),
-            'slug': 'message-actions',
-            'fields': [
-                {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
-                {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
-            ]
+            "method": "POST",
+            "title": "Update Multiple Messages",
+            "url": reverse("api.v2.message_actions"),
+            "slug": "message-actions",
+            "fields": [
+                {"name": "messages", "required": True, "help": "The ids of the messages to update"},
+                {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
+                {"name": "label", "required": False, "help": "The UUID or name of a message label"},
+            ],
         }
 
 
@@ -2405,32 +2505,27 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
-    permission = 'orgs.org_api'
+    permission = "orgs.org_api"
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
 
         data = {
-            'name': org.name,
-            'country': org.get_country_code(),
-            'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
-            'primary_language': org.primary_language.iso_code if org.primary_language else None,
-            'timezone': str(org.timezone),
-            'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
-            'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
-            'anon': org.is_anon
+            "name": org.name,
+            "country": org.get_country_code(),
+            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
+            "primary_language": org.primary_language.iso_code if org.primary_language else None,
+            "timezone": str(org.timezone),
+            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
+            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
+            "anon": org.is_anon,
         }
 
         return Response(data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):
-        return {
-            'method': "GET",
-            'title': "View Current Org",
-            'url': reverse('api.v2.org'),
-            'slug': 'org-read'
-        }
+        return {"method": "GET", "title": "View Current Org", "url": reverse("api.v2.org"), "slug": "org-read"}
 
 
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
@@ -2463,7 +2558,7 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    permission = 'api.resthook_api'
+    permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -2474,11 +2569,11 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Resthooks",
-            'url': reverse('api.v2.resthooks'),
-            'slug': 'resthook-list',
-            'params': []
+            "method": "GET",
+            "title": "List Resthooks",
+            "url": reverse("api.v2.resthooks"),
+            "slug": "resthook-list",
+            "params": [],
         }
 
 
@@ -2556,12 +2651,12 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
     You will receive either a 204 response if a subscriber was deleted, or a 404 response if no matching subscriber was found.
 
     """
-    permission = 'api.resthooksubscriber_api'
+    permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
     write_serializer_class = ResthookSubscriberWriteSerializer
     pagination_class = CreatedOnCursorPagination
-    lookup_params = {'id': 'id'}
+    lookup_params = {"id": "id"}
 
     def get_queryset(self):
         org = self.request.user.get_org()
@@ -2571,15 +2666,15 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
         params = self.request.query_params
 
         # filter by id (optional)
-        subscriber_id = self.get_int_param('id')
+        subscriber_id = self.get_int_param("id")
         if subscriber_id:
             queryset = queryset.filter(id=subscriber_id)
 
-        resthook = params.get('resthook')
+        resthook = params.get("resthook")
         if resthook:
             queryset = queryset.filter(resthook__slug=resthook)
 
-        return queryset.select_related('resthook')
+        return queryset.select_related("resthook")
 
     def perform_destroy(self, instance):
         instance.release(self.request.user)
@@ -2587,32 +2682,40 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Resthook Subscribers",
-            'url': reverse('api.v2.resthook_subscribers'),
-            'slug': 'resthooksubscriber-list',
-            'params': []
+            "method": "GET",
+            "title": "List Resthook Subscribers",
+            "url": reverse("api.v2.resthook_subscribers"),
+            "slug": "resthooksubscriber-list",
+            "params": [],
         }
 
     @classmethod
     def get_write_explorer(cls):
-        return dict(method="POST",
-                    title="Add Resthook Subscriber",
-                    url=reverse('api.v2.resthook_subscribers'),
-                    slug='resthooksubscriber-write',
-                    fields=[dict(name='resthook', required=True,
-                                 help="The slug for the resthook you want to subscribe to"),
-                            dict(name='target_url', required=True,
-                                 help="The URL that will be called when the resthook is triggered.")],
-                    example=dict(body='{"resthook": "new-report", "target_url": "https://zapier.com/handle/1515155"}'))
+        return dict(
+            method="POST",
+            title="Add Resthook Subscriber",
+            url=reverse("api.v2.resthook_subscribers"),
+            slug="resthooksubscriber-write",
+            fields=[
+                dict(name="resthook", required=True, help="The slug for the resthook you want to subscribe to"),
+                dict(
+                    name="target_url",
+                    required=True,
+                    help="The URL that will be called when the resthook is triggered.",
+                ),
+            ],
+            example=dict(body='{"resthook": "new-report", "target_url": "https://zapier.com/handle/1515155"}'),
+        )
 
     @classmethod
     def get_delete_explorer(cls):
-        return dict(method="DELETE",
-                    title="Delete Resthook Subscriber",
-                    url=reverse('api.v2.resthook_subscribers'),
-                    slug='resthooksubscriber-delete',
-                    params=[dict(name='id', required=True, help="The id of the subscriber to delete")])
+        return dict(
+            method="DELETE",
+            title="Delete Resthook Subscriber",
+            url=reverse("api.v2.resthook_subscribers"),
+            slug="resthooksubscriber-delete",
+            params=[dict(name="id", required=True, help="The id of the subscriber to delete")],
+        )
 
 
 class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
@@ -2689,7 +2792,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    permission = 'api.webhookevent_api'
+    permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -2698,20 +2801,20 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
         params = self.request.query_params
         queryset = queryset.exclude(resthook=None)
 
-        resthook = params.get('resthook')
+        resthook = params.get("resthook")
         if resthook:  # pragma: needs cover
             queryset = queryset.filter(resthook__slug=resthook)
 
-        return queryset.select_related('resthook')
+        return queryset.select_related("resthook")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Resthook Events",
-            'url': reverse('api.v2.resthook_events'),
-            'slug': 'resthook-event-list',
-            'params': []
+            "method": "GET",
+            "title": "List Resthook Events",
+            "url": reverse("api.v2.resthook_events"),
+            "slug": "resthook-event-list",
+            "params": [],
         }
 
 
@@ -2781,19 +2884,19 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    permission = 'flows.flow_api'
+    permission = "flows.flow_api"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
-    exclusive_params = ('contact', 'flow')
-    throttle_scope = 'v2.runs'
+    exclusive_params = ("contact", "flow")
+    throttle_scope = "v2.runs"
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
         org = self.request.user.get_org()
 
         # filter by flow (optional)
-        flow_uuid = params.get('flow')
+        flow_uuid = params.get("flow")
         if flow_uuid:
             flow = Flow.objects.filter(org=org, uuid=flow_uuid, is_active=True).first()
             if flow:
@@ -2802,17 +2905,17 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         # filter by id (optional)
-        run_id = self.get_int_param('id')
+        run_id = self.get_int_param("id")
         if run_id:
             queryset = queryset.filter(id=run_id)
 
         # filter by uuid (optional)
-        run_uuid = self.get_uuid_param('uuid')
+        run_uuid = self.get_uuid_param("uuid")
         if run_uuid:
             queryset = queryset.filter(uuid=run_uuid)
 
         # filter by contact (optional)
-        contact_uuid = params.get('contact')
+        contact_uuid = params.get("contact")
         if contact_uuid:
             contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
             if contact:
@@ -2821,38 +2924,54 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
         else:
             # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list('pk', flat=True))
+            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
             queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # limit to responded runs (optional)
-        if str_to_bool(params.get('responded')):
+        if str_to_bool(params.get("responded")):
             queryset = queryset.filter(responded=True)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
-            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
-            Prefetch('start', queryset=FlowStart.objects.only('uuid')),
+            Prefetch("flow", queryset=Flow.objects.only("uuid", "name", "base_language")),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language")),
+            Prefetch("start", queryset=FlowStart.objects.only("uuid")),
         )
 
-        return self.filter_before_after(queryset, 'modified_on')
+        return self.filter_before_after(queryset, "modified_on")
 
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Flow Runs",
-            'url': reverse('api.v2.runs'),
-            'slug': 'run-list',
-            'params': [
-                {'name': 'id', 'required': False, 'help': "A run ID to filter by, ex: 123456"},
-                {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
-                {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': 'responded', 'required': False, 'help': "Whether to only return runs with contact responses"},
-                {'name': 'before', 'required': False, 'help': "Only return runs modified before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return runs modified after this date, ex: 2015-01-28T18:00:00.000"}
+            "method": "GET",
+            "title": "List Flow Runs",
+            "url": reverse("api.v2.runs"),
+            "slug": "run-list",
+            "params": [
+                {"name": "id", "required": False, "help": "A run ID to filter by, ex: 123456"},
+                {
+                    "name": "flow",
+                    "required": False,
+                    "help": "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+                },
+                {
+                    "name": "contact",
+                    "required": False,
+                    "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {"name": "responded", "required": False, "help": "Whether to only return runs with contact responses"},
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return runs modified before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return runs modified after this date, ex: 2015-01-28T18:00:00.000",
+                },
             ],
-            'example': {'query': "after=2016-01-01T00:00:00.000"}
+            "example": {"query": "after=2016-01-01T00:00:00.000"},
         }
 
 
@@ -2953,7 +3072,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'api.flowstart_api'
+    permission = "api.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer
@@ -2965,22 +3084,22 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         # filter by id (optional and deprecated)
-        start_id = self.get_int_param('id')
+        start_id = self.get_int_param("id")
         if start_id:
             queryset = queryset.filter(id=start_id)
 
         # filter by UUID (optional)
-        uuid = self.get_uuid_param('uuid')
+        uuid = self.get_uuid_param("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
+            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
         )
 
-        return self.filter_before_after(queryset, 'modified_on')
+        return self.filter_before_after(queryset, "modified_on")
 
     def post_save(self, instance):
         # actually start our flow
@@ -2989,34 +3108,36 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     @classmethod
     def get_read_explorer(cls):
         return {
-            'method': "GET",
-            'title': "List Flow Starts",
-            'url': reverse('api.v2.flow_starts'),
-            'slug': 'flow-start-list',
-            'params': [
-                {'name': 'id', 'required': False, 'help': "Only return the flow start with this id"},
-                {'name': 'after', 'required': False, 'help': "Only return flow starts modified after this date"},
-                {'name': 'before', 'required': False, 'help': "Only return flow starts modified before this date"}
+            "method": "GET",
+            "title": "List Flow Starts",
+            "url": reverse("api.v2.flow_starts"),
+            "slug": "flow-start-list",
+            "params": [
+                {"name": "id", "required": False, "help": "Only return the flow start with this id"},
+                {"name": "after", "required": False, "help": "Only return flow starts modified after this date"},
+                {"name": "before", "required": False, "help": "Only return flow starts modified before this date"},
             ],
-            'example': {'query': "after=2016-01-01T00:00:00.000"}
+            "example": {"query": "after=2016-01-01T00:00:00.000"},
         }
 
     @classmethod
     def get_write_explorer(cls):
-        return dict(method="POST",
-                    title="Start Contacts in a Flow",
-                    url=reverse('api.v2.flow_starts'),
-                    slug='flow-start-write',
-                    fields=[dict(name='flow', required=True,
-                                 help="The UUID of the flow to start"),
-                            dict(name='groups', required=False,
-                                 help="The UUIDs of any contact groups you want to start"),
-                            dict(name='contacts', required=False,
-                                 help="The UUIDs of any contacts you want to start"),
-                            dict(name='urns', required=False,
-                                 help="The URNS of any contacts you want to start"),
-                            dict(name='restart_participants', required=False,
-                                 help="Whether to restart any participants already in the flow"),
-                            dict(name='extra', required=False,
-                                 help="Any extra parameters to pass to the flow start")],
-                    example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'))
+        return dict(
+            method="POST",
+            title="Start Contacts in a Flow",
+            url=reverse("api.v2.flow_starts"),
+            slug="flow-start-write",
+            fields=[
+                dict(name="flow", required=True, help="The UUID of the flow to start"),
+                dict(name="groups", required=False, help="The UUIDs of any contact groups you want to start"),
+                dict(name="contacts", required=False, help="The UUIDs of any contacts you want to start"),
+                dict(name="urns", required=False, help="The URNS of any contacts you want to start"),
+                dict(
+                    name="restart_participants",
+                    required=False,
+                    help="Whether to restart any participants already in the flow",
+                ),
+                dict(name="extra", required=False, help="Any extra parameters to pass to the flow start"),
+            ],
+            example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
+        )

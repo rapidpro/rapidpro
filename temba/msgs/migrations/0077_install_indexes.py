@@ -39,10 +39,6 @@ ON msgs_msg(external_id)
 WHERE external_id IS NOT NULL;
     """
 
-    dependencies = [
-        ('msgs', '0076_install_triggers'),
-    ]
+    dependencies = [("msgs", "0076_install_triggers")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

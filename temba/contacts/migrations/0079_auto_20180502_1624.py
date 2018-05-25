@@ -44,10 +44,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0078_create_field_key_index'),
-    ]
+    dependencies = [("contacts", "0078_create_field_key_index")]
 
-    operations = [
-        migrations.RunSQL(SQL, '')
-    ]
+    operations = [migrations.RunSQL(SQL, "")]

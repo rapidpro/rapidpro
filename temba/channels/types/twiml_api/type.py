@@ -11,14 +11,14 @@ class TwimlAPIType(ChannelType):
     An Twiml API channel
     """
 
-    code = 'TW'
+    code = "TW"
     category = ChannelType.Category.PHONE
 
     name = "TwiML Rest API"
     slug = "twiml_api"
     icon = "icon-channel-twilio"
 
-    courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     schemes = [TEL_SCHEME]
     max_length = 1600
@@ -50,5 +50,5 @@ class TwimlAPIType(ChannelType):
             label=_(""),
             url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
             description=_("Incoming messages for this channel will be sent to this endpoint."),
-        )
+        ),
     )

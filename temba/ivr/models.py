@@ -8,6 +8,7 @@ from temba.utils import on_transaction_commit
 
 
 class IVRManager(models.Manager):
+
     def create(self, *args, **kwargs):
         return super().create(*args, session_type=IVRCall.IVR, **kwargs)
 
@@ -24,24 +25,38 @@ class IVRCall(ChannelSession):
 
     @classmethod
     def create_outgoing(cls, channel, contact, contact_urn, user):
-        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
-                                      direction=IVRCall.OUTGOING, org=channel.org,
-                                      created_by=user, modified_by=user)
+        return IVRCall.objects.create(
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            direction=IVRCall.OUTGOING,
+            org=channel.org,
+            created_by=user,
+            modified_by=user,
+        )
 
     @classmethod
     def create_incoming(cls, channel, contact, contact_urn, user, external_id):
-        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
-                                      direction=IVRCall.INCOMING, org=channel.org, created_by=user,
-                                      modified_by=user, external_id=external_id)
+        return IVRCall.objects.create(
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            direction=IVRCall.INCOMING,
+            org=channel.org,
+            created_by=user,
+            modified_by=user,
+            external_id=external_id,
+        )
 
     @classmethod
     def hangup_test_call(cls, flow):
         # if we have an active call, hang it up
         from temba.flows.models import FlowRun
+
         runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
         for run in runs:
             test_call = IVRCall.objects.filter(id=run.connection.id).first()
-            if test_call.channel.channel_type in ['T', 'TW']:
+            if test_call.channel.channel_type in ["T", "TW"]:
                 if not test_call.is_done():
                     test_call.close()
 
@@ -63,9 +78,10 @@ class IVRCall(ChannelSession):
 
         from temba.ivr.clients import IVRException
         from temba.flows.models import ActionLog, FlowRun
+
         if client:
             try:
-                url = "https://%s%s" % (domain, reverse('ivr.ivrcall_handle', args=[self.pk]))
+                url = "https://%s%s" % (domain, reverse("ivr.ivrcall_handle", args=[self.pk]))
                 if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 
@@ -87,6 +103,7 @@ class IVRCall(ChannelSession):
 
             except IVRException as e:
                 import traceback
+
                 traceback.print_exc()
                 self.status = self.FAILED
                 self.save()
@@ -96,6 +113,7 @@ class IVRCall(ChannelSession):
 
             except Exception as e:  # pragma: no cover
                 import traceback
+
                 traceback.print_exc()
                 self.status = self.FAILED
                 self.save()
@@ -106,6 +124,7 @@ class IVRCall(ChannelSession):
 
     def start_call(self):
         from temba.ivr.tasks import start_call_task
+
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
 
     def update_status(self, status, duration, channel_type):
@@ -119,41 +138,41 @@ class IVRCall(ChannelSession):
         ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
 
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            if status == 'queued':
+            if status == "queued":
                 self.status = self.QUEUED
-            elif status == 'ringing':
+            elif status == "ringing":
                 self.status = self.RINGING
-            elif status == 'no-answer':
+            elif status == "no-answer":
                 self.status = self.NO_ANSWER
-            elif status == 'in-progress':
+            elif status == "in-progress":
                 if self.status != self.IN_PROGRESS:
                     self.started_on = timezone.now()
                 self.status = self.IN_PROGRESS
-            elif status == 'completed':
+            elif status == "completed":
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
                     if run:
                         ActionLog.create(run[0], _("Call ended."))
                 self.status = self.COMPLETED
-            elif status == 'busy':
+            elif status == "busy":
                 self.status = self.BUSY
-            elif status == 'failed':
+            elif status == "failed":
                 self.status = self.FAILED
-            elif status == 'canceled':
+            elif status == "canceled":
                 self.status = self.CANCELED
 
         elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
-            if status in ('ringing', 'started'):
+            if status in ("ringing", "started"):
                 self.status = self.RINGING
-            elif status == 'answered':
+            elif status == "answered":
                 self.status = self.IN_PROGRESS
-            elif status == 'completed':
+            elif status == "completed":
                 self.status = self.COMPLETED
-            elif status == 'failed':
+            elif status == "failed":
                 self.status = self.FAILED
-            elif status in ('rejected', 'busy'):
+            elif status in ("rejected", "busy"):
                 self.status = self.BUSY
-            elif status in ('unanswered', 'timeout'):
+            elif status in ("unanswered", "timeout"):
                 self.status = self.NO_ANSWER
 
         # if we are done, mark our ended time
@@ -175,7 +194,7 @@ class IVRCall(ChannelSession):
         it from the approximate time it was started
         """
         duration = self.duration
-        if not duration and self.status == 'I' and self.started_on:
+        if not duration and self.status == "I" and self.started_on:
             duration = (timezone.now() - self.started_on).seconds
 
         if not duration:

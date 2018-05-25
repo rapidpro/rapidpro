@@ -5,14 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0076_channel_tps'),
-    ]
+    dependencies = [("channels", "0076_channel_tps")]
 
-    operations = [
-        migrations.RenameField(
-            model_name='channellog',
-            old_name='session',
-            new_name='connection',
-        ),
-    ]
+    operations = [migrations.RenameField(model_name="channellog", old_name="session", new_name="connection")]

@@ -13,13 +13,13 @@ from django.utils import timezone
 from datetime import timedelta
 
 # these are called out here because we can't reference the real FlowRun in this migration
-RESULT_NAME = 'name'
-RESULT_NODE_UUID = 'node_uuid'
-RESULT_CATEGORY = 'category'
-RESULT_CATEGORY_LOCALIZED = 'category_localized'
-RESULT_VALUE = 'value'
-RESULT_INPUT = 'input'
-RESULT_CREATED_ON = 'created_on'
+RESULT_NAME = "name"
+RESULT_NODE_UUID = "node_uuid"
+RESULT_CATEGORY = "category"
+RESULT_CATEGORY_LOCALIZED = "category_localized"
+RESULT_VALUE = "value"
+RESULT_INPUT = "input"
+RESULT_CREATED_ON = "created_on"
 
 
 def get_path(boundary):
@@ -28,9 +28,14 @@ def get_path(boundary):
     each level.
     """
     from temba.locations.models import AdminBoundary
+
     if boundary.parent:
         parent_path = get_path(boundary.parent)
-        return "%s %s %s" % (parent_path, AdminBoundary.PATH_SEPARATOR, boundary.name.replace(AdminBoundary.PATH_SEPARATOR, " "))
+        return "%s %s %s" % (
+            parent_path,
+            AdminBoundary.PATH_SEPARATOR,
+            boundary.name.replace(AdminBoundary.PATH_SEPARATOR, " "),
+        )
     else:
         return boundary.name.replace(AdminBoundary.PATH_SEPARATOR, " ")
 
@@ -63,11 +68,11 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
     cache = get_redis_connection()
 
     # get all active flow ids
-    flow_ids = Flow.objects.filter(is_active=True).values_list('id', flat=True)
+    flow_ids = Flow.objects.filter(is_active=True).values_list("id", flat=True)
     if flow_ids:
         print("Found %d flows to migrate results for" % len(flow_ids))
 
-        partition = os.environ.get('PARTITION')
+        partition = os.environ.get("PARTITION")
         if partition is not None:
             partition = int(partition)
             print("Migrating flows in partition %d" % partition)
@@ -75,7 +80,7 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
         # flow runs past this point are being written with results, don't migrate them again
         highwater = cache.get("results_mig_highwater")
         if not highwater:
-            last = FlowRun.objects.all().order_by('-id').first()
+            last = FlowRun.objects.all().order_by("-id").first()
             if last:
                 highwater = last.id
                 cache.set("results_mig_highwater", highwater)
@@ -104,16 +109,20 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                 print("Migrating %s (%d)" % (flow.name, flow.id))
 
                 # build a our mapping of ruleset uuid to category name
-                id_to_ruleset = {r.id: r for r in RuleSet.objects.filter(flow=flow).only('id', 'label', 'uuid')}
+                id_to_ruleset = {r.id: r for r in RuleSet.objects.filter(flow=flow).only("id", "label", "uuid")}
                 ruleset_uuids = [r.uuid for r in id_to_ruleset.values()]
 
-                run_ids = FlowRun.objects.filter(flow=flow, id__lt=highwater).values_list('id', flat=True)
+                run_ids = FlowRun.objects.filter(flow=flow, id__lt=highwater).values_list("id", flat=True)
                 for run_chunk in chunk_list(run_ids, 1000):
                     chunk_start = time.time()
-                    runs = FlowRun.objects.filter(id__in=run_chunk).prefetch_related('values')
+                    runs = FlowRun.objects.filter(id__in=run_chunk).prefetch_related("values")
 
                     # get all the steps across these runs
-                    steps = FlowStep.objects.filter(run_id__in=run_chunk, step_uuid__in=ruleset_uuids).order_by('-id').prefetch_related('messages')
+                    steps = (
+                        FlowStep.objects.filter(run_id__in=run_chunk, step_uuid__in=ruleset_uuids)
+                        .order_by("-id")
+                        .prefetch_related("messages")
+                    )
                     step_text = {}
                     for step in steps:
                         key = "%d:%s" % (step.run_id, step.step_uuid)
@@ -155,13 +164,13 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                             if result_input:
                                 result[RESULT_INPUT] = result_input
 
-                            key = regex.sub(r'[^a-z0-9]+', '_', rs.label.lower(), regex.V0)
+                            key = regex.sub(r"[^a-z0-9]+", "_", rs.label.lower(), regex.V0)
                             results[key] = result
 
                         # if we found results, update this run
                         if results:
                             run.results = json.dumps(results)
-                            run.save(update_fields=['results'])
+                            run.save(update_fields=["results"])
 
                     update_count += len(runs)
                     current_update_count += len(runs)
@@ -178,7 +187,10 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
                     mins = ((flowrun_count - update_count) / per_sec) / 60
                     finished = timezone.now() + timedelta(minutes=mins)
 
-                    print("Updated %d runs of %d (%2.2f per sec / %2.2f per sec chunk) Est finish: %s" % (update_count, flowrun_count, per_sec, chunk_per_sec, finished))
+                    print(
+                        "Updated %d runs of %d (%2.2f per sec / %2.2f per sec chunk) Est finish: %s"
+                        % (update_count, flowrun_count, per_sec, chunk_per_sec, finished)
+                    )
 
                 # mark this flow's results as migrated (new runs and values are already good)
                 cache.sadd("results_mig", flow.id)
@@ -193,15 +205,16 @@ def backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value):
 def apply_manual():
     from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
     from temba.values.models import Value
+
     backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value)
 
 
 def apply_as_migration(apps, schema_editor):
-    Flow = apps.get_model('flows', 'Flow')
-    FlowRun = apps.get_model('flows', 'FlowRun')
-    FlowStep = apps.get_model('flows', 'FlowStep')
-    RuleSet = apps.get_model('flows', 'RuleSet')
-    Value = apps.get_model('values', 'Value')
+    Flow = apps.get_model("flows", "Flow")
+    FlowRun = apps.get_model("flows", "FlowRun")
+    FlowStep = apps.get_model("flows", "FlowStep")
+    RuleSet = apps.get_model("flows", "RuleSet")
+    Value = apps.get_model("values", "Value")
     backfill_flowrun_results(Flow, FlowRun, FlowStep, RuleSet, Value)
 
 
@@ -215,11 +228,6 @@ def undo_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('values', '0012_auto_20170606_1326'),
-        ('flows', '0122_auto_20171101_2041'),
-    ]
+    dependencies = [("values", "0012_auto_20170606_1326"), ("flows", "0122_auto_20171101_2041")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration, undo_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration, undo_migration)]

@@ -10,14 +10,16 @@ class BlackmynaType(ChannelType):
     An Blackmyna channel (https://blackmyna.com)
     """
 
-    code = 'BM'
+    code = "BM"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_url = r"^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Blackmyna"
 
-    claim_blurb = _("""Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs.""")
+    claim_blurb = _(
+        """Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs."""
+    )
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [TEL_SCHEME]
@@ -34,12 +36,16 @@ class BlackmynaType(ChannelType):
         dict(
             label=_("Inbound URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'receive' %}",
-            description=_("This endpoint should be called by Blackmyna when new messages are received to your number.")
+            description=_(
+                "This endpoint should be called by Blackmyna when new messages are received to your number."
+            ),
         ),
         dict(
             label=_("DLR URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'status' %}",
-            description=_("This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"),
+            description=_(
+                "This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"
+            ),
         ),
     )
 

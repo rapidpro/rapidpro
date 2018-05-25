@@ -11,16 +11,18 @@ class KannelType(ChannelType):
     An Kannel channel (http://www.kannel.org/)
     """
 
-    code = 'KN'
+    code = "KN"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_url = r"^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Kannel"
     icon = "icon-channel-kannel"
 
-    claim_blurb = _("""Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
-                       the steps necessary to get your SMSC connection working in a few minutes.""")
+    claim_blurb = _(
+        """Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
+                       the steps necessary to get your SMSC connection working in a few minutes."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
