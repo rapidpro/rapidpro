@@ -9,8 +9,19 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import (FLOW, INBOX, INCOMING, IVR, OUTGOING, PENDING,
-                               QUEUED, STATUS_CONFIG, Broadcast, Label, Msg)
+from temba.msgs.models import (
+    FLOW,
+    INBOX,
+    INCOMING,
+    IVR,
+    OUTGOING,
+    PENDING,
+    QUEUED,
+    STATUS_CONFIG,
+    Broadcast,
+    Label,
+    Msg,
+)
 from temba.msgs.tasks import send_broadcast_task
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_json_date

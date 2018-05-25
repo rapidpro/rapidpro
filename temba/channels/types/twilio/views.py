@@ -16,9 +16,13 @@ from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import Channel
-from ...views import (ALL_COUNTRIES, TWILIO_SEARCH_COUNTRIES,
-                      TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberMixin,
-                      ClaimViewMixin)
+from ...views import (
+    ALL_COUNTRIES,
+    TWILIO_SEARCH_COUNTRIES,
+    TWILIO_SUPPORTED_COUNTRIES,
+    BaseClaimNumberMixin,
+    ClaimViewMixin,
+)
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):

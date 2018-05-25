@@ -5,8 +5,7 @@ from functools import reduce
 from django.db.models import Q
 from django.db.models.functions import Upper
 
-from temba.contacts.models import (Contact, ContactGroup, ContactGroupCount,
-                                   ContactURN)
+from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.msgs.models import Label
 
 SEARCH_ALL_GROUPS = "g"

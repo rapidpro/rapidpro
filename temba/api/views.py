@@ -4,8 +4,7 @@ import requests
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
-from smartmin.views import (SmartListView, SmartReadView, SmartTemplateView,
-                            SmartView)
+from smartmin.views import SmartListView, SmartReadView, SmartTemplateView, SmartView
 
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin

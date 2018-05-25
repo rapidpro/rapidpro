@@ -1,7 +1,6 @@
 from django.conf.urls import url
 
-from .views import (OrgCRUDL, StripeHandler, TopUpCRUDL, UserCRUDL,
-                    UserSettingsCRUDL, check_login)
+from .views import OrgCRUDL, StripeHandler, TopUpCRUDL, UserCRUDL, UserSettingsCRUDL, check_login
 
 urlpatterns = OrgCRUDL().as_urlpatterns()
 urlpatterns += UserSettingsCRUDL().as_urlpatterns()

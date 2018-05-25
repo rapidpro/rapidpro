@@ -38,13 +38,28 @@ from temba_expressions.utils import tokenize
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelSession
-from temba.contacts.models import (NEW_CONTACT_VARIABLE, TEL_SCHEME, URN,
-                                   Contact, ContactField, ContactGroup,
-                                   ContactURN)
+from temba.contacts.models import (
+    NEW_CONTACT_VARIABLE,
+    TEL_SCHEME,
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactURN,
+)
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import (DELIVERED, FAILED, FLOW, HANDLED, INBOX,
-                               INCOMING, INITIALIZING, OUTGOING, PENDING,
-                               QUEUED)
+from temba.msgs.models import (
+    DELIVERED,
+    FAILED,
+    FLOW,
+    HANDLED,
+    INBOX,
+    INCOMING,
+    INITIALIZING,
+    OUTGOING,
+    PENDING,
+    QUEUED,
+)
 from temba.msgs.models import USSD as MSG_TYPE_USSD
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
@@ -54,8 +69,7 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.models import (JSONAsTextField, RequireUpdateFieldsMixin,
-                                SquashableModel, TembaModel, generate_uuid)
+from temba.utils.models import JSONAsTextField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
 from temba.values.constants import Value

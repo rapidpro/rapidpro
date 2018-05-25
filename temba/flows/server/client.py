@@ -6,10 +6,17 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
-from .serialize import (serialize_channel, serialize_contact,
-                        serialize_environment, serialize_field, serialize_flow,
-                        serialize_group, serialize_label,
-                        serialize_location_hierarchy, serialize_message)
+from .serialize import (
+    serialize_channel,
+    serialize_contact,
+    serialize_environment,
+    serialize_field,
+    serialize_flow,
+    serialize_group,
+    serialize_label,
+    serialize_location_hierarchy,
+    serialize_message,
+)
 
 
 class Events(Enum):

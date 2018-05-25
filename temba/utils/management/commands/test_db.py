@@ -21,9 +21,16 @@ from django_redis import get_redis_connection
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
-from temba.contacts.models import (TEL_SCHEME, TWITTER_SCHEME, URN, Contact,
-                                   ContactField, ContactGroup,
-                                   ContactGroupCount, ContactURN)
+from temba.contacts.models import (
+    TEL_SCHEME,
+    TWITTER_SCHEME,
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+)
 from temba.flows.models import FlowRun, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary

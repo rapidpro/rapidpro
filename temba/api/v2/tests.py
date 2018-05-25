@@ -21,8 +21,7 @@ from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import (ActionSet, Flow, FlowLabel, FlowRun, FlowStart,
-                                ReplyAction, RuleSet)
+from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, ReplyAction, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language

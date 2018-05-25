@@ -19,10 +19,18 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from smartmin.csv_imports.models import ImportTask
-from smartmin.views import (SmartCreateView, SmartCRUDL, SmartCSVImportView,
-                            SmartDeleteView, SmartFormView, SmartListView,
-                            SmartReadView, SmartTemplateView, SmartUpdateView,
-                            smart_url)
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartCSVImportView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+    smart_url,
+)
 
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -33,9 +41,17 @@ from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, ContactListPaginationMixin
 from temba.values.constants import Value
 
-from .models import (TEL_SCHEME, URN, URN_SCHEME_CONFIG, Contact, ContactField,
-                     ContactGroup, ContactGroupCount, ContactURN,
-                     ExportContactsTask)
+from .models import (
+    TEL_SCHEME,
+    URN,
+    URN_SCHEME_CONFIG,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+    ExportContactsTask,
+)
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
 from .tasks import export_contacts_task

@@ -13,8 +13,7 @@ from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
 
 from .client import Events, get_client
-from .serialize import (serialize_channel_ref, serialize_contact,
-                        serialize_environment)
+from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
 

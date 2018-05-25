@@ -5,8 +5,7 @@ from django.core.urlresolvers import reverse
 from django.db.models import Max
 from django.http import HttpResponseRedirect
 from django.utils import timezone
-from smartmin.views import (SmartCreateView, SmartCRUDL, SmartFormView,
-                            SmartListView, SmartReadView)
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView
 
 from temba.orgs.views import OrgPermsMixin
 

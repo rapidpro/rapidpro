@@ -15,32 +15,35 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Sum
-from django.http import (Http404, HttpResponse, HttpResponseRedirect,
-                         JsonResponse)
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django_countries.data import COUNTRIES
-from smartmin.views import (SmartCRUDL, SmartDeleteView, SmartFormView,
-                            SmartListView, SmartModelActionView, SmartReadView,
-                            SmartTemplateView, SmartUpdateView)
+from smartmin.views import (
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartModelActionView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 from twilio import TwilioRestException
 
 from temba.channels.models import ChannelSession
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
-from temba.msgs.models import (OUTGOING, PENDING, QUEUED, WIRED, Msg,
-                               SystemLabel)
+from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
-from temba.orgs.views import (AnonMixin, ModalMixin, OrgObjPermsMixin,
-                              OrgPermsMixin)
+from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics
 from temba.utils.http import http_headers
 
-from .models import (Alert, Channel, ChannelCount, ChannelEvent, ChannelLog,
-                     SyncEvent)
+from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")

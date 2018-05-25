@@ -8,8 +8,7 @@ from django.db import migrations
 from django.urls import reverse
 
 from temba.ivr.clients import NexmoClient
-from temba.orgs.models import (NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY,
-                               NEXMO_SECRET, NEXMO_UUID)
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, NEXMO_UUID
 
 
 def update_nexmo_config(Org):

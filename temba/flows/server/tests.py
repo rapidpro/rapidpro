@@ -13,8 +13,7 @@ from temba.tests import MockResponse, TembaTest, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
-from .client import (FlowServerException, get_client, serialize_channel,
-                     serialize_field, serialize_label)
+from .client import FlowServerException, get_client, serialize_channel, serialize_field, serialize_label
 
 
 class SerializationTest(TembaTest):

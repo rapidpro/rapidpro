@@ -31,14 +31,11 @@ from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from twilio import TwilioRestException, twiml
 
-from temba.orgs.models import (NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY,
-                               NEXMO_SECRET, Org)
-from temba.utils import (analytics, dict_to_json, dict_to_struct,
-                         get_anonymous_user, on_transaction_commit)
+from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
+from temba.utils import analytics, dict_to_json, dict_to_struct, get_anonymous_user, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
-from temba.utils.models import (JSONAsTextField, SquashableModel, TembaModel,
-                                generate_uuid)
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 

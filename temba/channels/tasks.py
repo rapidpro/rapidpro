@@ -12,8 +12,7 @@ from django_redis import get_redis_connection
 from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
 from temba.utils import dict_to_struct
 from temba.utils.mage import MageClient
-from temba.utils.queues import (complete_task, nonoverlapping_task, push_task,
-                                start_task)
+from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 

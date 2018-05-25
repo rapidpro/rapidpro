@@ -10,9 +10,7 @@ from smartmin.models import SmartModel
 
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, Contact
-from temba.orgs.models import (TRANSFERTO_ACCOUNT_CURRENCY,
-                               TRANSFERTO_ACCOUNT_LOGIN,
-                               TRANSFERTO_AIRTIME_API_TOKEN, Org)
+from temba.orgs.models import TRANSFERTO_ACCOUNT_CURRENCY, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, Org
 from temba.utils import get_country_code_by_name
 
 

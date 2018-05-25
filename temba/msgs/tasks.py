@@ -17,9 +17,18 @@ from temba.utils import analytics, chunk_list
 from temba.utils.mage import handle_new_contact, handle_new_message
 from temba.utils.queues import complete_task, nonoverlapping_task, start_task
 
-from .models import (FIRE_EVENT, HANDLE_EVENT_TASK, MSG_EVENT, PENDING,
-                     TIMEOUT_EVENT, Broadcast, ExportMessagesTask, LabelCount,
-                     Msg, SystemLabelCount)
+from .models import (
+    FIRE_EVENT,
+    HANDLE_EVENT_TASK,
+    MSG_EVENT,
+    PENDING,
+    TIMEOUT_EVENT,
+    Broadcast,
+    ExportMessagesTask,
+    LabelCount,
+    Msg,
+    SystemLabelCount,
+)
 
 logger = logging.getLogger(__name__)
 

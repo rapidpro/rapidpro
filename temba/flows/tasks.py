@@ -6,17 +6,24 @@ import iso8601
 from celery.task import task
 from django.utils import timezone
 
-from temba.msgs.models import (HANDLE_EVENT_TASK, HANDLER_QUEUE, TIMEOUT_EVENT,
-                               Broadcast, Msg)
+from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, TIMEOUT_EVENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
-from temba.utils.queues import (complete_task, nonoverlapping_task, push_task,
-                                start_task)
+from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
 
-from .models import (ExportFlowResultsTask, Flow, FlowCategoryCount,
-                     FlowNodeCount, FlowPathCount, FlowPathRecentRun, FlowRun,
-                     FlowRunCount, FlowStart, FlowStartCount)
+from .models import (
+    ExportFlowResultsTask,
+    Flow,
+    FlowCategoryCount,
+    FlowNodeCount,
+    FlowPathCount,
+    FlowPathRecentRun,
+    FlowRun,
+    FlowRunCount,
+    FlowStart,
+    FlowStartCount,
+)
 
 FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)

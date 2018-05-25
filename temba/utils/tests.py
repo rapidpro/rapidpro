@@ -22,34 +22,49 @@ from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
 from temba_expressions.evaluator import DateStyle, EvaluationContext
 
-from temba.contacts.models import (Contact, ContactField, ContactGroup,
-                                   ContactGroupCount, ExportContactsTask)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 
-from . import (chunk_list, dict_to_json, dict_to_struct, format_number,
-               get_country_code_by_name, percentage, sizeof_fmt, str_to_bool,
-               voicexml)
-from .cache import (QueueRecord, get_cacheable_attr, get_cacheable_result,
-                    incrby_existing)
+from . import (
+    chunk_list,
+    dict_to_json,
+    dict_to_struct,
+    format_number,
+    get_country_code_by_name,
+    percentage,
+    sizeof_fmt,
+    str_to_bool,
+    voicexml,
+)
+from .cache import QueueRecord, get_cacheable_attr, get_cacheable_result, incrby_existing
 from .currencies import currency_for_country
-from .dates import (date_to_utc_range, datetime_to_epoch,
-                    datetime_to_json_date, datetime_to_ms, datetime_to_str,
-                    ms_to_datetime, str_to_datetime, str_to_time)
+from .dates import (
+    date_to_utc_range,
+    datetime_to_epoch,
+    datetime_to_json_date,
+    datetime_to_ms,
+    datetime_to_str,
+    ms_to_datetime,
+    str_to_datetime,
+    str_to_time,
+)
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .expressions import (_build_function_signature, evaluate_template,
-                          evaluate_template_compat, get_function_listing,
-                          migrate_template)
+from .expressions import (
+    _build_function_signature,
+    evaluate_template,
+    evaluate_template_compat,
+    get_function_listing,
+    migrate_template,
+)
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
-from .queues import (HIGH_PRIORITY, LOW_PRIORITY, complete_task,
-                     nonoverlapping_task, push_task, start_task)
-from .text import (clean_string, decode_base64, random_string, slugify_with,
-                   truncate)
+from .queues import HIGH_PRIORITY, LOW_PRIORITY, complete_task, nonoverlapping_task, push_task, start_task
+from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
 

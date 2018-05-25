@@ -38,13 +38,10 @@ from timezone_field import TimeZoneField
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, languages
-from temba.utils.cache import (get_cacheable_attr, get_cacheable_result,
-                               incrby_existing)
+from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import (datetime_to_str, get_datetime_format,
-                               str_to_datetime)
-from temba.utils.email import (send_custom_smtp_email, send_simple_email,
-                               send_template_email)
+from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
+from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.text import random_string
 

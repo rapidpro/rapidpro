@@ -3,9 +3,18 @@ from django.contrib.sitemaps.views import sitemap
 from django.views.decorators.csrf import csrf_exempt
 
 from .sitemaps import PublicViewSitemap, VideoSitemap
-from .views import (Blog, Deploy, GenerateCoupon, IndexView, LeadCRUDL,
-                    LeadViewer, OrderStatus, VideoCRUDL, Welcome,
-                    WelcomeRedirect)
+from .views import (
+    Blog,
+    Deploy,
+    GenerateCoupon,
+    IndexView,
+    LeadCRUDL,
+    LeadViewer,
+    OrderStatus,
+    VideoCRUDL,
+    Welcome,
+    WelcomeRedirect,
+)
 
 sitemaps = {"public": PublicViewSitemap, "video": VideoSitemap}
 

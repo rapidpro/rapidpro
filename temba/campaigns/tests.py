@@ -7,10 +7,8 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 
 from temba.campaigns.tasks import check_campaigns_task
-from temba.contacts.models import (Contact, ContactField, ContactGroup,
-                                   ImportTask)
-from temba.flows.models import (ActionSet, Flow, FlowRevision, FlowRun,
-                                FlowStart, RuleSet)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
+from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart, RuleSet
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import ESMockWithScroll, TembaTest
