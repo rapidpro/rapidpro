@@ -1,24 +1,19 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-import time
 import json
-
+import time
 from collections import OrderedDict
+from uuid import uuid4
 
 from django.contrib.postgres.fields import HStoreField
 from django.core import checks
 from django.core.exceptions import ValidationError
-from django.db import models, connection
+from django.db import connection, models
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
-from uuid import uuid4
 
 
 def generate_uuid():
-    return six.text_type(uuid4())
+    return str(uuid4())
 
 
 class ProxyQuerySet(object):
@@ -56,7 +51,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
         return pks
     else:
         # prepare the data set
-        pairs = ','.join(six.text_type((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
+        pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(pks, start=1))
 
         if pairs:
             return model.objects.raw(
@@ -74,25 +69,29 @@ class TranslatableField(HStoreField):
     """
     Model field which is a set of language code and translation pairs stored as HSTORE
     """
+
     class Validator(object):
+
         def __init__(self, max_length):
             self.max_length = max_length
 
         def __call__(self, value):
-            for lang, translation in six.iteritems(value):
-                if lang != 'base' and len(lang) != 3:
+            for lang, translation in value.items():
+                if lang != "base" and len(lang) != 3:
                     raise ValidationError("'%s' is not a valid language code." % lang)
                 if len(translation) > self.max_length:
-                    raise ValidationError("Translation for '%s' exceeds the %d character limit." % (lang, self.max_length))
+                    raise ValidationError(
+                        "Translation for '%s' exceeds the %d character limit." % (lang, self.max_length)
+                    )
 
     def __init__(self, max_length, **kwargs):
-        super(TranslatableField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.max_length = max_length
 
     @cached_property
     def validators(self):
-        return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
+        return super().validators + [TranslatableField.Validator(self.max_length)]
 
 
 class CheckFieldDefaultMixin(object):
@@ -101,24 +100,24 @@ class CheckFieldDefaultMixin(object):
 
     More info: https://code.djangoproject.com/ticket/28577
     """
-    _default_hint = ('<valid default>', '<invalid default>')
+    _default_hint = ("<valid default>", "<invalid default>")
 
     def _check_default(self):
         if self.has_default() and self.default is not None and not callable(self.default):
             return [
                 checks.Warning(
-                    '%s default should be a callable instead of an instance so that it\'s not shared between all field '
-                    'instances.' % (self.__class__.__name__,),
-                    hint='Use a callable instead, e.g., use `%s` instead of `%s`.' % self._default_hint,
+                    "%s default should be a callable instead of an instance so that it's not shared between all field "
+                    "instances." % (self.__class__.__name__,),
+                    hint="Use a callable instead, e.g., use `%s` instead of `%s`." % self._default_hint,
                     obj=self,
-                    id='postgres.E003',
+                    id="postgres.E003",
                 )
             ]
         else:
             return []
 
     def check(self, **kwargs):
-        errors = super(CheckFieldDefaultMixin, self).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(self._check_default())
         return errors
 
@@ -137,13 +136,13 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
             * https://mail.python.org/pipermail/python-dev/2017-December/151283.html
     """
 
-    description = 'Custom JSON field that is stored as Text in the database'
-    _default_hint = ('dict', '{}')
+    description = "Custom JSON field that is stored as Text in the database"
+    _default_hint = ("dict", "{}")
 
     def __init__(self, object_pairs_hook=dict, *args, **kwargs):
 
         self.object_pairs_hook = object_pairs_hook
-        super(JSONAsTextField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
         if self.has_default() and value is None:
@@ -152,49 +151,55 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if value is None:
             return value
 
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
 
             if type(data) not in (list, dict, OrderedDict):
-                raise ValueError('JSONAsTextField should be a dict or a list, got %s => %s' % (type(data), data))
+                raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(data), data))
             else:
                 return data
         else:
-            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
+            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value),))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
         # if the value is falsy we will save is as null
-        if self.null and value in (None, {}, []) and not kwargs.get('force'):
+        if self.null and value in (None, {}, []) and not kwargs.get("force"):
             return None
 
         if value is None:
             return None
 
         if type(value) not in (list, dict, OrderedDict):
-            raise ValueError('JSONAsTextField should be a dict or a list, got %s => %s' % (type(value), value))
+            raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(value), value))
 
         return json.dumps(value)
 
     def to_python(self, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = json.loads(value)
         return value
 
     def db_type(self, connection):
-        return 'text'
+        return "text"
 
     def deconstruct(self):
-        name, path, args, kwargs = super(JSONAsTextField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         # Only include kwarg if it's not the default
         if self.object_pairs_hook != dict:
-            kwargs['object_pairs_hook'] = self.object_pairs_hook
+            kwargs["object_pairs_hook"] = self.object_pairs_hook
         return name, path, args, kwargs
 
 
 class TembaModel(SmartModel):
 
-    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
+    uuid = models.CharField(
+        max_length=36,
+        unique=True,
+        db_index=True,
+        default=generate_uuid,
+        verbose_name=_("Unique Identifier"),
+        help_text=_("The unique identifier for this object"),
+    )
 
     class Meta:
         abstract = True
@@ -203,10 +208,10 @@ class TembaModel(SmartModel):
 class RequireUpdateFieldsMixin(object):
 
     def save(self, *args, **kwargs):
-        if self.id and 'update_fields' not in kwargs:
+        if self.id and "update_fields" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
-        return super(RequireUpdateFieldsMixin, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):
@@ -215,7 +220,7 @@ class SquashableModel(models.Model):
     """
     SQUASH_OVER = None
 
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
     is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 

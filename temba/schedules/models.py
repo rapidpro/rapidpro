@@ -1,59 +1,59 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import calendar
-import six
-
 from datetime import datetime, timedelta
+
 from dateutil.relativedelta import relativedelta
 from django.db import models
 from django.utils import timezone
 from smartmin.models import SmartModel
 
 
-@six.python_2_unicode_compatible
 class Schedule(SmartModel):
     """
     Describes a point in the future to execute some action. These are used to schedule Broadcasts
     as a single event or with a specified interval for recurrence.
     """
-    REPEAT_CHOICES = (('O', 'Never'),
-                      ('D', 'Daily'),
-                      ('W', 'Weekly'),
-                      ('M', 'Monthly'),)
+    REPEAT_CHOICES = (("O", "Never"), ("D", "Daily"), ("W", "Weekly"), ("M", "Monthly"))
 
-    STATUS_CHOICES = (('U', 'Unscheduled'),
-                      ('S', 'Scheduled'))
+    STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))
 
-    status = models.CharField(default='U', choices=STATUS_CHOICES, max_length=1)
+    status = models.CharField(default="U", choices=STATUS_CHOICES, max_length=1)
     repeat_hour_of_day = models.IntegerField(help_text="The hour of the day", null=True)
     repeat_minute_of_hour = models.IntegerField(help_text="The minute of the hour", null=True)
     repeat_day_of_month = models.IntegerField(null=True, help_text="The day of the month to repeat on")
-    repeat_period = models.CharField(max_length=1, null=True, help_text="When this schedule repeats", choices=REPEAT_CHOICES)
+    repeat_period = models.CharField(
+        max_length=1, null=True, help_text="When this schedule repeats", choices=REPEAT_CHOICES
+    )
     repeat_days = models.IntegerField(default=0, null=True, blank=True, help_text="bit mask of days of the week")
     last_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule last fired")
     next_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule fires next")
 
     @classmethod
-    def create_schedule(cls, start_date, repeat_period, user, repeat_days=None, status='S'):
-        return Schedule.objects.create(repeat_period=repeat_period, repeat_days=repeat_days,
-                                       created_by=user, modified_by=user, repeat_day_of_month=start_date.day,
-                                       repeat_hour_of_day=start_date.hour, repeat_minute_of_hour=start_date.minute,
-                                       next_fire=start_date, status=status)
+    def create_schedule(cls, start_date, repeat_period, user, repeat_days=None, status="S"):
+        return Schedule.objects.create(
+            repeat_period=repeat_period,
+            repeat_days=repeat_days,
+            created_by=user,
+            modified_by=user,
+            repeat_day_of_month=start_date.day,
+            repeat_hour_of_day=start_date.hour,
+            repeat_minute_of_hour=start_date.minute,
+            next_fire=start_date,
+            status=status,
+        )
 
     def reset(self):
         self.next_fire = None
-        self.status = 'U'
-        self.repeat_period = 'O'
+        self.status = "U"
+        self.repeat_period = "O"
         self.repeat_days = 0
         self.save()
 
     def get_broadcast(self):
-        if hasattr(self, 'broadcast'):
+        if hasattr(self, "broadcast"):
             return self.broadcast
 
     def get_trigger(self):
-        if hasattr(self, 'trigger'):
+        if hasattr(self, "trigger"):
             return self.trigger
 
     def get_org_timezone(self):
@@ -82,8 +82,15 @@ class Schedule(SmartModel):
         if self.repeat_period == "M":
             (weekday, days) = calendar.monthrange(trigger_date.year, trigger_date.month)
             day_of_month = min(days, self.repeat_day_of_month)
-            next_date = datetime(trigger_date.year, trigger_date.month, day=day_of_month,
-                                 hour=hour, minute=minute, second=0, microsecond=0)
+            next_date = datetime(
+                trigger_date.year,
+                trigger_date.month,
+                day=day_of_month,
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
             next_date = self.get_org_timezone().localize(next_date)
             if trigger_date.day >= self.repeat_day_of_month:
                 next_date += relativedelta(months=1)
@@ -128,12 +135,12 @@ class Schedule(SmartModel):
             return False
 
     def has_pending_fire(self):
-        if self.status == 'S' and self.next_fire and self.next_fire > timezone.now():
+        if self.status == "S" and self.next_fire and self.next_fire > timezone.now():
             return True
 
     def unschedule(self):
         print("Unscheduling %s" % self.pk)
-        self.status = 'U'
+        self.status = "U"
         self.save()
 
     def explode_bitmask(self):
@@ -166,5 +173,10 @@ class Schedule(SmartModel):
         return days
 
     def __str__(self):  # pragma: no cover
-        return "[%s] %s %s %s:%s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month,
-                                     self.repeat_hour_of_day, self.repeat_minute_of_hour)
+        return "[%s] %s %s %s:%s" % (
+            str(self.next_fire),
+            self.repeat_period,
+            self.repeat_day_of_month,
+            self.repeat_hour_of_day,
+            self.repeat_minute_of_hour,
+        )

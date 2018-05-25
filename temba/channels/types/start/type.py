@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -14,14 +11,16 @@ class StartType(ChannelType):
     An Start Mobile channel (https://bulk.startmobile.ua/)
     """
 
-    code = 'ST'
+    code = "ST"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_url = r"^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "Start Mobile"
 
-    claim_blurb = _("""Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.""")
+    claim_blurb = _(
+        """Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs."""
+    )
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [TEL_SCHEME]
@@ -45,4 +44,4 @@ class StartType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["Europe/Kiev"]
+        return org.timezone and str(org.timezone) in ["Europe/Kiev"]

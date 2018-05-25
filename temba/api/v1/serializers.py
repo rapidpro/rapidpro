@@ -1,17 +1,15 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
-import phonenumbers
-import six
-import regex
 
+import phonenumbers
+import regex
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
+from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.flows.models import Flow, FlowRevision, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
 from temba.orgs.models import get_current_export_version
@@ -38,17 +36,19 @@ def validate_bulk_fetch(fetched, uuids):
         fetched_uuids = {c.uuid for c in fetched}
         invalid_uuids = [u for u in uuids if u not in fetched_uuids]
         if invalid_uuids:
-            raise serializers.ValidationError("Some UUIDs are invalid: %s" % ', '.join(invalid_uuids))
+            raise serializers.ValidationError("Some UUIDs are invalid: %s" % ", ".join(invalid_uuids))
 
 
 # ------------------------------------------------------------------------------------------
 # Field types
 # ------------------------------------------------------------------------------------------
 
+
 class DateTimeField(serializers.DateTimeField):
     """
     For backward compatibility, datetime fields are limited to millisecond accuracy
     """
+
     def to_representation(self, value):
         return format_datetime(value)
 
@@ -57,12 +57,13 @@ class StringArrayField(serializers.ListField):
     """
     List of strings or a single string
     """
+
     def __init__(self, **kwargs):
-        super(StringArrayField, self).__init__(child=serializers.CharField(allow_blank=False), **kwargs)
+        super().__init__(child=serializers.CharField(allow_blank=False), **kwargs)
 
     def to_internal_value(self, data):
         # accept single string
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             data = [data]
 
         # don't allow dicts. This is a bug in ListField due to be fixed in 3.3.2
@@ -70,30 +71,31 @@ class StringArrayField(serializers.ListField):
         elif isinstance(data, dict):
             raise serializers.ValidationError("Should be a list")
 
-        return super(StringArrayField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class StringDictField(serializers.DictField):
 
     def __init__(self, **kwargs):
-        super(StringDictField, self).__init__(child=serializers.CharField(), **kwargs)
+        super().__init__(child=serializers.CharField(), **kwargs)
 
     def to_internal_value(self, data):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
-            for key, val in six.iteritems(data):
-                if not isinstance(key, six.string_types) or not isinstance(val, six.string_types):
+            for key, val in data.items():
+                if not isinstance(key, str) or not isinstance(val, str):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
-        return super(StringDictField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class PhoneArrayField(serializers.ListField):
     """
     List of phone numbers or a single phone number
     """
+
     def to_internal_value(self, data):
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             return [URN.from_tel(data)]
 
         elif isinstance(data, list):
@@ -102,7 +104,7 @@ class PhoneArrayField(serializers.ListField):
 
             urns = []
             for phone in data:
-                if not isinstance(phone, six.string_types):  # pragma: no cover
+                if not isinstance(phone, str):  # pragma: no cover
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
                 urns.append(URN.from_tel(phone))
 
@@ -114,18 +116,19 @@ class PhoneArrayField(serializers.ListField):
 class ChannelField(serializers.PrimaryKeyRelatedField):
 
     def __init__(self, **kwargs):
-        super(ChannelField, self).__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
+        super().__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
 
 
 class UUIDField(serializers.CharField):
 
     def __init__(self, **kwargs):
-        super(UUIDField, self).__init__(max_length=36, **kwargs)
+        super().__init__(max_length=36, **kwargs)
 
 
 # ------------------------------------------------------------------------------------------
 # Serializers
 # ------------------------------------------------------------------------------------------
+
 
 class ReadSerializer(serializers.ModelSerializer):
     """
@@ -139,19 +142,22 @@ class WriteSerializer(serializers.Serializer):
     The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
 
-        super(WriteSerializer, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        self.org = kwargs.pop("org") if "org" in kwargs else self.user.get_org()
+
+        super().__init__(*args, **kwargs)
 
         self.instance = None
 
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
-            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
+            raise serializers.ValidationError(
+                detail={"non_field_errors": ["Request body should be a single JSON object"]}
+            )
 
-        return super(WriteSerializer, self).run_validation(data)
+        return super().run_validation(data)
 
 
 class ContactReadSerializer(ReadSerializer):
@@ -160,10 +166,10 @@ class ContactReadSerializer(ReadSerializer):
     language = serializers.SerializerMethodField()
     group_uuids = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
-    fields = serializers.SerializerMethodField('get_contact_fields')
+    fields = serializers.SerializerMethodField("get_contact_fields")
     blocked = serializers.SerializerMethodField()
     failed = serializers.SerializerMethodField()
-    phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
+    phone = serializers.SerializerMethodField("get_tel")  # deprecated, use urns
     groups = serializers.SerializerMethodField()  # deprecated, use group_uuids
     modified_on = DateTimeField()
 
@@ -183,28 +189,28 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        groups = obj.prefetched_user_groups if hasattr(obj, "prefetched_user_groups") else obj.user_groups.all()
         return [_.name for _ in groups]
 
     def get_group_uuids(self, obj):
         if not obj.is_active:
             return []
 
-        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        groups = obj.prefetched_user_groups if hasattr(obj, "prefetched_user_groups") else obj.user_groups.all()
         return [_.uuid for _ in groups]
 
     def get_urns(self, obj):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [six.text_type(urn) for urn in obj.get_urns()]
+        return [str(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
         if not obj.is_active:
             return fields
 
-        for contact_field in self.context['contact_fields']:
+        for contact_field in self.context["contact_fields"]:
             fields[contact_field.key] = obj.get_field_serialized(contact_field)
         return fields
 
@@ -213,8 +219,19 @@ class ContactReadSerializer(ReadSerializer):
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields',
-                  'blocked', 'failed', 'modified_on', 'phone', 'groups')
+        fields = (
+            "uuid",
+            "name",
+            "language",
+            "group_uuids",
+            "urns",
+            "fields",
+            "blocked",
+            "failed",
+            "modified_on",
+            "phone",
+            "groups",
+        )
 
 
 class ContactWriteSerializer(WriteSerializer):
@@ -228,7 +245,7 @@ class ContactWriteSerializer(WriteSerializer):
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
     def __init__(self, *args, **kwargs):
-        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.parsed_urns = None
         self.group_objs = None
         self.new_fields = []
@@ -273,7 +290,7 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate_fields(self, value):
         if value:
-            org_fields = self.context['contact_fields']
+            org_fields = self.context["contact_fields"]
 
             for field_key, field_val in value.items():
                 if field_key in Contact.RESERVED_FIELD_KEYS:
@@ -310,11 +327,13 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if data.get('urns') is not None and data.get('phone') is not None:
+        if data.get("urns") is not None and data.get("phone") is not None:
             raise serializers.ValidationError("Cannot provide both urns and phone parameters together")
 
-        if data.get('group_uuids') is not None and data.get('groups') is not None:
-            raise serializers.ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
+        if data.get("group_uuids") is not None and data.get("groups") is not None:
+            raise serializers.ValidationError(
+                "Parameter groups is deprecated and can't be used together with group_uuids"
+            )
 
         if self.org.is_anon and self.instance and self.parsed_urns is not None:
             raise serializers.ValidationError("Cannot update contact URNs on anonymous organizations")
@@ -352,9 +371,9 @@ class ContactWriteSerializer(WriteSerializer):
         """
         Update our contact
         """
-        name = self.validated_data.get('name')
-        fields = self.validated_data.get('fields')
-        language = self.validated_data.get('language')
+        name = self.validated_data.get("name")
+        fields = self.validated_data.get("fields")
+        language = self.validated_data.get("language")
 
         # treat empty names as None
         if not name:
@@ -369,15 +388,16 @@ class ContactWriteSerializer(WriteSerializer):
             # update our name and language
             if name != self.instance.name:
                 self.instance.name = name
-                changed.append('name')
+                changed.append("name")
         else:
-            self.instance = Contact.get_or_create_by_urns(self.org, self.user, name, urns=self.parsed_urns,
-                                                          language=language, force_urn_update=True)
+            self.instance = Contact.get_or_create_by_urns(
+                self.org, self.user, name, urns=self.parsed_urns, language=language, force_urn_update=True
+            )
 
         # Contact.get_or_create doesn't nullify language so do that here
-        if 'language' in self.validated_data and language is None:
+        if "language" in self.validated_data and language is None:
             self.instance.language = language.lower() if language else None
-            changed.append('language')
+            changed.append("language")
 
         # save our contact if it changed
         if changed:
@@ -391,9 +411,9 @@ class ContactWriteSerializer(WriteSerializer):
                     self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
                 elif self.new_fields and key in self.new_fields:
-                    new_field = ContactField.get_or_create(org=self.org, user=self.user,
-                                                           key=regex.sub('[^A-Za-z0-9]+', '_', key).lower(),
-                                                           label=key)
+                    new_field = ContactField.get_or_create(
+                        org=self.org, user=self.user, key=regex.sub("[^A-Za-z0-9]+", "_", key).lower(), label=key
+                    )
                     self.instance.set_field(self.user, new_field.key, value)
 
                 # TODO as above, need to get users to stop updating via label
@@ -415,7 +435,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactField
-        fields = ('key', 'label', 'value_type')
+        fields = ("key", "label", "value_type")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
@@ -439,8 +459,8 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        key = data.get('key')
-        label = data.get('label')
+        key = data.get("key")
+        label = data.get("label")
 
         if not key:
             key = ContactField.make_key(label)
@@ -449,42 +469,43 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
         fields_count = ContactField.objects.filter(org=self.org).count()
         if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
-            raise serializers.ValidationError('This org has %s contact fields and the limit is %s. '
-                                              'You must delete existing ones before '
-                                              'you can create new ones.' % (fields_count,
-                                                                            ContactField.MAX_ORG_CONTACTFIELDS))
+            raise serializers.ValidationError(
+                "This org has %s contact fields and the limit is %s. "
+                "You must delete existing ones before "
+                "you can create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS)
+            )
 
-        data['key'] = key
+        data["key"] = key
         return data
 
     def save(self):
-        key = self.validated_data.get('key')
-        label = self.validated_data.get('label')
-        value_type = self.validated_data.get('value_type')
+        key = self.validated_data.get("key")
+        label = self.validated_data.get("label")
+        value_type = self.validated_data.get("value_type")
 
         return ContactField.get_or_create(self.org, self.user, key, label, value_type=value_type)
 
 
 class FlowReadSerializer(ReadSerializer):
     uuid = serializers.ReadOnlyField()
-    archived = serializers.ReadOnlyField(source='is_archived')
-    expires = serializers.ReadOnlyField(source='expires_after_minutes')
+    archived = serializers.ReadOnlyField(source="is_archived")
+    expires = serializers.ReadOnlyField(source="expires_after_minutes")
     labels = serializers.SerializerMethodField()
     rulesets = serializers.SerializerMethodField()
     runs = serializers.SerializerMethodField()
     completed_runs = serializers.SerializerMethodField()
     participants = serializers.SerializerMethodField()
     created_on = DateTimeField()
-    flow = serializers.ReadOnlyField(source='id')  # deprecated, use uuid
+    flow = serializers.ReadOnlyField(source="id")  # deprecated, use uuid
 
     def get_runs(self, obj):
-        return obj.get_run_stats()['total']
+        return obj.get_run_stats()["total"]
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
     def get_completed_runs(self, obj):
-        return obj.get_run_stats()['completed']
+        return obj.get_run_stats()["completed"]
 
     def get_participants(self, obj):
         return None
@@ -494,37 +515,52 @@ class FlowReadSerializer(ReadSerializer):
 
         obj.ensure_current_version()
 
-        for ruleset in obj.rule_sets.all().order_by('y'):  # pragma: needs cover
+        for ruleset in obj.rule_sets.all().order_by("y"):  # pragma: needs cover
 
             # backwards compat for old response types
-            response_type = 'C'
+            response_type = "C"
             if ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
-                response_type = 'K'
+                response_type = "K"
             elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGIT:
-                response_type = 'M'
+                response_type = "M"
             elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
-                response_type = 'R'
+                response_type = "R"
             elif len(ruleset.get_rules()) == 1:
-                response_type = 'O'
+                response_type = "O"
 
-            rulesets.append(dict(node=ruleset.uuid,
-                                 label=ruleset.label,
-                                 ruleset_type=ruleset.ruleset_type,
-                                 response_type=response_type,  # deprecated
-                                 id=ruleset.id))  # deprecated
+            rulesets.append(
+                dict(
+                    node=ruleset.uuid,
+                    label=ruleset.label,
+                    ruleset_type=ruleset.ruleset_type,
+                    response_type=response_type,  # deprecated
+                    id=ruleset.id,
+                )
+            )  # deprecated
         return rulesets
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'participants', 'rulesets',
-                  'created_on', 'flow')
+        fields = (
+            "uuid",
+            "archived",
+            "expires",
+            "name",
+            "labels",
+            "runs",
+            "completed_runs",
+            "participants",
+            "rulesets",
+            "created_on",
+            "flow",
+        )
 
 
 class FlowRunReadSerializer(ReadSerializer):
-    run = serializers.ReadOnlyField(source='id')
+    run = serializers.ReadOnlyField(source="id")
     flow_uuid = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField('get_contact_uuid')
-    completed = serializers.SerializerMethodField('is_completed')
+    contact = serializers.SerializerMethodField("get_contact_uuid")
+    completed = serializers.SerializerMethodField("is_completed")
     created_on = DateTimeField()
     modified_on = DateTimeField()
 
@@ -539,7 +575,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'run', 'contact', 'completed', 'created_on', 'modified_on',)
+        fields = ("flow_uuid", "run", "contact", "completed", "created_on", "modified_on")
 
 
 class FlowRunWriteSerializer(WriteSerializer):
@@ -554,7 +590,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     version = serializers.IntegerField(required=False)  # for backwards compatibility
 
     def __init__(self, *args, **kwargs):
-        super(FlowRunWriteSerializer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.contact_obj = None
         self.flow_obj = None
         self.submitted_by_obj = None
@@ -585,27 +621,22 @@ class FlowRunWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
+
         class VersionNode:
+
             def __init__(self, node, is_ruleset):
                 self.node = node
-                self.uuid = node['uuid']
+                self.uuid = node["uuid"]
                 self.ruleset = is_ruleset
 
             def is_ruleset(self):
                 return self.ruleset
 
             def is_pause(self):
-                from temba.flows.models import RuleSet
-                return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
+                return self.node["ruleset_type"] in RuleSet.TYPE_WAIT
 
-            def get_step_type(self):
-                if self.is_ruleset():
-                    return FlowStep.TYPE_RULE_SET
-                else:
-                    return FlowStep.TYPE_ACTION_SET
-
-        steps = data.get('steps')
-        revision = data.get('revision', data.get('version'))
+        steps = data.get("steps")
+        revision = data.get("revision", data.get("version"))
 
         if not revision:  # pragma: needs cover
             raise serializers.ValidationError("Missing 'revision' field")
@@ -622,23 +653,25 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         for step in steps:
             node_obj = None
-            key = 'rule_sets' if 'rule' in step else 'action_sets'
+            key = "rule_sets" if "rule" in step else "action_sets"
 
             for json_node in definition[key]:
-                if json_node['uuid'] == step['node']:
-                    node_obj = VersionNode(json_node, 'rule' in step)
+                if json_node["uuid"] == step["node"]:
+                    node_obj = VersionNode(json_node, "rule" in step)
                     break
 
             if not node_obj:
-                raise serializers.ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], self.flow_obj.name))
+                raise serializers.ValidationError(
+                    "No such node with UUID %s in flow '%s'" % (step["node"], self.flow_obj.name)
+                )
             else:
-                rule = step.get('rule', None)
+                rule = step.get("rule", None)
                 if rule:
-                    media = rule.get('media', None)
+                    media = rule.get("media", None)
                     if media:
-                        (media_type, media_path) = media.split(':', 1)
-                        if media_type != 'geo':
-                            media_type_parts = media_type.split('/')
+                        (media_type, media_path) = media.split(":", 1)
+                        if media_type != "geo":
+                            media_type_parts = media_type.split("/")
 
                             error = None
                             if len(media_type_parts) != 2:
@@ -650,35 +683,37 @@ class FlowRunWriteSerializer(WriteSerializer):
                             if error:
                                 raise serializers.ValidationError("Invalid media type '%s': %s" % error)
 
-                step['node'] = node_obj
+                step["node"] = node_obj
 
         return data
 
     def save(self):
-        started = self.validated_data['started']
-        steps = self.validated_data.get('steps', [])
-        completed = self.validated_data.get('completed', False)
+        started = self.validated_data["started"]
+        steps = self.validated_data.get("steps", [])
+        completed = self.validated_data.get("completed", False)
 
         # look for previous run with this contact and flow
         run = (
-            FlowRun.objects
-            .filter(org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started, is_active=True)
-            .order_by('-modified_on')
+            FlowRun.objects.filter(
+                org=self.org, contact=self.contact_obj, flow=self.flow_obj, created_on=started, is_active=True
+            )
+            .order_by("-modified_on")
             .first()
         )
 
         if not run or run.submitted_by != self.submitted_by_obj:
-            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj)
+            run = FlowRun.create(
+                self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj
+            )
 
-        step_objs = [FlowStep.from_json(step, self.flow_obj, run) for step in steps]
+        run.update_from_surveyor(steps)
 
         if completed:
-            final_step = step_objs[len(step_objs) - 1] if step_objs else None
-            completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
+            completed_on = steps[len(steps) - 1]["arrived_on"] if steps else None
 
-            run.set_completed(final_step, completed_on=completed_on)
+            run.set_completed(completed_on=completed_on)
         else:
-            run.save(update_fields=('modified_on',))
+            run.save(update_fields=("modified_on",))
 
         return run
 
@@ -699,7 +734,7 @@ class BoundarySerializer(ReadSerializer):
 
     class Meta:
         model = AdminBoundary
-        fields = ('boundary', 'name', 'level', 'parent', 'geometry')
+        fields = ("boundary", "name", "level", "parent", "geometry")
 
 
 class AliasSerializer(BoundarySerializer):
@@ -710,7 +745,7 @@ class AliasSerializer(BoundarySerializer):
 
     class Meta:
         model = AdminBoundary
-        fields = ('boundary', 'name', 'level', 'parent', 'aliases')
+        fields = ("boundary", "name", "level", "parent", "aliases")
 
 
 class MsgCreateSerializer(WriteSerializer):
@@ -746,7 +781,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     normalized = URN.normalize(urn, country)
                 except ValueError as e:  # pragma: needs cover
-                    raise serializers.ValidationError(six.text_type(e))
+                    raise serializers.ValidationError(str(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
@@ -755,19 +790,19 @@ class MsgCreateSerializer(WriteSerializer):
         return urns
 
     def validate(self, data):
-        urns = data.get('urn', [])
-        phones = data.get('phone', [])
-        contacts = data.get('contact', [])
-        channel = data.get('channel')
+        urns = data.get("urn", [])
+        phones = data.get("phone", [])
+        contacts = data.get("contact", [])
+        channel = data.get("channel")
 
         if (not urns and not phones and not contacts) or (urns and phones):  # pragma: needs cover
             raise serializers.ValidationError("Must provide either urns or phone or contact and not both")
 
         if not channel:
-            channel = Channel.objects.filter(is_active=True, org=self.org).order_by('-last_seen').first()
+            channel = Channel.objects.filter(is_active=True, org=self.org).order_by("-last_seen").first()
             if not channel:  # pragma: no cover
                 raise serializers.ValidationError("There are no channels for this organization.")
-            data['channel'] = channel
+            data["channel"] = channel
 
         if phones:
             if self.org.is_anon:  # pragma: needs cover
@@ -790,12 +825,12 @@ class MsgCreateSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        if 'urn' in self.validated_data and self.validated_data['urn']:
-            urns = self.validated_data.get('urn')
+        if "urn" in self.validated_data and self.validated_data["urn"]:
+            urns = self.validated_data.get("urn")
         else:
-            urns = self.validated_data.get('phone', [])
+            urns = self.validated_data.get("phone", [])
 
-        channel = self.validated_data.get('channel')
+        channel = self.validated_data.get("channel")
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
@@ -803,13 +838,14 @@ class MsgCreateSerializer(WriteSerializer):
             contacts.append(contact)
 
         # add any contacts specified by uuids
-        uuid_contacts = self.validated_data.get('contact', [])
+        uuid_contacts = self.validated_data.get("contact", [])
         for contact in uuid_contacts:
             contacts.append(contact)
 
         # create the broadcast
-        broadcast = Broadcast.create(self.org, self.user, self.validated_data['text'],
-                                     recipients=contacts, channel=channel)
+        broadcast = Broadcast.create(
+            self.org, self.user, self.validated_data["text"], recipients=contacts, channel=channel
+        )
 
         # send it
         broadcast.send(expressions_context={})

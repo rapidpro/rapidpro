@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -14,14 +11,16 @@ class BlackmynaType(ChannelType):
     An Blackmyna channel (https://blackmyna.com)
     """
 
-    code = 'BM'
+    code = "BM"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_url = r"^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Blackmyna"
 
-    claim_blurb = _("""Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs.""")
+    claim_blurb = _(
+        """Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs."""
+    )
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [TEL_SCHEME]
@@ -38,18 +37,22 @@ class BlackmynaType(ChannelType):
         dict(
             label=_("Inbound URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'receive' %}",
-            description=_("This endpoint should be called by Blackmyna when new messages are received to your number.")
+            description=_(
+                "This endpoint should be called by Blackmyna when new messages are received to your number."
+            ),
         ),
         dict(
             label=_("DLR URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'status' %}",
-            description=_("This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"),
+            description=_(
+                "This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"
+            ),
         ),
     )
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["Asia/Kathmandu"]
+        return org.timezone and str(org.timezone) in ["Asia/Kathmandu"]
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

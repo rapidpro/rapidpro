@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.conf import settings
-
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search as es_Search
 
@@ -17,12 +14,12 @@ class ModelESSearch(es_Search):
     is_none = False
 
     def __init__(self, **kwargs):
-        self.model = kwargs.pop('model', None)
+        self.model = kwargs.pop("model", None)
 
-        super(ModelESSearch, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _clone(self):
-        new_search = super(ModelESSearch, self)._clone()
+        new_search = super()._clone()
 
         # copy extra attributes
         new_search.model = self.model

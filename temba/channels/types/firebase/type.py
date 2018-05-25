@@ -1,27 +1,28 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FCM_SCHEME
-from .views import ClaimView
+
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class FirebaseCloudMessagingType(ChannelType):
     """
     A Firebase Cloud Messaging channel (https://firebase.google.com/docs/cloud-messaging/)
     """
-    code = 'FCM'
+    code = "FCM"
     category = ChannelType.Category.API
 
-    courier_url = r'^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$'
+    courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
 
     name = "Firebase Cloud Messaging"
-    icon = 'icon-fcm'
+    icon = "icon-fcm"
 
-    claim_blurb = _("""Add a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank"> Firebase Cloud
-    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages.""")
+    claim_blurb = _(
+        """Add a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank"> Firebase Cloud
+    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."""
+    )
     claim_view = ClaimView
 
     schemes = [FCM_SCHEME]
@@ -40,11 +41,15 @@ class FirebaseCloudMessagingType(ChannelType):
         dict(
             label=_("Contact Register"),
             url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
-            description=_("To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."),
+            description=_(
+                "To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."
+            ),
         ),
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'receive' %}",
-            description=_("To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."),
+            description=_(
+                "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
+            ),
         ),
     )

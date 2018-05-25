@@ -1,22 +1,17 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
-
 from enum import Enum
 
 # Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
 
 ESCAPES = {
-    '#': '%23',
-    '%': '%25',
+    "#": "%23",
+    "%": "%25",
     # '/': '%2F',  can't enable this until we fix our URNs with slashes
-    '?': '%3F'
+    "?": "%3F",
 }
 
 
-@six.python_2_unicode_compatible
 class ParsedURN(object):
+
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme
         self.path = path
@@ -24,11 +19,11 @@ class ParsedURN(object):
         self.fragment = fragment
 
     def __str__(self):
-        s = escape(six.text_type(self.scheme)) + ":" + escape(six.text_type(self.path))
+        s = escape(str(self.scheme)) + ":" + escape(str(self.path))
         if self.query:
-            s += "?" + escape(six.text_type(self.query))
+            s += "?" + escape(str(self.query))
         if self.fragment:
-            s += "#" + escape(six.text_type(self.fragment))
+            s += "#" + escape(str(self.fragment))
         return s
 
 
@@ -42,25 +37,20 @@ class State(Enum):
 def parse_urn(urn):
     state = State.scheme
 
-    buffers = {
-        State.scheme: [],
-        State.path: [],
-        State.query: [],
-        State.fragment: [],
-    }
+    buffers = {State.scheme: [], State.path: [], State.query: [], State.fragment: []}
 
     for c in urn:
-        if c == ':':
+        if c == ":":
             if state == State.scheme:
                 state = State.path
                 continue
-        elif c == '?':
+        elif c == "?":
             if state == State.path:
                 state = State.query
                 continue
             else:
                 raise ValueError("query component can only come after path component")
-        elif c == '#':
+        elif c == "#":
             if state == State.path or state == State.query:
                 state = State.fragment
                 continue
@@ -75,18 +65,18 @@ def parse_urn(urn):
         raise ValueError("path cannot be empty")
 
     return ParsedURN(
-        unescape(''.join(buffers[State.scheme])),
-        unescape(''.join(buffers[State.path])),
-        unescape(''.join(buffers[State.query])),
-        unescape(''.join(buffers[State.fragment]))
+        unescape("".join(buffers[State.scheme])),
+        unescape("".join(buffers[State.path])),
+        unescape("".join(buffers[State.query])),
+        unescape("".join(buffers[State.fragment])),
     )
 
 
 def escape(s):
-    return ''.join([ESCAPES.get(c, c) for c in s])
+    return "".join([ESCAPES.get(c, c) for c in s])
 
 
 def unescape(s):
-    for ch, esc in six.iteritems(ESCAPES):
+    for ch, esc in ESCAPES.items():
         s = s.replace(esc, ch, -1)
     return s

@@ -1,4 +1,75 @@
-v3.0.394
+v3.0.407
+----------
+ * Reenable requiring policy consent
+ * Allow msgs endpoint to return ALL messages for an org sorted by created_on
+ * Return error message if non-existent asset requested from assets endpoint
+ * If contact sends message whilst being started in a flow, don't blow up
+ * Remove option to have a flow never expire, migrate current flows with never to 30 days instead
+ * Request the user to fill the LINE channel ID and channel name on the claim form
+
+v3.0.406
+----------
+ * Fix logging events to intercom
+
+v3.0.405
+----------
+ * Migration to remove FlowStep
+
+v3.0.404
+----------
+ * remove old privacy page in favor of new policy app
+ * use python3 `super` method
+ * migration to backfill step UUIDs on recent runs
+
+v3.0.403
+----------
+ * tweaks to add_analytics users
+
+v3.0.402
+----------
+ * add native intercom support, add management command to update all users
+
+v3.0.401
+----------
+ * Fix quick replies in simulator
+ * Lower the min length for Facebook page access token
+ * Update Facebook claim to ask for Page ID and Page name from the user
+ * Add new policies and consent app
+ * Fix another migration that adds a field and writes to it in same transaction
+ * Add step UUID fields to FlowPathRecentRun and update trigger on run paths to start populating them
+
+v3.0.400
+----------
+ * Don't create flow steps
+ * Remove remaining usages of six
+
+v3.0.399
+----------
+ * Drop no longer used FlowRun.message_ids field
+ * Don't allow nested flowserver trials
+ * Fix migrations which can lead to locks because they add a field and populate it in same transaction
+ * Remove a lot of six stuff
+ * Use bulk_create's returned msgs instead of forcing created_on to be same for batches of messages created by Broadcast.send
+ * Use sent_on for incoming messages's real world time
+ * Don't require steps for flow resumptions
+
+v3.0.398
+----------
+ * Add period, rollup fields to archive
+
+v3.0.397
+----------
+ * Stop writing .recipients when sending broadcasts as this is only needed for purged broadcasts
+ * Rework run_audit command to check JSON fields and not worry about steps
+ * Replace json_date_to_datetime with iso8601.parse_date
+ * Stepless surveyor runs
+
+v3.0.396
+----------
+ * Use run path instead of steps to recalculate run expirations
+ * Stop writing to FlowRun.message_ids
+
+v3.0.395
 ----------
  * Change FlowRun.get_last_msg to use message events instead of FlowRun.message_ids
  * Stop saving message associations with steps

@@ -1,23 +1,24 @@
-# -*- coding: utf-8 -*-
 from django import template
-from django.template import TemplateSyntaxError
-from django.template.defaultfilters import register
-from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.utils.translation import ugettext, ungettext_lazy
+from django.template import TemplateSyntaxError
+from django.template.defaultfilters import register
+from django.utils.translation import ugettext
+from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ungettext_lazy
+
 from ...campaigns.models import Campaign
 from ...flows.models import Flow
 from ...triggers.models import Trigger
 
 TIME_SINCE_CHUNKS = (
-    (60 * 60 * 24 * 365, ungettext_lazy('%d year', '%d years')),
-    (60 * 60 * 24 * 30, ungettext_lazy('%d month', '%d months')),
-    (60 * 60 * 24 * 7, ungettext_lazy('%d week', '%d weeks')),
-    (60 * 60 * 24, ungettext_lazy('%d day', '%d days')),
-    (60 * 60, ungettext_lazy('%d hour', '%d hours')),
-    (60, ungettext_lazy('%d minute', '%d minutes')),
-    (1, ungettext_lazy('%d second', '%d seconds'))
+    (60 * 60 * 24 * 365, ungettext_lazy("%d year", "%d years")),
+    (60 * 60 * 24 * 30, ungettext_lazy("%d month", "%d months")),
+    (60 * 60 * 24 * 7, ungettext_lazy("%d week", "%d weeks")),
+    (60 * 60 * 24, ungettext_lazy("%d day", "%d days")),
+    (60 * 60, ungettext_lazy("%d hour", "%d hours")),
+    (60, ungettext_lazy("%d minute", "%d minutes")),
+    (1, ungettext_lazy("%d second", "%d seconds")),
 )
 
 
@@ -34,7 +35,7 @@ def oxford(forloop, punctuation=""):
     if forloop["revcounter"] == 2:
         return _(", and ")
 
-    if not forloop['last']:
+    if not forloop["last"]:
         return ", "
     return punctuation
 
@@ -65,22 +66,22 @@ def format_seconds(seconds):
         return None
 
     if seconds < 60:
-        return '%s sec' % seconds
+        return "%s sec" % seconds
     minutes = seconds // 60
     seconds %= 60
     if seconds >= 30:
         minutes += 1
-    return '%s min' % minutes
+    return "%s min" % minutes
 
 
 @register.simple_tag(takes_context=True)
 def ssl_brand_url(context, url_name, args=None):
     hostname = settings.HOSTNAME
-    if 'brand' in context:
-        hostname = context['brand'].get('domain', settings.HOSTNAME)
+    if "brand" in context:
+        hostname = context["brand"].get("domain", settings.HOSTNAME)
 
     path = reverse(url_name, args)
-    if getattr(settings, 'SESSION_COOKIE_SECURE', False):  # pragma: needs cover
+    if getattr(settings, "SESSION_COOKIE_SECURE", False):  # pragma: needs cover
         return "https://%s%s" % (hostname, path)
     else:
         return path
@@ -89,8 +90,8 @@ def ssl_brand_url(context, url_name, args=None):
 @register.simple_tag(takes_context=True)
 def non_ssl_brand_url(context, url_name, args=None):
     hostname = settings.HOSTNAME
-    if 'brand' in context:
-        hostname = context['brand'].get('domain', settings.HOSTNAME)
+    if "brand" in context:
+        hostname = context["brand"].get("domain", settings.HOSTNAME)
 
     path = reverse(url_name, args)
     if settings.HOSTNAME != "localhost":
@@ -102,13 +103,13 @@ def non_ssl_brand_url(context, url_name, args=None):
 def delta_filter(delta):
     """Humanizes a timedelta object on template (i.e. "2 months, 2 weeks")."""
     if not delta:
-        return ''
+        return ""
     try:
         # ignore microseconds
         since = delta.days * 24 * 60 * 60 + delta.seconds
         if since <= 0:
             # d is in the future compared to now, stop processing.
-            return ugettext('0 seconds')
+            return ugettext("0 seconds")
         for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
             count = since // seconds
             if count != 0:
@@ -119,11 +120,11 @@ def delta_filter(delta):
             seconds2, name2 = TIME_SINCE_CHUNKS[i + 1]
             count2 = (since - (seconds * count)) // seconds2
             if count2 != 0:
-                result += ugettext(', ') + name2 % count2
+                result += ugettext(", ") + name2 % count2
         return result
 
     except Exception:
-        return ''
+        return ""
 
 
 def lessblock(parser, token):
@@ -131,19 +132,20 @@ def lessblock(parser, token):
     if len(args) != 1:  # pragma: no cover
         raise TemplateSyntaxError("lessblock tag takes no arguments, got: [%s]" % ",".join(args))
 
-    nodelist = parser.parse(('endlessblock',))
+    nodelist = parser.parse(("endlessblock",))
     parser.delete_first_token()
     return LessBlockNode(nodelist)
 
 
 class LessBlockNode(template.Node):
+
     def __init__(self, nodelist):
         self.nodelist = nodelist
 
     def render(self, context):
         output = self.nodelist.render(context)
         includes = '@import (reference) "variables.less";\n'
-        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % context['brand']['slug']
+        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % context["brand"]["slug"]
         includes += '@import (reference) "mixins.less";\n'
         style_output = '<style type="text/less" media="all">\n%s\n%s</style>' % (includes, output)
         return style_output

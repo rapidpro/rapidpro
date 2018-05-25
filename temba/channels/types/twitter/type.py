@@ -1,18 +1,15 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import time
 
-import six
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import Contact, TWITTER_SCHEME, TWITTERID_SCHEME, URN
+from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME, URN, Contact
 from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython
-from .views import ClaimView
+
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
 from ...views import UpdateTwitterForm
+from .views import ClaimView
 
 
 class TwitterType(ChannelType):
@@ -20,11 +17,11 @@ class TwitterType(ChannelType):
     A Twitter channel which uses Mage to stream DMs for a handle which has given access to a Twitter app configured for
     this deployment.
     """
-    code = 'TT'
+    code = "TT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter"
-    icon = 'icon-twitter'
+    icon = "icon-twitter"
 
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
     claim_view = ClaimView
@@ -37,8 +34,10 @@ class TwitterType(ChannelType):
     free_sending = True
     quick_reply_text_size = 36
 
-    FATAL_403S = ("messages to this user right now",  # handle is suspended
-                  "users who are not following you")  # handle no longer follows us
+    FATAL_403S = (
+        "messages to this user right now",  # handle is suspended
+        "users who are not following you",
+    )  # handle no longer follows us
 
     def activate(self, channel):
         # tell Mage to activate this channel
@@ -53,48 +52,48 @@ class TwitterType(ChannelType):
         start = time.time()
 
         try:
-            urn = getattr(msg, 'urn', URN.from_twitter(msg.urn_path))
+            urn = getattr(msg, "urn", URN.from_twitter(msg.urn_path))
             (scheme, path, query, display) = URN.to_parts(urn)
 
             # this is a legacy URN (no display), the path is our screen name
             if scheme == TWITTER_SCHEME:
                 dm = twitter.send_direct_message(screen_name=path, text=text)
-                external_id = dm['id']
+                external_id = dm["id"]
 
             # this is a new twitterid URN, our path is our user id
             else:
-                metadata = msg.metadata if hasattr(msg, 'metadata') else {}
-                quick_replies = metadata.get('quick_replies', [])
-                formatted_replies = [dict(label=item[:self.quick_reply_text_size]) for item in quick_replies]
+                metadata = msg.metadata if hasattr(msg, "metadata") else {}
+                quick_replies = metadata.get("quick_replies", [])
+                formatted_replies = [dict(label=item[: self.quick_reply_text_size]) for item in quick_replies]
 
                 if quick_replies:
                     params = {
-                        'event': {
-                            'type': 'message_create',
-                            'message_create': {
-                                'target': {'recipient_id': path},
-                                'message_data': {
-                                    'text': text,
-                                    'quick_reply': {'type': 'options', 'options': formatted_replies}
-                                }
-                            }
+                        "event": {
+                            "type": "message_create",
+                            "message_create": {
+                                "target": {"recipient_id": path},
+                                "message_data": {
+                                    "text": text,
+                                    "quick_reply": {"type": "options", "options": formatted_replies},
+                                },
+                            },
                         }
                     }
-                    dm = twitter.post('direct_messages/events/new', params=params)
-                    external_id = dm['event']['id']
+                    dm = twitter.post("direct_messages/events/new", params=params)
+                    external_id = dm["event"]["id"]
                 else:
                     dm = twitter.send_direct_message(user_id=path, text=text)
-                    external_id = dm['id']
+                    external_id = dm["id"]
 
         except Exception as e:
-            error_code = getattr(e, 'error_code', 400)
+            error_code = getattr(e, "error_code", 400)
             fatal = False
 
             if error_code == 404:  # handle doesn't exist
                 fatal = True
             elif error_code == 403:
                 for err in self.FATAL_403S:
-                    if six.text_type(e).find(err) >= 0:
+                    if str(e).find(err) >= 0:
                         fatal = True
                         break
 

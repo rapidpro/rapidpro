@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 from twilio import TwilioRestException
@@ -8,6 +6,7 @@ from temba.channels.types.twilio.views import ClaimView
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
 from temba.contacts.models import TEL_SCHEME
 from temba.utils.timezones import timezone_to_country_code
+
 from ...models import ChannelType
 
 
@@ -16,14 +15,16 @@ class TwilioType(ChannelType):
     An Twilio channel
     """
 
-    code = 'T'
+    code = "T"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     name = "Twilio"
     icon = "icon-channel-twilio"
-    claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs.""")
+    claim_blurb = _(
+        """Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -42,13 +43,13 @@ class TwilioType(ChannelType):
         number_update_args = dict()
 
         if not channel.is_delegate_sender():
-            number_update_args['sms_application_sid'] = ""
+            number_update_args["sms_application_sid"] = ""
 
         if channel.supports_ivr():
-            number_update_args['voice_application_sid'] = ""
+            number_update_args["voice_application_sid"] = ""
 
         try:
-            number_sid = channel.bod or channel.config['number_sid']
+            number_sid = channel.bod or channel.config["number_sid"]
             client.phone_numbers.update(number_sid, **number_update_args)
         except Exception:
             if client:
@@ -56,8 +57,8 @@ class TwilioType(ChannelType):
                 if matching:
                     client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-        if 'application_sid' in config:
+        if "application_sid" in config:
             try:
-                client.applications.delete(sid=config['application_sid'])
+                client.applications.delete(sid=config["application_sid"])
             except TwilioRestException:  # pragma: no cover
                 pass

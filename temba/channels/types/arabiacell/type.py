@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME
-from .views import ClaimView
+
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class ArabiaCellType(ChannelType):
     """
     An ArabiaCell channel type (http://arabiacell.com)
     """
-    code = 'AC'
+    code = "AC"
     name = "ArabiaCell"
     available_timezones = ["Asia/Amman"]
     recommended_timezones = ["Asia/Amman"]

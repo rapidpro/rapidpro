@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -7,6 +5,7 @@ from temba.channels.types.twilio_messaging_service.views import ClaimView
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
 from temba.contacts.models import TEL_SCHEME
 from temba.utils.timezones import timezone_to_country_code
+
 from ...models import ChannelType
 
 
@@ -15,10 +14,10 @@ class TwilioMessagingServiceType(ChannelType):
     An Twilio Messaging Service channel
     """
 
-    code = 'TMS'
+    code = "TMS"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_url = r"^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     name = "Twilio Messaging Service"
     slug = "twilio_messaging_service"
@@ -41,7 +40,9 @@ class TwilioMessagingServiceType(ChannelType):
         dict(
             label=_("Request URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.tms' channel.uuid 'receive' %}",
-            description=_("This endpoint should be called by Twilio when new messages are received by your Messaging Service."),
+            description=_(
+                "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
+            ),
         ),
     )
 

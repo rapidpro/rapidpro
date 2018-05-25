@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 """
 We need our own custom template loaders because we allow templates to be overridden even when the extension doesn't
@@ -10,8 +8,7 @@ import os
 
 from django.template import TemplateDoesNotExist
 from django.template.base import Origin
-from django.template.loaders import filesystem, app_directories
-
+from django.template.loaders import app_directories, filesystem
 from hamlpy import HAML_EXTENSIONS
 from hamlpy.compiler import Compiler
 from hamlpy.template.utils import get_django_template_loaders
@@ -21,6 +18,7 @@ def get_haml_loader(loader):
     baseclass = loader.Loader
 
     class Loader(baseclass):
+
         def get_contents(self, origin):
             """
             Used by Django 1.9+
@@ -33,7 +31,7 @@ def get_haml_loader(loader):
                 try_template_name = self._generate_template_name(template_name, extension)
                 try_origin = Origin(try_name, try_template_name, origin.loader)
                 try:
-                    haml_source = super(Loader, self).get_contents(try_origin)
+                    haml_source = super().get_contents(try_origin)
                 except TemplateDoesNotExist:
                     pass
                 else:

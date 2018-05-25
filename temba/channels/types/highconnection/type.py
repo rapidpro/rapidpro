@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -14,16 +11,18 @@ class HighConnectionType(ChannelType):
     An High Connection channel (http://www.highconnexion.com/en/)
     """
 
-    code = 'HX'
+    code = "HX"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_url = r"^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "High Connection"
     slug = "high_connection"
 
-    claim_blurb = _("""If you are based in France, you can purchase a number from High Connexion
-                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.""")
+    claim_blurb = _(
+        """If you are based in France, you can purchase a number from High Connexion
+                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps."""
+    )
     claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [TEL_SCHEME]
@@ -45,4 +44,4 @@ class HighConnectionType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["Europe/Paris"]
+        return org.timezone and str(org.timezone) in ["Europe/Paris"]

@@ -1,25 +1,22 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os.path
+from zipfile import ZipFile
+
 import geojson
 import regex
-
-from zipfile import ZipFile
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.core.management.base import BaseCommand
+
 from temba.locations.models import AdminBoundary
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = 'Import our geojson zip file format, updating all our OSM data accordingly.'
+    help = "Import our geojson zip file format, updating all our OSM data accordingly."
 
     def add_arguments(self, parser):
-        parser.add_argument('files', nargs='+')
-        parser.add_argument('--country',
-                            dest='country',
-                            default=None,
-                            help="Only process the boundary files for this country osm id")
+        parser.add_argument("files", nargs="+")
+        parser.add_argument(
+            "--country", dest="country", default=None, help="Only process the boundary files for this country osm id"
+        )
 
     def import_file(self, filename, file):
         admin_json = geojson.loads(file.read())
@@ -31,8 +28,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         # parse our filename.. they are in the format:
         # 192787admin2_simplified.json
-        match = regex.match(
-            r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
+        match = regex.match(r"(\w\d+)admin(\d)(_simplified)?\.json$", filename, regex.V0)
         level = None
         is_simplified = None
         if match:
@@ -41,8 +37,7 @@ class Command(BaseCommand):  # pragma: no cover
         else:
             # else parse other filenames that are in
             # admin_level_0_simplified.json format.
-            match = regex.match(
-                r'admin_level_(\d)(_simplified)?\.json$', filename, regex.V0)
+            match = regex.match(r"admin_level_(\d)(_simplified)?\.json$", filename, regex.V0)
             if match:
                 level = int(match.group(1))
                 is_simplified = True if match.group(2) else False
@@ -51,32 +46,31 @@ class Command(BaseCommand):  # pragma: no cover
                 return
 
         # for each of our features
-        for feature in admin_json['features']:
+        for feature in admin_json["features"]:
             # what level are we?
             props = feature.properties
 
             # get parent id which is set in new file format
-            parent_osm_id = props.get('parent_id')
+            parent_osm_id = props.get("parent_id")
 
             # if parent_osm_id is not set and not LEVEL_COUNTRY check for old file format
             if not parent_osm_id and level != AdminBoundary.LEVEL_COUNTRY:
                 if level == AdminBoundary.LEVEL_STATE:
-                    parent_osm_id = props['is_in_country']
+                    parent_osm_id = props["is_in_country"]
                 elif level == AdminBoundary.LEVEL_DISTRICT:
-                    parent_osm_id = props['is_in_state']
+                    parent_osm_id = props["is_in_state"]
 
-            osm_id = props['osm_id']
-            name = props.get('name', '')
-            if not name or name == 'None' or level == AdminBoundary.LEVEL_COUNTRY:
-                name = props.get('name_en', '')
+            osm_id = props["osm_id"]
+            name = props.get("name", "")
+            if not name or name == "None" or level == AdminBoundary.LEVEL_COUNTRY:
+                name = props.get("name_en", "")
 
             # try to find parent, bail if we can't
             parent = None
-            if parent_osm_id and parent_osm_id != 'None':
+            if parent_osm_id and parent_osm_id != "None":
                 parent = AdminBoundary.objects.filter(osm_id=parent_osm_id).first()
                 if not parent:
-                    print("Skipping %s (%s) as parent %s not found." %
-                          (name, osm_id, parent_osm_id))
+                    print("Skipping %s (%s) as parent %s not found." % (name, osm_id, parent_osm_id))
                     continue
 
             # try to find existing admin level by osm_id
@@ -87,33 +81,32 @@ class Command(BaseCommand):  # pragma: no cover
                 boundary = AdminBoundary.objects.filter(parent=parent, name__iexact=name)
 
             # skip over items with no geometry
-            if not feature['geometry'] or not feature['geometry']['coordinates']:
+            if not feature["geometry"] or not feature["geometry"]["coordinates"]:
                 continue
 
             polygons = []
-            if feature['geometry']['type'] == 'Polygon':
-                polygons.append(Polygon(*feature['geometry']['coordinates']))
-            elif feature['geometry']['type'] == 'MultiPolygon':
-                for polygon in feature['geometry']['coordinates']:
+            if feature["geometry"]["type"] == "Polygon":
+                polygons.append(Polygon(*feature["geometry"]["coordinates"]))
+            elif feature["geometry"]["type"] == "MultiPolygon":
+                for polygon in feature["geometry"]["coordinates"]:
                     polygons.append(Polygon(*polygon))
             else:
-                raise Exception("Error importing %s, unknown geometry type '%s'" % (
-                    name, feature['geometry']['type']))
+                raise Exception("Error importing %s, unknown geometry type '%s'" % (name, feature["geometry"]["type"]))
 
             geometry = MultiPolygon(polygons)
 
             kwargs = dict(osm_id=osm_id, name=name, level=level, parent=parent)
             if is_simplified:
-                kwargs['simplified_geometry'] = geometry
+                kwargs["simplified_geometry"] = geometry
             else:
-                kwargs['geometry'] = geometry
+                kwargs["geometry"] = geometry
 
             # if this is an update, just update with those fields
             if boundary:
                 if not parent:
-                    kwargs['path'] = name
+                    kwargs["path"] = name
                 else:
-                    kwargs['path'] = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
+                    kwargs["path"] = parent.path + AdminBoundary.PADDED_PATH_SEPARATOR + name
 
                 print(" ** updating %s (%s)" % (name, osm_id))
                 boundary = boundary.first()
@@ -140,20 +133,20 @@ class Command(BaseCommand):  # pragma: no cover
                 return country
 
     def handle(self, *args, **options):
-        files = options['files']
+        files = options["files"]
 
         zipfile = None
         if files[0].endswith(".zip"):
-            zipfile = ZipFile(files[0], 'r')
+            zipfile = ZipFile(files[0], "r")
             filepaths = zipfile.namelist()
 
         else:
             filepaths = list(files)
 
         # are we filtering by a prefix?
-        prefix = ''
-        if options['country']:
-            prefix = '%sadmin' % options['country']
+        prefix = ""
+        if options["country"]:
+            prefix = "%sadmin" % options["country"]
 
         # sort our filepaths, this will make sure we import 0 levels before 1
         # before 2
@@ -164,7 +157,7 @@ class Command(BaseCommand):  # pragma: no cover
         for filepath in filepaths:
             filename = os.path.basename(filepath)
             # if it ends in json, then it is geojson, try to parse it
-            if filename.startswith(prefix) and filename.endswith('json'):
+            if filename.startswith(prefix) and filename.endswith("json"):
                 # read the file entirely
                 print("=== parsing %s" % filename)
 

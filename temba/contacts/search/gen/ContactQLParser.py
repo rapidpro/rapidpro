@@ -1,16 +1,17 @@
 # Generated from ContactQL.g4 by ANTLR 4.7
 # encoding: utf-8
-from __future__ import absolute_import, division, print_function, unicode_literals
-from antlr4 import *
-from io import StringIO
 import sys
+from io import StringIO
+
+from antlr4 import *
+
 
 def serializedATN():
     with StringIO() as buf:
         buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3")
         buf.write(u"\13(\4\2\t\2\4\3\t\3\4\4\t\4\3\2\3\2\3\2\3\3\3\3\3\3")
         buf.write(u"\3\3\3\3\3\3\3\3\3\3\3\3\5\3\25\n\3\3\3\3\3\3\3\3\3\3")
-        buf.write(u"\3\3\3\3\3\3\3\7\3\37\n\3\f\3\16\3\"\13\3\3\4\3\4\5\4")
+        buf.write(u'\3\3\3\3\3\3\3\7\3\37\n\3\f\3\16\3"\13\3\3\4\3\4\5\4')
         buf.write(u"&\n\4\3\4\2\3\4\5\2\4\6\2\2\2*\2\b\3\2\2\2\4\24\3\2\2")
         buf.write(u"\2\6%\3\2\2\2\b\t\5\4\3\2\t\n\7\2\2\3\n\3\3\2\2\2\13")
         buf.write(u"\f\b\3\1\2\f\r\7\3\2\2\r\16\5\4\3\2\16\17\7\4\2\2\17")
@@ -19,51 +20,59 @@ def serializedATN():
         buf.write(u"\2\2\25 \3\2\2\2\26\27\f\b\2\2\27\30\7\5\2\2\30\37\5")
         buf.write(u"\4\3\t\31\32\f\7\2\2\32\37\5\4\3\b\33\34\f\6\2\2\34\35")
         buf.write(u"\7\6\2\2\35\37\5\4\3\7\36\26\3\2\2\2\36\31\3\2\2\2\36")
-        buf.write(u"\33\3\2\2\2\37\"\3\2\2\2 \36\3\2\2\2 !\3\2\2\2!\5\3\2")
-        buf.write(u"\2\2\" \3\2\2\2#&\7\b\2\2$&\7\t\2\2%#\3\2\2\2%$\3\2\2")
+        buf.write(u'\33\3\2\2\2\37"\3\2\2\2 \36\3\2\2\2 !\3\2\2\2!\5\3\2')
+        buf.write(u'\2\2" \3\2\2\2#&\7\b\2\2$&\7\t\2\2%#\3\2\2\2%$\3\2\2')
         buf.write(u"\2&\7\3\2\2\2\6\24\36 %")
         return buf.getvalue()
 
 
-class ContactQLParser ( Parser ):
+class ContactQLParser(Parser):
 
     grammarFileName = "ContactQL.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
+    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ u"<INVALID>", u"'('", u"')'" ]
+    literalNames = [u"<INVALID>", u"'('", u"')'"]
 
-    symbolicNames = [ u"<INVALID>", u"LPAREN", u"RPAREN", u"AND", u"OR", 
-                      u"COMPARATOR", u"TEXT", u"STRING", u"WS", u"ERROR" ]
+    symbolicNames = [
+        u"<INVALID>",
+        u"LPAREN",
+        u"RPAREN",
+        u"AND",
+        u"OR",
+        u"COMPARATOR",
+        u"TEXT",
+        u"STRING",
+        u"WS",
+        u"ERROR",
+    ]
 
     RULE_parse = 0
     RULE_expression = 1
     RULE_literal = 2
 
-    ruleNames =  [ u"parse", u"expression", u"literal" ]
+    ruleNames = [u"parse", u"expression", u"literal"]
 
     EOF = Token.EOF
-    LPAREN=1
-    RPAREN=2
-    AND=3
-    OR=4
-    COMPARATOR=5
-    TEXT=6
-    STRING=7
-    WS=8
-    ERROR=9
+    LPAREN = 1
+    RPAREN = 2
+    AND = 3
+    OR = 4
+    COMPARATOR = 5
+    TEXT = 6
+    STRING = 7
+    WS = 8
+    ERROR = 9
 
     def __init__(self, input, output=sys.stdout):
         super(ContactQLParser, self).__init__(input, output=output)
         self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
-
-
 
     class ParseContext(ParserRuleContext):
 
@@ -72,8 +81,7 @@ class ContactQLParser ( Parser ):
             self.parser = parser
 
         def expression(self):
-            return self.getTypedRuleContext(ContactQLParser.ExpressionContext,0)
-
+            return self.getTypedRuleContext(ContactQLParser.ExpressionContext, 0)
 
         def EOF(self):
             return self.getToken(ContactQLParser.EOF, 0)
@@ -86,9 +94,6 @@ class ContactQLParser ( Parser ):
                 return visitor.visitParse(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def parse(self):
 
@@ -114,18 +119,15 @@ class ContactQLParser ( Parser ):
             super(ContactQLParser.ExpressionContext, self).__init__(parent, invokingState)
             self.parser = parser
 
-
         def getRuleIndex(self):
             return ContactQLParser.RULE_expression
 
-     
         def copyFrom(self, ctx):
             super(ContactQLParser.ExpressionContext, self).copyFrom(ctx)
 
-
     class ImplicitConditionContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ImplicitConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -138,20 +140,20 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class ConditionContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def TEXT(self):
             return self.getToken(ContactQLParser.TEXT, 0)
+
         def COMPARATOR(self):
             return self.getToken(ContactQLParser.COMPARATOR, 0)
-        def literal(self):
-            return self.getTypedRuleContext(ContactQLParser.LiteralContext,0)
 
+        def literal(self):
+            return self.getTypedRuleContext(ContactQLParser.LiteralContext, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCondition"):
@@ -159,10 +161,9 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class CombinationAndContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationAndContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -170,7 +171,7 @@ class ContactQLParser ( Parser ):
             if i is None:
                 return self.getTypedRuleContexts(ContactQLParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(ContactQLParser.ExpressionContext,i)
+                return self.getTypedRuleContext(ContactQLParser.ExpressionContext, i)
 
         def AND(self):
             return self.getToken(ContactQLParser.AND, 0)
@@ -181,10 +182,9 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class CombinationImpicitAndContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationImpicitAndContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -192,8 +192,7 @@ class ContactQLParser ( Parser ):
             if i is None:
                 return self.getTypedRuleContexts(ContactQLParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(ContactQLParser.ExpressionContext,i)
-
+                return self.getTypedRuleContext(ContactQLParser.ExpressionContext, i)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCombinationImpicitAnd"):
@@ -201,10 +200,9 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class CombinationOrContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationOrContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -212,7 +210,7 @@ class ContactQLParser ( Parser ):
             if i is None:
                 return self.getTypedRuleContexts(ContactQLParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(ContactQLParser.ExpressionContext,i)
+                return self.getTypedRuleContext(ContactQLParser.ExpressionContext, i)
 
         def OR(self):
             return self.getToken(ContactQLParser.OR, 0)
@@ -223,17 +221,17 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class ExpressionGroupingContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.ExpressionContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ExpressionGroupingContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def LPAREN(self):
             return self.getToken(ContactQLParser.LPAREN, 0)
+
         def expression(self):
-            return self.getTypedRuleContext(ContactQLParser.ExpressionContext,0)
+            return self.getTypedRuleContext(ContactQLParser.ExpressionContext, 0)
 
         def RPAREN(self):
             return self.getToken(ContactQLParser.RPAREN, 0)
@@ -243,8 +241,6 @@ class ContactQLParser ( Parser ):
                 return visitor.visitExpressionGrouping(self)
             else:
                 return visitor.visitChildren(self)
-
-
 
     def expression(self, _p=0):
         _parentctx = self._ctx
@@ -257,7 +253,7 @@ class ContactQLParser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 18
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,0,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input, 0, self._ctx)
             if la_ == 1:
                 localctx = ContactQLParser.ExpressionGroupingContext(self, localctx)
                 self._ctx = localctx
@@ -291,25 +287,27 @@ class ContactQLParser ( Parser ):
                 self.match(ContactQLParser.TEXT)
                 pass
 
-
             self._ctx.stop = self._input.LT(-1)
             self.state = 30
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,2,self._ctx)
-            while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
-                if _alt==1:
+            _alt = self._interp.adaptivePredict(self._input, 2, self._ctx)
+            while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
+                if _alt == 1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
                     self.state = 28
                     self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input,1,self._ctx)
+                    la_ = self._interp.adaptivePredict(self._input, 1, self._ctx)
                     if la_ == 1:
-                        localctx = ContactQLParser.CombinationAndContext(self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactQLParser.CombinationAndContext(
+                            self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState)
+                        )
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 20
                         if not self.precpred(self._ctx, 6):
                             from antlr4.error.Errors import FailedPredicateException
+
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
                         self.state = 21
                         self.match(ContactQLParser.AND)
@@ -318,22 +316,28 @@ class ContactQLParser ( Parser ):
                         pass
 
                     elif la_ == 2:
-                        localctx = ContactQLParser.CombinationImpicitAndContext(self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactQLParser.CombinationImpicitAndContext(
+                            self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState)
+                        )
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 23
                         if not self.precpred(self._ctx, 5):
                             from antlr4.error.Errors import FailedPredicateException
+
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 5)")
                         self.state = 24
                         self.expression(6)
                         pass
 
                     elif la_ == 3:
-                        localctx = ContactQLParser.CombinationOrContext(self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactQLParser.CombinationOrContext(
+                            self, ContactQLParser.ExpressionContext(self, _parentctx, _parentState)
+                        )
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 25
                         if not self.precpred(self._ctx, 4):
                             from antlr4.error.Errors import FailedPredicateException
+
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
                         self.state = 26
                         self.match(ContactQLParser.OR)
@@ -341,10 +345,9 @@ class ContactQLParser ( Parser ):
                         self.expression(5)
                         pass
 
-             
                 self.state = 32
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,2,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input, 2, self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -360,19 +363,15 @@ class ContactQLParser ( Parser ):
             super(ContactQLParser.LiteralContext, self).__init__(parent, invokingState)
             self.parser = parser
 
-
         def getRuleIndex(self):
             return ContactQLParser.RULE_literal
 
-     
         def copyFrom(self, ctx):
             super(ContactQLParser.LiteralContext, self).copyFrom(ctx)
 
-
-
     class StringLiteralContext(LiteralContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.LiteralContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.LiteralContext)
             super(ContactQLParser.StringLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -385,10 +384,9 @@ class ContactQLParser ( Parser ):
             else:
                 return visitor.visitChildren(self)
 
-
     class TextLiteralContext(LiteralContext):
 
-        def __init__(self, parser, ctx): # actually a ContactQLParser.LiteralContext)
+        def __init__(self, parser, ctx):  # actually a ContactQLParser.LiteralContext)
             super(ContactQLParser.TextLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)
 
@@ -400,8 +398,6 @@ class ContactQLParser ( Parser ):
                 return visitor.visitTextLiteral(self)
             else:
                 return visitor.visitChildren(self)
-
-
 
     def literal(self):
 
@@ -434,8 +430,6 @@ class ContactQLParser ( Parser ):
             self.exitRule()
         return localctx
 
-
-
     def sempred(self, localctx, ruleIndex, predIndex):
         if self._predicates == None:
             self._predicates = dict()
@@ -447,18 +441,11 @@ class ContactQLParser ( Parser ):
             return pred(localctx, predIndex)
 
     def expression_sempred(self, localctx, predIndex):
-            if predIndex == 0:
-                return self.precpred(self._ctx, 6)
-         
+        if predIndex == 0:
+            return self.precpred(self._ctx, 6)
 
-            if predIndex == 1:
-                return self.precpred(self._ctx, 5)
-         
+        if predIndex == 1:
+            return self.precpred(self._ctx, 5)
 
-            if predIndex == 2:
-                return self.precpred(self._ctx, 4)
-         
-
-
-
-
+        if predIndex == 2:
+            return self.precpred(self._ctx, 4)

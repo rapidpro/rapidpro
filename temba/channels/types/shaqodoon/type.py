@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import six
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.shaqodoon.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -14,15 +11,17 @@ class ShaqodoonType(ChannelType):
     An Shaqodoon channel
     """
 
-    code = 'SQ'
+    code = "SQ"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_url = r"^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
 
     name = "Shaqodoon"
 
-    claim_blurb = _("""If you are based in Somalia, you can integrate with Shaqodoon to send
-                       and receive messages on your shortcode.""")
+    claim_blurb = _(
+        """If you are based in Somalia, you can integrate with Shaqodoon to send
+                       and receive messages on your shortcode."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -37,15 +36,12 @@ class ShaqodoonType(ChannelType):
     )
 
     configuration_urls = (
-        dict(
-            label=_(""),
-            url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"
-        ),
+        dict(label=_(""), url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"),
     )
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ['Africa/Mogadishu']
+        return org.timezone and str(org.timezone) in ["Africa/Mogadishu"]
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)
