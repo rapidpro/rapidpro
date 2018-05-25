@@ -8,7 +8,7 @@ if [ -n "$FILES" ]; then
 fi
 
 if [ -n "$FILES" ]; then
-    black --line-length=119 --quiet $FILES 
+    black --line-length=119 --quiet $FILES || true
 fi
 
 if [ -n "$FILES" ]; then
