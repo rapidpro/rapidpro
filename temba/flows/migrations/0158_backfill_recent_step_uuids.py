@@ -62,7 +62,7 @@ def calculate_step_uuids(recent_run):
 
     # maybe we have a bad run, maybe we had to trim this run's path?
     if not segment_step_pairs:
-        raise None
+        return None
 
     if len(segment_step_pairs) == 1:
         segment_step_pair = segment_step_pairs[0]
