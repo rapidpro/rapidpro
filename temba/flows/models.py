@@ -316,8 +316,12 @@ class FlowSession(models.Model):
         runs = []
         msgs_to_send = []
         first_run = None
-        for run in output.session['runs']:
-            run_events = [e for e in output.events if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run['uuid']]
+        for run in output.session["runs"]:
+            run_events = [
+                e
+                for e in output.events
+                if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run["uuid"]
+            ]
             wait = output.session["wait"] if run["status"] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
@@ -3033,9 +3037,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     PATH_EXIT_UUID = "exit_uuid"
     PATH_MAX_STEPS = 100
 
-    EVENT_TYPE = 'type'
-    EVENT_STEP_UUID = 'step_uuid'
-    EVENT_CREATED_ON = 'created_on'
+    EVENT_TYPE = "type"
+    EVENT_STEP_UUID = "step_uuid"
+    EVENT_CREATED_ON = "created_on"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -3820,7 +3824,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         existing_msg_uuids = set()
         for e in self.get_msg_events():
-            msg_uuid = e['msg'].get('uuid')
+            msg_uuid = e["msg"].get("uuid")
             if msg_uuid:
                 existing_msg_uuids.add(msg_uuid)
 
@@ -3835,14 +3839,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if str(msg.uuid) in existing_msg_uuids:
                 continue
 
-            self.events.append({
-                FlowRun.EVENT_TYPE: server.Events.msg_received.name
-                if msg.direction == INCOMING
-                else server.Events.msg_created.name,
-                FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
-                FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
-                'msg': server.serialize_message(msg)
-            })
+            self.events.append(
+                {
+                    FlowRun.EVENT_TYPE: server.Events.msg_received.name
+                    if msg.direction == INCOMING
+                    else server.Events.msg_created.name,
+                    FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
+                    FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
+                    "msg": server.serialize_message(msg),
+                }
+            )
 
             existing_msg_uuids.add(str(msg.uuid))
             needs_update = True
