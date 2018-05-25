@@ -737,16 +737,15 @@ class Msg(models.Model):
         (USSD, _("USSD Message")),
     )
 
-    DELETE_FOR_ARCHIVE = 'A'
-    DELETE_FOR_PURGE = 'P'
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_PURGE = "P"
 
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")),
-                      (DELETE_FOR_PURGE, _("Purge delete"))),
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_PURGE, _("Purge delete"))),)
 
-    MEDIA_GPS = 'geo'
-    MEDIA_IMAGE = 'image'
-    MEDIA_VIDEO = 'video'
-    MEDIA_AUDIO = 'audio'
+    MEDIA_GPS = "geo"
+    MEDIA_IMAGE = "image"
+    MEDIA_VIDEO = "video"
+    MEDIA_AUDIO = "audio"
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
@@ -909,8 +908,9 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
 
-    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES,
-                                     help_text=_("How the message is being deleted"))
+    delete_reason = models.CharField(
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("How the message is being deleted")
+    )
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -1898,7 +1898,9 @@ class Msg(models.Model):
                 cursor = connection.cursor()
                 msg_ids = tuple([m.id for m in msg_batch])
                 cursor.execute("DELETE FROM channels_channellog WHERE msg_id IN %s", params=[msg_ids])
-                cursor.execute("UPDATE msgs_msg SET delete_reason = %s WHERE id IN %s", params=[Msg.DELETE_FOR_PURGE, msg_ids])
+                cursor.execute(
+                    "UPDATE msgs_msg SET delete_reason = %s WHERE id IN %s", params=[Msg.DELETE_FOR_PURGE, msg_ids]
+                )
                 cursor.execute("DELETE FROM msgs_msg WHERE id IN %s", params=[msg_ids])
 
     @classmethod
