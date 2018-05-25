@@ -41,7 +41,7 @@ class MessangiType(ChannelType):
         """
     )
 
-    
+
 
     configuration_urls = (
         dict(
