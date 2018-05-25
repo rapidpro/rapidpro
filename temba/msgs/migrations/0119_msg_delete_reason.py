@@ -48,16 +48,18 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0118_auto_20180524_1826'),
-    ]
+    dependencies = [("msgs", "0118_auto_20180524_1826")]
 
     operations = [
         migrations.AddField(
-            model_name='msg',
-            name='delete_reason',
-            field=models.CharField(choices=[(('A', 'Archive delete'), ('P', 'Purge delete'))], help_text='How the message is being deleted', max_length=1, null=True),
+            model_name="msg",
+            name="delete_reason",
+            field=models.CharField(
+                choices=[(("A", "Archive delete"), ("P", "Purge delete"))],
+                help_text="How the message is being deleted",
+                max_length=1,
+                null=True,
+            ),
         ),
-        migrations.RunSQL(SQL_update_credits, '')
-
+        migrations.RunSQL(SQL_update_credits, ""),
     ]
