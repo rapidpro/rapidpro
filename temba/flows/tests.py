@@ -634,6 +634,28 @@ class FlowTest(TembaTest):
         # this is drawn from the message which didn't change
         self.assertEqual('orange', context['flow']['color']['text'])
 
+    def test_add_messages(self):
+        run, = self.flow.start([], [self.contact])
+
+        msgs = run.get_messages().order_by('id')
+        self.assertEqual(len(run.get_msg_events()), 1)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertFalse(run.responded)
+
+        # can't add same messages more than once
+        run.add_messages(msgs[:])
+        self.assertEqual(len(run.get_msg_events()), 1)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertFalse(run.responded)
+
+        Msg.create_incoming(self.channel, 'tel:+250788382382', "hi there")
+
+        run.refresh_from_db()
+        msgs = run.get_messages().order_by('id')
+        self.assertEqual(len(run.get_msg_events()), 3)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertTrue(run.responded)
+
     def test_anon_export_results(self):
         self.org.is_anon = True
         self.org.save()
@@ -679,7 +701,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(43):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -772,7 +794,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(35):
             workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -827,7 +849,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -904,7 +926,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -928,7 +950,7 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age")
         self.contact.set_field(self.admin, 'age', 36)
 
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 

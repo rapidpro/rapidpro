@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 TRIAL_LOCK = 'flowserver_trial'
-TRIAL_PERIOD = 60  # only perform a trial every 1 minute
+TRIAL_PERIOD = 15  # only perform a trial every 15 seconds
 
 
 class ResumeTrial(object):
