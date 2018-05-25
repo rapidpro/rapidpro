@@ -38,10 +38,11 @@ from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, on_transaction_commit, chunk_list, goflow, str_to_bool
+from temba.utils import analytics, on_transaction_commit, chunk_list, str_to_bool
+from temba.flows import server
 from temba.utils.dates import datetime_to_str, datetime_to_ms
 from temba.utils.expressions import get_function_listing
-from temba.utils.goflow import get_client
+from temba.flows.server import get_client
 from temba.utils.views import BaseActionForm
 from uuid import uuid4
 from .models import RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowPathRecentRun
@@ -51,7 +52,6 @@ logger = logging.getLogger(__name__)
 
 
 EXPIRES_CHOICES = (
-    (0, _('Never')),
     (5, _('After 5 minutes')),
     (10, _('After 10 minutes')),
     (15, _('After 15 minutes')),
@@ -1488,12 +1488,12 @@ class FlowCRUDL(SmartCRUDL):
                 return org.country
 
         resources = {
-            'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
-            'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
-            'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), goflow.serialize_flow),
-            'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), goflow.serialize_group),
-            'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
-            'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
+            'channel': Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
+            'field': Resource(ContactField.objects.filter(is_active=True), server.serialize_field),
+            'flow': Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
+            'group': Resource(ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY), server.serialize_group),
+            'label': Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
+            'location_hierarchy': BoundaryResource(server.serialize_location_hierarchy),
         }
 
         simulator_extras = {
@@ -1527,6 +1527,9 @@ class FlowCRUDL(SmartCRUDL):
             resource = self.resources[resource_type]
             if uuid:
                 result = resource.get_item(org, uuid)
+
+                if result is None:
+                    return JsonResponse({'error': f"no such {resource_type} with UUID '{uuid}'"}, status=400)
             else:
                 result = resource.get_root(org)
 

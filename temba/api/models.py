@@ -223,7 +223,7 @@ class WebHookEvent(SmartModel):
 
         post_data = {
             'contact': contact_dict,
-            'flow': dict(name=flow.name, uuid=flow.uuid),
+            'flow': dict(name=flow.name, uuid=flow.uuid, revision=flow.revisions.order_by('revision').last().revision),
             'path': run.path,
             'results': run.results,
             'run': dict(uuid=str(run.uuid), created_on=run.created_on.isoformat())

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 TRIAL_LOCK = 'flowserver_trial'
-TRIAL_PERIOD = 60  # only perform a trial every 1 minute
+TRIAL_PERIOD = 15  # only perform a trial every 15 seconds
 
 
 class ResumeTrial(object):
@@ -272,26 +272,26 @@ def compare_run(run, session):
     if not session_run:
         return {'session': "run %s not found" % str(run.uuid)}
 
-    rapidpro_run = {
+    legacy_run = {
         'path': reduce_path(run.path),
         'results': reduce_results(run.results),
         'events': reduce_events(run.events),
     }
 
-    goflow_run = {
+    new_run = {
         'path': reduce_path(session_run['path']),
         'results': reduce_results(session_run.get('results', {})),
         'events': reduce_events(session_run.get('events', [])),
     }
 
-    diffs = jsondiff(rapidpro_run, goflow_run)
+    diffs = jsondiff(legacy_run, new_run)
     if not diffs:
         return None
 
     return {
         'diffs': diffs,
-        'goflow': goflow_run,
-        'rapidpro': rapidpro_run,
+        'legacy': legacy_run,
+        'new': new_run,
     }
 
 

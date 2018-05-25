@@ -2074,11 +2074,6 @@ class APITest(TembaTest):
         # make sure user rights are correct
         self.assertEndpointAccess(url, "folder=inbox")
 
-        # make sure you have to pass in something to filter by
-        response = self.fetchJSON(url)
-        self.assertResponseError(response, None,
-                                 "You must specify one of the contact, folder, label, broadcast, id parameters")
-
         # create some messages
         joe_msg1 = self.create_msg(direction='I', msg_type='F', text="Howdy", contact=self.joe)
         frank_msg1 = self.create_msg(direction='I', msg_type='I', text="Bonjour", contact=self.frank, channel=self.twitter)
@@ -2112,6 +2107,13 @@ class APITest(TembaTest):
 
         frank_msg1.refresh_from_db(fields=('modified_on',))
         joe_msg3.refresh_from_db(fields=('modified_on',))
+
+        # default response is all messages sorted by created_on
+        response = self.fetchJSON(url)
+        self.assertResultsById(
+            response,
+            [joe_msg4, frank_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1]
+        )
 
         # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):

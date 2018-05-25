@@ -1,3 +1,20 @@
+v3.0.407
+----------
+ * Reenable requiring policy consent
+ * Allow msgs endpoint to return ALL messages for an org sorted by created_on
+ * Return error message if non-existent asset requested from assets endpoint
+ * If contact sends message whilst being started in a flow, don't blow up
+ * Remove option to have a flow never expire, migrate current flows with never to 30 days instead
+ * Request the user to fill the LINE channel ID and channel name on the claim form
+
+v3.0.406
+----------
+ * Fix logging events to intercom
+
+v3.0.405
+----------
+ * Migration to remove FlowStep
+
 v3.0.404
 ----------
  * remove old privacy page in favor of new policy app

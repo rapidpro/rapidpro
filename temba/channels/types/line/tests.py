@@ -1,9 +1,6 @@
 
-import json
-
 from django.urls import reverse
-from mock import patch
-from temba.tests import TembaTest, MockResponse
+from temba.tests import TembaTest
 from ...models import Channel
 
 
@@ -15,8 +12,7 @@ class LineTypeTest(TembaTest):
                                       role="SR", schemes=['line'],
                                       config={'auth_token': 'abcdef098765', 'secret': '87654'})
 
-    @patch('requests.get')
-    def test_claim(self, mock_get):
+    def test_claim(self):
         url = reverse('channels.types.line.claim')
 
         self.login(self.admin)
@@ -25,28 +21,17 @@ class LineTypeTest(TembaTest):
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, url)
 
-        mock_get.return_value = MockResponse(200, json.dumps({'channelId': 123456789, 'mid': 'u1234567890'}))
-
-        payload = {'access_token': 'abcdef123456', 'secret': '123456'}
+        payload = {'access_token': 'abcdef123456', 'secret': '123456', 'channel_id': '123456789', 'name': "Temba"}
 
         response = self.client.post(url, payload, follow=True)
 
-        channel = Channel.objects.get(address='u1234567890')
+        channel = Channel.objects.get(address='123456789')
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.uuid]))
         self.assertEqual(channel.config, {
             'auth_token': 'abcdef123456',
             'secret': '123456',
-            'channel_id': 123456789,
-            'channel_mid': 'u1234567890'
+            'channel_id': '123456789',
         })
 
         response = self.client.post(url, payload, follow=True)
         self.assertContains(response, "A channel with this configuration already exists.")
-
-        self.org.channels.update(is_active=False)
-
-        mock_get.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
-        payload = {'access_token': 'abcdef123456', 'secret': '123456'}
-
-        response = self.client.post(url, payload, follow=True)
-        self.assertContains(response, "invalid token")

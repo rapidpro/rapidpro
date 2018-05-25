@@ -38,12 +38,11 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAI
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Org, Language, get_current_export_version
-from temba.utils import analytics, chunk_list, on_transaction_commit, goflow
+from temba.utils import analytics, chunk_list, on_transaction_commit
 from temba.utils.dates import str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.goflow import trial
 from temba.utils.models import SquashableModel, TembaModel, RequireUpdateFieldsMixin, generate_uuid, JSONAsTextField
 from temba.utils.queues import push_task
 from temba.utils.text import slugify_with
@@ -51,6 +50,8 @@ from temba.values.constants import Value
 from temba_expressions.utils import tokenize
 from urllib.request import urlopen
 from uuid import uuid4
+from . import server
+from .server import trial
 
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ class FlowSession(models.Model):
 
         Contact.bulk_cache_initialize(flow.org, contacts)
 
-        client = goflow.get_client()
+        client = server.get_client()
 
         asset_timestamp = int(time.time() * 1000000)
 
@@ -179,7 +180,7 @@ class FlowSession(models.Model):
                 else:
                     output = request.start_manual(contact, flow, params)
 
-            except goflow.FlowServerException:
+            except server.FlowServerException:
                 continue
 
             status = FlowSession.GOFLOW_STATUSES[output.session['status']]
@@ -221,7 +222,7 @@ class FlowSession(models.Model):
         if not waiting_run:  # pragma: no cover
             raise ValueError("Can't resume a session with no waiting run")
 
-        client = goflow.get_client()
+        client = server.get_client()
 
         # build request to flow server
         asset_timestamp = int(time.time() * 1000000)
@@ -255,7 +256,7 @@ class FlowSession(models.Model):
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
 
-        except goflow.FlowServerException:
+        except server.FlowServerException:
             # something has gone wrong so this session is over
             self.status = FlowSession.STATUS_FAILED
             self.save(update_fields=('status',))
@@ -837,6 +838,14 @@ class Flow(TembaModel):
         for run in FlowRun.get_active_for_contact(msg.contact):
             flow = run.flow
             flow.ensure_current_version()
+
+            # it's possible Flow.start is in the process of creating a run for this contact, in which case
+            # record this message has handled so it doesn't start any new flows
+            if not run.path:
+                if run.created_on > timezone.now() - timedelta(minutes=10):
+                    return True, []
+                else:
+                    return False, []
 
             last_step = run.path[-1]
             destination = Flow.get_node(flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
@@ -2881,7 +2890,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         current_node_uuid = path[-1][FlowRun.PATH_NODE_UUID]
 
         # for now we only store message events
-        events = [e for e in run_output['events'] if e['type'] in (goflow.Events.msg_received.name, goflow.Events.msg_created.name)]
+        events = [e for e in run_output['events'] if e['type'] in (
+            server.Events.msg_received.name, server.Events.msg_created.name)]
 
         if existing:
             existing.path = path
@@ -3469,10 +3479,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 continue
 
             self.events.append({
-                FlowRun.EVENT_TYPE: goflow.Events.msg_received.name if msg.direction == INCOMING else goflow.Events.msg_created.name,
+                FlowRun.EVENT_TYPE: server.Events.msg_received.name if msg.direction == INCOMING else server.Events.msg_created.name,
                 FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
                 FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
-                'msg': goflow.serialize_message(msg)
+                'msg': server.serialize_message(msg)
             })
 
             existing_msg_uuids.add(str(msg.uuid))
@@ -3506,7 +3516,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((goflow.Events.msg_received, goflow.Events.msg_created))
+        return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
 
     def get_events_by_step(self, msg_only=False):
         """
@@ -3851,49 +3861,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
-
-
-class FlowStep(models.Model):
-    """
-    A contact's visit to a node in a flow (rule set or action set)
-    """
-    STEP_TYPE_CHOICES = (('R', "RuleSet"),
-                         ('A', "ActionSet"))
-
-    run = models.ForeignKey(FlowRun, related_name='steps')
-
-    contact = models.ForeignKey(Contact, related_name='flow_steps')
-
-    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
-
-    step_uuid = models.CharField(max_length=36,
-                                 help_text=_("The UUID of the ActionSet or RuleSet for this step"))
-
-    rule_uuid = models.CharField(max_length=36, null=True,
-                                 help_text=_("For uuid of the rule that matched on this ruleset, null on ActionSets"))
-
-    rule_category = models.CharField(max_length=36, null=True,
-                                     help_text=_("The category label that matched on this ruleset, null on ActionSets"))
-
-    rule_value = models.TextField(null=True,
-                                  help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
-
-    rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
-                                             help_text=_("The decimal value that was matched in our category for this ruleset, null on ActionSets or if a non numeric rule was matched"))
-
-    next_uuid = models.CharField(max_length=36, null=True,
-                                 help_text=_("The uuid of the next step type we took"))
-
-    arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
-
-    left_on = models.DateTimeField(null=True,
-                                   help_text=_("When the user left this step in the flow"))
-
-    messages = models.ManyToManyField(Msg, related_name='steps',
-                                      help_text=_("Any messages that are associated with this step (either sent or received)"))
-
-    broadcasts = models.ManyToManyField(Broadcast, related_name='steps',
-                                        help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
 
 class RuleSet(models.Model):
@@ -4258,7 +4225,7 @@ class ActionSet(models.Model):
     flow = models.ForeignKey(Flow, related_name='action_sets')
 
     destination = models.CharField(max_length=36, null=True)
-    destination_type = models.CharField(max_length=1, choices=FlowStep.STEP_TYPE_CHOICES, null=True)
+    destination_type = models.CharField(max_length=1, null=True)
 
     exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
 
@@ -4996,7 +4963,7 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes out any messages associated with the given run
         """
         for event in run.get_msg_events():
-            msg_direction = "IN" if event['type'] == goflow.Events.msg_received.name else "OUT"
+            msg_direction = "IN" if event['type'] == server.Events.msg_received.name else "OUT"
 
             msg = event['msg']
             msg_text = msg.get('text', "")

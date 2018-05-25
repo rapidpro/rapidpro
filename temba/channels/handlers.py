@@ -71,7 +71,6 @@ def get_channel_handlers():
 
 
 class TWIMLCallHandler(BaseChannelHandler):
-
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
