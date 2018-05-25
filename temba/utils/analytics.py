@@ -98,7 +98,7 @@ def identify_org(org, attributes={}):  # pragma: no cover
         )
 
 
-def identify(email, name, attributes, add_orgs=[]):  # pragma: no cover
+def identify(email, name, attributes, orgs=[]):  # pragma: no cover
     """
     Creates and identifies a new user to our analytics backends. It is ok to call this with an
     existing user, their name and attributes will just be updated.
@@ -129,7 +129,7 @@ def identify(email, name, attributes, add_orgs=[]):  # pragma: no cover
                         brand=org.brand,
                         org_id=org.id
                     )
-                ) for org in add_orgs
+                ) for org in orgs
             ]
 
             _intercom.users.save(intercom_user)
