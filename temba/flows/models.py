@@ -1,3 +1,4 @@
+import traceback
 import iso8601
 import itertools
 import json
@@ -6,7 +7,6 @@ import numbers
 import phonenumbers
 import regex
 import time
-import traceback
 
 from array import array
 from collections import OrderedDict, defaultdict
