@@ -4,8 +4,11 @@ import time
 
 import analytics as segment_analytics
 from django.conf import settings
+from django.utils import timezone
 from intercom.client import Client as IntercomClient
+from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient
+from temba.utils.dates import datetime_to_json_date
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,13 @@ def init_analytics():  # pragma: no cover
         _librato = LibratoClient(librato_user, librato_token)
 
 
+def get_intercom_user(email):  # pragma: no cover
+    try:
+        return _intercom.users.find(email=email)
+    except ResourceNotFound:
+        pass
+
+
 def gauge(event, value=None):  # pragma: no cover
     """
     Triggers a gauge event in Librato
@@ -61,7 +71,34 @@ def gauge(event, value=None):  # pragma: no cover
         _librato.gauge(event, value, reporting_hostname)
 
 
-def identify(email, name, attributes):  # pragma: no cover
+def identify_org(org, attributes={}):  # pragma: no cover
+    """
+    Creates and identifies an org on our analytics backends where appropriate
+    """
+    if not settings.IS_PROD:
+        return
+
+    if _intercom:
+
+        intercom_attributes = {}
+        for key in ('monthly_spend', 'industry', 'website'):
+            value = attributes.pop(key, None)
+            if value:
+                intercom_attributes[key] = value
+
+        attributes['brand'] = org.brand
+        attributes['org_id'] = org.id
+
+        _intercom.companies.create(
+            company_id=org.id,
+            name=org.name,
+            created_at=datetime_to_json_date(org.created_on),
+            custom_attributes=attributes,
+            **intercom_attributes
+        )
+
+
+def identify(email, name, attributes, add_orgs=[]):  # pragma: no cover
     """
     Creates and identifies a new user to our analytics backends. It is ok to call this with an
     existing user, their name and attributes will just be updated.
@@ -81,7 +118,72 @@ def identify(email, name, attributes):  # pragma: no cover
             for key in ('first_name', 'last_name', 'email'):
                 attributes.pop(key, None)
 
-            _intercom.users.create(email=email, name=name, custom_attributes=attributes)
+            intercom_user = _intercom.users.create(email=email, name=name, custom_attributes=attributes)
+
+            intercom_user.companies = [
+                dict(
+                    company_id=org.id,
+                    name=org.name,
+                    created_at=datetime_to_json_date(org.created_on),
+                    custom_attributes=dict(
+                        brand=org.brand,
+                        org_id=org.id
+                    )
+                ) for org in add_orgs
+            ]
+
+            _intercom.users.save(intercom_user)
+        except:
+            logger.error("error posting to intercom", exc_info=True)
+
+
+def set_orgs(email, all_orgs):  # pragma: no cover
+    """
+    Sets a user's orgs to canonical set of orgs it they aren't archived
+    """
+
+    # no op if we aren't prod
+    if not settings.IS_PROD:
+        return
+
+    if _intercom:
+        intercom_user = get_intercom_user(email)
+
+        # if the user is archived this is a noop
+        if intercom_user:
+            companies = [dict(company_id=org.id, name=org.name) for org in all_orgs]
+            for company in intercom_user.companies:
+                if not any(int(company.company_id) == c.get('company_id') for c in companies):
+                    companies.append(dict(company_id=company.company_id, remove=True))
+            intercom_user.companies = companies
+            _intercom.users.save(intercom_user)
+
+
+def change_consent(email, consent):  # pragma: no cover
+    """
+    Notities analytics backends of a user's consent status.
+    """
+    # no op if we aren't prod
+    if not settings.IS_PROD:
+        return
+
+    if _intercom:
+        try:
+            change_date = datetime_to_json_date(timezone.now())
+
+            user = get_intercom_user(email)
+
+            if consent:
+                if not user or not user.custom_attributes.get('consent', False):
+                    print(email, "consents")
+                    _intercom.users.create(email=email, custom_attributes=dict(consent=consent, consent_changed=change_date))
+            else:
+                if user:
+                    _intercom.users.create(email=email, custom_attributes=dict(consent=consent, consent_changed=change_date))
+
+                    # this archives a user on intercom so they are no longer processed
+                    _intercom.users.delete(user)
+
         except:
             logger.error("error posting to intercom", exc_info=True)
 

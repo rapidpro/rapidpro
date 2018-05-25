@@ -58,7 +58,7 @@ class Welcome(SmartTemplateView):
                 user_dict['org'] = org.name
                 user_dict['paid'] = org.account_value()
 
-            analytics.identify(user.email, f"{user.first_name} {user.last_name}", user_dict)
+            analytics.identify(user.email, f"{user.first_name} {user.last_name}", user_dict, orgs=[org])
 
         return context
 
