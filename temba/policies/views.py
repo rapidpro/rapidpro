@@ -9,6 +9,7 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartList
 
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import analytics
+
 from .models import Consent, Policy
 
 
@@ -101,7 +102,7 @@ class PolicyCRUDL(SmartCRUDL):
             return r"^%s/consent/$" % path
 
         def form_valid(self, form):
-            if form.cleaned_data['consent']:
+            if form.cleaned_data["consent"]:
 
                 analytics.change_consent(self.request.user.email, True)
 
@@ -120,4 +121,4 @@ class PolicyCRUDL(SmartCRUDL):
                 # forget we were ever friends
                 analytics.change_consent(self.request.user.email, False)
 
-            return HttpResponseRedirect(reverse('policies.policy_list'))
+            return HttpResponseRedirect(reverse("policies.policy_list"))

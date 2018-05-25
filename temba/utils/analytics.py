@@ -8,6 +8,7 @@ from django.utils import timezone
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient
+
 from temba.utils.dates import datetime_to_json_date
 
 logger = logging.getLogger(__name__)
@@ -81,13 +82,13 @@ def identify_org(org, attributes={}):  # pragma: no cover
     if _intercom:
 
         intercom_attributes = {}
-        for key in ('monthly_spend', 'industry', 'website'):
+        for key in ("monthly_spend", "industry", "website"):
             value = attributes.pop(key, None)
             if value:
                 intercom_attributes[key] = value
 
-        attributes['brand'] = org.brand
-        attributes['org_id'] = org.id
+        attributes["brand"] = org.brand
+        attributes["org_id"] = org.id
 
         _intercom.companies.create(
             company_id=org.id,
@@ -125,11 +126,9 @@ def identify(email, name, attributes, orgs=[]):  # pragma: no cover
                     company_id=org.id,
                     name=org.name,
                     created_at=datetime_to_json_date(org.created_on),
-                    custom_attributes=dict(
-                        brand=org.brand,
-                        org_id=org.id
-                    )
-                ) for org in orgs
+                    custom_attributes=dict(brand=org.brand, org_id=org.id),
+                )
+                for org in orgs
             ]
 
             _intercom.users.save(intercom_user)
@@ -153,7 +152,7 @@ def set_orgs(email, all_orgs):  # pragma: no cover
         if intercom_user:
             companies = [dict(company_id=org.id, name=org.name) for org in all_orgs]
             for company in intercom_user.companies:
-                if not any(int(company.company_id) == c.get('company_id') for c in companies):
+                if not any(int(company.company_id) == c.get("company_id") for c in companies):
                     companies.append(dict(company_id=company.company_id, remove=True))
             intercom_user.companies = companies
             _intercom.users.save(intercom_user)
@@ -174,12 +173,16 @@ def change_consent(email, consent):  # pragma: no cover
             user = get_intercom_user(email)
 
             if consent:
-                if not user or not user.custom_attributes.get('consent', False):
+                if not user or not user.custom_attributes.get("consent", False):
                     print(email, "consents")
-                    _intercom.users.create(email=email, custom_attributes=dict(consent=consent, consent_changed=change_date))
+                    _intercom.users.create(
+                        email=email, custom_attributes=dict(consent=consent, consent_changed=change_date)
+                    )
             else:
                 if user:
-                    _intercom.users.create(email=email, custom_attributes=dict(consent=consent, consent_changed=change_date))
+                    _intercom.users.create(
+                        email=email, custom_attributes=dict(consent=consent, consent_changed=change_date)
+                    )
 
                     # this archives a user on intercom so they are no longer processed
                     _intercom.users.delete(user)
