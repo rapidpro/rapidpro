@@ -41,8 +41,6 @@ class MessangiType(ChannelType):
         """
     )
 
-    
-
     configuration_urls = (
         dict(
             label=_("Receive URL"),
