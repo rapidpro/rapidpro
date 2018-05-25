@@ -8,7 +8,10 @@ if [ -n "$FILES" ]; then
 fi
 
 if [ -n "$FILES" ]; then
-    black --line-length=119 $FILES || true
+    black --line-length=119 $FILES
+    if [ $? != 0 ]; then
+	touch .commit
+    fi
 fi
 
 if [ -n "$FILES" ]; then
