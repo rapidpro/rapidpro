@@ -634,6 +634,28 @@ class FlowTest(TembaTest):
         # this is drawn from the message which didn't change
         self.assertEqual('orange', context['flow']['color']['text'])
 
+    def test_add_messages(self):
+        run, = self.flow.start([], [self.contact])
+
+        msgs = run.get_messages().order_by('id')
+        self.assertEqual(len(run.get_msg_events()), 1)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertFalse(run.responded)
+
+        # can't add same messages more than once
+        run.add_messages(msgs[:])
+        self.assertEqual(len(run.get_msg_events()), 1)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertFalse(run.responded)
+
+        Msg.create_incoming(self.channel, 'tel:+250788382382', "hi there")
+
+        run.refresh_from_db()
+        msgs = run.get_messages().order_by('id')
+        self.assertEqual(len(run.get_msg_events()), 3)
+        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by('id')))
+        self.assertTrue(run.responded)
+
     def test_anon_export_results(self):
         self.org.is_anon = True
         self.org.save()
