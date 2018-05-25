@@ -22,7 +22,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.flows.models import Flow, ActionSet, AddToGroupAction
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -2735,6 +2735,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
             self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
+            self.assertEqual(1, ContactField.objects.filter(org=self.org, value_type='D', label="Next Appointment").count())
 
         # import all our bits
         self.import_file('the_clinic')
@@ -2760,7 +2761,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.actions = actions
         action_set.save()
@@ -2772,7 +2773,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
+        self.assertEqual("Thanks, your appointment at The Clinic has been confirmed for @(format_date(contact.next_appointment)). See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword='patient').first()
@@ -2785,7 +2786,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.actions
-        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
+        self.assertEqual("Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
         assert_object_counts()
