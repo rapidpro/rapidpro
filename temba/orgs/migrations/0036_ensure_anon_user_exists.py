@@ -12,11 +12,6 @@ def ensure_anon_user_exists(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('orgs', '0035_auto_20170614_0915'),
-        ('auth', '0008_alter_user_username_max_length')
-    ]
+    dependencies = [("orgs", "0035_auto_20170614_0915"), ("auth", "0008_alter_user_username_max_length")]
 
-    operations = [
-        migrations.RunPython(ensure_anon_user_exists)
-    ]
+    operations = [migrations.RunPython(ensure_anon_user_exists)]

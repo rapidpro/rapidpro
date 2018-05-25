@@ -10,14 +10,6 @@ class Migration(migrations.Migration):
     DROP INDEX IF EXISTS flows_flowstep_step_next_rule_left;
     """
 
-    dependencies = [
-        ('flows', '0084_populate_recent_steps'),
-    ]
+    dependencies = [("flows", "0084_populate_recent_steps")]
 
-    operations = [
-        migrations.AlterIndexTogether(
-            name='flowstep',
-            index_together=set([]),
-        ),
-        migrations.RunSQL(DROP_SQL)
-    ]
+    operations = [migrations.AlterIndexTogether(name="flowstep", index_together=set([])), migrations.RunSQL(DROP_SQL)]

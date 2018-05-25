@@ -5,14 +5,18 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0112_auto_20171124_1516'),
-    ]
+    dependencies = [("msgs", "0112_auto_20171124_1516")]
 
     operations = [
         migrations.AlterField(
-            model_name='msg',
-            name='visibility',
-            field=models.CharField(choices=[('V', 'Visible'), ('A', 'Archived'), ('D', 'Deleted')], default='V', help_text='The current visibility of this message, either visible, archived or deleted', max_length=1, verbose_name='Visibility'),
-        ),
+            model_name="msg",
+            name="visibility",
+            field=models.CharField(
+                choices=[("V", "Visible"), ("A", "Archived"), ("D", "Deleted")],
+                default="V",
+                help_text="The current visibility of this message, either visible, archived or deleted",
+                max_length=1,
+                verbose_name="Visibility",
+            ),
+        )
     ]

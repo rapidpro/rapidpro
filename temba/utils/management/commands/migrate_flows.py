@@ -1,5 +1,6 @@
 
 from django.core.management.base import BaseCommand
+
 from temba.flows.models import Flow
 from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
@@ -13,7 +14,7 @@ def migrate_flows(min_version=None):  # pragma: no cover
 
     flows_to_migrate = Flow.objects.filter(is_active=True, version_number__in=old_versions)
 
-    flow_ids = list(flows_to_migrate.values_list('id', flat=True))
+    flow_ids = list(flows_to_migrate.values_list("id", flat=True))
     total = len(flow_ids)
 
     if not total:

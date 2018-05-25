@@ -5,13 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0096_populate_attachments'),
-    ]
+    dependencies = [("msgs", "0096_populate_attachments")]
 
-    operations = [
-        migrations.RemoveField(
-            model_name='msg',
-            name='media',
-        ),
-    ]
+    operations = [migrations.RemoveField(model_name="msg", name="media")]

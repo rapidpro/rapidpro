@@ -1,24 +1,26 @@
 from gettext import gettext as _
-from django.core.urlresolvers import reverse
+
 from django import forms
+from django.core.urlresolvers import reverse
 from django.db.models import Max
-from django.utils import timezone
 from django.http import HttpResponseRedirect
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartCreateView, SmartFormView
+from django.utils import timezone
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView
+
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import analytics
-from .models import Policy, Consent
+from .models import Consent, Policy
 
 
 class PolicyCRUDL(SmartCRUDL):
-    actions = ('create', 'read', 'update', 'list', 'admin', 'history', 'give_consent')
+    actions = ("create", "read", "update", "list", "admin", "history", "give_consent")
     model = Policy
     permissions = True
 
     class Admin(SmartListView):
-        ordering = ('-created_on',)
-        link_fields = ('policy_type',)
-        title = 'Policies'
+        ordering = ("-created_on",)
+        link_fields = ("policy_type",)
+        title = "Policies"
         paginate_by = 500
 
         def get_queryset(self, **kwargs):
@@ -27,17 +29,20 @@ class PolicyCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context['active_policies'] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
+            context["active_policies"] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
             return context
 
     class Create(SmartCreateView):
 
         # make sure we only have one active policy at a time
         def post_save(self, obj):
-            Policy.objects.filter(policy_type=obj.policy_type, is_active=True).exclude(id=obj.id).update(is_active=False)
+            Policy.objects.filter(policy_type=obj.policy_type, is_active=True).exclude(id=obj.id).update(
+                is_active=False
+            )
             return obj
 
     class History(SmartReadView):
+
         def derive_title(self):
             return self.get_object().get_policy_type_display()
 
@@ -47,14 +52,14 @@ class PolicyCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             archive_types = (choice[0] for choice in Policy.TYPE_CHOICES)
-            return r'^%s/(%s)/$' % (path, '|'.join(archive_types))
+            return r"^%s/(%s)/$" % (path, "|".join(archive_types))
 
         def get_requested_policy_type(self):
-            return self.request.path.split('/')[-2]
+            return self.request.path.split("/")[-2]
 
         def get_object(self):
             policy_type = self.get_requested_policy_type()
-            return Policy.objects.filter(policy_type=policy_type, is_active=True).order_by('-created_on').first()
+            return Policy.objects.filter(policy_type=policy_type, is_active=True).order_by("-created_on").first()
 
     class List(SmartListView):
         title = _("Your Privacy")
@@ -62,7 +67,7 @@ class PolicyCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
-            return queryset.filter(is_active=True).order_by('requires_consent', '-policy_type')
+            return queryset.filter(is_active=True).order_by("requires_consent", "-policy_type")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -71,12 +76,12 @@ class PolicyCRUDL(SmartCRUDL):
 
             if not user.is_anonymous():
                 needs_consent = Policy.get_policies_needing_consent(user)
-                context['needs_consent'] = needs_consent
+                context["needs_consent"] = needs_consent
 
                 if not needs_consent:
-                    context['consent_date'] = (
-                        Consent.objects.filter(user=user, revoked_on=None).aggregate(Max('created_on'))['created_on__max']
-                    )
+                    context["consent_date"] = Consent.objects.filter(user=user, revoked_on=None).aggregate(
+                        Max("created_on")
+                    )["created_on__max"]
 
             return context
 
@@ -87,13 +92,13 @@ class PolicyCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Consent
-                fields = ('consent',)
+                fields = ("consent",)
 
         form_class = ConsentForm
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/consent/$' % path
+            return r"^%s/consent/$" % path
 
         def form_valid(self, form):
             if form.cleaned_data['consent']:
@@ -105,10 +110,13 @@ class PolicyCRUDL(SmartCRUDL):
             else:
 
                 # only revoke consent for currently active policies
-                active_policies = Policy.objects.filter(is_active=True, requires_consent=True).values_list('id', flat=True)
-                consents = Consent.objects.filter(user=self.request.user, policy__id__in=active_policies, revoked_on=None)
+                active_policies = Policy.objects.filter(is_active=True, requires_consent=True).values_list(
+                    "id", flat=True
+                )
+                consents = Consent.objects.filter(
+                    user=self.request.user, policy__id__in=active_policies, revoked_on=None
+                )
                 consents.update(revoked_on=timezone.now())
-
                 # forget we were ever friends
                 analytics.change_consent(self.request.user.email, False)
 

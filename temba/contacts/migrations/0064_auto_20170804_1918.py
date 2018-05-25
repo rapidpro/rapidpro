@@ -5,24 +5,28 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0063_auto_20170801_1126'),
-    ]
+    dependencies = [("contacts", "0063_auto_20170801_1126")]
 
     operations = [
         migrations.AddField(
-            model_name='contacturn',
-            name='display',
-            field=models.CharField(help_text='The display component for this URN, if any', max_length=255, null=True),
+            model_name="contacturn",
+            name="display",
+            field=models.CharField(help_text="The display component for this URN, if any", max_length=255, null=True),
         ),
         migrations.AddField(
-            model_name='contacturn',
-            name='identity',
-            field=models.CharField(help_text='The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383', max_length=255, null=True),
+            model_name="contacturn",
+            name="identity",
+            field=models.CharField(
+                help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383",
+                max_length=255,
+                null=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='contacturn',
-            name='urn',
-            field=models.CharField(help_text='The Universal Resource Name as a string. ex: tel:+250788383383', max_length=255),
+            model_name="contacturn",
+            name="urn",
+            field=models.CharField(
+                help_text="The Universal Resource Name as a string. ex: tel:+250788383383", max_length=255
+            ),
         ),
     ]

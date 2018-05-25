@@ -3,15 +3,20 @@
 from django.db import migrations
 from django_redis import get_redis_connection
 
-
-KEY_NAMES = ('runs_started_count', 'runs_completed_count', 'contacts_started_set', 'step_active_set',
-             'visit_count_map', 'cache_check')
+KEY_NAMES = (
+    "runs_started_count",
+    "runs_completed_count",
+    "contacts_started_set",
+    "step_active_set",
+    "visit_count_map",
+    "cache_check",
+)
 
 
 def clean_old_flow_stat_cache(apps, schema_migration):
     r = get_redis_connection()
     for val in KEY_NAMES:
-        key_pattern = 'org:*:cache:flow:*:%s' % val
+        key_pattern = "org:*:cache:flow:*:%s" % val
         num_deleted = 0
         cursor = 0
         while True:
@@ -28,10 +33,6 @@ def clean_old_flow_stat_cache(apps, schema_migration):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0094_update_step_trigger'),
-    ]
+    dependencies = [("flows", "0094_update_step_trigger")]
 
-    operations = [
-        migrations.RunPython(clean_old_flow_stat_cache)
-    ]
+    operations = [migrations.RunPython(clean_old_flow_stat_cache)]

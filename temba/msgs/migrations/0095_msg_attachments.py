@@ -6,14 +6,17 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0094_auto_20170501_1641'),
-    ]
+    dependencies = [("msgs", "0094_auto_20170501_1641")]
 
     operations = [
         migrations.AddField(
-            model_name='msg',
-            name='attachments',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.URLField(max_length=255), help_text='The media attachments on this message if any', null=True, size=None),
-        ),
+            model_name="msg",
+            name="attachments",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.URLField(max_length=255),
+                help_text="The media attachments on this message if any",
+                null=True,
+                size=None,
+            ),
+        )
     ]

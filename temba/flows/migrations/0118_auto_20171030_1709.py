@@ -3,20 +3,20 @@ from django.db import migrations
 
 
 def cleanup_dependencies(apps, schema_editor):
-    ContactField = apps.get_model('contacts', 'ContactField')
-    Flow = apps.get_model('flows', 'Flow')
+    ContactField = apps.get_model("contacts", "ContactField")
+    Flow = apps.get_model("flows", "Flow")
 
-    flow_ids = ContactField.objects.filter(dependent_flows__is_active=False).distinct('dependent_flows__id').values_list('dependent_flows__id')
+    flow_ids = (
+        ContactField.objects.filter(dependent_flows__is_active=False)
+        .distinct("dependent_flows__id")
+        .values_list("dependent_flows__id")
+    )
     for flow in Flow.objects.filter(id__in=flow_ids, is_active=False):
         flow.field_dependencies.clear()
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0117_auto_20171027_2029'),
-    ]
+    dependencies = [("flows", "0117_auto_20171027_2029")]
 
-    operations = [
-        migrations.RunPython(cleanup_dependencies)
-    ]
+    operations = [migrations.RunPython(cleanup_dependencies)]

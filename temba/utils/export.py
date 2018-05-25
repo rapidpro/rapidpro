@@ -1,8 +1,8 @@
 import gc
-import time
 import os
-
+import time
 from datetime import datetime, timedelta
+
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
@@ -11,14 +11,17 @@ from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.worksheet.write_only import WriteOnlyCell
+
 from temba.assets.models import BaseAssetStore, get_asset_store
+
 from . import analytics
-from .models import TembaModel
 from .email import send_template_email
+from .models import TembaModel
 from .text import clean_string
 
 
 class BaseExportAssetStore(BaseAssetStore):
+
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
@@ -37,16 +40,18 @@ class BaseExportTask(TembaModel):
     WIDTH_MEDIUM = 20
     WIDTH_LARGE = 100
 
-    STATUS_PENDING = 'P'
-    STATUS_PROCESSING = 'O'
-    STATUS_COMPLETE = 'C'
-    STATUS_FAILED = 'F'
-    STATUS_CHOICES = ((STATUS_PENDING, _("Pending")),
-                      (STATUS_PROCESSING, _("Processing")),
-                      (STATUS_COMPLETE, _("Complete")),
-                      (STATUS_FAILED, _("Failed")))
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_PROCESSING, _("Processing")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
 
-    org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
+    org = models.ForeignKey("orgs.Org", related_name="%(class)ss", help_text=_("The organization of the user."))
 
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
@@ -67,11 +72,16 @@ class BaseExportTask(TembaModel):
             branding = self.org.get_branding()
 
             # notify user who requested this export
-            send_template_email(self.created_by.username, self.email_subject, self.email_template,
-                                self.get_email_context(branding), branding)
+            send_template_email(
+                self.created_by.username,
+                self.email_subject,
+                self.email_template,
+                self.get_email_context(branding),
+                branding,
+            )
 
             # remove temporary file
-            if hasattr(temp_file, 'delete'):
+            if hasattr(temp_file, "delete"):
                 if temp_file.delete is False:  # pragma: no cover
                     os.unlink(temp_file.name)
             else:
@@ -79,6 +89,7 @@ class BaseExportTask(TembaModel):
 
         except Exception:
             import traceback
+
             traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
         else:
@@ -86,7 +97,9 @@ class BaseExportTask(TembaModel):
         finally:
             elapsed = time.time() - start
             print("Completed %s in %.1f seconds" % (self.analytics_key, elapsed))
-            analytics.track(self.created_by.username, 'temba.%s_latency' % self.analytics_key, properties=dict(value=elapsed))
+            analytics.track(
+                self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
+            )
 
             gc.collect()  # force garbage collection
 
@@ -98,17 +111,22 @@ class BaseExportTask(TembaModel):
 
     def update_status(self, status):
         self.status = status
-        self.save(update_fields=('status',))
+        self.save(update_fields=("status",))
 
     @classmethod
     def get_recent_unfinished(cls, org):
         """
         Checks for unfinished exports created in the last 24 hours for this org, and returns the most recent
         """
-        return cls.objects.filter(
-            org=org, created_on__gt=timezone.now() - timedelta(hours=24),
-            status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING)
-        ).order_by('-created_on').first()
+        return (
+            cls.objects.filter(
+                org=org,
+                created_on__gt=timezone.now() - timedelta(hours=24),
+                status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING),
+            )
+            .order_by("-created_on")
+            .first()
+        )
 
     def append_row(self, sheet, values):
         row = []
@@ -119,10 +137,10 @@ class BaseExportTask(TembaModel):
 
     def prepare_value(self, value):
         if value is None:
-            return ''
+            return ""
         elif isinstance(value, str):
-            if value.startswith('='):  # escape = so value isn't mistaken for a formula
-                value = '\'' + value
+            if value.startswith("="):  # escape = so value isn't mistaken for a formula
+                value = "'" + value
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
@@ -136,7 +154,7 @@ class BaseExportTask(TembaModel):
     def get_email_context(self, branding):
         asset_store = get_asset_store(model=self.__class__)
 
-        return {'link': branding['link'] + asset_store.get_asset_url(self.id)}
+        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
 
     class Meta:
         abstract = True
@@ -151,6 +169,7 @@ class TableExporter(object):
     When writing to an Excel sheet, this also takes care of creating different sheets every 1048576
     rows, as again, Excel file only support that many per sheet.
     """
+
     def __init__(self, task, sheet_name, extra_sheet_name, columns, extra_columns):
         self.task = task
         self.columns = columns
@@ -161,7 +180,7 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        self.file = NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wt+')
+        self.file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wt+")
         self.workbook = Workbook(write_only=True)
         self.sheet_number = 0
         self._add_sheet()
@@ -198,10 +217,10 @@ class TableExporter(object):
         gc.collect()  # force garbage collection
 
         self.file.close()
-        self.file = open(self.file.name, 'rb+')
+        self.file = open(self.file.name, "rb+")
 
         print("Writing Excel workbook...")
         self.workbook.save(self.file)
 
         self.file.flush()
-        return self.file, 'xlsx'
+        return self.file, "xlsx"

@@ -1,19 +1,18 @@
 
 import json
-
 from datetime import datetime, timedelta
-from mock import patch
 
-from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun
-from temba.msgs.models import WIRED, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED, HANDLED
-from temba.tests import TembaTest, MockResponse
+from temba.msgs.models import DELIVERED, FAILED, HANDLED, INCOMING, OUTGOING, SENT, USSD, WIRED, Msg
+from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 
 from .models import USSDSession
@@ -25,38 +24,72 @@ class USSDSessionTest(TembaTest):
         super().setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
-                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+        self.channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "JNU",
+            None,
+            "+250788123123",
+            role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+            uuid="00000000-0000-0000-0000-000000001234",
+        )
 
     def test_pull_async_trigger_start(self):
-        flow = self.get_flow('ussd_example')
+        flow = self.get_flow("ussd_example")
 
         starcode = "*113#"
 
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=starcode, flow=flow,
-                                                   created_by=self.user, modified_by=self.user, org=self.org,
-                                                   trigger_type=Trigger.TYPE_USSD_PULL)
+        trigger, _ = Trigger.objects.get_or_create(
+            channel=self.channel,
+            keyword=starcode,
+            flow=flow,
+            created_by=self.user,
+            modified_by=self.user,
+            org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL,
+        )
 
         # handle a message that has an unmatched wrong keyword
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
-                                              message_id="1111211", starcode="wrongkeyword")
+        session = USSDSession.handle_incoming(
+            channel=self.channel,
+            urn="+329732973",
+            content="None",
+            status=USSDSession.TRIGGERED,
+            date=timezone.now(),
+            external_id="1234",
+            message_id="1111211",
+            starcode="wrongkeyword",
+        )
 
         # check if session was started and created
         self.assertFalse(session)
 
         # handle a message that has an unmatched starcode
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
-                                              message_id="1111211", starcode="*111#")
+        session = USSDSession.handle_incoming(
+            channel=self.channel,
+            urn="+329732973",
+            content="None",
+            status=USSDSession.TRIGGERED,
+            date=timezone.now(),
+            external_id="1234",
+            message_id="1111211",
+            starcode="*111#",
+        )
 
         # check if session was started and created
         self.assertFalse(session)
 
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1235",
-                                              message_id="1111131", starcode=starcode)
+        session = USSDSession.handle_incoming(
+            channel=self.channel,
+            urn="+329732973",
+            content="None",
+            status=USSDSession.TRIGGERED,
+            date=timezone.now(),
+            external_id="1235",
+            message_id="1111131",
+            starcode=starcode,
+        )
 
         # check session properties
         self.assertEqual(session.status, USSDSession.TRIGGERED)
@@ -64,7 +97,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "1235")
 
     def test_push_async_start(self):
-        flow = self.get_flow('ussd_example')
+        flow = self.get_flow("ussd_example")
 
         contact = self.create_contact("Joe", "+250788383383")
 
@@ -81,7 +114,7 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.started_on, datetime)
 
         # message created and sent out
-        self.assertIsNotNone(Msg.objects.filter(direction='O').first())
+        self.assertIsNotNone(Msg.objects.filter(direction="O").first())
 
         return flow
 
@@ -90,8 +123,14 @@ class USSDSessionTest(TembaTest):
         self.test_push_async_start()
 
         # send an incoming message through the channel
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
-                                              date=timezone.now(), external_id="21345", message_id="123")
+        session = USSDSession.handle_incoming(
+            channel=self.channel,
+            urn="+250788383383",
+            content="1",
+            date=timezone.now(),
+            external_id="21345",
+            message_id="123",
+        )
 
         # same session is modified
         self.assertEqual(USSDSession.objects.count(), 1)
@@ -101,17 +140,17 @@ class USSDSessionTest(TembaTest):
 
         # there should be 3 messages
         run = FlowRun.objects.get()
-        msg1, msg2, msg3 = run.get_messages().order_by('id')
+        msg1, msg2, msg3 = run.get_messages().order_by("id")
 
         # check the incoming and outgoing messages
         self.assertEqual(msg1.direction, OUTGOING)
-        self.assertEqual(msg1.text, 'What would you like to read about?')
+        self.assertEqual(msg1.text, "What would you like to read about?")
 
         self.assertEqual(msg2.direction, INCOMING)
-        self.assertEqual(msg2.text, '1')
+        self.assertEqual(msg2.text, "1")
 
         self.assertEqual(msg3.direction, OUTGOING)
-        self.assertEqual(msg3.text, 'Thank you!')
+        self.assertEqual(msg3.text, "Thank you!")
 
     def test_expiration(self):
         # start off a PUSH session
@@ -124,7 +163,7 @@ class USSDSessionTest(TembaTest):
 
     def test_async_interrupt_handling(self):
         # start a flow
-        flow = self.get_flow('ussd_example')
+        flow = self.get_flow("ussd_example")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
@@ -135,8 +174,13 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.started_on, datetime)
 
         # send an interrupt "signal"
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", status=USSDSession.INTERRUPTED,
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel,
+            urn="+250788383383",
+            status=USSDSession.INTERRUPTED,
+            date=timezone.now(),
+            external_id="21345",
+        )
 
         # same session is modified
         self.assertEqual(USSDSession.objects.count(), 1)
@@ -147,22 +191,23 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_menu_no_destination(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with no destination connected
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="4", date=timezone.now(), external_id="21345"
+        )
 
         # there should be 2 outgoing messages, one with an empty message to close down the session gracefully
         self.assertEqual(Msg.objects.count(), 3)
-        self.assertEqual(Msg.objects.filter(direction='O').count(), 2)
+        self.assertEqual(Msg.objects.filter(direction="O").count(), 2)
 
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertNotEqual(msgs[0].text, '')
-        self.assertEqual(msgs[1].text, '')
+        self.assertNotEqual(msgs[0].text, "")
+        self.assertEqual(msgs[1].text, "")
 
         # the session should be marked as "ENDING"
         session.refresh_from_db()
@@ -171,13 +216,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_menu_destination_with_messaging(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another wait_menu ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="1", date=timezone.now(), external_id="21345"
+        )
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -185,13 +231,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_menu_destination_without_messaging(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another wait_menu ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="test",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="test", date=timezone.now(), external_id="21345"
+        )
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -199,13 +246,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # choose option with destination connected to actions (add to groups and set language later)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="2", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with no content to close the session
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().text, "")
 
         # the session should be marked as ending at this point, cos' there's no more messaging destination in the flow
         session.refresh_from_db()
@@ -214,13 +262,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_arbitrary_rules(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to the arbitarty ussd ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="3", date=timezone.now(), external_id="21345"
+        )
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -228,8 +277,9 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # now we are at the ussd response, choose an option here
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="3", date=timezone.now(), external_id="21345"
+        )
 
         session.refresh_from_db()
         self.assertEqual(session.status, USSDSession.ENDING)
@@ -237,13 +287,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_end_action(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to the arbitarty ussd ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="3", date=timezone.now(), external_id="21345"
+        )
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -251,13 +302,14 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # choose the Maybe option which leads to a USSD End with message action
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="Maybe",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="Maybe", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with the message of the end action
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, 'perfect, thanks')
+        self.assertEqual(msgs.last().text, "perfect, thanks")
 
         # same session is modified
         self.assertEqual(USSDSession.objects.count(), 1)
@@ -269,18 +321,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_end_with_end_action_with_more_actions_in_actionset(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to a set of actions including an end session w message action
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="2", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with the message of the end action
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, 'Im sorry, we will contact you')
+        self.assertEqual(msgs.last().text, "Im sorry, we will contact you")
 
         session.refresh_from_db()
 
@@ -290,18 +343,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_ruleset_through_ruleset_no_destination(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="6",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="6", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with empty msg just to close the session gracefully
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().text, "")
 
         session.refresh_from_db()
         # the session should be marked as ending since the next ruleset doesn't have any destination
@@ -310,18 +364,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_ruleset_through_ruleset_with_third_ruleset_destination(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="5",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="5", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with the message of the end action
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, 'a')
+        self.assertEqual(msgs.last().text, "a")
 
         session.refresh_from_db()
 
@@ -330,18 +385,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_ruleset_through_two_rulesets_ending_with_not_messaging_action(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="8",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="8", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with empty message
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().text, "")
 
         session.refresh_from_db()
 
@@ -350,18 +406,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_ruleset_through_ruleset_ending_with_end_action(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="9",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="9", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with the message of the end action
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, 'c')
+        self.assertEqual(msgs.last().text, "c")
 
         session.refresh_from_db()
 
@@ -370,18 +427,19 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
     def test_ruleset_through_rulesets_ending_with_no_action(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="7",
-                                              date=timezone.now(), external_id="21345")
+        session = USSDSession.handle_incoming(
+            channel=self.channel, urn="+250788383383", content="7", date=timezone.now(), external_id="21345"
+        )
 
         # there should be a last message with empty message
-        msgs = Msg.objects.filter(direction='O').order_by('id')
+        msgs = Msg.objects.filter(direction="O").order_by("id")
 
-        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().text, "")
 
         session.refresh_from_db()
 
@@ -395,19 +453,31 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
     def setUp(self):
         super().setUp()
 
-        flow = self.get_flow('ussd_example')
+        flow = self.get_flow("ussd_example")
         self.starcode = "*113#"
 
         self.channel.delete()
         self.channel = Channel.create(
-            self.org, self.user, 'RW', 'JNU', None, '1234',
-            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
-            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+            self.org,
+            self.user,
+            "RW",
+            "JNU",
+            None,
+            "1234",
+            config=dict(username="junebug-user", password="junebug-pass", send_url="http://example.org/"),
+            uuid="00000000-0000-0000-0000-000000001234",
+            role=Channel.ROLE_USSD,
+        )
 
         self.trigger, _ = Trigger.objects.get_or_create(
-            channel=self.channel, keyword=self.starcode, flow=flow,
-            created_by=self.user, modified_by=self.user, org=self.org,
-            trigger_type=Trigger.TYPE_USSD_PULL)
+            channel=self.channel,
+            keyword=self.starcode,
+            flow=flow,
+            created_by=self.user,
+            modified_by=self.user,
+            org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL,
+        )
 
     def tearDown(self):
         super().tearDown()
@@ -418,40 +488,38 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)[0]
 
         data = self.mk_event()
-        msg.external_id = data['message_id']
-        msg.save(update_fields=('external_id',))
+        msg.external_id = data["message_id"]
+        msg.save(update_fields=("external_id",))
 
         def assertStatus(sms, event_type, assert_status):
-            data['event_type'] = event_type
+            data["event_type"] = event_type
             response = self.client.post(
-                reverse('handlers.junebug_handler',
-                        args=['event', self.channel.uuid]),
+                reverse("handlers.junebug_handler", args=["event", self.channel.uuid]),
                 data=json.dumps(data),
-                content_type='application/json')
+                content_type="application/json",
+            )
             self.assertEqual(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEqual(assert_status, sms.status)
 
-        assertStatus(msg, 'submitted', SENT)
-        assertStatus(msg, 'delivery_succeeded', DELIVERED)
-        assertStatus(msg, 'delivery_failed', FAILED)
-        assertStatus(msg, 'rejected', FAILED)
+        assertStatus(msg, "submitted", SENT)
+        assertStatus(msg, "delivery_succeeded", DELIVERED)
+        assertStatus(msg, "delivery_failed", FAILED)
+        assertStatus(msg, "rejected", FAILED)
 
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
         from temba.channels.handlers import JunebugUSSDHandler
 
         data = self.mk_ussd_msg(content="événement", to=self.starcode)
-        callback_url = reverse('handlers.junebug_handler',
-                               args=['inbound', self.channel.uuid])
-        response = self.client.post(callback_url, json.dumps(data),
-                                    content_type='application/json')
+        callback_url = reverse("handlers.junebug_handler", args=["inbound", self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], JunebugUSSDHandler.ACK)
+        self.assertEqual(response.json()["status"], JunebugUSSDHandler.ACK)
 
         # load our message
-        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        inbound_msg, outbound_msg = Msg.objects.all().order_by("pk")
         self.assertEqual(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEqual(outbound_msg.response_to, inbound_msg)
         self.assertEqual(outbound_msg.connection.status, USSDSession.TRIGGERED)
@@ -461,16 +529,15 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
     def test_receive_with_session_id(self):
         from temba.ussd.models import USSDSession
 
-        data = self.mk_ussd_msg(content="événement", session_id='session-id', to=self.starcode)
-        callback_url = reverse('handlers.junebug_handler',
-                               args=['inbound', self.channel.uuid])
-        self.client.post(callback_url, json.dumps(data), content_type='application/json')
+        data = self.mk_ussd_msg(content="événement", session_id="session-id", to=self.starcode)
+        callback_url = reverse("handlers.junebug_handler", args=["inbound", self.channel.uuid])
+        self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
         # load our message
-        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        inbound_msg, outbound_msg = Msg.objects.all().order_by("pk")
         self.assertEqual(outbound_msg.connection.status, USSDSession.TRIGGERED)
-        self.assertEqual(outbound_msg.connection.external_id, 'session-id')
-        self.assertEqual(inbound_msg.connection.external_id, 'session-id')
+        self.assertEqual(outbound_msg.connection.external_id, "session-id")
+        self.assertEqual(inbound_msg.connection.external_id, "session-id")
 
     def test_receive_ussd_no_session(self):
         from temba.channels.handlers import JunebugUSSDHandler
@@ -479,45 +546,47 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.trigger.delete()
 
         data = self.mk_ussd_msg(content="événement", to=self.starcode)
-        callback_url = reverse('handlers.junebug_handler',
-                               args=['inbound', self.channel.uuid])
-        response = self.client.post(callback_url, json.dumps(data),
-                                    content_type='application/json')
+        callback_url = reverse("handlers.junebug_handler", args=["inbound", self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['status'], JunebugUSSDHandler.NACK)
+        self.assertEqual(response.json()["status"], JunebugUSSDHandler.NACK)
 
     def test_send_ussd_continue_and_end_session(self):
-        flow = self.get_flow('ussd_session_end')
+        flow = self.get_flow("ussd_session_end")
         contact = self.create_contact("Joe", "+250788383383")
 
         try:
             settings.SEND_MESSAGES = True
 
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps({
-                    'result': {
-                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
-                    }
-                }))
+            with patch("requests.post") as mock:
+                mock.return_value = MockResponse(
+                    200, json.dumps({"result": {"message_id": "07033084-5cfd-4812-90a4-e4d24ffb6e3d"}})
+                )
 
                 flow.start([], [contact])
 
                 # our outgoing message
-                msg = Msg.objects.filter(direction='O').order_by('id').last()
+                msg = Msg.objects.filter(direction="O").order_by("id").last()
 
-                self.assertEqual(msg.direction, 'O')
+                self.assertEqual(msg.direction, "O")
                 self.assertTrue(msg.sent_on)
                 self.assertEqual("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
                 self.assertEqual(msg.connection.status, USSDSession.INITIATED)
 
                 # reply and choose an option that doesn't have any destination thus needs to close the session
-                USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
-                                            date=timezone.now(), external_id="21345", message_id='jn-message-id')
+                USSDSession.handle_incoming(
+                    channel=self.channel,
+                    urn="+250788383383",
+                    content="4",
+                    date=timezone.now(),
+                    external_id="21345",
+                    message_id="jn-message-id",
+                )
                 # our outgoing message
-                msg = Msg.objects.filter(direction='O').order_by('id').last()
+                msg = Msg.objects.filter(direction="O").order_by("id").last()
                 self.assertEqual(WIRED, msg.status)
-                self.assertEqual(msg.direction, 'O')
+                self.assertEqual(msg.direction, "O")
                 self.assertTrue(msg.sent_on)
                 self.assertEqual("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
                 self.assertEqual("jn-message-id", msg.response_to.external_id)
@@ -530,22 +599,18 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 # first outbound (session continued)
                 call = mock.call_args_list[0]
                 (args, kwargs) = call
-                payload = kwargs['json']
-                self.assertIsNone(payload.get('reply_to'))
-                self.assertEqual(payload.get('to'), "+250788383383")
-                self.assertEqual(payload['channel_data'], {
-                    'continue_session': True
-                })
+                payload = kwargs["json"]
+                self.assertIsNone(payload.get("reply_to"))
+                self.assertEqual(payload.get("to"), "+250788383383")
+                self.assertEqual(payload["channel_data"], {"continue_session": True})
 
                 # second outbound (session ended)
                 call = mock.call_args_list[1]
                 (args, kwargs) = call
-                payload = kwargs['json']
-                self.assertEqual(payload['reply_to'], 'jn-message-id')
-                self.assertEqual(payload.get('to'), None)
-                self.assertEqual(payload['channel_data'], {
-                    'continue_session': False
-                })
+                payload = kwargs["json"]
+                self.assertEqual(payload["reply_to"], "jn-message-id")
+                self.assertEqual(payload.get("to"), None)
+                self.assertEqual(payload["channel_data"], {"continue_session": False})
 
                 self.clear_cache()
         finally:

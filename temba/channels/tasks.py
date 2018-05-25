@@ -9,11 +9,12 @@ from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
 
-from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
+from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
 from temba.utils import dict_to_struct
 from temba.utils.mage import MageClient
-from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
-from .models import Channel, Alert, ChannelLog, ChannelCount
+from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
+
+from .models import Alert, Channel, ChannelCount, ChannelLog
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +25,19 @@ class MageStreamAction(Enum):
     deactivate = 3
 
 
-@task(track_started=True, name='sync_channel_gcm_task')
+@task(track_started=True, name="sync_channel_gcm_task")
 def sync_channel_gcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_gcm(cloud_registration_id, channel)
 
 
-@task(track_started=True, name='sync_channel_fcm_task')
+@task(track_started=True, name="sync_channel_fcm_task")
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
 
 
-@task(track_started=True, name='send_msg_task')
+@task(track_started=True, name="send_msg_task")
 def send_msg_task():
     """
     Pops the next message off of our msg queue to send.
@@ -55,13 +56,15 @@ def send_msg_task():
 
     # acquire a lock on our contact to make sure two sets of msgs aren't being sent at the same time
     try:
-        with r.lock('send_contact_%d' % msg_tasks[0]['contact'], timeout=300):
+        with r.lock("send_contact_%d" % msg_tasks[0]["contact"], timeout=300):
             # send each of our msgs
             while msg_tasks:
                 msg_task = msg_tasks.pop(0)
-                msg = dict_to_struct('MockMsg', msg_task,
-                                     datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on',
-                                                      'next_attempt'])
+                msg = dict_to_struct(
+                    "MockMsg",
+                    msg_task,
+                    datetime_fields=["modified_on", "sent_on", "created_on", "queued_on", "next_attempt"],
+                )
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on
@@ -78,7 +81,7 @@ def send_msg_task():
             push_task(org_id, MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
 
 
-@nonoverlapping_task(track_started=True, name='check_channels_task', lock_key='check_channels')
+@nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")
 def check_channels_task():
     """
     Run every 30 minutes.  Checks if any channels who are active have not been seen in that
@@ -87,18 +90,18 @@ def check_channels_task():
     Alert.check_alerts()
 
 
-@task(track_started=True, name='send_alert_task')
+@task(track_started=True, name="send_alert_task")
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
 
 
-@task(track_started=True, name='refresh_all_jiochat_access_tokens')
+@task(track_started=True, name="refresh_all_jiochat_access_tokens")
 def refresh_all_jiochat_access_tokens(channel_id=None):  # pragma: no cover
     Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
 
 
-@nonoverlapping_task(track_started=True, name='trim_channel_log_task')
+@nonoverlapping_task(track_started=True, name="trim_channel_log_task")
 def trim_channel_log_task():  # pragma: needs cover
     """
     Runs daily and clears any channel log items older than 48 hours.
@@ -119,7 +122,7 @@ def trim_channel_log_task():  # pragma: needs cover
         ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
 
 
-@task(track_started=True, name='notify_mage_task')
+@task(track_started=True, name="notify_mage_task")
 def notify_mage_task(channel_uuid, action):
     """
     Notifies Mage of a change to a Twitter channel
@@ -132,9 +135,9 @@ def notify_mage_task(channel_uuid, action):
     elif action == MageStreamAction.deactivate:
         mage.deactivate_twitter_stream(channel_uuid)
     else:  # pragma: no cover
-        raise ValueError('Invalid action: %s' % action)
+        raise ValueError("Invalid action: %s" % action)
 
 
-@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key='squash_channelcounts')
+@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts")
 def squash_channelcounts():
     ChannelCount.squash()

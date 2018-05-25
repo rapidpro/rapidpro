@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0125_auto_20171107_1643'),
-    ]
+    dependencies = [("flows", "0125_auto_20171107_1643")]
 
     operations = [
         migrations.AddField(
-            model_name='flowrun',
-            name='path',
-            field=models.TextField(help_text='The path taken during this flow run in JSON format', null=True),
-        ),
+            model_name="flowrun",
+            name="path",
+            field=models.TextField(help_text="The path taken during this flow run in JSON format", null=True),
+        )
     ]

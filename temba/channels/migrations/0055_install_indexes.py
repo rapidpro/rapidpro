@@ -18,10 +18,6 @@ ON channels_channelevent(org_id, "time" DESC)
 WHERE is_active = TRUE AND event_type IN ('mt_call', 'mt_miss', 'mo_call', 'mo_miss');
     """
 
-    dependencies = [
-        ('channels', '0054_install_triggers'),
-    ]
+    dependencies = [("channels", "0054_install_triggers")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

@@ -5,29 +5,27 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0155_remove_flowrun_message_ids'),
-    ]
+    dependencies = [("flows", "0155_remove_flowrun_message_ids")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowpathrecentrun',
-            name='from_uuid',
-            field=models.UUIDField(help_text='The flow node UUID of the first step'),
+            model_name="flowpathrecentrun",
+            name="from_uuid",
+            field=models.UUIDField(help_text="The flow node UUID of the first step"),
         ),
         migrations.AddField(
-            model_name='flowpathrecentrun',
-            name='from_step_uuid',
-            field=models.UUIDField(help_text='The UUID of the first step', null=True),
+            model_name="flowpathrecentrun",
+            name="from_step_uuid",
+            field=models.UUIDField(help_text="The UUID of the first step", null=True),
         ),
         migrations.AlterField(
-            model_name='flowpathrecentrun',
-            name='to_uuid',
-            field=models.UUIDField(help_text='The flow node UUID of the second step'),
+            model_name="flowpathrecentrun",
+            name="to_uuid",
+            field=models.UUIDField(help_text="The flow node UUID of the second step"),
         ),
         migrations.AddField(
-            model_name='flowpathrecentrun',
-            name='to_step_uuid',
-            field=models.UUIDField(help_text='The UUID of the second step', null=True),
+            model_name="flowpathrecentrun",
+            name="to_step_uuid",
+            field=models.UUIDField(help_text="The UUID of the second step", null=True),
         ),
     ]

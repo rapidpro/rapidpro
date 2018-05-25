@@ -2,6 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.globe.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -10,15 +11,17 @@ class GlobeType(ChannelType):
     A Globe Labs channel
     """
 
-    code = 'GL'
+    code = "GL"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_url = r"^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "Globe Labs"
 
-    claim_blurb = _("""If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
-                       and receive messages on your shortcode.""")
+    claim_blurb = _(
+        """If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
+                       and receive messages on your shortcode."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -34,13 +37,13 @@ class GlobeType(ChannelType):
     configuration_urls = (
         dict(
             label=_("Notify URI"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.gl' channel.uuid 'receive' %}"
+            url="https://{{ channel.callback_domain }}{% url 'courier.gl' channel.uuid 'receive' %}",
         ),
     )
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and str(org.timezone) in ['Asia/Manila']
+        return org.timezone and str(org.timezone) in ["Asia/Manila"]
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

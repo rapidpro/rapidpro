@@ -7,13 +7,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0154_populate_flowstart_counts'),
-    ]
+    dependencies = [("flows", "0154_populate_flowstart_counts")]
 
-    operations = [
-        migrations.RemoveField(
-            model_name='flowrun',
-            name='message_ids',
-        ),
-    ]
+    operations = [migrations.RemoveField(model_name="flowrun", name="message_ids")]

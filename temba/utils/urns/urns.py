@@ -3,14 +3,15 @@ from enum import Enum
 # Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
 
 ESCAPES = {
-    '#': '%23',
-    '%': '%25',
+    "#": "%23",
+    "%": "%25",
     # '/': '%2F',  can't enable this until we fix our URNs with slashes
-    '?': '%3F'
+    "?": "%3F",
 }
 
 
 class ParsedURN(object):
+
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme
         self.path = path
@@ -36,25 +37,20 @@ class State(Enum):
 def parse_urn(urn):
     state = State.scheme
 
-    buffers = {
-        State.scheme: [],
-        State.path: [],
-        State.query: [],
-        State.fragment: [],
-    }
+    buffers = {State.scheme: [], State.path: [], State.query: [], State.fragment: []}
 
     for c in urn:
-        if c == ':':
+        if c == ":":
             if state == State.scheme:
                 state = State.path
                 continue
-        elif c == '?':
+        elif c == "?":
             if state == State.path:
                 state = State.query
                 continue
             else:
                 raise ValueError("query component can only come after path component")
-        elif c == '#':
+        elif c == "#":
             if state == State.path or state == State.query:
                 state = State.fragment
                 continue
@@ -69,15 +65,15 @@ def parse_urn(urn):
         raise ValueError("path cannot be empty")
 
     return ParsedURN(
-        unescape(''.join(buffers[State.scheme])),
-        unescape(''.join(buffers[State.path])),
-        unescape(''.join(buffers[State.query])),
-        unescape(''.join(buffers[State.fragment]))
+        unescape("".join(buffers[State.scheme])),
+        unescape("".join(buffers[State.path])),
+        unescape("".join(buffers[State.query])),
+        unescape("".join(buffers[State.fragment])),
     )
 
 
 def escape(s):
-    return ''.join([ESCAPES.get(c, c) for c in s])
+    return "".join([ESCAPES.get(c, c) for c in s])
 
 
 def unescape(s):
