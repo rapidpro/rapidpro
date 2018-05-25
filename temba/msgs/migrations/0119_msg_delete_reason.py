@@ -49,7 +49,7 @@ $$ LANGUAGE plpgsql;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0117_msg_uuid_index'),
+        ('msgs', '0118_auto_20180524_1826'),
     ]
 
     operations = [

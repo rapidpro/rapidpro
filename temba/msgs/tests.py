@@ -88,8 +88,8 @@ class MsgTest(TembaTest):
         self.assertEqual(self.org._calculate_credits_used()[0], 1)
 
         # a purge delete on a message should keep credits the same
-        msg2.purged = True
-        msg2.save(update_fields=("purged",))
+        msg2.delete_reason = Msg.DELETE_FOR_PURGE
+        msg2.save(update_fields=("delete_reason",))
         msg2.delete()
         self.assertEqual(0, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 1)
