@@ -1,13 +1,14 @@
 import logging
 
-from django.conf import settings
-from django.http import HttpResponseServerError
 from rest_framework import exceptions, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import exception_handler
+
+from django.conf import settings
+from django.http import HttpResponseServerError
 
 from .models import APIToken
 

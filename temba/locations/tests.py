@@ -4,6 +4,7 @@ import shutil
 import tempfile
 
 import responses
+
 from django.core.management import call_command
 from django.core.urlresolvers import reverse
 

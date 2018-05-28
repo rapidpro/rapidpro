@@ -2,6 +2,7 @@ from gettext import gettext as _
 from urllib.parse import urlparse
 
 import boto3
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone

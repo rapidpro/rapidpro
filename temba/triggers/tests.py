@@ -2,10 +2,11 @@ import time
 from datetime import timedelta
 from uuid import uuid4
 
+from mock import patch
+
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
-from mock import patch
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME

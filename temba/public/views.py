@@ -2,13 +2,14 @@ import json
 from random import randint
 from urllib.parse import parse_qs, urlencode
 
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
+
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView, View
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user

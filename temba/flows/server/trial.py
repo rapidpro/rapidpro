@@ -8,9 +8,10 @@ import json
 import logging
 import time
 
-from django.conf import settings
 from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
+
+from django.conf import settings
 
 from .client import Events, get_client
 from .serialize import serialize_channel_ref, serialize_contact, serialize_environment

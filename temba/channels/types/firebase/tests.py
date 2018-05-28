@@ -1,8 +1,9 @@
 
 import json
 
-from django.urls import reverse
 from mock import patch
+
+from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
 

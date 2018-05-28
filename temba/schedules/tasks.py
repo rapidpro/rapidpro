@@ -1,7 +1,9 @@
-from celery.task import task
+from django_redis import get_redis_connection
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from django_redis import get_redis_connection
+
+from celery.task import task
 
 from .models import Schedule
 

@@ -12,6 +12,11 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
+from future.moves.html.parser import HTMLParser
+from mock import patch
+from selenium.webdriver.firefox.webdriver import WebDriver
+from smartmin.tests import SmartminTest
+
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
@@ -22,10 +27,6 @@ from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
-from future.moves.html.parser import HTMLParser
-from mock import patch
-from selenium.webdriver.firefox.webdriver import WebDriver
-from smartmin.tests import SmartminTest
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup

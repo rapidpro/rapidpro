@@ -1,7 +1,8 @@
 
+from mock import patch
+
 from django.forms import ValidationError
 from django.urls import reverse
-from mock import patch
 
 from temba.tests import MockResponse, TembaTest
 

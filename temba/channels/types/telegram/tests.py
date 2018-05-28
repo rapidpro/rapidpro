@@ -1,8 +1,9 @@
 
 import telegram
+from mock import patch
+
 from django.test import override_settings
 from django.urls import reverse
-from mock import patch
 
 from temba.contacts.models import URN
 from temba.tests import TembaTest

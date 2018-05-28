@@ -2,15 +2,16 @@ import json
 from datetime import datetime, timedelta
 
 import pytz
+from django_redis import get_redis_connection
+from mock import patch
+from openpyxl import load_workbook
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.db import connection, transaction
 from django.test import override_settings
 from django.utils import timezone
-from django_redis import get_redis_connection
-from mock import patch
-from openpyxl import load_workbook
 
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN

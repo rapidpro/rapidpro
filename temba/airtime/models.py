@@ -3,10 +3,11 @@ import json
 import time
 
 import requests
+from smartmin.models import SmartModel
+
 from django.conf import settings
 from django.db import models
 from django.utils.encoding import force_bytes
-from smartmin.models import SmartModel
 
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, Contact

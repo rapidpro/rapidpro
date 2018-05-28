@@ -5,8 +5,10 @@ import sys
 from datetime import timedelta
 
 import iptools
-from celery.schedules import crontab
+
 from django.utils.translation import ugettext_lazy as _
+
+from celery.schedules import crontab
 
 # -----------------------------------------------------------------------------------
 # Default to debugging

@@ -11,6 +11,18 @@ from uuid import uuid4
 
 import iso8601
 import regex
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+    smart_url,
+)
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -26,17 +38,6 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-    smart_url,
-)
 
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField

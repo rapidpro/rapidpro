@@ -7,7 +7,12 @@ from decimal import Decimal
 import iso8601
 import pycountry
 import pytz
-from celery.app.task import Task
+from django_redis import get_redis_connection
+from mock import PropertyMock, patch
+from openpyxl import load_workbook
+from smartmin.tests import SmartminTestMixin
+from temba_expressions.evaluator import DateStyle, EvaluationContext
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
@@ -16,11 +21,8 @@ from django.core.urlresolvers import reverse
 from django.db import connection, models
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
-from django_redis import get_redis_connection
-from mock import PropertyMock, patch
-from openpyxl import load_workbook
-from smartmin.tests import SmartminTestMixin
-from temba_expressions.evaluator import DateStyle, EvaluationContext
+
+from celery.app.task import Task
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings

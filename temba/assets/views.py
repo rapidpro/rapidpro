@@ -1,9 +1,10 @@
 import mimetypes
 
+from smartmin.views import SmartTemplateView, SmartView
+
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
-from smartmin.views import SmartTemplateView, SmartView
 
 from .models import AssetAccessDenied, AssetEntityNotFound, AssetFileNotFound, get_asset_store
 

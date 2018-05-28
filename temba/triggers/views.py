@@ -2,6 +2,8 @@ import json
 from datetime import timedelta
 
 import regex
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
+
 from django import forms
 from django.core.urlresolvers import reverse
 from django.db.models import Min
@@ -10,7 +12,6 @@ from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from temba.channels.models import Channel, ChannelType
 from temba.contacts.fields import OmniboxField

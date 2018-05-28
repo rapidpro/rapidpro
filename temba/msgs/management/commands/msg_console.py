@@ -1,7 +1,7 @@
 import cmd
 
-from colorama import Fore, Style
-from colorama import init as colorama_init
+from colorama import Fore, Style, init as colorama_init
+
 from django.core.management.base import BaseCommand, CommandError
 
 from temba.contacts.models import URN, Contact

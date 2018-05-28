@@ -11,6 +11,10 @@ import iso8601
 import phonenumbers
 import pytz
 import regex
+from django_redis import get_redis_connection
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError, SmartModel
+
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -18,11 +22,7 @@ from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.db.models.functions import Lower
 from django.utils import timezone
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
-from django_redis import get_redis_connection
-from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError, SmartModel
+from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel

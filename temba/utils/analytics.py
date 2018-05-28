@@ -1,13 +1,14 @@
 
 import logging
 import time
-
 import analytics as segment_analytics
-from django.conf import settings
-from django.utils import timezone
+
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient
+
+from django.conf import settings
+from django.utils import timezone
 
 from temba.utils.dates import datetime_to_json_date
 

@@ -3,10 +3,11 @@
 import json
 import time
 
+from django_redis import get_redis_connection
+
 from django.db import connection, migrations, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
-from django_redis import get_redis_connection
 
 from temba.utils import chunk_list, format_number
 

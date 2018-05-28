@@ -1,5 +1,6 @@
 
 import requests
+
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FACEBOOK_SCHEME

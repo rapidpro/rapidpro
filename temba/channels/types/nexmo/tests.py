@@ -1,6 +1,7 @@
 
-from django.urls import reverse
 from mock import patch
+
+from django.urls import reverse
 
 from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
