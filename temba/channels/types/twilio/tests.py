@@ -1,7 +1,8 @@
 
-from django.urls import reverse
 from mock import patch
 from twilio import TwilioRestException
+
+from django.urls import reverse
 
 from temba.channels.models import Channel
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN

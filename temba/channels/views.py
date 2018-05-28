@@ -9,18 +9,6 @@ from datetime import datetime, timedelta
 import phonenumbers
 import pytz
 import requests
-from django import forms
-from django.conf import settings
-from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
-from django.db.models import Count, Sum
-from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
-from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
-from django.utils.http import urlencode
-from django.utils.translation import ugettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 from django_countries.data import COUNTRIES
 from smartmin.views import (
     SmartCRUDL,
@@ -33,6 +21,19 @@ from smartmin.views import (
     SmartUpdateView,
 )
 from twilio import TwilioRestException
+
+from django import forms
+from django.conf import settings
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
+from django.db.models import Count, Sum
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.utils import timezone
+from django.utils.encoding import force_bytes, force_text
+from django.utils.http import urlencode
+from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 
 from temba.channels.models import ChannelSession
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN

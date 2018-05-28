@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 
 import regex
+
 from django.utils.encoding import force_text
 from django.utils.text import slugify
 

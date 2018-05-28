@@ -4,10 +4,12 @@ import json
 import time
 from functools import wraps
 
-from celery import current_app, shared_task
+from django_redis import get_redis_connection
+
 from django.conf import settings
 from django.utils.encoding import force_text
-from django_redis import get_redis_connection
+
+from celery import current_app, shared_task
 
 from temba.utils import dict_to_json
 

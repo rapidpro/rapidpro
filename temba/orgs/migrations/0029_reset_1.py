@@ -1,6 +1,7 @@
+import timezone_field.fields
+
 import django.db.models.deletion
 import django.utils.timezone
-import timezone_field.fields
 from django.conf import settings
 from django.db import migrations, models
 

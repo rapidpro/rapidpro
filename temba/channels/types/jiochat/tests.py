@@ -1,6 +1,7 @@
 
-from django.urls import reverse
 from mock import patch
+
+from django.urls import reverse
 
 from temba.channels.types.jiochat.tasks import refresh_jiochat_access_tokens
 from temba.contacts.models import URN

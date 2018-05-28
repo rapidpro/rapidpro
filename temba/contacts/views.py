@@ -4,6 +4,20 @@ from collections import OrderedDict
 from datetime import timedelta
 
 import regex
+from smartmin.csv_imports.models import ImportTask
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartCSVImportView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+    smart_url,
+)
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -18,19 +32,6 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from smartmin.csv_imports.models import ImportTask
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartCSVImportView,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-    smart_url,
-)
 
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin

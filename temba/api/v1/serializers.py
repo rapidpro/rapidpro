@@ -3,9 +3,10 @@ import json
 
 import phonenumbers
 import regex
+from rest_framework import serializers
+
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
 
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN

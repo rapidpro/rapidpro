@@ -9,6 +9,11 @@ import uuid
 from datetime import timedelta
 from urllib.parse import quote
 
+from django_redis import get_redis_connection
+from mock import ANY, patch
+from smartmin.tests import SmartminTest
+from twython import TwythonError
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -19,10 +24,6 @@ from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
-from django_redis import get_redis_connection
-from mock import ANY, patch
-from smartmin.tests import SmartminTest
-from twython import TwythonError
 
 from temba.api.models import WebHookEvent
 from temba.channels.views import channel_status_processor

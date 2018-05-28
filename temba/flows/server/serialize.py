@@ -1,7 +1,8 @@
 from urllib.parse import urlencode
 
-from django.db.models import Prefetch
 from mptt.utils import get_cached_trees
+
+from django.db.models import Prefetch
 
 from temba.values.constants import Value
 

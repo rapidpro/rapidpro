@@ -3,13 +3,14 @@ import time
 from collections import OrderedDict
 from uuid import uuid4
 
+from smartmin.models import SmartModel
+
 from django.contrib.postgres.fields import HStoreField
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
-from smartmin.models import SmartModel
 
 
 def generate_uuid():

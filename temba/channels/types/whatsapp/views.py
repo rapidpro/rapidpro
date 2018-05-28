@@ -1,8 +1,9 @@
 
 import requests
+from smartmin.views import SmartFormView, SmartUpdateView
+
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartFormView, SmartUpdateView
 
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin

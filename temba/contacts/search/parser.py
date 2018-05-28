@@ -7,9 +7,10 @@ import regex
 from antlr4 import CommonTokenStream, InputStream, ParseTreeVisitor
 from antlr4.error.Errors import NoViableAltException, ParseCancellationException
 from antlr4.error.ErrorStrategy import BailErrorStrategy
+from elasticsearch_dsl import Q as es_Q
+
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
-from elasticsearch_dsl import Q as es_Q
 
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_utc_range, str_to_datetime

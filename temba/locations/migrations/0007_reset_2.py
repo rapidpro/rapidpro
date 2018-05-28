@@ -1,5 +1,6 @@
-import django.db.models.deletion
 import mptt.fields
+
+import django.db.models.deletion
 from django.db import migrations, models
 
 

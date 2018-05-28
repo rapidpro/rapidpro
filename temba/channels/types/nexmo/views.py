@@ -1,11 +1,12 @@
 
 import phonenumbers
+from smartmin.views import SmartFormView
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartFormView
 
 from temba.channels.models import Channel
 from temba.channels.views import (

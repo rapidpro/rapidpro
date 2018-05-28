@@ -6,6 +6,12 @@ import time
 from datetime import date, datetime, timedelta
 
 import pytz
+from mock import patch
+from openpyxl import load_workbook
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError
+from smartmin.tests import SmartminTestMixin, _CRUDLTest
+
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
@@ -13,11 +19,6 @@ from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
-from mock import patch
-from openpyxl import load_workbook
-from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError
-from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
