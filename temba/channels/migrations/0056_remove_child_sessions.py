@@ -4,8 +4,8 @@ from django.db import migrations
 
 
 def remove_child_sessions(apps, schema_editor):
-    ChannelSession = apps.get_model('channels', 'ChannelSession')
-    FlowRun = apps.get_model('flows', 'FlowRun')
+    ChannelSession = apps.get_model("channels", "ChannelSession")
+    FlowRun = apps.get_model("flows", "FlowRun")
 
     child_sessions = ChannelSession.objects.all().exclude(parent=None)
 
@@ -17,10 +17,6 @@ def remove_child_sessions(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0055_install_indexes'),
-    ]
+    dependencies = [("channels", "0055_install_indexes")]
 
-    operations = [
-        migrations.RunPython(remove_child_sessions)
-    ]
+    operations = [migrations.RunPython(remove_child_sessions)]

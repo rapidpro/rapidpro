@@ -5,14 +5,14 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0105_msg_high_priority'),
-    ]
+    dependencies = [("msgs", "0105_msg_high_priority")]
 
     operations = [
         migrations.AlterField(
-            model_name='msg',
-            name='priority',
-            field=models.IntegerField(default=500, help_text='The priority for this message to be sent, higher is higher priority', null=True),
-        ),
+            model_name="msg",
+            name="priority",
+            field=models.IntegerField(
+                default=500, help_text="The priority for this message to be sent, higher is higher priority", null=True
+            ),
+        )
     ]

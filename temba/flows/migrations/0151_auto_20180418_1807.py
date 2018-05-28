@@ -5,14 +5,24 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0150_populate_run_events'),
-    ]
+    dependencies = [("flows", "0150_populate_run_events")]
 
     operations = [
         migrations.AlterField(
-            model_name='ruleset',
-            name='value_type',
-            field=models.CharField(choices=[('T', 'Text'), ('N', 'Number'), ('D', 'Date & Time'), ('S', 'State'), ('I', 'District'), ('W', 'Ward')], default='T', help_text='The type of value this ruleset saves', max_length=1),
-        ),
+            model_name="ruleset",
+            name="value_type",
+            field=models.CharField(
+                choices=[
+                    ("T", "Text"),
+                    ("N", "Number"),
+                    ("D", "Date & Time"),
+                    ("S", "State"),
+                    ("I", "District"),
+                    ("W", "Ward"),
+                ],
+                default="T",
+                help_text="The type of value this ruleset saves",
+                max_length=1,
+            ),
+        )
     ]

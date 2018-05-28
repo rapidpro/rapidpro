@@ -1,15 +1,15 @@
 import json
-
 from cgi import parse_header, parse_multipart
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse
 from threading import Thread
+from urllib.parse import urlparse
 
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
     """
     A simple HTTP handler which responds to a request with a matching mocked request
     """
+
     def _handle_request(self, method, data=None):
 
         if not self.server.mocked_requests:
@@ -29,25 +29,25 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         self.send_response(mock.status)
         self.send_header("Content-type", mock.content_type)
         self.end_headers()
-        self.wfile.write(mock.content.encode('utf-8'))
+        self.wfile.write(mock.content.encode("utf-8"))
 
     def do_GET(self):
-        return self._handle_request('GET')
+        return self._handle_request("GET")
 
     def do_POST(self):
-        ctype, pdict = parse_header(self.headers['content-type'])
-        if ctype == 'multipart/form-data':
+        ctype, pdict = parse_header(self.headers["content-type"])
+        if ctype == "multipart/form-data":
             data = parse_multipart(self.rfile, pdict)
-        elif ctype == 'application/x-www-form-urlencoded':
-            length = int(self.headers['content-length'])
+        elif ctype == "application/x-www-form-urlencoded":
+            length = int(self.headers["content-length"])
             data = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
-        elif ctype == 'application/json':
-            length = int(self.headers['content-length'])
+        elif ctype == "application/json":
+            length = int(self.headers["content-length"])
             data = json.loads(self.rfile.read(length))
         else:
             data = {}
 
-        return self._handle_request('POST', data)
+        return self._handle_request("POST", data)
 
 
 class MockServer(HTTPServer):
@@ -55,7 +55,9 @@ class MockServer(HTTPServer):
     Webhook calls may call out to external HTTP servers so a instance of this server runs alongside the test suite
     and provides a mechanism for mocking requests to particular URLs
     """
+
     class Request(object):
+
         def __init__(self, method, path, content, content_type, status):
             self.method = method
             self.path = path
@@ -68,12 +70,12 @@ class MockServer(HTTPServer):
             self.headers = None
 
         def __str__(self):
-            return '%s %s -> %s' % (self.method, self.path, self.content)
+            return "%s %s -> %s" % (self.method, self.path, self.content)
 
     def __init__(self):
-        HTTPServer.__init__(self, ('localhost', 49999), MockServerRequestHandler)
+        HTTPServer.__init__(self, ("localhost", 49999), MockServerRequestHandler)
 
-        self.base_url = 'http://localhost:49999'
+        self.base_url = "http://localhost:49999"
         self.mocked_requests = []
 
     def start(self):

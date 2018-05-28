@@ -7,33 +7,15 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0158_backfill_recent_step_uuids'),
-    ]
+    dependencies = [("flows", "0158_backfill_recent_step_uuids")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='flowstep',
-            name='broadcasts',
-        ),
-        migrations.RemoveField(
-            model_name='flowstep',
-            name='contact',
-        ),
-        migrations.RemoveField(
-            model_name='flowstep',
-            name='messages',
-        ),
-        migrations.RemoveField(
-            model_name='flowstep',
-            name='run',
-        ),
+        migrations.RemoveField(model_name="flowstep", name="broadcasts"),
+        migrations.RemoveField(model_name="flowstep", name="contact"),
+        migrations.RemoveField(model_name="flowstep", name="messages"),
+        migrations.RemoveField(model_name="flowstep", name="run"),
         migrations.AlterField(
-            model_name='actionset',
-            name='destination_type',
-            field=models.CharField(max_length=1, null=True),
+            model_name="actionset", name="destination_type", field=models.CharField(max_length=1, null=True)
         ),
-        migrations.DeleteModel(
-            name='FlowStep',
-        ),
+        migrations.DeleteModel(name="FlowStep"),
     ]

@@ -10,14 +10,14 @@ def rewrite_query_node(node):
         ch_list = []
 
         for ch in node.children:
-            if not (isinstance(ch, Condition)) or ch.prop not in ('name', 'id'):
+            if not (isinstance(ch, Condition)) or ch.prop not in ("name", "id"):
                 rw_q = rewrite_query_node(ch)
                 if rw_q is not None:
                     ch_list.append(rw_q)
         if len(ch_list) == 0:
             return None
         node.children = ch_list
-    elif isinstance(node, Condition) and node.prop in ('name', 'id'):
+    elif isinstance(node, Condition) and node.prop in ("name", "id"):
         return None
 
     return node
@@ -34,7 +34,7 @@ def rewrite_dynamic_contactgroups(dynamic_groups_qs):
     """
     from ..search import parse_query
 
-    groups = dynamic_groups_qs.select_related('org')
+    groups = dynamic_groups_qs.select_related("org")
     if not groups:
         return
 
@@ -57,26 +57,23 @@ def rewrite_dynamic_contactgroups(dynamic_groups_qs):
         print(" > Migrated group '%s' #%d ('%s' => '%s')" % (dg.name, dg.id, dg.query, new_query))
 
         dg.query = new_query
-        dg.save(update_fields=('query',))
+        dg.save(update_fields=("query",))
 
 
 def apply_manual():
     from temba.contacts.models import ContactGroup
+
     rewrite_dynamic_contactgroups(ContactGroup.user_groups.exclude(query__isnull=True))
 
 
 def apply_as_migration(apps, schema_editor):
-    ContactGroup = apps.get_model('contacts', 'ContactGroup')
-    dg_qs = ContactGroup.all_groups.exclude(query__isnull=True).filter(group_type='U', is_active=True)
+    ContactGroup = apps.get_model("contacts", "ContactGroup")
+    dg_qs = ContactGroup.all_groups.exclude(query__isnull=True).filter(group_type="U", is_active=True)
     rewrite_dynamic_contactgroups(dg_qs)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0067_auto_20170808_1852'),
-    ]
+    dependencies = [("contacts", "0067_auto_20170808_1852")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

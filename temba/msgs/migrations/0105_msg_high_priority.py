@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0104_auto_20170914_1745'),
-    ]
+    dependencies = [("msgs", "0104_auto_20170914_1745")]
 
     operations = [
         migrations.AddField(
-            model_name='msg',
-            name='high_priority',
-            field=models.NullBooleanField(help_text='Give this message higher priority than other messages'),
-        ),
+            model_name="msg",
+            name="high_priority",
+            field=models.NullBooleanField(help_text="Give this message higher priority than other messages"),
+        )
     ]

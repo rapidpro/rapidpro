@@ -70,10 +70,12 @@ python-intercom
 pysocks; python_version >= "3.0"
 
 ########################## testing ##########################
+black
 coverage
 flake8
 flake8-deprecated
 flake8-print
+isort
 mock
 responses
 selenium

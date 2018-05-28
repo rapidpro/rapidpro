@@ -2,6 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.africastalking.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 
 
@@ -9,17 +10,19 @@ class AfricasTalkingType(ChannelType):
     """
     An Africa's Talking channel (https://africastalking.com/)
     """
-    code = 'AT'
+    code = "AT"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$'
+    courier_url = r"^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$"
 
     name = "Africa's Talking"
-    icon = 'icon-channel-external'
+    icon = "icon-channel-external"
 
-    claim_blurb = _("""If you are based in Kenya, Uganda or Malawi you can purchase a short
+    claim_blurb = _(
+        """If you are based in Kenya, Uganda or Malawi you can purchase a short
     code from <a href="http://africastalking.com">Africa's Talking</a> and connect it
-    in a few simple steps.""")
+    in a few simple steps."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -52,9 +55,8 @@ class AfricasTalkingType(ChannelType):
                 You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
                 <a href="http://www.africastalking.com/account/sms/dlrcallback" target="africastalking">Delivery Reports</a>.
                 """
-            )
+            ),
         ),
-
     )
 
     def is_available_to(self, user):

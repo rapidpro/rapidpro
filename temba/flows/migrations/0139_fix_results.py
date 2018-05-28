@@ -2,17 +2,18 @@
 
 import json
 import time
-
 from array import array
 from datetime import timedelta
+
+from django_redis import get_redis_connection
+
 from django.db import migrations, transaction
 from django.utils import timezone
-from django_redis import get_redis_connection
+
 from temba.utils import chunk_list
 from temba.utils.dates import str_to_datetime
 
-
-CACHE_KEY_HIGHPOINT = 'res_fix_mig_highpoint'
+CACHE_KEY_HIGHPOINT = "res_fix_mig_highpoint"
 
 
 def fix_value_results(FlowRun, RuleSet, Value):
@@ -32,13 +33,13 @@ def fix_value_results(FlowRun, RuleSet, Value):
     values = Value.objects.exclude(decimal_value=None).exclude(datetime_value=None).exclude(run=None)
 
     # get all flow runs we need to fix
-    run_ids = values.values_list('run_id', flat=True).order_by('run_id').distinct('run_id')
+    run_ids = values.values_list("run_id", flat=True).order_by("run_id").distinct("run_id")
 
     if highpoint:
         print("Resuming from previous highpoint at run #%d" % highpoint)
         run_ids = run_ids.filter(id__gt=highpoint)
 
-    run_ids = array(str('l'), run_ids)
+    run_ids = array(str("l"), run_ids)
 
     print("Total of %d runs need to be fixed" % len(run_ids))
 
@@ -47,10 +48,12 @@ def fix_value_results(FlowRun, RuleSet, Value):
 
     for id_batch in chunk_list(run_ids, 1000):
         with transaction.atomic():
-            batch = FlowRun.objects.filter(id__in=id_batch).order_by('id').select_related('org').prefetch_related('values')
+            batch = (
+                FlowRun.objects.filter(id__in=id_batch).order_by("id").select_related("org").prefetch_related("values")
+            )
 
             for run in batch:
-                day_first = run.org.date_format == 'D'
+                day_first = run.org.date_format == "D"
 
                 # find result values with which are no longer parsed as dates
                 no_longer_dates = {}
@@ -62,12 +65,12 @@ def fix_value_results(FlowRun, RuleSet, Value):
                 if no_longer_dates:
                     results = json.loads(run.results) if run.results else {}
                     for key, result in results.items():
-                        node_uuid = result['node_uuid']
+                        node_uuid = result["node_uuid"]
                         if node_uuid in no_longer_dates:
-                            result['value'] = no_longer_dates[node_uuid]
+                            result["value"] = no_longer_dates[node_uuid]
 
                     run.results = json.dumps(results)
-                    run.save(update_fields=('results',))
+                    run.save(update_fields=("results",))
 
                 cache.set(CACHE_KEY_HIGHPOINT, str(run.id), 60 * 60 * 24 * 7)
                 num_fixed += 1
@@ -78,7 +81,12 @@ def fix_value_results(FlowRun, RuleSet, Value):
         num_remaining = len(run_ids) - highpoint
         time_remaining = num_remaining / fixed_per_sec
         finishes = timezone.now() + timedelta(seconds=time_remaining)
-        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (num_fixed, len(run_ids), fixed_per_sec, finishes)
+        status = " > Updated %d runs of ~%d (%2.2f per sec) Est finish: %s" % (
+            num_fixed,
+            len(run_ids),
+            fixed_per_sec,
+            finishes,
+        )
         print(status)
 
     print("Run results fix migration completed in %d mins" % (int(time.time() - start) // 60))
@@ -87,22 +95,19 @@ def fix_value_results(FlowRun, RuleSet, Value):
 def apply_manual():
     from temba.flows.models import FlowRun, RuleSet
     from temba.values.models import Value
+
     fix_value_results(FlowRun, RuleSet, Value)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowRun = apps.get_model('flows', 'FlowRun')
-    RuleSet = apps.get_model('flows', 'RuleSet')
-    Value = apps.get_model('values', 'Value')
+    FlowRun = apps.get_model("flows", "FlowRun")
+    RuleSet = apps.get_model("flows", "RuleSet")
+    Value = apps.get_model("values", "Value")
     fix_value_results(FlowRun, RuleSet, Value)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0138_path_trigger_fix'),
-    ]
+    dependencies = [("flows", "0138_path_trigger_fix")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

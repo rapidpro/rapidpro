@@ -1,2 +1,2 @@
 
-from .type import ClickatellType # noqa
+from .type import ClickatellType  # noqa
