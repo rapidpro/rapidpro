@@ -1,3 +1,8 @@
+v3.0.409
+----------
+ * Remove explicit use of uservoice
+ * Use step_uuids for recent message calculation
+
 v3.0.408
 ----------
  * Format code with blackify
