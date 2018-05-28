@@ -4983,10 +4983,10 @@ class FlowPathRecentRun(models.Model):
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
     from_uuid = models.UUIDField(help_text=_("The flow node UUID of the first step"))
-    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"), null=True)
+    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"))
 
     to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
-    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"), null=True)
+    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"))
 
     run = models.ForeignKey(FlowRun, related_name="recent_runs")
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
@@ -5021,9 +5021,7 @@ class FlowPathRecentRun(models.Model):
                         break
 
             if msg_event:
-                results.append(
-                    {"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on}
-                )
+                results.append({"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on})
 
         return results
 
