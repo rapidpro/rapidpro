@@ -5020,9 +5020,10 @@ class FlowPathRecentRun(models.Model):
                         msg_event = msg_events[-1]
                         break
 
-            results.append(
-                {"run": r.run, "text": msg_event["msg"]["text"] if msg_event else "", "visited_on": r.visited_on}
-            )
+            if msg_event:
+                results.append(
+                    {"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on}
+                )
 
         return results
 
