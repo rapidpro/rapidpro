@@ -40,6 +40,7 @@ from temba.msgs.models import (
     BroadcastRecipient,
     ExportMessagesTask,
     Label,
+    LabelCount,
     Msg,
     SystemLabel,
     SystemLabelCount,
@@ -2140,6 +2141,23 @@ class LabelTest(TembaTest):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.assertRaises(ValueError, folder.get_visible_count)
 
+        # archive one of our messages, should change count but keep an archived count as well
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
+
+        msg1.delete_reason = "A"
+        msg1.save(update_fields=["delete_reason"])
+        msg1.delete()
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # squash and check once more
+        squash_labelcounts()
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
         folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
@@ -2642,6 +2660,42 @@ class SystemLabelTest(TembaTest):
 
         # we should only have one system label per type
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
+
+        # archive one of our inbox messages
+        msg1.delete_reason = "A"
+        msg1.save(update_fields=["delete_reason"])
+        msg1.delete()
+
+        self.assertEqual(
+            SystemLabel.get_counts(self.org),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
+            },
+        )
+
+        squash_labelcounts()
+
+        # check our archived count
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 0,
+            },
+        )
 
 
 class TagsTest(TembaTest):

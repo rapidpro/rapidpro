@@ -7,6 +7,7 @@ def populate_trigger_match_types(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [("triggers", "0008_auto_20170228_0837")]
 

@@ -2027,11 +2027,13 @@ class SystemLabelCount(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
-    SQUASH_OVER = ("org_id", "label_type")
+    SQUASH_OVER = ("org_id", "label_type", "is_archived")
 
     org = models.ForeignKey(Org, related_name="system_labels")
 
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
+
+    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
 
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
@@ -2039,22 +2041,22 @@ class SystemLabelCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
         WITH deleted as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s and "is_archived" = %%s RETURNING "count"
         )
-        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        INSERT INTO %(table)s("org_id", "label_type", "is_archived", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
         """ % {
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
+        return sql, (distinct_set.org_id, distinct_set.label_type, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, org):
+    def get_totals(cls, org, is_archived=False):
         """
         Gets all system label counts by type for the given org
         """
-        counts = cls.objects.filter(org=org)
+        counts = cls.objects.filter(org=org, is_archived=is_archived)
         counts = counts.values_list("label_type").annotate(count_sum=Sum("count"))
         counts_by_type = {c[0]: c[1] for c in counts}
 
@@ -2244,9 +2246,11 @@ class LabelCount(SquashableModel):
     """
     Counts of user labels maintained by database level triggers
     """
-    SQUASH_OVER = ("label_id",)
+    SQUASH_OVER = ("label_id", "is_archived")
 
     label = models.ForeignKey(Label, related_name="counts")
+
+    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
 
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
@@ -2254,22 +2258,26 @@ class LabelCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
             WITH deleted as (
-                DELETE FROM %(table)s WHERE "label_id" = %%s RETURNING "count"
+                DELETE FROM %(table)s WHERE "label_id" = %%s AND "is_archived" = %%s RETURNING "count"
             )
-            INSERT INTO %(table)s("label_id", "count", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            INSERT INTO %(table)s("label_id", "is_archived", "count", "is_squashed")
+            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
             """ % {
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.label_id, distinct_set.label_id)
+        return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, labels):
+    def get_totals(cls, labels, is_archived=False):
         """
         Gets total counts for all the given labels
         """
-        counts = cls.objects.filter(label__in=labels).values_list("label_id").annotate(count_sum=Sum("count"))
+        counts = (
+            cls.objects.filter(label__in=labels, is_archived=is_archived)
+            .values_list("label_id")
+            .annotate(count_sum=Sum("count"))
+        )
         counts_by_label_id = {c[0]: c[1] for c in counts}
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
