@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 
-
 SQL = """
 -- index for fast fetching of unsquashed rows
 CREATE INDEX contacts_contactgroupcount_unsquashed
@@ -50,15 +49,13 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0049_install_indexes'),
-    ]
+    dependencies = [("contacts", "0049_install_indexes")]
 
     operations = [
         migrations.AddField(
-            model_name='contactgroupcount',
-            name='is_squashed',
-            field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
+            model_name="contactgroupcount",
+            name="is_squashed",
+            field=models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
         ),
         migrations.RunSQL(SQL),
     ]

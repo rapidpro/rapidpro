@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
             CREATE INDEX CONCURRENTLY IF NOT EXISTS contacts_contact_modified_on_non_test ON contacts_contact(modified_on) WHERE is_test = FALSE;
         """
 
-    dependencies = [
-        ('contacts', '0074_create_fields_index'),
-    ]
+    dependencies = [("contacts", "0074_create_fields_index")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL, "")
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL, "")]

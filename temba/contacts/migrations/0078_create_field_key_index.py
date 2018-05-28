@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 FUNCTION_SQL = """
 CREATE OR REPLACE FUNCTION
   extract_jsonb_keys(_jsonb JSONB)
@@ -25,12 +24,6 @@ DROP INDEX CONCURRENTLY IF EXISTS contacts_fields_idx;
 class Migration(migrations.Migration):
     atomic = False
 
-    dependencies = [
-        ('contacts', '0077_auto_20180418_1807'),
-    ]
+    dependencies = [("contacts", "0077_auto_20180418_1807")]
 
-    operations = [
-        migrations.RunSQL(FUNCTION_SQL),
-        migrations.RunSQL(CREATE_SQL),
-        migrations.RunSQL(DROP_SQL),
-    ]
+    operations = [migrations.RunSQL(FUNCTION_SQL), migrations.RunSQL(CREATE_SQL), migrations.RunSQL(DROP_SQL)]

@@ -1,5 +1,6 @@
 import calendar
 import datetime
+
 import iso8601
 import pytz
 import regex
@@ -10,14 +11,14 @@ from django.utils import timezone
 MAX_UTC_OFFSET = 14 * 60 * 60
 
 # pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
-FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$')
-ISO_YYYY_MM_DD = regex.compile(r'^([0-9]{4})-([0-9]{2})-([0-9]{2})$')
+FULL_ISO8601_REGEX = regex.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$")
+ISO_YYYY_MM_DD = regex.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})$")
 
 # patterns for date and time formats supported for human-entered data
-DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-MM_DD_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-YYYY_MM_DD = regex.compile(r'\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b')
-HH_MM_SS = regex.compile(r'\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b')
+DD_MM_YYYY = regex.compile(r"\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b")
+MM_DD_YYYY = regex.compile(r"\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b")
+YYYY_MM_DD = regex.compile(r"\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b")
+HH_MM_SS = regex.compile(r"\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b")
 
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
@@ -39,16 +40,24 @@ def datetime_to_str(date_obj, format=None, ms=True, tz=None):
         date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
 
     if date_obj.year < 1900:  # pragma: no cover
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
+        return "%d-%d-%dT%d:%d:%d.%dZ" % (
+            date_obj.year,
+            date_obj.month,
+            date_obj.day,
+            date_obj.hour,
+            date_obj.minute,
+            date_obj.second,
+            date_obj.microsecond,
+        )
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)
 
     if not format or not tz:
         if ms:
-            return date_obj.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            return date_obj.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         else:
-            return date_obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+            return date_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
     else:
         return date_obj.strftime(format)
 
@@ -66,7 +75,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     # remove whitespace any trailing period
-    date_str = str(date_str).strip().rstrip('.')
+    date_str = str(date_str).strip().rstrip(".")
 
     # try first as full ISO string
     if FULL_ISO8601_REGEX.match(date_str):
@@ -148,9 +157,9 @@ def str_to_time(value):
         # do we have an AM/PM marker?
         am_pm = match[7].lower() if match[7] else None
 
-        if hour < 12 and am_pm == 'pm':
+        if hour < 12 and am_pm == "pm":
             hour += 12
-        elif hour == 12 and am_pm == 'am':
+        elif hour == 12 and am_pm == "am":
             hour -= 12
 
         seconds = 0
@@ -194,8 +203,8 @@ def datetime_to_json_date(dt, micros=False):
     """
     # always output as UTC / Z and always include milliseconds
     as_utc = dt.astimezone(pytz.utc)
-    as_str = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')
-    return (as_str if micros else as_str[:-3]) + 'Z'
+    as_str = as_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    return (as_str if micros else as_str[:-3]) + "Z"
 
 
 def datetime_to_s(dt):

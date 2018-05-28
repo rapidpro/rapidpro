@@ -5,19 +5,21 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0070_fix_mailto_fields'),
-    ]
+    dependencies = [("contacts", "0070_fix_mailto_fields")]
 
     operations = [
         migrations.AddField(
-            model_name='contactgroup',
-            name='status',
-            field=models.CharField(choices=[('I', 'Initializing'), ('V', 'Evaluating'), ('R', 'Ready')], default='R', max_length=1),
+            model_name="contactgroup",
+            name="status",
+            field=models.CharField(
+                choices=[("I", "Initializing"), ("V", "Evaluating"), ("R", "Ready")], default="R", max_length=1
+            ),
         ),
         migrations.AlterField(
-            model_name='contactgroup',
-            name='status',
-            field=models.CharField(choices=[('I', 'Initializing'), ('V', 'Evaluating'), ('R', 'Ready')], default='I', max_length=1),
+            model_name="contactgroup",
+            name="status",
+            field=models.CharField(
+                choices=[("I", "Initializing"), ("V", "Evaluating"), ("R", "Ready")], default="I", max_length=1
+            ),
         ),
     ]

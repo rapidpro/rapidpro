@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 ----------------------------------------------------------------------
 -- Utility function to return the appropriate from uuid
@@ -87,10 +86,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0093_flownodecount'),
-    ]
+    dependencies = [("flows", "0093_flownodecount")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

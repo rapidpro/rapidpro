@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL_channelevent = """
 -- drop triggers
 DROP TRIGGER IF EXISTS temba_channelevent_on_truncate_trg on channels_channelevent;
@@ -155,12 +154,10 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0088_fix_twiml_configs'),
-    ]
+    dependencies = [("channels", "0088_fix_twiml_configs")]
 
     operations = [
-        migrations.RunSQL(SQL_channelevent, ''),
-        migrations.RunSQL(SQL_channelcount, ''),
-        migrations.RunSQL(SQL_channellogcount, '')
+        migrations.RunSQL(SQL_channelevent, ""),
+        migrations.RunSQL(SQL_channelcount, ""),
+        migrations.RunSQL(SQL_channellogcount, ""),
     ]

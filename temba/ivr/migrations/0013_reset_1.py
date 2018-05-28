@@ -7,18 +7,8 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('channels', '0050_reset_1'),
-    ]
+    dependencies = [("channels", "0050_reset_1")]
 
     operations = [
-        migrations.CreateModel(
-            name='IVRCall',
-            fields=[
-            ],
-            options={
-                'proxy': True,
-            },
-            bases=('channels.channelsession',),
-        ),
+        migrations.CreateModel(name="IVRCall", fields=[], options={"proxy": True}, bases=("channels.channelsession",))
     ]

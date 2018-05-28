@@ -23,10 +23,6 @@ CREATE INDEX flows_flowrun_parent_created_on_not_null ON flows_flowrun (parent_i
 CREATE INDEX flows_flowrun_timeout_active ON flows_flowrun (timeout_on) WHERE is_active = TRUE AND timeout_on IS NOT NULL;
     """
 
-    dependencies = [
-        ('flows', '0081_install_triggers'),
-    ]
+    dependencies = [("flows", "0081_install_triggers")]
 
-    operations = [
-        migrations.RunSQL(INDEX_SQL)
-    ]
+    operations = [migrations.RunSQL(INDEX_SQL)]

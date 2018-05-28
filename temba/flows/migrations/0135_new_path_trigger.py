@@ -127,10 +127,6 @@ CREATE TRIGGER temba_flowrun_path_change
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0134_convert_activity_to_exit_uuids'),
-    ]
+    dependencies = [("flows", "0134_convert_activity_to_exit_uuids")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

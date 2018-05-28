@@ -5,24 +5,22 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0121_auto_20171018_1932'),
-    ]
+    dependencies = [("flows", "0121_auto_20171018_1932")]
 
     operations = [
         migrations.AlterField(
-            model_name='flowcategorycount',
-            name='category_name',
-            field=models.CharField(help_text='The category name for a result', max_length=128),
+            model_name="flowcategorycount",
+            name="category_name",
+            field=models.CharField(help_text="The category name for a result", max_length=128),
         ),
         migrations.AlterField(
-            model_name='flowcategorycount',
-            name='result_key',
-            field=models.CharField(help_text='The sluggified key for the result', max_length=128),
+            model_name="flowcategorycount",
+            name="result_key",
+            field=models.CharField(help_text="The sluggified key for the result", max_length=128),
         ),
         migrations.AlterField(
-            model_name='flowcategorycount',
-            name='result_name',
-            field=models.CharField(help_text='The result the category belongs to', max_length=128),
+            model_name="flowcategorycount",
+            name="result_name",
+            field=models.CharField(help_text="The result the category belongs to", max_length=128),
         ),
     ]

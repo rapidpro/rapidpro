@@ -5,19 +5,17 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0116_auto_20171020_1754'),
-    ]
+    dependencies = [("flows", "0116_auto_20171020_1754")]
 
     operations = [
         migrations.AlterField(
-            model_name='flow',
-            name='version_number',
-            field=models.CharField(default='10.2', help_text='The flow version this definition is in', max_length=8),
+            model_name="flow",
+            name="version_number",
+            field=models.CharField(default="10.2", help_text="The flow version this definition is in", max_length=8),
         ),
         migrations.AlterField(
-            model_name='flowrevision',
-            name='spec_version',
-            field=models.CharField(default='10.2', help_text='The flow version this definition is in', max_length=8),
+            model_name="flowrevision",
+            name="spec_version",
+            field=models.CharField(default="10.2", help_text="The flow version this definition is in", max_length=8),
         ),
     ]

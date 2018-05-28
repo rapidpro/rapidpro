@@ -1,4 +1,4 @@
-from .views import ContactCRUDL, ContactGroupCRUDL, ContactFieldCRUDL
+from .views import ContactCRUDL, ContactFieldCRUDL, ContactGroupCRUDL
 
 urlpatterns = ContactCRUDL().as_urlpatterns()
 urlpatterns += ContactGroupCRUDL().as_urlpatterns()
