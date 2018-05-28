@@ -318,8 +318,11 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session["runs"]:
-            run_events = [e for e in output.events if e["step_uuid"] and step_to_run[e["step_uuid"]] == run["uuid"]]
-
+            run_events = [
+                e
+                for e in output.events
+                if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run["uuid"]
+            ]
             wait = output.session["wait"] if run["status"] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
@@ -3035,6 +3038,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     PATH_EXIT_UUID = "exit_uuid"
     PATH_MAX_STEPS = 100
 
+    EVENT_TYPE = "type"
+    EVENT_STEP_UUID = "step_uuid"
+    EVENT_CREATED_ON = "created_on"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name="runs", db_index=False)
@@ -3817,11 +3824,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         path_step = self.path[-1]
 
         existing_msg_uuids = set()
-        for e in self.events:
-            if e["type"] in (server.Events.msg_received.name, server.Events.msg_created.name):
-                msg_uuid = e["msg"].get("uuid")
-                if msg_uuid:
-                    existing_msg_uuids.add(msg_uuid)
+        for e in self.get_msg_events():
+            msg_uuid = e["msg"].get("uuid")
+            if msg_uuid:
+                existing_msg_uuids.add(msg_uuid)
 
         needs_update = False
 
@@ -3836,11 +3842,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.events.append(
                 {
-                    "type": server.Events.msg_received.name
+                    FlowRun.EVENT_TYPE: server.Events.msg_received.name
                     if msg.direction == INCOMING
                     else server.Events.msg_created.name,
-                    "created_on": msg.created_on.isoformat(),
-                    "step_uuid": path_step.get("uuid"),
+                    FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
+                    FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
                     "msg": server.serialize_message(msg),
                 }
             )
@@ -3869,14 +3875,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             return []
 
         type_names = [t.name for t in event_types]
-
-        return [e for e in self.events if e["type"] in type_names]
+        return [e for e in self.events if e[FlowRun.EVENT_TYPE] in type_names]
 
     def get_msg_events(self):
         """
         Gets all the messages associated with this run
         """
         return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
+
+    def get_events_by_step(self, msg_only=False):
+        """
+        Gets a map of step UUIDs to lists of events created at that step
+        """
+        events = self.get_msg_events() if msg_only else self.events
+        events_by_step = defaultdict(list)
+        for e in events:
+            events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
+        return events_by_step
 
     def get_messages(self):
         """
@@ -4969,10 +4984,10 @@ class FlowPathRecentRun(models.Model):
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
     from_uuid = models.UUIDField(help_text=_("The flow node UUID of the first step"))
-    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"), null=True)
+    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"))
 
     to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
-    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"), null=True)
+    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"))
 
     run = models.ForeignKey(FlowRun, related_name="recent_runs")
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
@@ -4990,16 +5005,24 @@ class FlowPathRecentRun(models.Model):
 
         results = []
         for r in recent:
+            msg_events_by_step = r.run.get_events_by_step(msg_only=True)
             msg_event = None
-            # find the most recent message event in the run when this visit happened
-            for event in reversed(r.run.get_msg_events()):
-                if iso8601.parse_date(event["created_on"]) <= r.visited_on:
-                    msg_event = event
-                    break
 
-            results.append(
-                {"run": r.run, "text": msg_event["msg"]["text"] if msg_event else "", "visited_on": r.visited_on}
-            )
+            # find the last message event in the run before this step
+            before_step = False
+            for step in reversed(r.run.path):
+                step_uuid = step[FlowRun.PATH_STEP_UUID]
+                if step_uuid == str(r.from_step_uuid):
+                    before_step = True
+
+                if before_step:
+                    msg_events = msg_events_by_step[step_uuid]
+                    if msg_events:
+                        msg_event = msg_events[-1]
+                        break
+
+            if msg_event:
+                results.append({"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on})
 
         return results
 
