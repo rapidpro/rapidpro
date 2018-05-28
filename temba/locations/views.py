@@ -1,12 +1,13 @@
 import json
 
+from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
+
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin

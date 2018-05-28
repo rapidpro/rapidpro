@@ -10,13 +10,14 @@ from datetime import timedelta
 from subprocess import CalledProcessError, check_call
 
 import pytz
+from django_redis import get_redis_connection
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
 from django.core.management.base import CommandParser
 from django.db import connection, transaction
 from django.utils import timezone
-from django_redis import get_redis_connection
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel

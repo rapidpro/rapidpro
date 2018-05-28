@@ -1,6 +1,16 @@
 import json
 from datetime import date, timedelta
 
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartUpdateView,
+)
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -12,15 +22,6 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartUpdateView,
-)
 
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField

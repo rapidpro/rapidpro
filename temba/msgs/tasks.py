@@ -5,11 +5,13 @@ import time
 from datetime import timedelta
 
 import iso8601
-from celery.task import task
+from django_redis import get_redis_connection
+
 from django.core.cache import cache
 from django.utils import timezone
 from django.utils.encoding import force_text
-from django_redis import get_redis_connection
+
+from celery.task import task
 
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact

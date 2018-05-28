@@ -8,6 +8,9 @@ from hashlib import sha1
 from urllib.parse import urlencode
 
 import requests
+from rest_framework.permissions import BasePermission
+from smartmin.models import SmartModel
+
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.urlresolvers import reverse
@@ -15,8 +18,6 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from rest_framework.permissions import BasePermission
-from smartmin.models import SmartModel
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME

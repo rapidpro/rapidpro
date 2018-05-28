@@ -5,6 +5,10 @@ from uuid import uuid4
 
 import iso8601
 import pytz
+from mock import patch
+from rest_framework import serializers
+from rest_framework.test import APIClient
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
@@ -13,9 +17,6 @@ from django.db import connection
 from django.db.models import Q
 from django.test import override_settings
 from django.utils import timezone
-from mock import patch
-from rest_framework import serializers
-from rest_framework.test import APIClient
 
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire

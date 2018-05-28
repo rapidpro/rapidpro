@@ -7,13 +7,14 @@ from platform import python_version
 from urllib.parse import urlparse
 
 import nexmo
+from mock import MagicMock, patch
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
-from mock import MagicMock, patch
 
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact

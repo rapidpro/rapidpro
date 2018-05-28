@@ -1,9 +1,10 @@
 
+from rest_framework.urlpatterns import format_suffix_patterns
+
 from django.conf.urls import url
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseGone
 from django.views.generic.base import RedirectView
-from rest_framework.urlpatterns import format_suffix_patterns
 
 from .views import (
     AuthenticateEndpoint,

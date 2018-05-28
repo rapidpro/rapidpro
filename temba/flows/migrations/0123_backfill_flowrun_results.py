@@ -6,9 +6,10 @@ import time
 from datetime import datetime, timedelta
 
 import regex
+from django_redis import get_redis_connection
+
 from django.db import migrations
 from django.utils import timezone
-from django_redis import get_redis_connection
 
 from temba.utils import chunk_list
 

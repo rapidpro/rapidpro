@@ -2,9 +2,10 @@ import calendar
 from datetime import datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
+from smartmin.models import SmartModel
+
 from django.db import models
 from django.utils import timezone
-from smartmin.models import SmartModel
 
 
 class Schedule(SmartModel):

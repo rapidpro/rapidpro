@@ -9,6 +9,9 @@ import pytz
 import stripe
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from mock import Mock, patch
+from smartmin.tests import SmartminTest
+
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
@@ -17,8 +20,6 @@ from django.core.urlresolvers import reverse
 from django.http import HttpRequest
 from django.test.utils import override_settings
 from django.utils import timezone
-from mock import Mock, patch
-from smartmin.tests import SmartminTest
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook

@@ -2,10 +2,11 @@
 
 import traceback
 
+from twilio.rest import TwilioRestClient
+
 from django.conf import settings
 from django.db import migrations
 from django.urls import reverse
-from twilio.rest import TwilioRestClient
 
 
 def update_application_urls(Channel):
