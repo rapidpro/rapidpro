@@ -5,9 +5,10 @@ import time
 from array import array
 from datetime import timedelta
 
+from django_redis import get_redis_connection
+
 from django.db import migrations, transaction
 from django.utils import timezone
-from django_redis import get_redis_connection
 
 from temba.utils import chunk_list
 from temba.utils.dates import str_to_datetime

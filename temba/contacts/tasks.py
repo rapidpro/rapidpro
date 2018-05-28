@@ -4,9 +4,11 @@ from datetime import timedelta
 
 import iso8601
 import pytz
-from celery.task import task
+
 from django.conf import settings
 from django.utils import timezone
+
+from celery.task import task
 
 from temba.utils.queues import nonoverlapping_task
 

@@ -3,12 +3,13 @@ from datetime import timedelta
 from urllib.parse import parse_qs
 from uuid import uuid4
 
+from mock import patch
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
-from mock import patch
 
 from temba.api.models import APIToken, WebHookEvent, WebHookResult
 from temba.api.tasks import trim_webhook_event_task

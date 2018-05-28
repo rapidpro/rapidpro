@@ -17,6 +17,11 @@ import pycountry
 import regex
 import stripe
 from dateutil.relativedelta import relativedelta
+from django_redis import get_redis_connection
+from requests import Session
+from smartmin.models import SmartModel
+from timezone_field import TimeZoneField
+
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
@@ -30,10 +35,6 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
-from django_redis import get_redis_connection
-from requests import Session
-from smartmin.models import SmartModel
-from timezone_field import TimeZoneField
 
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias

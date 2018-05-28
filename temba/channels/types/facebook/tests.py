@@ -1,9 +1,10 @@
 
 import json
 
+from mock import patch
+
 from django.test import override_settings
 from django.urls import reverse
-from mock import patch
 
 from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger

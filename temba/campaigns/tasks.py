@@ -1,10 +1,12 @@
 import logging
 from collections import defaultdict
 
-from celery.task import task
+from django_redis import get_redis_connection
+
 from django.db import transaction
 from django.utils import timezone
-from django_redis import get_redis_connection
+
+from celery.task import task
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK, HANDLER_QUEUE

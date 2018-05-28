@@ -3,8 +3,9 @@ import logging
 import time
 
 import requests
-from celery.task import task
 from django_redis import get_redis_connection
+
+from celery.task import task
 
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, ContactURN

@@ -1,11 +1,10 @@
-from django.db.models import Q
 from rest_framework import relations, serializers
+
+from django.db.models import Q
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import URN, Contact
-from temba.contacts.models import ContactField as ContactFieldModel
-from temba.contacts.models import ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 

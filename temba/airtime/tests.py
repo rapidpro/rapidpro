@@ -1,5 +1,6 @@
-from django.core.urlresolvers import reverse
 from mock import patch
+
+from django.core.urlresolvers import reverse
 
 from temba.airtime.models import AirtimeTransfer
 from temba.flows.models import RuleSet

@@ -3,6 +3,7 @@ from zipfile import ZipFile
 
 import geojson
 import regex
+
 from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.core.management.base import BaseCommand
 

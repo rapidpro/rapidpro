@@ -7,6 +7,9 @@ from uuid import uuid4
 
 import pytz
 import regex
+from django_redis import get_redis_connection
+from temba_expressions.evaluator import DateStyle, EvaluationContext
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -16,10 +19,7 @@ from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
-from django_redis import get_redis_connection
-from temba_expressions.evaluator import DateStyle, EvaluationContext
+from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs

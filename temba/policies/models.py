@@ -1,11 +1,12 @@
 from gettext import gettext as _
 
 import markdown
+from smartmin.models import SmartModel
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 from django.utils.safestring import mark_safe
-from smartmin.models import SmartModel
 
 
 class Policy(SmartModel):

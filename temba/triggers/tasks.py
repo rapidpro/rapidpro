@@ -1,5 +1,6 @@
-from celery.task import task
 from django.utils import timezone
+
+from celery.task import task
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import ContactURN

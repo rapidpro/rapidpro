@@ -9,6 +9,19 @@ from functools import cmp_to_key
 
 import nexmo
 import requests
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartFormView,
+    SmartListView,
+    SmartModelActionView,
+    SmartModelFormView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
+from twilio.rest import TwilioRestClient
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -29,18 +42,6 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartFormView,
-    SmartListView,
-    SmartModelActionView,
-    SmartModelFormView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
-from twilio.rest import TwilioRestClient
 
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign

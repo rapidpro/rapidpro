@@ -3,9 +3,10 @@ import logging
 import time
 
 import analytics as segment_analytics
-from django.conf import settings
 from intercom.client import Client as IntercomClient
 from librato_bg import Client as LibratoClient
+
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 

@@ -3,16 +3,17 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytz
+from mock import patch
+from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
+
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from mock import patch
-from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import ValidationError
-from rest_framework.test import APIClient
 
 from temba.api.models import APIToken
 from temba.channels.models import Channel, ChannelEvent

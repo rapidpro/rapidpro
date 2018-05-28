@@ -2,8 +2,9 @@
 from datetime import datetime
 
 import pytz
-from django.test.utils import override_settings
 from mock import patch
+
+from django.test.utils import override_settings
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact

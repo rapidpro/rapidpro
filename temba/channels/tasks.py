@@ -4,10 +4,12 @@ import time
 from datetime import timedelta
 from enum import Enum
 
-from celery.task import task
+from django_redis import get_redis_connection
+
 from django.conf import settings
 from django.utils import timezone
-from django_redis import get_redis_connection
+
+from celery.task import task
 
 from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
 from temba.utils import dict_to_struct

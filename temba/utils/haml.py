@@ -6,12 +6,13 @@ match, i.e. a template called index.haml can override index.html in Smartmin
 
 import os
 
-from django.template import TemplateDoesNotExist
-from django.template.base import Origin
-from django.template.loaders import app_directories, filesystem
 from hamlpy import HAML_EXTENSIONS
 from hamlpy.compiler import Compiler
 from hamlpy.template.utils import get_django_template_loaders
+
+from django.template import TemplateDoesNotExist
+from django.template.base import Origin
+from django.template.loaders import app_directories, filesystem
 
 
 def get_haml_loader(loader):

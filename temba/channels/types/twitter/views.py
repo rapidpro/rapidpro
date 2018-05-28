@@ -1,10 +1,11 @@
 
+from smartmin.views import SmartTemplateView
+
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartTemplateView
 
 from temba.utils.twitter import TembaTwython
 
