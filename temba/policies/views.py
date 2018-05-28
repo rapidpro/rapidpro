@@ -9,6 +9,7 @@ from django.http import HttpResponseRedirect
 from django.utils import timezone
 
 from temba.orgs.views import OrgPermsMixin
+from temba.utils import analytics
 
 from .models import Consent, Policy
 
@@ -103,9 +104,13 @@ class PolicyCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             if form.cleaned_data["consent"]:
+
+                analytics.change_consent(self.request.user.email, True)
+
                 for policy in Policy.get_policies_needing_consent(self.request.user):
                     Consent.objects.create(policy=policy, user=self.request.user)
             else:
+
                 # only revoke consent for currently active policies
                 active_policies = Policy.objects.filter(is_active=True, requires_consent=True).values_list(
                     "id", flat=True
@@ -114,4 +119,7 @@ class PolicyCRUDL(SmartCRUDL):
                     user=self.request.user, policy__id__in=active_policies, revoked_on=None
                 )
                 consents.update(revoked_on=timezone.now())
+                # forget we were ever friends
+                analytics.change_consent(self.request.user.email, False)
+
             return HttpResponseRedirect(reverse("policies.policy_list"))
