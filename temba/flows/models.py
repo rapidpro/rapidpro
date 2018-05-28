@@ -3095,7 +3095,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         settings.AUTH_USER_MODEL, null=True, db_index=False, help_text="The user which submitted this flow run"
     )
 
-    parent = models.ForeignKey("flows.FlowRun", null=True, help_text=_("The parent run that triggered us"))
+    parent = models.ForeignKey(
+        "flows.FlowRun", null=True, help_text=_("The parent run that triggered us"), on_delete=models.SET_NULL
+    )
+
+    parent_results = JSONField(null=True, help_text=_("The results of the parent run that triggered us"))
+
+    child_results = JSONField(null=True, help_text=_("The results of the last child subflow triggered by us"))
 
     results = JSONAsTextField(
         null=True, default=dict, help_text=_("The results collected during this flow run in JSON format")
