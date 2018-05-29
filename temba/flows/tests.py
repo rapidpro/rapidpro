@@ -6498,52 +6498,6 @@ class FlowsTest(FlowFileTest):
 
         assert_in_response(response, "message_completions", "contact.twitter")
 
-    def test_bulk_exit(self):
-        flow = self.get_flow("favorites")
-        color = RuleSet.objects.get(label="Color", flow=flow)
-        contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
-
-        # add our contacts to the flow
-        for contact in contacts:
-            self.send_message(flow, "chartreuse", contact=contact)
-
-        # should have six active flowruns
-        (active, visited) = flow.get_activity()
-        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 6)
-        self.assertEqual(FlowRun.objects.filter(is_active=False).count(), 0)
-        self.assertEqual(active[color.uuid], 6)
-
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 0, "I": 0})
-
-        # expire them all
-        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
-
-        # should all be expired
-        (active, visited) = flow.get_activity()
-        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 0)
-        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="E").exclude(exited_on=None).count(), 6)
-        self.assertEqual(len(active), 0)
-
-        # assert our flowrun counts
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 0})
-
-        # start all contacts in the flow again
-        for contact in contacts:
-            self.send_message(flow, "chartreuse", contact=contact, restart_participants=True)
-
-        self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 6, "I": 0})
-
-        # stop them all
-        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="I").exclude(exited_on=None).count(), 6)
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
-
-        # squash our counts
-        squash_flowruncounts()
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
-
     def test_squash_run_counts(self):
         flow = self.get_flow("favorites")
         flow2 = self.get_flow("pick_a_number")

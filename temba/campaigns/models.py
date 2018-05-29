@@ -484,6 +484,12 @@ class EventFire(Model):
         self.event.flow.start([], [self.contact], restart_participants=True)
         self.save(update_fields=("fired",))
 
+    def release(self):
+        """
+        Deletes this fire
+        """
+        self.delete()
+
     @classmethod
     def batch_fire(cls, fires, flow):
         """

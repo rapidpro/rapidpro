@@ -1780,31 +1780,53 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
-    def release(self, user):
-        """
-        Releases (i.e. deletes) this contact, provided it is currently not deleted
-        """
-        # detach all contact's URNs
-        self.update_urns(user, [])
+    def deactivate(self, user):
+        if self.is_active:
+            self.is_active = False
+            self.name = None
+            self.fields = None
+            self.save(update_fields=("is_active", "fields", "modified_on", "modified_by"))
 
-        # remove from all groups
+    def release_async(self, user):
+        """
+        Marks this contact for deletion
+        """
+
+        # mark us as inactive
+        self.deactivate(user)
+
+        # kick off a task to remove all the things related to us
+        from temba.contacts.tasks import release_contact
+
+        release_contact.delay(self.id, user.id)
+
+    def release(self, user):
+
+        # make sure we've been deactivated
+        self.deactivate(user)
+
+        # no group for you!
         self.clear_all_groups(user)
 
-        # release all messages with this contact
+        # release our messages
         for msg in self.msgs.all():
             msg.release()
 
-        # release all channel events with this contact
+        # release our channel events
         for event in self.channel_events.all():
             event.release()
 
-        # remove all flow runs and steps
+        # release our runs too
         for run in self.runs.all():
             run.release()
 
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("is_active", "modified_on", "modified_by"))
+        # any urns currently owned by us
+        for urn in self.urns.all():
+            urn.release()
+
+        # and any event fire history
+        for fire in self.fire_events.all():
+            fire.release()
 
     def cached_send_channel(self, contact_urn):
         cache = getattr(self, "_send_channels", {})
@@ -2347,6 +2369,9 @@ class ContactURN(models.Model):
                 return twitterid_urn
 
         return existing
+
+    def release(self):
+        self.delete()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:

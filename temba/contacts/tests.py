@@ -25,10 +25,10 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
-from temba.flows.models import FlowRun
+from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
+from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
@@ -217,8 +217,12 @@ class ContactCRUDLTest(_CRUDLTest):
     def testDelete(self):
         object = self.getTestObject()
         self._do_test_view("delete", object, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.objects.get(pk=object.pk).is_active)  # check object is inactive
-        self.assertEqual(0, ContactURN.objects.filter(contact=object).count())  # check no attached URNs
+
+        # we should be deactivated
+        self.assertFalse(self.getCRUDL().model.objects.get(pk=object.pk).is_active)
+
+        # since we are eager, our other bits should be gone
+        self.assertEqual(0, ContactURN.objects.all().count())
 
 
 class ContactGroupTest(TembaTest):
@@ -1037,6 +1041,46 @@ class ContactTest(TembaTest):
         self.assertEqual(out_msgs.count(), 2)
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
+
+    def test_release(self):
+        flow = self.get_flow("favorites")
+        contact = self.create_contact("Joe", "+12065552000", "tweettweet")
+        contact.fields = {"gender": "Male", "age": 40}
+        contact.save(update_fields=("fields",))
+
+        flow.start([], [contact])
+
+        def send(message):
+            msg = Msg.objects.create(
+                org=self.org,
+                direction=INCOMING,
+                contact=contact,
+                contact_urn=contact.get_urn(),
+                text=message,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+            )
+            Flow.find_and_handle(msg)
+
+        send("red")
+        send("primus")
+
+        self.assertEqual(2, contact.urns.all().count())
+        self.assertEqual(1, contact.runs.all().count())
+        self.assertEqual(5, contact.msgs.all().count())
+        self.assertEqual(2, len(contact.fields))
+
+        contact.release(self.admin)
+
+        self.assertEqual(0, contact.urns.all().count())
+        self.assertEqual(0, contact.runs.all().count())
+        self.assertEqual(0, contact.msgs.all().count())
+        self.assertIsNone(contact.fields)
+        self.assertIsNone(contact.name)
+
+        # nope, we aren't paranoid or anything
+        Org.objects.get(id=self.org.id)
+        Flow.objects.get(id=flow.id)
 
     def test_stop_contact_clear_triggers(self):
         flow = self.get_flow("favorites")
