@@ -1677,19 +1677,22 @@ class Flow(TembaModel):
 
             if run.parent_context is not None:
                 context["parent"] = run.parent_context.copy()
+                parent_contact_uuid = context["parent"]["contact"]
 
-                if context["parent"]["contact"] != str(contact.uuid):
+                if parent_contact_uuid != str(contact.uuid):
                     parent_contact = Contact.objects.filter(
-                        org=run.org, uuid=context["parent"]["contact"], is_active=True
+                        org=run.org, uuid=parent_contact_uuid, is_active=True
                     ).first()
                     if parent_contact:
                         context["parent"]["contact"] = parent_contact.build_expressions_context()
                     else:
-                        context["parent"]["contact"] = None
+                        # contact may have since been deleted
+                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}
                 else:
                     context["parent"]["contact"] = contact_context
 
-            elif run.parent:
+            # TODO remove when all runs have parent_context backfilled
+            elif run.parent:  # pragma: no cover
                 run.parent.flow.org = self.org
                 if run.parent.contact_id == run.contact_id:
                     run.parent.contact = run.contact
@@ -1701,7 +1704,9 @@ class Flow(TembaModel):
             if run.child_context is not None:
                 context["child"] = run.child_context.copy()
                 context["child"]["contact"] = contact_context
-            elif run.cached_child:
+
+            # TODO remove when all runs have child_context backfilled
+            elif run.cached_child:  # pragma: no cover
                 run.cached_child.org = self.org
                 run.cached_child.contact = run.contact
                 context["child"] = run.cached_child.build_expressions_context()
@@ -4005,8 +4010,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             allow_trial = False
             expired_child_run = None
 
-        run.child_context = run.parent.build_expressions_context(contact_context=str(run.contact.uuid))
-        run.save(update_fields=("child_context",))
+        run.parent.child_context = run.build_expressions_context(contact_context=str(run.contact.uuid))
+        run.parent.save(update_fields=("child_context",))
 
         # finally, trigger our parent flow
         (handled, msgs) = Flow.find_and_handle(
