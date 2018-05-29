@@ -738,9 +738,9 @@ class Msg(models.Model):
     )
 
     DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_RELEASE = "R"
+    DELETE_FOR_USER = "U"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_RELEASE, _("Release delete"))),)
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -1863,7 +1863,7 @@ class Msg(models.Model):
         self.visibility = Msg.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self, delete_reason=DELETE_FOR_RELEASE):
+    def release(self, delete_reason=DELETE_FOR_USER):
         """
         Releases (i.e. deletes) this message
         """

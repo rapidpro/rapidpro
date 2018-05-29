@@ -339,6 +339,18 @@ CREATE TRIGGER temba_msg_on_change_trg
   FOR EACH ROW EXECUTE PROCEDURE temba_msg_on_change();
 
 ----------------------------------------------------------------------
+-- Inserts a new channelcount row with the given values
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_insert_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE, _count INT) RETURNS VOID AS $$
+  BEGIN
+    IF _channel_id IS NOT NULL THEN
+      INSERT INTO channels_channelcount("channel_id", "count_type", "day", "count", "is_squashed")
+        VALUES(_channel_id, _count_type, _count_day, _count, FALSE);
+    END IF;
+  END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
 -- Manages keeping track of the # of messages sent and received by a channel
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_update_channelcount() RETURNS TRIGGER AS $$
@@ -448,7 +460,7 @@ class Migration(migrations.Migration):
             model_name="msg",
             name="delete_reason",
             field=models.CharField(
-                choices=[(("A", "Archive delete"), ("R", "Release delete"))],
+                choices=[(("A", "Archive delete"), ("U", "User delete"))],
                 help_text="Why the message is being deleted",
                 max_length=1,
                 null=True,
