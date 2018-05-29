@@ -1675,7 +1675,21 @@ class Flow(TembaModel):
         if run:
             run.contact = contact
 
-            if run.parent:
+            if run.parent_context is not None:
+                context["parent"] = run.parent_context.copy()
+
+                if context["parent"]["contact"] != str(contact.uuid):
+                    parent_contact = Contact.objects.filter(
+                        org=run.org, uuid=context["parent"]["contact"], is_active=True
+                    ).first()
+                    if parent_contact:
+                        context["parent"]["contact"] = parent_contact.build_expressions_context()
+                    else:
+                        context["parent"]["contact"] = None
+                else:
+                    context["parent"]["contact"] = contact_context
+
+            elif run.parent:
                 run.parent.flow.org = self.org
                 if run.parent.contact_id == run.contact_id:
                     run.parent.contact = run.contact
@@ -2026,6 +2040,11 @@ class Flow(TembaModel):
                     # add it to the list of broadcasts in this flow start
                     broadcasts.append(broadcast)
 
+        if parent_run:
+            parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
+        else:
+            parent_context = None
+
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
             return self.start_msg_flow_batch(
@@ -2036,6 +2055,7 @@ class Flow(TembaModel):
                 extra=extra,
                 flow_start=flow_start,
                 parent_run=parent_run,
+                parent_context=parent_context,
             )
 
         # otherwise, create batches instead
@@ -2076,6 +2096,7 @@ class Flow(TembaModel):
         extra=None,
         flow_start=None,
         parent_run=None,
+        parent_context=None,
     ):
 
         batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
@@ -2104,6 +2125,7 @@ class Flow(TembaModel):
                 start=flow_start,
                 created_on=now,
                 parent=parent_run,
+                parent_context=parent_context,
                 db_insert=False,
                 responded=start_msg is not None,
             )
@@ -3679,6 +3701,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         db_insert=True,
         submitted_by=None,
         parent=None,
+        parent_context=None,
         responded=False,
     ):
 
@@ -3692,6 +3715,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             fields=fields,
             submitted_by=submitted_by,
             parent=parent,
+            parent_context=parent_context,
             responded=responded,
         )
 
