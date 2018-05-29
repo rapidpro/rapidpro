@@ -14,7 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import connection, models, transaction
+from django.db import models, transaction
 from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -25,7 +25,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import Debit, Language, Org, TopUp
+from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
 from temba.utils.cache import check_and_mark_in_timerange
@@ -738,9 +738,9 @@ class Msg(models.Model):
     )
 
     DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_PURGE = "P"
+    DELETE_FOR_RELEASE = "R"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_PURGE, _("Purge delete"))),)
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_RELEASE, _("Release delete"))),)
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -909,7 +909,7 @@ class Msg(models.Model):
     metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
 
     delete_reason = models.CharField(
-        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("How the message is being deleted")
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the message is being deleted")
     )
 
     @classmethod
@@ -1862,46 +1862,16 @@ class Msg(models.Model):
         self.visibility = Msg.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self):
+    def release(self, delete_reason=DELETE_FOR_RELEASE):
         """
         Releases (i.e. deletes) this message
         """
-        self.visibility = Msg.VISIBILITY_DELETED
-        self.text = ""
-        self.save(update_fields=("visibility", "text", "modified_on"))
+        if delete_reason:
+            self.delete_reason = delete_reason
+            self.save(update_fields=["delete_reason"])
 
-        # remove labels
-        self.labels.clear()
-
-    @classmethod
-    def bulk_purge(cls, msgs):
-        """
-        Purges the given messages
-        """
-        debits_to_create = []
-        topup_counts = msgs.values("topup_id").annotate(count=Count("topup_id"))
-
-        # figure out which topups needs debits added to them
-        for tc in topup_counts:
-            topup_id = tc["topup_id"]
-            msg_count = tc["count"]
-            if tc["topup_id"] and msg_count:
-                debits_to_create.append(Debit(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE))
-
-        with transaction.atomic():
-            Debit.objects.bulk_create(debits_to_create)
-            Debit.squash()
-
-            # delete messages in batches to avoid long locks
-            for msg_batch in chunk_list(msgs, 1000):
-                # manually delete to avoid slow and unnecessary checks on related fields like response_to
-                cursor = connection.cursor()
-                msg_ids = tuple([m.id for m in msg_batch])
-                cursor.execute("DELETE FROM channels_channellog WHERE msg_id IN %s", params=[msg_ids])
-                cursor.execute(
-                    "UPDATE msgs_msg SET delete_reason = %s WHERE id IN %s", params=[Msg.DELETE_FOR_PURGE, msg_ids]
-                )
-                cursor.execute("DELETE FROM msgs_msg WHERE id IN %s", params=[msg_ids])
+        # delete this object
+        self.delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label, add):

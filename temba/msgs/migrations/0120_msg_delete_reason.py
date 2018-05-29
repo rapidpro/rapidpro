@@ -34,7 +34,7 @@ BEGIN
 
   -- Msg is being deleted
   ELSIF TG_OP = 'DELETE' THEN
-    -- Remove a used credit if this Msg had one assigned and it isn't being purged
+    -- Remove a used credit if this Msg had one assigned and it isn't being released
     IF OLD.topup_id IS NOT NULL AND (OLD.delete_reason IS NULL) THEN
       PERFORM temba_insert_topupcredits(OLD.topup_id, -1);
     END IF;
@@ -106,7 +106,7 @@ BEGIN
     _old_label_type := temba_broadcast_determine_system_label(OLD);
 
     IF _old_label_type IS NOT NULL THEN
-      PERFORM temba_insert_system_label(OLD.org_id, _old_label_type, FALSE, 1);
+      PERFORM temba_insert_system_label(OLD.org_id, _old_label_type, FALSE, -1);
     END IF;
 
   END IF;
@@ -325,7 +325,7 @@ class Migration(migrations.Migration):
             name="delete_reason",
             field=models.CharField(
                 choices=[(("A", "Archive delete"), ("P", "Purge delete"))],
-                help_text="How the message is being deleted",
+                help_text="Wny the message is being deleted",
                 max_length=1,
                 null=True,
             ),
