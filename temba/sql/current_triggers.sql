@@ -49,7 +49,7 @@ CREATE TRIGGER temba_msg_on_change_trg
   FOR EACH ROW EXECUTE PROCEDURE temba_msg_on_change();
 
 CREATE TRIGGER temba_msg_update_channelcount
-   AFTER INSERT OR UPDATE OF direction, msg_type, created_on
+   AFTER INSERT OR DELETE OR UPDATE OF direction, msg_type, created_on
    ON msgs_msg
    FOR EACH ROW
    EXECUTE PROCEDURE temba_update_channelcount();

@@ -44,6 +44,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS temba_when_msgs_update_then_update_topupcredits ON msgs_msg;
+CREATE TRIGGER temba_when_msgs_update_then_update_topupcredits
+   AFTER INSERT OR DELETE OR UPDATE OF topup_id
+   ON msgs_msg
+   FOR EACH ROW
+   EXECUTE PROCEDURE temba_update_topupcredits();
+
 ----------------------------------------------------------------------
 -- Trigger procedure to update system labels on broadcast changes
 ----------------------------------------------------------------------
@@ -115,7 +122,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+DROP TRIGGER IF EXISTS temba_broadcast_on_change_trg ON msgs_broadcast;
+CREATE TRIGGER temba_broadcast_on_change_trg
+  AFTER INSERT OR UPDATE OR DELETE ON msgs_broadcast
+  FOR EACH ROW EXECUTE PROCEDURE temba_broadcast_on_change();
 
 -- Trigger procedure to update system labels on channel event changes
 CREATE OR REPLACE FUNCTION temba_channelevent_on_change() RETURNS TRIGGER AS $$
@@ -150,6 +160,12 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS temba_channelevent_on_change_trg ON channels_channelevent;
+CREATE TRIGGER temba_channelevent_on_change_trg
+  AFTER INSERT OR UPDATE OR DELETE ON channels_channelevent
+  FOR EACH ROW EXECUTE PROCEDURE temba_channelevent_on_change();
 
 ---------------------------------------------------------------------------------
 -- Increment or decrement a label count
@@ -226,6 +242,11 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS temba_msg_labels_on_change_trg on msgs_msg_labels;
+CREATE TRIGGER temba_msg_labels_on_change_trg
+   AFTER INSERT OR DELETE ON msgs_msg_labels
+   FOR EACH ROW EXECUTE PROCEDURE temba_msg_labels_on_change();
 
 ----------------------------------------------------------------------
 -- Trigger procedure to update user and system labels on column changes
@@ -311,6 +332,109 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS temba_msg_on_change_trg ON msgs_msg;
+CREATE TRIGGER temba_msg_on_change_trg
+  AFTER INSERT OR UPDATE OR DELETE ON msgs_msg
+  FOR EACH ROW EXECUTE PROCEDURE temba_msg_on_change();
+
+----------------------------------------------------------------------
+-- Manages keeping track of the # of messages sent and received by a channel
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_update_channelcount() RETURNS TRIGGER AS $$
+DECLARE
+  is_test boolean;
+BEGIN
+  -- Message being updated
+  IF TG_OP = 'INSERT' THEN
+    -- Return if there is no channel on this message
+    IF NEW.channel_id IS NULL THEN
+      RETURN NULL;
+    END IF;
+
+    -- Find out if this is a test contact
+    SELECT contacts_contact.is_test INTO STRICT is_test FROM contacts_contact WHERE id=NEW.contact_id;
+
+    -- Return if it is
+    IF is_test THEN
+      RETURN NULL;
+    END IF;
+
+    -- If this is an incoming message, without message type, then increment that count
+    IF NEW.direction = 'I' THEN
+      -- This is a voice message, increment that count
+      IF NEW.msg_type = 'V' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'IV', NEW.created_on::date, 1);
+      -- Otherwise, this is a normal message
+      ELSE
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'IM', NEW.created_on::date, 1);
+      END IF;
+
+    -- This is an outgoing message
+    ELSIF NEW.direction = 'O' THEN
+      -- This is a voice message, increment that count
+      IF NEW.msg_type = 'V' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'OV', NEW.created_on::date, 1);
+      -- Otherwise, this is a normal message
+      ELSE
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'OM', NEW.created_on::date, 1);
+      END IF;
+
+    END IF;
+
+  -- Assert that updates aren't happening that we don't approve of
+  ELSIF TG_OP = 'UPDATE' THEN
+    -- If the direction is changing, blow up
+    IF NEW.direction <> OLD.direction THEN
+      RAISE EXCEPTION 'Cannot change direction on messages';
+    END IF;
+
+    -- Cannot move from IVR to Text, or IVR to Text
+    IF (OLD.msg_type <> 'V' AND NEW.msg_type = 'V') OR (OLD.msg_type = 'V' AND NEW.msg_type <> 'V') THEN
+      RAISE EXCEPTION 'Cannot change a message from voice to something else or vice versa';
+    END IF;
+
+    -- Cannot change created_on
+    IF NEW.created_on <> OLD.created_on THEN
+      RAISE EXCEPTION 'Cannot change created_on on messages';
+    END IF;
+
+  -- Clean up counts when we are doing a real delete
+  ELSIF TG_OP = 'DELETE' THEN
+    IF OLD.delete_reason IS NULL THEN
+      -- If this is an incoming message, without message type, then increment that count
+      IF OLD.direction = 'I' THEN
+        -- This is a voice message, decrement that count
+        IF OLD.msg_type = 'V' THEN
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'IV', OLD.created_on::date, -1);
+        -- Otherwise, this is a normal message
+        ELSE
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'IM', OLD.created_on::date, -1);
+        END IF;
+
+      -- This is an outgoing message
+      ELSIF OLD.direction = 'O' THEN
+        -- This is a voice message, decrement that count
+        IF OLD.msg_type = 'V' THEN
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'OV', OLD.created_on::date, -1);
+        -- Otherwise, this is a normal message
+        ELSE
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'OM', OLD.created_on::date, -1);
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS temba_msg_update_channelcount ON msgs_msg;
+CREATE TRIGGER temba_msg_update_channelcount
+   AFTER INSERT OR DELETE OR UPDATE OF direction, msg_type, created_on
+   ON msgs_msg
+   FOR EACH ROW
+   EXECUTE PROCEDURE temba_update_channelcount();
 """
 
 
