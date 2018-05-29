@@ -1684,11 +1684,13 @@ class Flow(TembaModel):
                 context["parent"] = run.parent.build_expressions_context()
 
             # see if we spawned any children and add them too
-            child_run = run.cached_child
-            if child_run:
-                child_run.org = self.org
-                child_run.contact = run.contact
-                context["child"] = child_run.build_expressions_context()
+            if run.child_context is not None:
+                context["child"] = run.child_context.copy()
+                context["child"]["contact"] = contact_context
+            elif run.cached_child:
+                run.cached_child.org = self.org
+                run.cached_child.contact = run.contact
+                context["child"] = run.cached_child.build_expressions_context()
 
         if contact:
             context["contact"] = contact_context
@@ -3107,9 +3109,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         "flows.FlowRun", null=True, help_text=_("The parent run that triggered us"), on_delete=models.SET_NULL
     )
 
-    parent_results = JSONField(null=True, help_text=_("The results of the parent run that triggered us"))
+    parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
 
-    child_results = JSONField(null=True, help_text=_("The results of the last child subflow triggered by us"))
+    child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
 
     results = JSONAsTextField(
         null=True, default=dict, help_text=_("The results collected during this flow run in JSON format")
@@ -3978,6 +3980,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:
             allow_trial = False
             expired_child_run = None
+
+        run.child_context = run.parent.build_expressions_context(contact_context=str(run.contact.uuid))
+        run.save(update_fields=("child_context",))
 
         # finally, trigger our parent flow
         (handled, msgs) = Flow.find_and_handle(

@@ -9,21 +9,21 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0160_auto_20180524_1612")]
+    dependencies = [("flows", "0161_auto_20180528_1833")]
 
     operations = [
         migrations.AddField(
             model_name="flowrun",
-            name="child_results",
+            name="child_context",
             field=django.contrib.postgres.fields.jsonb.JSONField(
-                help_text="The results of the last child subflow triggered by us", null=True
+                help_text="Context of the last child subflow triggered by us", null=True
             ),
         ),
         migrations.AddField(
             model_name="flowrun",
-            name="parent_results",
+            name="parent_context",
             field=django.contrib.postgres.fields.jsonb.JSONField(
-                help_text="The results of the parent run that triggered us", null=True
+                help_text="Context of the parent run that triggered us", null=True
             ),
         ),
         migrations.AlterField(
