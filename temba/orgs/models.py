@@ -2524,16 +2524,15 @@ class TopUp(SmartModel):
         return "%s Credits" % self.credits
 
 
-class Debit(SquashableModel):
+class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
-    SQUASH_OVER = ("topup_id",)
-
     TYPE_ALLOCATION = "A"
-    TYPE_PURGE = "P"
 
-    DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"), (TYPE_PURGE, "Purge"))
+    DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"),)
+
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
@@ -2555,24 +2554,6 @@ class Debit(SquashableModel):
         help_text="The user which originally created this item",
     )
     created_on = models.DateTimeField(default=timezone.now, help_text="When this item was originally created")
-
-    @classmethod
-    def get_unsquashed(cls):
-        return super().get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
-            )
-            INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now())
 
 
 class TopUpCredits(SquashableModel):
