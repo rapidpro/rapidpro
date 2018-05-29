@@ -1049,6 +1049,8 @@ class ContactTest(TembaTest):
         contact.save(update_fields=("fields",))
 
         flow.start([], [contact])
+        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", [contact])
+        broadcast.send()
 
         def send(message):
             msg = Msg.objects.create(
@@ -1065,13 +1067,15 @@ class ContactTest(TembaTest):
         send("red")
         send("primus")
 
+        self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(1, contact.runs.all().count())
-        self.assertEqual(5, contact.msgs.all().count())
+        self.assertEqual(6, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
         contact.release(self.admin)
 
+        self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())
         self.assertEqual(0, contact.msgs.all().count())

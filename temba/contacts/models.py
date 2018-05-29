@@ -1828,6 +1828,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for fire in self.fire_events.all():
             fire.release()
 
+        # remove us from list of broadcast recipents
+        for broadcast in self.broadcasts.all():
+            broadcast.recipients.remove(self)
+
+        # take us out of broadcast addressed contacts
+        for broadcast in self.addressed_broadcasts.all():
+            broadcast.contacts.remove(self)
+
     def cached_send_channel(self, contact_urn):
         cache = getattr(self, "_send_channels", {})
         channel = cache.get(contact_urn.id)
