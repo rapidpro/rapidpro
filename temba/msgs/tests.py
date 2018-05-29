@@ -90,9 +90,7 @@ class MsgTest(TembaTest):
         self.assertEqual(self.org._calculate_credits_used()[0], 1)
 
         # a purge delete on a message should keep credits the same
-        msg2.delete_reason = Msg.DELETE_FOR_PURGE
-        msg2.save(update_fields=("delete_reason",))
-        msg2.delete()
+        msg2.release(Msg.DELETE_FOR_RELEASE)
         self.assertEqual(0, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 1)
 
@@ -164,11 +162,9 @@ class MsgTest(TembaTest):
         self.assertEqual(msg1.visibility, Msg.VISIBILITY_VISIBLE)
 
         msg1.release()
-
         self.assertFalse(Msg.objects.filter(pk=msg1.pk).exists())
 
         label = Label.label_objects.filter(pk=label.pk).first()
-
         self.assertEqual(0, label.get_messages().count())  # do remove labels
         self.assertIsNotNone(label)
 
@@ -2083,9 +2079,7 @@ class LabelTest(TembaTest):
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
 
-        msg1.delete_reason = "A"
-        msg1.save(update_fields=["delete_reason"])
-        msg1.delete()
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
@@ -2095,6 +2089,15 @@ class LabelTest(TembaTest):
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # do a real release
+        msg3.release(Msg.DELETE_FOR_RELEASE)
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+        squash_labelcounts()
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
@@ -2599,9 +2602,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
         # archive one of our inbox messages
-        msg1.delete_reason = "A"
-        msg1.save(update_fields=["delete_reason"])
-        msg1.delete()
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),

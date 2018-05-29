@@ -737,9 +737,9 @@ class Msg(models.Model):
     )
 
     DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_PURGE = "P"
+    DELETE_FOR_RELEASE = "R"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_PURGE, _("Purge delete"))),)
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_RELEASE, _("Release delete"))),)
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -908,7 +908,7 @@ class Msg(models.Model):
     metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
 
     delete_reason = models.CharField(
-        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("How the message is being deleted")
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the message is being deleted")
     )
 
     @classmethod
@@ -1861,15 +1861,15 @@ class Msg(models.Model):
         self.visibility = Msg.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self):
+    def release(self, delete_reason=DELETE_FOR_RELEASE):
         """
         Releases (i.e. deletes) this message
         """
-        # remove labels
-        self.labels.clear()
+        if delete_reason:
+            self.delete_reason = delete_reason
+            self.save(update_fields=["delete_reason"])
 
-        self.delete_reason = Msg.DELETE_FOR_PURGE
-        self.save(update_fields=("delete_reason",))
+        # delete this object
         self.delete()
 
     @classmethod
