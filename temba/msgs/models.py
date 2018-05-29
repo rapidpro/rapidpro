@@ -842,6 +842,7 @@ class Msg(models.Model):
         verbose_name=_("Response To"),
         db_index=False,
         help_text=_("The message that this message is in reply to"),
+        on_delete=models.SET_NULL,
     )
 
     labels = models.ManyToManyField(
