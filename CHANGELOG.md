@@ -1,3 +1,18 @@
+v3.0.409
+----------
+ * Remove explicit use of uservoice
+ * Use step_uuids for recent message calculation
+
+v3.0.408
+----------
+ * Format code with blackify
+ * Add management commands to update consent status and org membership
+ * Update to latest goflow to fix tests
+ * Fix 'raise None' in migration and make flow server trial period be 15 seconds
+ * Fix the campaign events fields to be datetime fields
+ * Move flow server stuff from utils.goflow to flows.server
+ * Add messangi channel type
+
 v3.0.407
 ----------
  * Reenable requiring policy consent

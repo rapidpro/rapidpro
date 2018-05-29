@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 
-
 SQL = """
 -- index for fast fetching of unsquashed rows
 CREATE INDEX channels_channelcount_unsquashed
@@ -25,15 +24,13 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0060_auto_20170110_0904'),
-    ]
+    dependencies = [("channels", "0060_auto_20170110_0904")]
 
     operations = [
         migrations.AddField(
-            model_name='channelcount',
-            name='is_squashed',
-            field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
+            model_name="channelcount",
+            name="is_squashed",
+            field=models.BooleanField(default=False, help_text="Whether this row was created by squashing"),
         ),
         migrations.RunSQL(SQL),
     ]

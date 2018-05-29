@@ -116,10 +116,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0079_auto_20170910_1731'),
-    ]
+    dependencies = [("channels", "0079_auto_20170910_1731")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

@@ -2,14 +2,15 @@
 import cProfile
 import pstats
 import traceback
+from io import StringIO
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.utils import timezone, translation
-from io import StringIO
-from temba.orgs.models import Org
+
 from temba.contacts.models import Contact
+from temba.orgs.models import Org
 from temba.policies.models import Policy
 
 
@@ -26,12 +27,13 @@ class OrgHeaderMiddleware(object):
     """
     Simple middleware to add a response header with the current org id, which can then be included in logs
     """
+
     def process_response(self, request, response):
         # if we have a user, log our org id
-        if hasattr(request, 'user') and request.user.is_authenticated():
+        if hasattr(request, "user") and request.user.is_authenticated():
             org = request.user.get_org()
             if org:
-                response['X-Temba-Org'] = org.id
+                response["X-Temba-Org"] = org.id
         return response
 
 
@@ -43,18 +45,18 @@ class BrandingMiddleware(object):
         brand_key = host
 
         # ignore subdomains
-        if len(brand_key.split('.')) > 2:  # pragma: needs cover
-            brand_key = '.'.join(brand_key.split('.')[-2:])
+        if len(brand_key.split(".")) > 2:  # pragma: needs cover
+            brand_key = ".".join(brand_key.split(".")[-2:])
 
         # prune off the port
-        if ':' in brand_key:
-            brand_key = brand_key[0:brand_key.rindex(':')]
+        if ":" in brand_key:
+            brand_key = brand_key[0 : brand_key.rindex(":")]
 
         # override with site specific branding if we have that
         branding = settings.BRANDING.get(brand_key, None)
 
         if branding:
-            branding['brand'] = brand_key
+            branding["brand"] = brand_key
         else:
             # if that brand isn't configured, use the default
             branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
@@ -65,7 +67,7 @@ class BrandingMiddleware(object):
         """
         Check for any branding options based on the current host
         """
-        host = 'localhost'
+        host = "localhost"
         try:
             host = request.get_host()
         except Exception:  # pragma: needs cover
@@ -76,21 +78,21 @@ class BrandingMiddleware(object):
 
 class ConsentMiddleware(object):  # pragma: no cover
 
-    REQUIRES_CONSENT = ('/msg', '/contact', '/flow', '/trigger', '/org/home', '/campaign', '/channel')
+    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel")
 
     def process_request(self, request):
         if request.user and request.user.is_authenticated():
             for path in ConsentMiddleware.REQUIRES_CONSENT:
                 if request.path.startswith(path):
                     if Policy.get_policies_needing_consent(request.user):
-                        return HttpResponseRedirect(reverse('policies.policy_list'))
+                        return HttpResponseRedirect(reverse("policies.policy_list"))
 
 
 class ActivateLanguageMiddleware(object):
 
     def process_request(self, request):
         user = request.user
-        language = request.branding.get('language', settings.DEFAULT_LANGUAGE)
+        language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
         if user.is_anonymous() or user.is_superuser:
             translation.activate(language)
 
@@ -107,7 +109,7 @@ class OrgTimezoneMiddleware(object):
 
         if not user.is_anonymous():
 
-            org_id = request.session.get('org_id', None)
+            org_id = request.session.get("org_id", None)
             if org_id:
                 org = Org.objects.filter(is_active=True, pk=org_id).first()
 
@@ -117,8 +119,10 @@ class OrgTimezoneMiddleware(object):
 
             # otherwise, show them what orgs are available
             else:
-                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-                user_orgs = user_orgs.distinct('pk')
+                user_orgs = (
+                    user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+                )
+                user_orgs = user_orgs.distinct("pk")
 
                 if user_orgs.count() == 1:
                     user.set_org(user_orgs[0])
@@ -137,6 +141,7 @@ class FlowSimulationMiddleware(object):
     """
     Resets Contact.set_simulation(False) for every request
     """
+
     def process_request(self, request):
         Contact.set_simulation(False)
         return None
@@ -160,8 +165,9 @@ class ProfilerMiddleware(object):  # pragma: no cover
     This is adapted from an example found here:
     http://www.slideshare.net/zeeg/django-con-high-performance-django-presentation.
     """
+
     def can(self, request):
-        return settings.DEBUG and 'prof' in request.GET
+        return settings.DEBUG and "prof" in request.GET
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         if self.can(request):
@@ -174,7 +180,7 @@ class ProfilerMiddleware(object):  # pragma: no cover
             self.profiler.create_stats()
             io = StringIO()
             stats = pstats.Stats(self.profiler, stream=io)
-            stats.strip_dirs().sort_stats(request.GET.get('sort', 'time'))
-            stats.print_stats(int(request.GET.get('count', 100)))
-            response.content = '<pre>%s</pre>' % io.getvalue()
+            stats.strip_dirs().sort_stats(request.GET.get("sort", "time"))
+            stats.print_stats(int(request.GET.get("count", 100)))
+            response.content = "<pre>%s</pre>" % io.getvalue()
         return response

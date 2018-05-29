@@ -1,20 +1,22 @@
 from django.db import models
 from django.utils import timezone
+
 from temba.channels.models import ChannelSession
-from temba.contacts.models import Contact, URN, ContactURN
+from temba.contacts.models import URN, Contact, ContactURN
 from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user
 
 
 class USSDQuerySet(models.QuerySet):
+
     def get(self, *args, **kwargs):
         kwargs.update(dict(session_type=USSDSession.USSD))
         return super().get(*args, **kwargs)
 
     def create(self, **kwargs):
-        if kwargs.get('channel'):
-            user = kwargs.get('channel').created_by
+        if kwargs.get("channel"):
+            user = kwargs.get("channel").created_by
         else:  # testing purposes (eg. simulator)
             user = get_anonymous_user()
 
@@ -25,12 +27,12 @@ class USSDQuerySet(models.QuerySet):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
     def get_with_status_only(self, session_id):
-        return self.only('status').filter(id=session_id).first()
+        return self.only("status").filter(id=session_id).first()
 
 
 class USSDSession(ChannelSession):
-    USSD_PULL = INCOMING = 'I'
-    USSD_PUSH = OUTGOING = 'O'
+    USSD_PULL = INCOMING = "I"
+    USSD_PUSH = OUTGOING = "O"
 
     objects = USSDQuerySet.as_manager()
 
@@ -44,7 +46,7 @@ class USSDSession(ChannelSession):
     def mark_ending(self):  # session to be ended
         if self.status != self.ENDING:
             self.status = self.ENDING
-            self.save(update_fields=['status'])
+            self.save(update_fields=["status"])
 
     def close(self):  # session has successfully ended
         if self.status == self.ENDING:
@@ -53,30 +55,59 @@ class USSDSession(ChannelSession):
             self.status = self.INTERRUPTED
 
         self.ended_on = timezone.now()
-        self.save(update_fields=['status', 'ended_on'])
+        self.save(update_fields=["status", "ended_on"])
 
     def start_async(self, flow, date, message_id):
         from temba.msgs.models import Msg, USSD
+
         message = Msg.objects.create(
-            channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
-            sent_on=date, connection=self, msg_type=USSD, external_id=message_id,
-            created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org,
-            direction=self.INCOMING)
+            channel=self.channel,
+            contact=self.contact,
+            contact_urn=self.contact_urn,
+            sent_on=date,
+            connection=self,
+            msg_type=USSD,
+            external_id=message_id,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+            org=self.channel.org,
+            direction=self.INCOMING,
+        )
         flow.start([], [self.contact], start_msg=message, restart_participants=True, connection=self)
 
     def handle_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
+
         Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', sent_on=date, connection=self,
-            msg_type=USSD, external_id=message_id)
+            channel=self.channel,
+            org=self.org,
+            urn=urn,
+            text=content or "",
+            sent_on=date,
+            connection=self,
+            msg_type=USSD,
+            external_id=message_id,
+        )
 
     def handle_sync(self):  # pragma: needs cover
         # TODO: implement for InfoBip and other sync APIs
         pass
 
     @classmethod
-    def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
-                        content=None, starcode=None, org=None, async=True):
+    def handle_incoming(
+        cls,
+        channel,
+        urn,
+        date,
+        external_id,
+        contact=None,
+        message_id=None,
+        status=None,
+        content=None,
+        starcode=None,
+        org=None,
+        async=True,
+    ):
 
         trigger = None
         contact_urn = None
@@ -95,8 +126,9 @@ class USSDSession(ChannelSession):
             contact_urn.update_affinity(channel)
 
         # setup session
-        defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn,
-                        org=channel.org if channel else contact.org)
+        defaults = dict(
+            channel=channel, contact=contact, contact_urn=contact_urn, org=channel.org if channel else contact.org
+        )
 
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
@@ -116,14 +148,17 @@ class USSDSession(ChannelSession):
         created = False
         if not connection:
             try:
-                connection = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
-                                                            .get(external_id=external_id)
+                connection = (
+                    cls.objects.select_for_update()
+                    .exclude(status__in=ChannelSession.DONE)
+                    .get(external_id=external_id)
+                )
                 created = False
                 for k, v in defaults.items():
                     setattr(connection, k, v() if callable(v) else v)
                 connection.save()
             except cls.DoesNotExist:
-                defaults['external_id'] = external_id
+                defaults["external_id"] = external_id
                 connection = cls.objects.create(**defaults)
                 FlowSession.create(contact, connection=connection)
                 created = True

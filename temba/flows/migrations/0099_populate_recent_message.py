@@ -5,12 +5,12 @@ from django.db import migrations
 
 def get_recent_messages_for_segment(FlowPathRecentStep, from_uuid, to_uuid):
     recent_steps = FlowPathRecentStep.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
-    recent_steps = recent_steps.prefetch_related('step__messages').order_by('-left_on')
+    recent_steps = recent_steps.prefetch_related("step__messages").order_by("-left_on")
 
     messages = []
     for r in recent_steps:
         for msg in r.step.messages.all():
-            if msg.visibility == 'V':
+            if msg.visibility == "V":
                 msg.run_id = r.step.run_id
                 messages.append(msg)
 
@@ -21,7 +21,7 @@ def get_recent_messages_for_segment(FlowPathRecentStep, from_uuid, to_uuid):
 
 def populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage):
     # get the unique flow path segments
-    segments = list(FlowPathRecentStep.objects.values_list('from_uuid', 'to_uuid').distinct('from_uuid', 'to_uuid'))
+    segments = list(FlowPathRecentStep.objects.values_list("from_uuid", "to_uuid").distinct("from_uuid", "to_uuid"))
 
     for s, segment in enumerate(segments):
         from_uuid = segment[0]
@@ -30,8 +30,9 @@ def populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage):
 
         recent_messages = []
         for msg in messages:
-            r = FlowPathRecentMessage(from_uuid=from_uuid, to_uuid=to_uuid,
-                                      run_id=msg.run_id, text=msg.text[:640], created_on=msg.created_on)
+            r = FlowPathRecentMessage(
+                from_uuid=from_uuid, to_uuid=to_uuid, run_id=msg.run_id, text=msg.text[:640], created_on=msg.created_on
+            )
             recent_messages.append(r)
 
         FlowPathRecentMessage.objects.bulk_create(recent_messages)
@@ -42,21 +43,18 @@ def populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage):
 
 def apply_manual():
     from temba.flows.models import FlowPathRecentStep, FlowPathRecentMessage
+
     populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowPathRecentStep = apps.get_model('flows', 'FlowPathRecentStep')
-    FlowPathRecentMessage = apps.get_model('flows', 'FlowPathRecentMessage')
+    FlowPathRecentStep = apps.get_model("flows", "FlowPathRecentStep")
+    FlowPathRecentMessage = apps.get_model("flows", "FlowPathRecentMessage")
     populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage)
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0098_flowpathrecentmessage'),
-    ]
+    dependencies = [("flows", "0098_flowpathrecentmessage")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration)]

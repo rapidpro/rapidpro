@@ -6,14 +6,14 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0147_new_engine_changes'),
-    ]
+    dependencies = [("flows", "0147_new_engine_changes")]
 
     operations = [
         migrations.AddField(
-            model_name='flowrun',
-            name='events',
-            field=django.contrib.postgres.fields.jsonb.JSONField(help_text='The events recorded on this run in JSON format', null=True, verbose_name='Fields'),
-        ),
+            model_name="flowrun",
+            name="events",
+            field=django.contrib.postgres.fields.jsonb.JSONField(
+                help_text="The events recorded on this run in JSON format", null=True, verbose_name="Fields"
+            ),
+        )
     ]

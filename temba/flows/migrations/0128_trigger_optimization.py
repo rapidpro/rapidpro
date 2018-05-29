@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 CREATE OR REPLACE FUNCTION temba_update_flowcategorycount() RETURNS TRIGGER AS $$
 BEGIN
@@ -35,10 +34,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0127_backfill_flowrun_path'),
-    ]
+    dependencies = [("flows", "0127_backfill_flowrun_path")]
 
-    operations = [
-        migrations.RunSQL(SQL)
-    ]
+    operations = [migrations.RunSQL(SQL)]

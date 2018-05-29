@@ -5,14 +5,18 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0084_broadcast_media_dict'),
-    ]
+    dependencies = [("msgs", "0084_broadcast_media_dict")]
 
     operations = [
         migrations.AlterField(
-            model_name='msg',
-            name='msg_type',
-            field=models.CharField(choices=[('I', 'Inbox Message'), ('F', 'Flow Message'), ('V', 'IVR Message'), ('U', 'USSD Message')], help_text='The type of this message', max_length=1, null=True, verbose_name='Message Type'),
-        ),
+            model_name="msg",
+            name="msg_type",
+            field=models.CharField(
+                choices=[("I", "Inbox Message"), ("F", "Flow Message"), ("V", "IVR Message"), ("U", "USSD Message")],
+                help_text="The type of this message",
+                max_length=1,
+                null=True,
+                verbose_name="Message Type",
+            ),
+        )
     ]

@@ -5,14 +5,18 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0069_auto_20170427_1241'),
-    ]
+    dependencies = [("channels", "0069_auto_20170427_1241")]
 
     operations = [
         migrations.AlterField(
-            model_name='channel',
-            name='address',
-            field=models.CharField(blank=True, help_text='Address with which this channel communicates', max_length=255, null=True, verbose_name='Address'),
-        ),
+            model_name="channel",
+            name="address",
+            field=models.CharField(
+                blank=True,
+                help_text="Address with which this channel communicates",
+                max_length=255,
+                null=True,
+                verbose_name="Address",
+            ),
+        )
     ]

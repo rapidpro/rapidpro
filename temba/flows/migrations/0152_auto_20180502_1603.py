@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 --- Drop the triggers
 DROP TRIGGER IF EXISTS temba_flowrun_truncate_flowruncount on flows_flowrun;
@@ -51,10 +50,6 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0151_auto_20180418_1807'),
-    ]
+    dependencies = [("flows", "0151_auto_20180418_1807")]
 
-    operations = [
-        migrations.RunSQL(SQL, '')
-    ]
+    operations = [migrations.RunSQL(SQL, "")]

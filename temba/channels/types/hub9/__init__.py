@@ -1,2 +1,2 @@
 
-from .type import Hub9Type # noqa
+from .type import Hub9Type  # noqa
