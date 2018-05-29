@@ -2094,6 +2094,11 @@ class OrgTest(TembaTest):
         debits = Debit.objects.filter(topup__org=self.org).order_by("id")
         self.assertEqual(3, len(debits))
 
+        # test squashing
+        Debit.squash()
+        debits = Debit.objects.filter(topup__org=self.org).order_by("id")
+        self.assertEqual(3, len(debits))
+
         # the last two debits should expire at same time as topup they were funded by
         self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
         self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
