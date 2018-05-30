@@ -40,12 +40,13 @@ from temba.msgs.models import (
     BroadcastRecipient,
     ExportMessagesTask,
     Label,
+    LabelCount,
     Msg,
     SystemLabel,
     SystemLabelCount,
     UnreachableException,
 )
-from temba.orgs.models import Debit, Language, Org
+from temba.orgs.models import Language, Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.utils import dict_to_json, dict_to_struct
@@ -72,6 +73,26 @@ class MsgTest(TembaTest):
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_deletes(self):
+
+        # create some incoming messages
+        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
+        msg2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "ignore joe, he's a liar")
+
+        # we've used two credits
+        self.assertEqual(2, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 2)
+
+        # a hard delete on a message should reduce credits used
+        msg1.delete()
+        self.assertEqual(1, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
+
+        # a purge delete on a message should keep credits the same
+        msg2.release(Msg.DELETE_FOR_USER)
+        self.assertEqual(0, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
 
     def test_get_sync_commands(self):
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
@@ -141,11 +162,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg1.visibility, Msg.VISIBILITY_VISIBLE)
 
         msg1.release()
-
-        msg1 = Msg.objects.get(pk=msg1.pk)
-        self.assertEqual(msg1.visibility, Msg.VISIBILITY_DELETED)
-        self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
-        self.assertTrue(Label.label_objects.filter(pk=label.pk).exists())  # though don't delete the label object
+        self.assertFalse(Msg.objects.filter(id=msg1.pk))
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -1360,6 +1377,173 @@ class BroadcastTest(TembaTest):
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, "TT")
 
+    def run_msg_release_test(self, tc):
+        favorites = self.get_flow("favorites")
+        label = Label.get_or_create(self.org, self.user, "Labeled")
+
+        # create some incoming messages
+        msg_in1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "Hello")
+        Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
+
+        # create a broadcast which is a response to an incoming message
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1.send(trigger_send=False, response_to=msg_in1)
+
+        # create a broadcast which is to several contacts
+        broadcast2 = Broadcast.create(
+            self.org, self.user, "Very old broadcast", [self.joe_and_frank, self.kevin, self.lucy]
+        )
+        broadcast2.send(trigger_send=False)
+
+        # start joe in a flow
+        favorites.start([], [self.joe])
+        msg_in3 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "red!")
+
+        # mark all outgoing messages as sent except broadcast #2 to Joe
+        Msg.objects.filter(direction="O").update(status="S")
+        broadcast2.msgs.filter(contact=self.joe).update(status="F")
+
+        # label one of our messages
+        msg_in1.labels.add(label)
+        self.assertEqual(LabelCount.get_totals([label])[label], 1)
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 2)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 1)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 6)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
+
+        today = timezone.now().date()
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
+
+        self.org.clear_credit_cache()
+        self.assertEqual(self.org.get_credits_used(), 10)
+        self.assertEqual(self.org.get_credits_remaining(), 990)
+
+        # archive all our messages save for our flow incoming message
+        for m in Msg.objects.exclude(id=msg_in3.id):
+            m.release(tc["delete_reason"])
+
+        # broadcasts should be unaffected
+        self.assertEqual(Broadcast.objects.count(), tc["broadcast_count"])
+
+        # credit usage remains the same
+        self.org.clear_credit_cache()
+        self.assertEqual(self.org.get_credits_used(), tc["credits_used"])
+        self.assertEqual(self.org.get_credits_remaining(), tc["credits_remaining"])
+
+        # check system label counts have been updated
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], tc["inbox_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], tc["flow_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], tc["sent_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], tc["failed_count"])
+
+        # check our archived counts as well
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_INBOX], tc["archived_inbox_count"]
+        )
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FLOWS], tc["archived_flow_count"]
+        )
+        self.assertEqual(SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_SENT], tc["archived_sent_count"])
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FAILED], tc["archived_failed_count"]
+        )
+
+        # check user labels
+        self.assertEqual(LabelCount.get_totals([label])[label], tc["label_count"])
+        self.assertEqual(LabelCount.get_totals([label], True)[label], tc["archived_label_count"])
+
+        # but daily channel counts should be unchanged
+        self.assertEqual(
+            ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), tc["sms_incoming_count"]
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), tc["sms_outgoing_count"]
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today),
+            tc["twitter_incoming_count"],
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today),
+            tc["twitter_outgoing_count"],
+        )
+
+    def test_archive_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": Msg.DELETE_FOR_ARCHIVE,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 1,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 2,
+                "archived_flow_count": 0,
+                "archived_sent_count": 6,
+                "archived_failed_count": 1,
+                "credits_used": 10,
+                "credits_remaining": 990,
+                "sms_incoming_count": 3,
+                "sms_outgoing_count": 6,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 1,
+            }
+        )
+
+    def test_user_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": Msg.DELETE_FOR_USER,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 0,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 0,
+                "archived_flow_count": 0,
+                "archived_sent_count": 0,
+                "archived_failed_count": 0,
+                "credits_used": 10,
+                "credits_remaining": 990,
+                "sms_incoming_count": 3,
+                "sms_outgoing_count": 6,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 1,
+            }
+        )
+
+    def test_delete_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": None,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 0,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 0,
+                "archived_flow_count": 0,
+                "archived_sent_count": 0,
+                "archived_failed_count": 0,
+                "credits_used": 1,
+                "credits_remaining": 999,
+                "sms_incoming_count": 1,
+                "sms_outgoing_count": 0,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 0,
+            }
+        )
+
     def test_broadcast_batch(self):
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
         self.assertEqual(3, broadcast.recipient_count)
@@ -1830,70 +2014,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
         self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
-    def test_purging_messages(self):
-        # create some incoming messages
-        msg_in1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "Hello")
-        msg_in2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
-
-        # create a broadcast which is a response to an incoming message
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
-        broadcast1.send(trigger_send=False, response_to=msg_in1)
-
-        # create a broadcast which is to several contacts
-        broadcast2 = Broadcast.create(
-            self.org, self.user, "Very old broadcast", [self.joe_and_frank, self.kevin, self.lucy]
-        )
-        broadcast2.send(trigger_send=False)
-
-        # start joe in a flow
-        favorites = self.get_flow("favorites")
-        favorites.start([], [self.joe])
-        Msg.create_incoming(self.channel, self.joe.get_urn().urn, "red!")
-
-        # mark all outgoing messages as sent except broadcast #2 to Joe
-        Msg.objects.filter(direction="O").update(status="S")
-        broadcast2.msgs.filter(contact=self.joe).update(status="F")
-
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 2)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 1)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 6)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
-
-        today = timezone.now().date()
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
-
-        self.assertEqual(self.org.get_credits_used(), 10)
-        self.assertEqual(self.org.get_credits_remaining(), 990)
-
-        # purge all  messages except msg_in2
-        Msg.bulk_purge(Msg.objects.exclude(id=msg_in2.id))
-
-        # broadcasts should be unaffected
-        self.assertEqual(Broadcast.objects.count(), 2)
-
-        # check a debit was created for the deleted messages
-        debit1 = Debit.objects.get(topup__org=self.org)
-        self.assertEqual(debit1.amount, 9)
-
-        # so credit usage remains the same
-        self.assertEqual(self.org.get_credits_used(), 10)
-        self.assertEqual(self.org.get_credits_remaining(), 990)
-
-        # check system label counts have been updated
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 1)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 0)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 0)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 0)
-
-        # but daily channel counts should be unchanged
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
-
     def test_clear_old_msg_external_ids(self):
         last_month = timezone.now() - timedelta(days=31)
         msg1 = self.create_msg(
@@ -2117,6 +2237,30 @@ class LabelTest(TembaTest):
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.assertRaises(ValueError, folder.get_visible_count)
+
+        # archive one of our messages, should change count but keep an archived count as well
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
+
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # squash and check once more
+        squash_labelcounts()
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # do a user release
+        msg3.release(Msg.DELETE_FOR_USER)
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+        squash_labelcounts()
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
@@ -2579,7 +2723,6 @@ class SystemLabelTest(TembaTest):
         )
 
         msg1.restore()
-        msg3.release()  # already released
         msg5.status_fail()  # already failed
         msg6.status_delivered()
 
@@ -2620,6 +2763,40 @@ class SystemLabelTest(TembaTest):
 
         # we should only have one system label per type
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
+
+        # archive one of our inbox messages
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
+
+        self.assertEqual(
+            SystemLabel.get_counts(self.org),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
+            },
+        )
+
+        squash_labelcounts()
+
+        # check our archived count
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 0,
+            },
+        )
 
 
 class TagsTest(TembaTest):

@@ -90,7 +90,6 @@ def noop(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     atomic = False
 
     dependencies = [("channels", "0077_auto_20170824_1555"), ("msgs", "0076_install_triggers")]

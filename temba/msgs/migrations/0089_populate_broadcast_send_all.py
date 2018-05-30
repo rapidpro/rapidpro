@@ -30,6 +30,7 @@ def apply_manual():
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [("msgs", "0088_broadcast_send_all")]
 
