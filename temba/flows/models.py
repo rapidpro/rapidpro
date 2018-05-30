@@ -3845,7 +3845,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             now = timezone.now()
 
             runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
+            runs.update(
+                is_active=False,
+                exited_on=now,
+                exit_type=exit_type,
+                modified_on=now,
+                child_context=None,
+                parent_context=None,
+            )
 
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
@@ -4133,7 +4140,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
             self.is_active = False
-            self.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
+            self.parent_context = None
+            self.child_context = None
+            self.save(
+                update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+            )
 
         if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
             callback = "https://%s%s" % (
@@ -4162,7 +4173,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         self.exited_on = now
         self.is_active = False
-        self.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
+        self.parent_context = None
+        self.child_context = None
+        self.save(
+            update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+        )
 
     def update_timeout(self, now, minutes):
         """
