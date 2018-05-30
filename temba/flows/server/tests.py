@@ -140,27 +140,20 @@ class TrialTest(TembaTest):
 
     def test_is_flow_suitable(self):
         self.assertTrue(trial.is_flow_suitable(self.get_flow("favorites")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("action_packed")))
+        self.assertTrue(trial.is_flow_suitable(self.get_flow("action_packed")))
+
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("resthooks")))  # resthooks
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
-        action_packed = self.get_flow("action_packed")
-        favorites = self.get_flow("favorites")
-
-        # trying a flow that can't be resumed won't effect throttling
-        action_packed.start([], [self.contact])
-        Msg.create_incoming(self.channel, "tel:+12065552020", "color")
-
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 0)
-
         # first resume in a suitable flow will be trialled
-        favorites.start([], [self.contact])
+        favorites = self.get_flow("favorites")
+        favorites.start([], [self.contact], interrupt=True)
         Msg.create_incoming(self.channel, "tel:+12065552020", "red")
 
         self.assertEqual(mock_report_success.call_count, 1)

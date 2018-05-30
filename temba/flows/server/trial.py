@@ -41,23 +41,13 @@ def is_flow_suitable(flow):
     """
     Checks whether the given flow can be trialled in the flowserver
     """
-    from temba.flows.models import WebhookAction, TriggerFlowAction, StartFlowAction, RuleSet, Flow
+    from temba.flows.models import RuleSet, Flow
 
     if flow.flow_type not in (Flow.FLOW, Flow.MESSAGE):
         return False
 
-    for action_set in flow.action_sets.all():
-        for action in action_set.get_actions():
-            if action.TYPE in (WebhookAction.TYPE, TriggerFlowAction.TYPE, StartFlowAction.TYPE):
-                return False
-
     for rule_set in flow.rule_sets.all():
-        if rule_set.ruleset_type in (
-            RuleSet.TYPE_AIRTIME,
-            RuleSet.TYPE_WEBHOOK,
-            RuleSet.TYPE_RESTHOOK,
-            RuleSet.TYPE_SUBFLOW,
-        ):
+        if rule_set.ruleset_type in (RuleSet.TYPE_AIRTIME, RuleSet.TYPE_RESTHOOK):
             return False
 
     return True
