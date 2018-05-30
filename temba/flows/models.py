@@ -318,8 +318,11 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session["runs"]:
-            run_events = [e for e in output.events if e["step_uuid"] and step_to_run[e["step_uuid"]] == run["uuid"]]
-
+            run_events = [
+                e
+                for e in output.events
+                if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run["uuid"]
+            ]
             wait = output.session["wait"] if run["status"] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
@@ -1672,7 +1675,24 @@ class Flow(TembaModel):
         if run:
             run.contact = contact
 
-            if run.parent:
+            if run.parent_context is not None:
+                context["parent"] = run.parent_context.copy()
+                parent_contact_uuid = context["parent"]["contact"]
+
+                if parent_contact_uuid != str(contact.uuid):
+                    parent_contact = Contact.objects.filter(
+                        org=run.org, uuid=parent_contact_uuid, is_active=True
+                    ).first()
+                    if parent_contact:
+                        context["parent"]["contact"] = parent_contact.build_expressions_context()
+                    else:
+                        # contact may have since been deleted
+                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}
+                else:
+                    context["parent"]["contact"] = contact_context
+
+            # TODO remove when all runs have parent_context backfilled
+            elif run.parent:  # pragma: no cover
                 run.parent.flow.org = self.org
                 if run.parent.contact_id == run.contact_id:
                     run.parent.contact = run.contact
@@ -1681,11 +1701,15 @@ class Flow(TembaModel):
                 context["parent"] = run.parent.build_expressions_context()
 
             # see if we spawned any children and add them too
-            child_run = run.cached_child
-            if child_run:
-                child_run.org = self.org
-                child_run.contact = run.contact
-                context["child"] = child_run.build_expressions_context()
+            if run.child_context is not None:
+                context["child"] = run.child_context.copy()
+                context["child"]["contact"] = contact_context
+
+            # TODO remove when all runs have child_context backfilled
+            elif run.cached_child:  # pragma: no cover
+                run.cached_child.org = self.org
+                run.cached_child.contact = run.contact
+                context["child"] = run.cached_child.build_expressions_context()
 
         if contact:
             context["contact"] = contact_context
@@ -2021,6 +2045,11 @@ class Flow(TembaModel):
                     # add it to the list of broadcasts in this flow start
                     broadcasts.append(broadcast)
 
+        if parent_run:
+            parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
+        else:
+            parent_context = None
+
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
             return self.start_msg_flow_batch(
@@ -2031,6 +2060,7 @@ class Flow(TembaModel):
                 extra=extra,
                 flow_start=flow_start,
                 parent_run=parent_run,
+                parent_context=parent_context,
             )
 
         # otherwise, create batches instead
@@ -2071,6 +2101,7 @@ class Flow(TembaModel):
         extra=None,
         flow_start=None,
         parent_run=None,
+        parent_context=None,
     ):
 
         batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
@@ -2099,6 +2130,7 @@ class Flow(TembaModel):
                 start=flow_start,
                 created_on=now,
                 parent=parent_run,
+                parent_context=parent_context,
                 db_insert=False,
                 responded=start_msg is not None,
             )
@@ -3035,6 +3067,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     PATH_EXIT_UUID = "exit_uuid"
     PATH_MAX_STEPS = 100
 
+    EVENT_TYPE = "type"
+    EVENT_STEP_UUID = "step_uuid"
+    EVENT_CREATED_ON = "created_on"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name="runs", db_index=False)
@@ -3096,7 +3132,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         settings.AUTH_USER_MODEL, null=True, db_index=False, help_text="The user which submitted this flow run"
     )
 
-    parent = models.ForeignKey("flows.FlowRun", null=True, help_text=_("The parent run that triggered us"))
+    parent = models.ForeignKey(
+        "flows.FlowRun", null=True, help_text=_("The parent run that triggered us"), on_delete=models.SET_NULL
+    )
+
+    parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
+
+    child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
 
     results = JSONAsTextField(
         null=True, default=dict, help_text=_("The results collected during this flow run in JSON format")
@@ -3664,6 +3706,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         db_insert=True,
         submitted_by=None,
         parent=None,
+        parent_context=None,
         responded=False,
     ):
 
@@ -3677,6 +3720,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             fields=fields,
             submitted_by=submitted_by,
             parent=parent,
+            parent_context=parent_context,
             responded=responded,
         )
 
@@ -3801,7 +3845,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             now = timezone.now()
 
             runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
+            runs.update(
+                is_active=False,
+                exited_on=now,
+                exit_type=exit_type,
+                modified_on=now,
+                child_context=None,
+                parent_context=None,
+            )
 
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
@@ -3817,11 +3868,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         path_step = self.path[-1]
 
         existing_msg_uuids = set()
-        for e in self.events:
-            if e["type"] in (server.Events.msg_received.name, server.Events.msg_created.name):
-                msg_uuid = e["msg"].get("uuid")
-                if msg_uuid:
-                    existing_msg_uuids.add(msg_uuid)
+        for e in self.get_msg_events():
+            msg_uuid = e["msg"].get("uuid")
+            if msg_uuid:
+                existing_msg_uuids.add(msg_uuid)
 
         needs_update = False
 
@@ -3836,11 +3886,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.events.append(
                 {
-                    "type": server.Events.msg_received.name
+                    FlowRun.EVENT_TYPE: server.Events.msg_received.name
                     if msg.direction == INCOMING
                     else server.Events.msg_created.name,
-                    "created_on": msg.created_on.isoformat(),
-                    "step_uuid": path_step.get("uuid"),
+                    FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
+                    FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
                     "msg": server.serialize_message(msg),
                 }
             )
@@ -3869,14 +3919,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             return []
 
         type_names = [t.name for t in event_types]
-
-        return [e for e in self.events if e["type"] in type_names]
+        return [e for e in self.events if e[FlowRun.EVENT_TYPE] in type_names]
 
     def get_msg_events(self):
         """
         Gets all the messages associated with this run
         """
         return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
+
+    def get_events_by_step(self, msg_only=False):
+        """
+        Gets a map of step UUIDs to lists of events created at that step
+        """
+        events = self.get_msg_events() if msg_only else self.events
+        events_by_step = defaultdict(list)
+        for e in events:
+            events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
+        return events_by_step
 
     def get_messages(self):
         """
@@ -3957,6 +4016,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:
             allow_trial = False
             expired_child_run = None
+
+        run.parent.child_context = run.build_expressions_context(contact_context=str(run.contact.uuid))
+        run.parent.save(update_fields=("child_context",))
 
         # finally, trigger our parent flow
         (handled, msgs) = Flow.find_and_handle(
@@ -4078,7 +4140,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
             self.is_active = False
-            self.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
+            self.parent_context = None
+            self.child_context = None
+            self.save(
+                update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+            )
 
         if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
             callback = "https://%s%s" % (
@@ -4107,7 +4173,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         self.exited_on = now
         self.is_active = False
-        self.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
+        self.parent_context = None
+        self.child_context = None
+        self.save(
+            update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+        )
 
     def update_timeout(self, now, minutes):
         """
@@ -4969,10 +5039,10 @@ class FlowPathRecentRun(models.Model):
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
     from_uuid = models.UUIDField(help_text=_("The flow node UUID of the first step"))
-    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"), null=True)
+    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"))
 
     to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
-    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"), null=True)
+    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"))
 
     run = models.ForeignKey(FlowRun, related_name="recent_runs")
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
@@ -4990,16 +5060,24 @@ class FlowPathRecentRun(models.Model):
 
         results = []
         for r in recent:
+            msg_events_by_step = r.run.get_events_by_step(msg_only=True)
             msg_event = None
-            # find the most recent message event in the run when this visit happened
-            for event in reversed(r.run.get_msg_events()):
-                if iso8601.parse_date(event["created_on"]) <= r.visited_on:
-                    msg_event = event
-                    break
 
-            results.append(
-                {"run": r.run, "text": msg_event["msg"]["text"] if msg_event else "", "visited_on": r.visited_on}
-            )
+            # find the last message event in the run before this step
+            before_step = False
+            for step in reversed(r.run.path):
+                step_uuid = step[FlowRun.PATH_STEP_UUID]
+                if step_uuid == str(r.from_step_uuid):
+                    before_step = True
+
+                if before_step:
+                    msg_events = msg_events_by_step[step_uuid]
+                    if msg_events:
+                        msg_event = msg_events[-1]
+                        break
+
+            if msg_event:
+                results.append({"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on})
 
         return results
 

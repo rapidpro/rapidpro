@@ -3710,8 +3710,33 @@ class ActionPackedTest(FlowFileTest):
         triggered_run = FlowRun.objects.all().order_by("-id").first()
         self.assertEqual("Favorite Color", triggered_run.flow.name)
 
-        msg = triggered_run.get_messages().first()
+        msg = triggered_run.get_messages().order_by("-id").first()
         self.assertEqual("Started by Trey Anastasio. What is your favorite color?", msg.text)
+
+        self.send("red", contact=lonely)
+        self.send("Mr Lonely", contact=lonely)
+        self.send("male", contact=lonely)
+
+        self.assertEqual(FlowRun.objects.filter(contact=lonely, is_active=False).count(), 1)
+
+    @also_in_flowserver
+    def test_triggered_flow_with_deleted_parent_contact(self, in_flowserver):
+        lonely = self.create_contact("Lonely Contact", "+12065550001")
+
+        dog_facts = ContactGroup.user_groups.filter(name="Dog Facts").first()
+        dog_facts.contacts.add(lonely)
+
+        self.start_flow()
+
+        # can resume child even after deleting the parent contact
+        self.contact.is_active = False
+        self.contact.save(update_fields=("is_active",))
+
+        self.send("red", contact=lonely)
+        self.send("Mr Lonely", contact=lonely)
+        self.send("male", contact=lonely)
+
+        self.assertEqual(FlowRun.objects.filter(contact=lonely, is_active=False).count(), 1)
 
     @also_in_flowserver
     @override_settings(SEND_EMAILS=True)
@@ -5580,7 +5605,7 @@ class SimulationTest(FlowFileTest):
 
     @patch("temba.ussd.models.USSDSession.handle_incoming")
     def test_ussd_simulation(self, handle_incoming):
-        self.channel.delete()
+        self.channel.release()
         self.channel = Channel.create(
             self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE
         )
@@ -5601,7 +5626,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertIsNone(handle_incoming.call_args[1]["status"])
 
-        self.channel.delete()
+        self.channel.release()
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
