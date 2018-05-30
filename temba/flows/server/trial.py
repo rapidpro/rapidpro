@@ -12,6 +12,7 @@ from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
 
 from django.conf import settings
+from django.utils import timezone
 
 from .client import Events, get_client
 from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
@@ -29,6 +30,7 @@ class ResumeTrial(object):
     """
 
     def __init__(self, run):
+        self.started_on = timezone.now()
         self.run = run
         self.session_before = reconstruct_session(run)
         self.session_after = None
@@ -94,7 +96,7 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
     Ends a trial resume by performing the resumption in the flowserver and comparing the differences
     """
     try:
-        trial.session_after = resume(trial.run.org, trial.session_before, msg_in, expired_child_run)
+        trial.session_after = resume(trial, msg_in, expired_child_run)
         trial.differences = compare_run(trial.run, trial.session_after)
 
         if trial.differences:
@@ -130,15 +132,24 @@ def report_failure(trial):  # pragma: no cover
     )
 
 
-def resume(org, session, msg_in=None, expired_child_run=None):
+def resume(trial, msg_in=None, expired_child_run=None):
     """
     Resumes the given waiting session with either a message or an expired run
     """
+    org = trial.run.org
+    session = trial.session_before
+    webhook_mocks = create_webhook_mocks(trial)
+
     client = get_client()
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server().set_config("disable_webhooks", True)
+    request = (
+        client.request_builder(org, asset_timestamp)
+        .asset_server()
+        .set_config("disable_webhooks", True)
+        .set_config("webhook_mocks", webhook_mocks)
+    )
 
     if settings.TESTING:
         request.include_all()
@@ -150,6 +161,22 @@ def resume(org, session, msg_in=None, expired_child_run=None):
         request.add_run_expired(expired_child_run)
 
     return request.resume(session).session
+
+
+def create_webhook_mocks(trial):
+    """
+    Creates webhook mocks for goflow from the webhook results created since this trial started
+    """
+    from temba.api.models import WebHookResult
+
+    results = (
+        WebHookResult.objects.filter(contact=trial.run.contact, created_on__gte=trial.started_on)
+        .select_related("event")
+        .order_by("created_on")
+    )
+
+    # create a webhook mock for each webhook result created since the trial started
+    return [{"method": r.event.action, "url": r.url, "status": r.status_code, "body": r.body} for r in results]
 
 
 def reconstruct_session(run):

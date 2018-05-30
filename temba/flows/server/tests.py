@@ -358,21 +358,20 @@ class TrialTest(TembaTest):
             self.assertEqual(mock_report_failure.call_count, 1)
 
     @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="always")
+    @override_settings(FLOW_SERVER_TRIAL="always", SEND_WEBHOOKS=True)
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
-        # checks that we got a mocked response back from the webhook call
-        def failure(t):
-            self.assertEqual(t.differences["diffs"], {"results": {"webhook_2": {"value": "MOCKED"}}})
-
-        mock_report_failure.side_effect = failure
-
         flow = self.get_flow("dual_webhook")
+
+        # mock the two webhook calls in this flow
+        self.mockRequest("POST", "/code", '{"code": "ABABUUDDLRS"}', content_type="application/json")
+        self.mockRequest("GET", "/success", "Success")
 
         flow.start([], [self.contact])
         Msg.create_incoming(self.channel, "tel:+12065552020", "Bob")
 
-        # trial fails due to differing webhook result
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 1)
+        self.assertAllRequestsMade()
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
