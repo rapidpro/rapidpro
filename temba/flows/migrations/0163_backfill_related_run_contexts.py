@@ -1,9 +1,38 @@
+import iso8601
+
 from django.db import migrations, transaction
 from django.db.models import Q
 
+RESULT_NAME = "name"
+RESULT_NODE_UUID = "node_uuid"
+RESULT_CATEGORY = "category"
+RESULT_CATEGORY_LOCALIZED = "category_localized"
+RESULT_VALUE = "value"
+RESULT_INPUT = "input"
+RESULT_CREATED_ON = "created_on"
 
-def build_context(run):
+
+def build_context(run, snapshot_on):
+
+    def result_wrapper(res):
+        return {
+            "__default__": res[RESULT_VALUE],
+            "text": res.get(RESULT_INPUT),
+            "time": res[RESULT_CREATED_ON],
+            "category": res.get(RESULT_CATEGORY_LOCALIZED, res[RESULT_CATEGORY]),
+            "value": res[RESULT_VALUE],
+        }
+
     context = {}
+    default_lines = []
+
+    for key, result in run.results.items():
+        result_created_on = iso8601.parse_date(result[RESULT_CREATED_ON])
+        if result_created_on < snapshot_on or not snapshot_on:
+            context[key] = result_wrapper(result)
+            default_lines.append("%s: %s" % (result[RESULT_NAME], result[RESULT_VALUE]))
+
+    context["__default__"] = "\n".join(default_lines)
     context["contact"] = str(run.contact.uuid)
     return context
 
@@ -45,18 +74,18 @@ def backfill_related_run_contexts(FlowRun):
         with transaction.atomic():
             for active_run in batch:
                 parent = active_run.parent
-                child = last_child_by_parent.get(parent)
+                child = last_child_by_parent.get(active_run)
 
                 parent_context = None
                 child_context = None
                 needs_update = False
 
                 if parent and not active_run.parent_context:
-                    parent_context = build_context(parent)
+                    parent_context = build_context(parent, active_run.created_on)
                     needs_update = True
 
                 if child and not active_run.child_context:
-                    child_context = build_context(child)
+                    child_context = build_context(child, child.exited_on)
                     needs_update = True
 
                 if needs_update:
