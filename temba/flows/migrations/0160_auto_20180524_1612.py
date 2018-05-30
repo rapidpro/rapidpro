@@ -9,6 +9,11 @@ from django.utils import timezone
 
 
 def remove_never_expirations(apps, schema_editor):
+    # do nothing for a clean database - don't even try to load the model class
+    FlowRun = apps.get_model("flows", "FlowRun")
+    if not FlowRun.objects.exists():
+        return
+
     from temba.flows.models import Flow, FlowRun
 
     # for every flow that has an expiration set to 0

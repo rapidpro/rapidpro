@@ -11,6 +11,7 @@ def delete_purge_debits(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [("orgs", "0039_auto_20180202_1234")]
 
