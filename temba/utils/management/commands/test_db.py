@@ -280,8 +280,8 @@ class Command(BaseCommand):
         db_config = settings.DATABASES["default"]
         try:
             check_call(
-                "export PGPASSWORD=%s && pg_restore -h %s -U%s -w -d %s %s"
-                % (db_config["PASSWORD"], db_config["HOST"], db_config["USER"], db_config["NAME"], path),
+                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
+                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
                 shell=True,
             )
         except CalledProcessError:  # pragma: no cover
