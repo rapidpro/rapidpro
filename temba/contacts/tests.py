@@ -1074,6 +1074,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
 
         contact.release(self.admin)
+        contact.refresh_from_db()
 
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
@@ -1081,6 +1082,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, contact.msgs.all().count())
         self.assertIsNone(contact.fields)
         self.assertIsNone(contact.name)
+        self.assertEqual(self.admin, contact.modified_by)
 
         # nope, we aren't paranoid or anything
         Org.objects.get(id=self.org.id)

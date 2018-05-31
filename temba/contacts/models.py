@@ -1785,7 +1785,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("is_active", "fields", "modified_on", "modified_by"))
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
 
     def release_async(self, user):
         """
