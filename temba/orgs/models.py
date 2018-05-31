@@ -1398,7 +1398,7 @@ class Org(SmartModel):
         active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
         last_topup_credits = sum(active_topup_credits)
 
-        return int(last_topup_credits * 0.15) if last_topup_credits else 0, self.get_credit_ttl()
+        return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
