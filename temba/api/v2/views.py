@@ -585,11 +585,10 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by `period`
         period = self.request.query_params.get("period")
 
-        if period == 'daily':
-            queryset = queryset.filter(period='D')
-        elif period == 'monthly':
-            queryset = queryset.filter(period='M')
-
+        if period == "daily":
+            queryset = queryset.filter(period="D")
+        elif period == "monthly":
+            queryset = queryset.filter(period="M")
 
         # setup filter by before/after on start_date
         return self.filter_before_after(queryset, "start_date")
