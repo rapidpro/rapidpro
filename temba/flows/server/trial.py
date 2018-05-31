@@ -65,7 +65,7 @@ def maybe_start_resume(run):
         if not r.set(TRIAL_LOCK, "x", TRIAL_PERIOD, nx=True):
             return None
 
-        if not is_flow_suitable(run.flow):
+        if not is_flow_suitable(run.flow):  # pragma: no cover
             r.delete(TRIAL_LOCK)
             return None
 
