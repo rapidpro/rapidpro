@@ -34,7 +34,9 @@ class ArchiveCRUDL(SmartCRUDL):
             queryset = super().get_queryset(**kwargs)
 
             # filter by our archive type
-            return queryset.filter(archive_type=self.get_archive_type())
+            return queryset.filter(archive_type=self.get_archive_type()).exclude(
+                period=Archive.PERIOD_DAILY, rollup_id__isnull=False
+            )
 
         def derive_title(self):
             archive_type = self.get_archive_type()
