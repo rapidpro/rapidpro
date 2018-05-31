@@ -333,6 +333,7 @@ PERMISSIONS = {
     "contacts.contactfield": ("api", "json", "managefields"),
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
+    "archives.archive": ("api",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -784,7 +785,7 @@ _default_database_config = {
     "USER": "temba",
     "PASSWORD": "temba",
     "HOST": "localhost",
-    "PORT": "",
+    "PORT": "5432",
     "ATOMIC_REQUESTS": True,
     "CONN_MAX_AGE": 60,
     "OPTIONS": {},

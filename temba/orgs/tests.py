@@ -1060,6 +1060,19 @@ class OrgTest(TembaTest):
         # our first 10 messages plus our 5 pending a topup
         self.assertEqual(15, self.org.get_credits_used())
 
+    def test_low_credits_threshold(self):
+        contact = self.create_contact("Usain Bolt", "+250788123123")
+
+        # add some more unexpire topup credits
+        TopUp.create(self.admin, price=0, credits=1000)
+        TopUp.create(self.admin, price=0, credits=1000)
+        TopUp.create(self.admin, price=0, credits=1000)
+
+        # send some messages with a valid topup
+        self.create_inbound_msgs(contact, 2200)
+
+        self.assertEqual(300, self.org.get_low_credits_threshold())
+
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100000, multi_org=1000000)
@@ -1070,7 +1083,7 @@ class OrgTest(TembaTest):
 
         self.create_inbound_msgs(contact, 10)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1210,7 +1223,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(2):
             self.assertTrue(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(2):
@@ -1227,7 +1240,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
@@ -1242,7 +1255,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
@@ -1257,7 +1270,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):

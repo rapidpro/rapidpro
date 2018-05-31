@@ -26,6 +26,7 @@ def undo_path(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [("locations", "0009_auto_20170228_0837")]
 

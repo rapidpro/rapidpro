@@ -11,9 +11,7 @@ def update_twitter_channels_schemes(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     atomic = False
-
     dependencies = [("channels", "0074_channel_schemes")]
 
     operations = [

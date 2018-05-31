@@ -19,6 +19,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.api.models import APIToken, Resthook, WebHookEvent
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -643,6 +644,110 @@ class APITest(TembaTest):
             "non_field_errors",
             "Sorry, your account is currently suspended. To enable " "sending messages, please contact support.",
         )
+
+    def test_archives(self):
+        url = reverse("api.v2.archives")
+
+        self.assertEndpointAccess(url)
+
+        # create some archives
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 4, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_MSG,
+            period=Archive.PERIOD_DAILY,
+        )
+        may_archive = Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 5, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_MSG,
+            period=Archive.PERIOD_MONTHLY,
+        )
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 6, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+        )
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 7, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_MONTHLY,
+        )
+        # this archive has been rolled up and it should not be included in the API responses
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 5, 1),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+            rollup_id=may_archive.id,
+        )
+
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        # there should be 4 archives in the response, because one has been rolled up
+        self.assertEqual(len(resp_json["results"]), 4)
+        self.assertEqual(
+            resp_json["results"][0],
+            {
+                "archive_type": "run",
+                "download_url": "",
+                "hash": "feca9988b7772c003204a28bd741d0d0",
+                "period": "monthly",
+                "record_count": 34,
+                "size": 345,
+                "start_date": "2017-07-05",
+            },
+        )
+
+        response = self.fetchJSON(url, query="after=2017-05-01")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 3)
+
+        response = self.fetchJSON(url, query="after=2017-05-01&archive_type=run")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 2)
+
+        # unknown archive type
+        response = self.fetchJSON(url, query="after=2017-05-01&archive_type=!!!unknown!!!")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 0)
+
+        # only for period "D"
+        response = self.fetchJSON(url, query="after=2017-05-01&archive_type=run&period=D")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 1)
 
     def test_campaigns(self):
         url = reverse("api.v2.campaigns")
@@ -2742,12 +2847,12 @@ class APITest(TembaTest):
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1})
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
 
-        # delete messages 2 and 4
+        # delete messages 2
         response = self.postJSON(url, None, {"messages": [msg2.id], "action": "delete"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1})
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
-        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+        self.assertFalse(Msg.objects.filter(id=msg2.id))
 
         # try to act on a deleted message
         response = self.postJSON(url, None, {"messages": [msg2.id], "action": "restore"})

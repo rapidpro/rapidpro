@@ -6856,9 +6856,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             return search_object.source(fields=("id",)).using(ES).count()
 
         db_config = settings.DATABASES["default"]
-        database_url = "postgres://{}:{}@{}/{}?sslmode=disable".format(
-            db_config["USER"], db_config["PASSWORD"], db_config["HOST"], db_config["NAME"]
+        database_url = (
+            f"postgres://{db_config['USER']}:{db_config['PASSWORD']}@{db_config['HOST']}:{db_config['PORT']}/"
+            f"{db_config['NAME']}?sslmode=disable"
         )
+
         result = subprocess.run(
             ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
             stdout=subprocess.PIPE,

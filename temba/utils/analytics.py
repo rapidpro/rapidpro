@@ -1,8 +1,8 @@
 
 import logging
 import time
-import analytics as segment_analytics
 
+import analytics as segment_analytics
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient

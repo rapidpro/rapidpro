@@ -5606,7 +5606,7 @@ class SimulationTest(FlowFileTest):
 
     @patch("temba.ussd.models.USSDSession.handle_incoming")
     def test_ussd_simulation(self, handle_incoming):
-        self.channel.delete()
+        self.channel.release()
         self.channel = Channel.create(
             self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE
         )
@@ -5627,7 +5627,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertIsNone(handle_incoming.call_args[1]["status"])
 
-        self.channel.delete()
+        self.channel.release()
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 

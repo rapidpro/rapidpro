@@ -4,6 +4,7 @@ import iso8601
 from rest_framework import serializers
 
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -107,6 +108,23 @@ class AdminBoundaryReadSerializer(ReadSerializer):
     class Meta:
         model = AdminBoundary
         fields = ("osm_id", "name", "parent", "level", "aliases", "geometry")
+
+
+class ArchiveReadSerializer(ReadSerializer):
+    period = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+
+    PERIODS = {Archive.PERIOD_DAILY: "daily", Archive.PERIOD_MONTHLY: "monthly"}
+
+    def get_period(self, obj):
+        return self.PERIODS.get(obj.period)
+
+    def get_download_url(self, obj):
+        return obj.get_download_link()
+
+    class Meta:
+        model = Archive
+        fields = ("archive_type", "start_date", "period", "record_count", "size", "hash", "download_url")
 
 
 class BroadcastReadSerializer(ReadSerializer):
