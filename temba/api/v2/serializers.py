@@ -111,14 +111,20 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 
 class ArchiveReadSerializer(ReadSerializer):
+    period = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
+
+    PERIODS = {Archive.PERIOD_DAILY: "daily", Archive.PERIOD_MONTHLY: "monthly"}
+
+    def get_period(self, obj):
+        return self.PERIODS.get(obj.period)
+
+    def get_download_url(self, obj):
+        return obj.get_download_link()
 
     class Meta:
         model = Archive
         fields = ("archive_type", "start_date", "period", "record_count", "size", "hash", "download_url")
-
-    def get_download_url(self, obj):
-        return obj.get_download_link()
 
 
 class BroadcastReadSerializer(ReadSerializer):

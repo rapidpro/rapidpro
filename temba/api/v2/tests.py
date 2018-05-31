@@ -710,6 +710,18 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         # there should be 4 archives in the response, because one has been rolled up
         self.assertEqual(len(resp_json["results"]), 4)
+        self.assertEqual(
+            resp_json["results"][0],
+            {
+                "archive_type": "run",
+                "download_url": "",
+                "hash": "feca9988b7772c003204a28bd741d0d0",
+                "period": "monthly",
+                "record_count": 34,
+                "size": 345,
+                "start_date": "2017-07-05",
+            },
+        )
 
         response = self.fetchJSON(url, query="after=2017-05-01")
         resp_json = response.json()
