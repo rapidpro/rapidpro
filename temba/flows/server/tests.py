@@ -74,6 +74,7 @@ class ClientTest(TembaTest):
                         "created_on": "2018-01-18T14:24:30+00:00",
                         "contact": {
                             "uuid": str(self.contact.uuid),
+                            "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
                             "timezone": "UTC",
@@ -101,6 +102,7 @@ class ClientTest(TembaTest):
                             "languages": [],
                             "time_format": "tt:mm",
                             "timezone": "Africa/Kigali",
+                            "redaction_policy": "none",
                         },
                     }
                 ],
