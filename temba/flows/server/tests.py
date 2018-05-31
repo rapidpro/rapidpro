@@ -102,6 +102,7 @@ class ClientTest(TembaTest):
                             "languages": [],
                             "time_format": "tt:mm",
                             "timezone": "Africa/Kigali",
+                            "redaction_policy": "none",
                         },
                     }
                 ],
