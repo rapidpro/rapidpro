@@ -1204,7 +1204,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {})
         self.assertEqual(response.status_code, 201)
 
-        empty = Contact.objects.get(name=None)
+        empty = Contact.objects.get(name=None, is_active=True)
 
         self.assertEqual(
             response.json(),
@@ -1384,10 +1384,11 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # delete a contact by URN (which should be normalized)
+        xavier = Contact.objects.get(name="Xavier")
         response = self.deleteJSON(url, "urn=%s" % quote_plus("twitter:XAVIER"))
         self.assertEqual(response.status_code, 204)
 
-        xavier = Contact.objects.get(name="Xavier")
+        xavier.refresh_from_db()
         self.assertFalse(xavier.is_active)
 
         # try deleting a contact by a non-existent URN
