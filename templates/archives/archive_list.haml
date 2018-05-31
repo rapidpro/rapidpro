@@ -44,11 +44,11 @@
         %tr.archive-row
           %td
             %a{href:"{% url 'archives.archive_read' archive.id %}"}
-              {{archive.archive_hash}}
+              {{archive.hash}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}
           %td.archive-size.cell
-            {{archive.archive_size_display}}
+            {{archive.size_display}}
           %td.archive-period.cell
             -if archive.period == 'D'
               {{archive.start_date|date:"M j, Y"}}

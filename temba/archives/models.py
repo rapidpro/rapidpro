@@ -54,7 +54,7 @@ class Archive(models.Model):
         help_text=_("The archive we were rolled up into, if any"),
     )
 
-    def archive_size_display(self):
+    def size_display(self):
         return sizeof_fmt(self.size)
 
     def get_s3_location(self):

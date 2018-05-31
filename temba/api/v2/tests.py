@@ -755,7 +755,7 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json["results"]), 0)
 
         # only for period "D"
-        response = self.fetchJSON(url, query="after=2017-05-01&archive_type=run&period=D")
+        response = self.fetchJSON(url, query="after=2017-05-01&archive_type=run&period=daily")
         resp_json = response.json()
 
         self.assertEqual(response.status_code, 200)

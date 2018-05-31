@@ -536,7 +536,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
 
       * **archive_type** - the type of the archive: *message*, *run* (string) (filterable as `archive_type`)
       * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`)
-      * **period** - *D* for daily archives, *M* for monthly archives (string) (filterable as `period`)
+      * **period** - *daily* for daily archives, *monthly* for monthly archives (string) (filterable as `period`)
       * **record_count** - number of records in the archive (int)
       * **size** - size of the gziped archive content (int)
       * **hash** - MD5 hash of the gziped archive (string)
@@ -544,7 +544,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
 
     Example:
 
-        GET /api/v2/archives.json?archive_type=message&before=2017-05-15&period=D
+        GET /api/v2/archives.json?archive_type=message&before=2017-05-15&period=daily
 
     Response is a list of the archives on your account
 
@@ -556,7 +556,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "archive_type":"message",
                 "start_date":"2017-02-20",
-                "period":"D",
+                "period":"daily",
                 "record_count":1432,
                 "size":2304,
                 "hash":"feca9988b7772c003204a28bd741d0d0",
@@ -584,8 +584,11 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
 
         # filter by `period`
         period = self.request.query_params.get("period")
-        if period:
-            queryset = queryset.filter(period=period)
+
+        if period == "daily":
+            queryset = queryset.filter(period="D")
+        elif period == "monthly":
+            queryset = queryset.filter(period="M")
 
         # setup filter by before/after on start_date
         return self.filter_before_after(queryset, "start_date")
@@ -603,7 +606,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
                     "required": False,
                     "help": "An archive_type to filter by, like: run, message",
                 },
-                {"name": "period", "required": False, "help": "A period to filter by: D, M"},
+                {"name": "period", "required": False, "help": "A period to filter by: daily, monthly"},
             ],
         }
 
