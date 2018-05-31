@@ -1,3 +1,8 @@
+v3.0.412
+----------
+ * Fix archive filter test
+ * Include id when serializing contacts for goflow
+
 v3.0.411
 ----------
  * Show when build failed becuse black was not executed
