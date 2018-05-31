@@ -4,16 +4,12 @@ from django.db import migrations
 
 
 def update_dart_hub9_schemes(apps, schema_editor):
-    Channel = apps.get_model('channels', "Channel")
-    Channel.objects.filter(channel_type__in=['DA', 'H9']).update(schemes=['tel', 'ext'])
+    Channel = apps.get_model("channels", "Channel")
+    Channel.objects.filter(channel_type__in=["DA", "H9"]).update(schemes=["tel", "ext"])
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0085_auto_20180202_1225'),
-    ]
+    dependencies = [("channels", "0085_auto_20180202_1225")]
 
-    operations = [
-        migrations.RunPython(update_dart_hub9_schemes)
-    ]
+    operations = [migrations.RunPython(update_dart_hub9_schemes)]

@@ -4,11 +4,10 @@ import iso8601
 
 from django.db import migrations, transaction
 
-
-PATH_STEP_UUID = 'uuid'
-PATH_NODE_UUID = 'node_uuid'
-PATH_ARRIVED_ON = 'arrived_on'
-PATH_EXIT_UUID = 'exit_uuid'
+PATH_STEP_UUID = "uuid"
+PATH_NODE_UUID = "node_uuid"
+PATH_ARRIVED_ON = "arrived_on"
+PATH_EXIT_UUID = "exit_uuid"
 
 
 def backfill_step_uuids(FlowPathRecentRun):
@@ -22,7 +21,7 @@ def backfill_step_uuids(FlowPathRecentRun):
     max_id = 0
     num_updated = 0
     while True:
-        batch = list(recent_runs.filter(id__gt=max_id).select_related('run').order_by('id')[:1000])
+        batch = list(recent_runs.filter(id__gt=max_id).select_related("run").order_by("id")[:1000])
         if not batch:
             break
 
@@ -33,10 +32,13 @@ def backfill_step_uuids(FlowPathRecentRun):
                 if len(recent_run.run.path) == 0:
                     continue
 
-                from_step_uuid, to_step_uuid = calculate_step_uuids(recent_run)
-                recent_run.from_step_uuid = from_step_uuid
-                recent_run.to_step_uuid = to_step_uuid
-                recent_run.save(update_fields=('from_step_uuid', 'to_step_uuid'))
+                step_uuids = calculate_step_uuids(recent_run)
+                if step_uuids is None:
+                    continue
+
+                recent_run.from_step_uuid = step_uuids[0]
+                recent_run.to_step_uuid = step_uuids[1]
+                recent_run.save(update_fields=("from_step_uuid", "to_step_uuid"))
 
         num_updated += len(batch)
         max_id = batch[-1].id
@@ -57,8 +59,9 @@ def calculate_step_uuids(recent_run):
         if from_step.get(PATH_EXIT_UUID) == exit_uuid and to_step.get(PATH_NODE_UUID) == node_uuid and to_step:
             segment_step_pairs.append((from_step, to_step))
 
+    # maybe we have a bad run, maybe we had to trim this run's path?
     if not segment_step_pairs:
-        raise ValueError(f"Can't find steps in run #{recent_run.run.id} for flow segment {exit_uuid}:{node_uuid}")
+        return None
 
     if len(segment_step_pairs) == 1:
         segment_step_pair = segment_step_pairs[0]
@@ -79,11 +82,12 @@ def calculate_step_uuids(recent_run):
 
 def apply_manual():
     from temba.flows.models import FlowPathRecentRun
+
     backfill_step_uuids(FlowPathRecentRun)
 
 
 def apply_as_migration(apps, schema_editor):
-    FlowPathRecentRun = apps.get_model('flows', 'FlowPathRecentRun')
+    FlowPathRecentRun = apps.get_model("flows", "FlowPathRecentRun")
     backfill_step_uuids(FlowPathRecentRun)
 
 
@@ -93,10 +97,6 @@ def clear_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0157_update_path_trigger'),
-    ]
+    dependencies = [("flows", "0157_update_path_trigger")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration, clear_migration)
-    ]
+    operations = [migrations.RunPython(apply_as_migration, clear_migration)]

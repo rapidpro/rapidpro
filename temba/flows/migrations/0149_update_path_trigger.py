@@ -137,10 +137,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0148_flowrun_events'),
-    ]
+    dependencies = [("flows", "0148_flowrun_events")]
 
-    operations = [
-        migrations.RunSQL(SQL, "")
-    ]
+    operations = [migrations.RunSQL(SQL, "")]

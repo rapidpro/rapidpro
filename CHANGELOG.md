@@ -1,3 +1,41 @@
+v3.0.410
+----------
+ * Remove purging, add release with delete_reason
+ * Set parent_context in Flow.start and use it in FlowRun.build_expressions_context if available
+ * Add is_archived counts for LabelCounts and SystemLabelCounts, update triggers
+
+v3.0.409
+----------
+ * Remove explicit use of uservoice
+ * Use step_uuids for recent message calculation
+
+v3.0.408
+----------
+ * Format code with blackify
+ * Add management commands to update consent status and org membership
+ * Update to latest goflow to fix tests
+ * Fix 'raise None' in migration and make flow server trial period be 15 seconds
+ * Fix the campaign events fields to be datetime fields
+ * Move flow server stuff from utils.goflow to flows.server
+ * Add messangi channel type
+
+v3.0.407
+----------
+ * Reenable requiring policy consent
+ * Allow msgs endpoint to return ALL messages for an org sorted by created_on
+ * Return error message if non-existent asset requested from assets endpoint
+ * If contact sends message whilst being started in a flow, don't blow up
+ * Remove option to have a flow never expire, migrate current flows with never to 30 days instead
+ * Request the user to fill the LINE channel ID and channel name on the claim form
+
+v3.0.406
+----------
+ * Fix logging events to intercom
+
+v3.0.405
+----------
+ * Migration to remove FlowStep
+
 v3.0.404
 ----------
  * remove old privacy page in favor of new policy app

@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('channels', '0070_auto_20170428_1135'),
-    ]
+    dependencies = [("channels", "0070_auto_20170428_1135")]
 
     operations = [
         migrations.AlterField(
-            model_name='channelcount',
-            name='id',
-            field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
-        ),
+            model_name="channelcount",
+            name="id",
+            field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
+        )
     ]

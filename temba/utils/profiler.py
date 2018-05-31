@@ -1,10 +1,9 @@
 import logging
-import django
 import textwrap
 import traceback
 
+import django
 from django.db.backends.utils import CursorWrapper
-
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +13,11 @@ class QueryTracker(object):  # pragma: no cover
     def print_stack(self, stack):
         for idx in range(0, self.stack_count):
             if idx < len(stack):
-                print(stack[idx], end='')
+                print(stack[idx], end="")
 
-    def __init__(self, sort_queries=True, skip_unique_queries=False, assert_query_count=None,
-                 query_contains=None, stack_count=3):
+    def __init__(
+        self, sort_queries=True, skip_unique_queries=False, assert_query_count=None, query_contains=None, stack_count=3
+    ):
         self.sort_queries = sort_queries
         self.stack_count = stack_count
         self.num_queries = assert_query_count
@@ -39,13 +39,13 @@ class QueryTracker(object):  # pragma: no cover
             def valid_stack(self, item):
                 file_name = item[0]
 
-                if 'temba' not in file_name:
+                if "temba" not in file_name:
                     return False
 
-                if 'temba/utils/profiler' in file_name:
+                if "temba/utils/profiler" in file_name:
                     return False
 
-                if 'flows/tests' in file_name:
+                if "flows/tests" in file_name:
                     return False
 
                 return True
@@ -79,24 +79,24 @@ class QueryTracker(object):  # pragma: no cover
                 for idx, query in enumerate(self.queries):
                     (sql, stack) = query
 
-                    if (last != sql):
+                    if last != sql:
                         if self.skip_unique_queries:
-                            if sql not in [s[0] for s in self.queries[idx + 1:]]:
+                            if sql not in [s[0] for s in self.queries[idx + 1 :]]:
                                 last = sql
                                 continue
                         if count:
                             print("\n%d QUERIES" % count)
 
                         count = 1
-                        print('\n')
-                        print('=' * 100)
+                        print("\n")
+                        print("=" * 100)
                         for line in textwrap.wrap(sql, 100):
                             print(line)
-                        print('=' * 100)
+                        print("=" * 100)
                         self.print_stack(stack)
                     else:
                         count += 1
-                        print('  ' + '-' * 96)
+                        print("  " + "-" * 96)
                         self.print_stack(stack)
                     last = sql
             else:
@@ -104,7 +104,7 @@ class QueryTracker(object):  # pragma: no cover
                     (sql, stack) = query
                     for line in textwrap.wrap(sql, 100):
                         print(line)
-                    print(stack, end='')
+                    print(stack, end="")
 
             if count:
                 print("\n%d QUERIES" % count)

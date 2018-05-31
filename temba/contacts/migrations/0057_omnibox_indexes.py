@@ -7,13 +7,14 @@ class Migration(migrations.Migration):
 
     atomic = False
 
-    dependencies = [
-        ('contacts', '0056_exportcontactstask_search'),
-    ]
+    dependencies = [("contacts", "0056_exportcontactstask_search")]
 
     operations = [
-        migrations.RunSQL("CREATE INDEX CONCURRENTLY contacts_contact_name "
-                          "ON contacts_contact (org_id, UPPER(name));"),
-        migrations.RunSQL("CREATE INDEX CONCURRENTLY contacts_contacturn_path "
-                          "ON contacts_contacturn (org_id, UPPER(path), contact_id);")
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY contacts_contact_name " "ON contacts_contact (org_id, UPPER(name));"
+        ),
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY contacts_contacturn_path "
+            "ON contacts_contacturn (org_id, UPPER(path), contact_id);"
+        ),
     ]

@@ -1,11 +1,14 @@
-from celery.task import task
 from django_redis import get_redis_connection
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+
+from celery.task import task
+
 from .models import Schedule
 
 
-@task(track_started=True, name='check_schedule_task')  # pragma: no cover
+@task(track_started=True, name="check_schedule_task")  # pragma: no cover
 def check_schedule_task(sched_id=None):
     """
     See if any schedules are expired and fire appropriately
@@ -15,7 +18,7 @@ def check_schedule_task(sched_id=None):
     if sched_id:
         schedules = [Schedule.objects.get(pk=sched_id)]
     else:  # pragma: needs cover
-        schedules = Schedule.objects.filter(status='S', is_active=True, next_fire__lt=timezone.now())
+        schedules = Schedule.objects.filter(status="S", is_active=True, next_fire__lt=timezone.now())
 
     r = get_redis_connection()
 
@@ -23,11 +26,11 @@ def check_schedule_task(sched_id=None):
     for sched in schedules:
         try:
             # try to acquire a lock
-            key = 'fire_schedule_%d' % sched.pk
+            key = "fire_schedule_%d" % sched.pk
             if not r.get(key):
                 with r.lock(key, timeout=1800):
                     # reget our schedule, it may have been updated
-                    sched = Schedule.objects.get(id=sched.pk, status='S', is_active=True, next_fire__lt=timezone.now())
+                    sched = Schedule.objects.get(id=sched.pk, status="S", is_active=True, next_fire__lt=timezone.now())
 
                     if sched and sched.update_schedule():
                         broadcast = sched.get_broadcast()
@@ -45,7 +48,7 @@ def check_schedule_task(sched_id=None):
                             print("Schedule had nothing interesting to fire")
 
                         # if its one time, delete our schedule
-                        if sched.repeat_period == 'O':
+                        if sched.repeat_period == "O":
                             sched.reset()
 
         except ObjectDoesNotExist:  # pragma: needs cover

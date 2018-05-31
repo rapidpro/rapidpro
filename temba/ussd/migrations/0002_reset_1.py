@@ -7,18 +7,10 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('channels', '0050_reset_1'),
-    ]
+    dependencies = [("channels", "0050_reset_1")]
 
     operations = [
         migrations.CreateModel(
-            name='USSDSession',
-            fields=[
-            ],
-            options={
-                'proxy': True,
-            },
-            bases=('channels.channelsession',),
-        ),
+            name="USSDSession", fields=[], options={"proxy": True}, bases=("channels.channelsession",)
+        )
     ]

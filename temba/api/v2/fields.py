@@ -1,9 +1,10 @@
+from rest_framework import relations, serializers
+
 from django.db.models import Q
-from rest_framework import serializers, relations
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, ContactField as ContactFieldModel, URN
+from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 
@@ -13,7 +14,7 @@ DEFAULT_MAX_DICT_ITEMS = 100
 
 
 def validate_size(value, max_size):
-    if hasattr(value, '__len__') and len(value) > max_size:
+    if hasattr(value, "__len__") and len(value) > max_size:
         raise serializers.ValidationError("This field can only contain up to %d items." % max_size)
 
 
@@ -24,7 +25,7 @@ def validate_translations(value, base_language, max_length):
         raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
     for lang, trans in value.items():
-        if not isinstance(lang, str) or (lang != 'base' and len(lang) > 3):
+        if not isinstance(lang, str) or (lang != "base" and len(lang) > 3):
             raise serializers.ValidationError("Language code %s is not valid." % str(lang))
         if not isinstance(trans, str):
             raise serializers.ValidationError("Translations must be strings.")
@@ -47,20 +48,23 @@ class TranslatableField(serializers.Field):
     """
     A field which is either a simple string or a translations dict
     """
+
     def __init__(self, **kwargs):
-        self.max_length = kwargs.pop('max_length', None)
+        self.max_length = kwargs.pop("max_length", None)
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
         return obj
 
     def to_internal_value(self, data):
-        org = self.context['org']
-        base_language = org.primary_language.iso_code if org.primary_language else 'base'
+        org = self.context["org"]
+        base_language = org.primary_language.iso_code if org.primary_language else "base"
 
         if isinstance(data, str):
             if len(data) > self.max_length:
-                raise serializers.ValidationError("Ensure this field has no more than %d characters." % self.max_length)
+                raise serializers.ValidationError(
+                    "Ensure this field has no more than %d characters." % self.max_length
+                )
 
             data = {base_language: data}
 
@@ -76,6 +80,7 @@ class LimitedListField(serializers.ListField):
     """
     A list field which can be only be written to with a limited number of items
     """
+
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
@@ -86,6 +91,7 @@ class LimitedDictField(serializers.DictField):
     """
     A dict field which can be only be written to with a limited number of items
     """
+
     def to_internal_value(self, data):
         validate_size(data, DEFAULT_MAX_DICT_ITEMS)
 
@@ -96,7 +102,7 @@ class URNField(serializers.CharField):
     max_length = 255
 
     def to_representation(self, obj):
-        if self.context['org'].is_anon:
+        if self.context["org"].is_anon:
             return None
         else:
             return str(obj)
@@ -111,11 +117,12 @@ class URNListField(LimitedListField):
 
 class TembaModelField(serializers.RelatedField):
     model = None
-    model_manager = 'objects'
-    lookup_fields = ('uuid',)
+    model_manager = "objects"
+    lookup_fields = ("uuid",)
     ignore_case_for_fields = ()
 
     class LimitedSizeList(serializers.ManyRelatedField):
+
         def run_validation(self, data=serializers.empty):
             validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
@@ -126,7 +133,7 @@ class TembaModelField(serializers.RelatedField):
         """
         Overridden to provide a custom ManyRelated which limits number of items
         """
-        list_kwargs = {'child_relation': cls(*args, **kwargs)}
+        list_kwargs = {"child_relation": cls(*args, **kwargs)}
         for key in kwargs.keys():
             if key in relations.MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
@@ -134,19 +141,19 @@ class TembaModelField(serializers.RelatedField):
 
     def get_queryset(self):
         manager = getattr(self.model, self.model_manager)
-        return manager.filter(org=self.context['org'], is_active=True)
+        return manager.filter(org=self.context["org"], is_active=True)
 
     def get_object(self, value):
         query = Q()
         for lookup_field in self.lookup_fields:
             ignore_case = lookup_field in self.ignore_case_for_fields
-            lookup = '%s__%s' % (lookup_field, 'iexact' if ignore_case else 'exact')
+            lookup = "%s__%s" % (lookup_field, "iexact" if ignore_case else "exact")
             query |= Q(**{lookup: value})
 
         return self.get_queryset().filter(query).first()
 
     def to_representation(self, obj):
-        return {'uuid': obj.uuid, 'name': obj.name}
+        return {"uuid": obj.uuid, "name": obj.name}
 
     def to_internal_value(self, data):
         if not (isinstance(data, str) or isinstance(data, int)):
@@ -168,7 +175,7 @@ class CampaignEventField(TembaModelField):
     model = CampaignEvent
 
     def get_queryset(self):
-        return self.model.objects.filter(campaign__org=self.context['org'], is_active=True)
+        return self.model.objects.filter(campaign__org=self.context["org"], is_active=True)
 
 
 class ChannelField(TembaModelField):
@@ -177,10 +184,10 @@ class ChannelField(TembaModelField):
 
 class ContactField(TembaModelField):
     model = Contact
-    lookup_fields = ('uuid', 'urns__urn')
+    lookup_fields = ("uuid", "urns__urn")
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context['org'], is_active=True, is_test=False)
+        return self.model.objects.filter(org=self.context["org"], is_active=True, is_test=False)
 
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
@@ -189,27 +196,27 @@ class ContactField(TembaModelField):
         except ValueError:
             as_urn = value
 
-        contact_ids_with_urn = list(ContactURN.objects.filter(identity=as_urn).values_list('contact_id', flat=True))
+        contact_ids_with_urn = list(ContactURN.objects.filter(identity=as_urn).values_list("contact_id", flat=True))
 
         return self.get_queryset().filter(Q(uuid=value) | Q(id__in=contact_ids_with_urn)).first()
 
 
 class ContactFieldField(TembaModelField):
     model = ContactFieldModel
-    lookup_fields = ('key',)
+    lookup_fields = ("key",)
 
     def to_representation(self, obj):
-        return {'key': obj.key, 'label': obj.label}
+        return {"key": obj.key, "label": obj.label}
 
 
 class ContactGroupField(TembaModelField):
     model = ContactGroup
-    model_manager = 'user_groups'
-    lookup_fields = ('uuid', 'name')
-    ignore_case_for_fields = ('name',)
+    model_manager = "user_groups"
+    lookup_fields = ("uuid", "name")
+    ignore_case_for_fields = ("name",)
 
     def __init__(self, **kwargs):
-        self.allow_dynamic = kwargs.pop('allow_dynamic', True)
+        self.allow_dynamic = kwargs.pop("allow_dynamic", True)
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
@@ -227,14 +234,16 @@ class FlowField(TembaModelField):
 
 class LabelField(TembaModelField):
     model = Label
-    model_manager = 'label_objects'
-    lookup_fields = ('uuid', 'name')
-    ignore_case_for_fields = ('name',)
+    model_manager = "label_objects"
+    lookup_fields = ("uuid", "name")
+    ignore_case_for_fields = ("name",)
 
 
 class MessageField(TembaModelField):
     model = Msg
-    lookup_fields = ('id',)
+    lookup_fields = ("id",)
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context['org'], contact__is_test=False).exclude(visibility=Msg.VISIBILITY_DELETED)
+        return self.model.objects.filter(org=self.context["org"], contact__is_test=False).exclude(
+            visibility=Msg.VISIBILITY_DELETED
+        )

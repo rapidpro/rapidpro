@@ -4,7 +4,7 @@ from django.db import migrations, models
 
 
 def remove_incomplete_path_counts(apps, schema_editor):
-    FlowPathCount = apps.get_model('flows', 'FlowPathCount')
+    FlowPathCount = apps.get_model("flows", "FlowPathCount")
     num_deleted, _ = FlowPathCount.objects.filter(to_uuid=None).delete()
     if num_deleted:
         print("Deleted %d incomplete flow path counts" % num_deleted)
@@ -12,15 +12,13 @@ def remove_incomplete_path_counts(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0132_path_trigger_update'),
-    ]
+    dependencies = [("flows", "0132_path_trigger_update")]
 
     operations = [
         migrations.RunPython(remove_incomplete_path_counts),
         migrations.AlterField(
-            model_name='flowpathcount',
-            name='to_uuid',
-            field=models.UUIDField(help_text='Which flow node they went to'),
+            model_name="flowpathcount",
+            name="to_uuid",
+            field=models.UUIDField(help_text="Which flow node they went to"),
         ),
     ]

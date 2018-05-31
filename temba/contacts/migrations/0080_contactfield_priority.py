@@ -5,14 +5,8 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('contacts', '0079_auto_20180502_1624'),
-    ]
+    dependencies = [("contacts", "0079_auto_20180502_1624")]
 
     operations = [
-        migrations.AddField(
-            model_name='contactfield',
-            name='priority',
-            field=models.PositiveIntegerField(default=0),
-        ),
+        migrations.AddField(model_name="contactfield", name="priority", field=models.PositiveIntegerField(default=0))
     ]

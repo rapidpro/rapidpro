@@ -11,15 +11,17 @@ class JunebugType(ChannelType):
     A Junebug channel
     """
 
-    code = 'JN'
+    code = "JN"
     category = ChannelType.Category.PHONE
 
-    courier_url = r'^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>inbound)$'
+    courier_url = r"^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>inbound)$"
 
     name = "Junebug"
     icon = "icon-junebug"
 
-    claim_blurb = _("""Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have already set up and configured.""")
+    claim_blurb = _(
+        """Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have already set up and configured."""
+    )
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -35,6 +37,8 @@ class JunebugType(ChannelType):
         dict(
             label=_("Push Message URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.jn' channel.uuid 'inbound' %}",
-            description=_("This endpoint will be called by Junebug when new messages are received to your number, it must be configured to be called as a POST"),
+            description=_(
+                "This endpoint will be called by Junebug when new messages are received to your number, it must be configured to be called as a POST"
+            ),
         ),
     )

@@ -6,7 +6,7 @@ from django.db import migrations
 
 
 def fix_ruleset_categories_open_ended(RuleSet):
-    rulesets = list(RuleSet.objects.filter(rules__contains='timeout'))
+    rulesets = list(RuleSet.objects.filter(rules__contains="timeout"))
     if not rulesets:
         return
 
@@ -14,32 +14,38 @@ def fix_ruleset_categories_open_ended(RuleSet):
 
     for ruleset in rulesets:
         rules_json = json.loads(ruleset.rules)
-        if len(rules_json) == 2 and rules_json[1]['test']['type'] == 'timeout':
+        if len(rules_json) == 2 and rules_json[1]["test"]["type"] == "timeout":
             affected_flow_ids.add(ruleset.flow.pk)
             print("Found affected flow %d" % ruleset.flow.id)
 
     from temba.flows.models import Flow
     from temba.values.models import Value
+
     affected_flows = Flow.objects.filter(pk__in=list(affected_flow_ids))
     for flow in affected_flows:
         flow.ensure_current_version()
 
         json_flow = flow.as_json()
 
-        base_lang = json_flow.get('base_language', 'base')
-        if 'rule_sets' in json_flow:
+        base_lang = json_flow.get("base_language", "base")
+        if "rule_sets" in json_flow:
             rulesets = []
-            for ruleset in json_flow['rule_sets']:
-                if len(ruleset['rules']) == 2:
-                    if ruleset['rules'][0]['test']['type'] == 'true' and ruleset['rules'][1]['test']['type'] == 'timeout':
-                        ruleset['rules'][0]['category'][base_lang] = 'All Responses'
+            for ruleset in json_flow["rule_sets"]:
+                if len(ruleset["rules"]) == 2:
+                    if (
+                        ruleset["rules"][0]["test"]["type"] == "true"
+                        and ruleset["rules"][1]["test"]["type"] == "timeout"
+                    ):
+                        ruleset["rules"][0]["category"][base_lang] = "All Responses"
 
                         # update values category too
-                        Value.objects.filter(ruleset__uuid=ruleset['uuid'], category='Other').update(category='All Responses')
+                        Value.objects.filter(ruleset__uuid=ruleset["uuid"], category="Other").update(
+                            category="All Responses"
+                        )
 
                 rulesets.append(ruleset)
 
-            json_flow['rule_sets'] = rulesets
+            json_flow["rule_sets"] = rulesets
 
         flow.update(json_flow, force=True)
 
@@ -47,7 +53,7 @@ def fix_ruleset_categories_open_ended(RuleSet):
 
 
 def apply_as_migration(apps, schema_editor):
-    RuleSet = apps.get_model('flows', 'RuleSet')
+    RuleSet = apps.get_model("flows", "RuleSet")
 
     fix_ruleset_categories_open_ended(RuleSet)
 
@@ -64,10 +70,6 @@ def noop(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0086_is_squashed'),
-    ]
+    dependencies = [("flows", "0086_is_squashed")]
 
-    operations = [
-        migrations.RunPython(apply_as_migration, noop)
-    ]
+    operations = [migrations.RunPython(apply_as_migration, noop)]
