@@ -704,6 +704,18 @@ class APITest(TembaTest):
             rollup_id=may_archive.id,
         )
 
+        # create archive for other org
+        Archive.objects.create(
+            org=self.org2,
+            start_date=datetime(2017, 5, 1),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d123",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+        )
+
         response = self.fetchJSON(url)
         resp_json = response.json()
 
