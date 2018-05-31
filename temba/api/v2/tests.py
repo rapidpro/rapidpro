@@ -754,12 +754,19 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(resp_json["results"]), 0)
 
-        # only for period "D"
+        # only for dailies
         response = self.fetchJSON(url, query="after=2017-05-01&archive_type=run&period=daily")
         resp_json = response.json()
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(resp_json["results"]), 1)
+
+        # only for monthlies
+        response = self.fetchJSON(url, query="period=monthly")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 2)
 
     def test_campaigns(self):
         url = reverse("api.v2.campaigns")
