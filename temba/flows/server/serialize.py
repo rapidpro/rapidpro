@@ -61,6 +61,7 @@ def serialize_contact(contact):
 
     return {
         "uuid": contact.uuid,
+        "id": contact.id,
         "name": contact.name,
         "language": contact.language,
         "timezone": "UTC",
