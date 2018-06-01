@@ -1,3 +1,22 @@
+v3.0.412
+----------
+ * Fix archive filter test
+ * Include id when serializing contacts for goflow
+
+v3.0.411
+----------
+ * Show when build failed becuse black was not executed
+ * Fix calculation of low threshold for credits to consider only the top with unused credits
+ * All flows with subflows to be trialled in the flowserver
+ * Create webhook mocks for use in flowserver trials from webhook results
+ * Enable Archive list API endpoint
+
+v3.0.410
+----------
+ * Remove purging, add release with delete_reason
+ * Set parent_context in Flow.start and use it in FlowRun.build_expressions_context if available
+ * Add is_archived counts for LabelCounts and SystemLabelCounts, update triggers
+
 v3.0.409
 ----------
  * Remove explicit use of uservoice
