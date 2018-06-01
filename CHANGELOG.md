@@ -1,3 +1,8 @@
+v3.0.414
+----------
+ * Set run.child_context when child has no waits
+ * Use latest openpyxl and log the errors to sentry
+
 v3.0.413
 ----------
  * Don't blow up if trialled run has no events
