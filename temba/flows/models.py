@@ -1197,6 +1197,11 @@ class Flow(TembaModel):
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
+                else:
+                    child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
+                    run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+                    run.save(update_fields=("child_context",))
+
             # find a matching rule
             result_rule, result_value, result_input = ruleset.find_matching_rule(
                 run, msg_in, resume_after_timeout=resume_after_timeout
