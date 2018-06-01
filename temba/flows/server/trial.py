@@ -335,7 +335,7 @@ def reduce_events(events):
     Excludes all but message events
     """
     reduced = []
-    for event in events:
+    for event in events or []:
         if event["type"] not in (Events.msg_created.name, Events.msg_received.name):
             continue
 
