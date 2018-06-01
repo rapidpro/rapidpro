@@ -1691,25 +1691,10 @@ class Flow(TembaModel):
                 else:
                     context["parent"]["contact"] = contact_context
 
-            # TODO remove when all runs have parent_context backfilled
-            elif run.parent:  # pragma: no cover
-                run.parent.flow.org = self.org
-                if run.parent.contact_id == run.contact_id:
-                    run.parent.contact = run.contact
-
-                run.parent.org = self.org
-                context["parent"] = run.parent.build_expressions_context()
-
             # see if we spawned any children and add them too
             if run.child_context is not None:
                 context["child"] = run.child_context.copy()
                 context["child"]["contact"] = contact_context
-
-            # TODO remove when all runs have child_context backfilled
-            elif run.cached_child:  # pragma: no cover
-                run.cached_child.org = self.org
-                run.cached_child.contact = run.contact
-                context["child"] = run.cached_child.build_expressions_context()
 
         if contact:
             context["contact"] = contact_context
