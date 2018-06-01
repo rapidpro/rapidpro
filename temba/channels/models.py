@@ -1270,7 +1270,7 @@ class Channel(TembaModel):
         """
         We want all messages that are:
             1. Pending, ie, never queued
-            2. Queued over two hours ago (something went awry and we need to re-queue)
+            2. Queued over twelve hours ago (something went awry and we need to re-queue)
             3. Errored and are ready for a retry
         """
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
@@ -2221,6 +2221,13 @@ class ChannelSession(SmartModel):
     org = models.ForeignKey(Org, help_text="The organization this session belongs to")
     session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
+
+    retry_count = models.IntegerField(
+        default=0, verbose_name=_("Retry Count"), help_text=_("The number of times this call has been retried")
+    )
+    next_attempt = models.DateTimeField(
+        verbose_name=_("Next Attempt"), help_text=_("When we should next attempt to make this call"), null=True
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
