@@ -88,11 +88,14 @@ class BaseExportTask(TembaModel):
             else:
                 os.unlink(temp_file.name)
 
-        except Exception:
+        except Exception as e:
             import traceback
 
             traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
+
+            gc.collect()  # force garbage collection
+            raise e  # log the error to sentry
         else:
             self.update_status(self.STATUS_COMPLETE)
         finally:
@@ -221,7 +224,7 @@ class TableExporter(object):
         self.file = open(self.file.name, "rb+")
 
         print("Writing Excel workbook...")
-        self.workbook.save(self.file)
+        self.workbook.save(self.file.name)
 
         self.file.flush()
         return self.file, "xlsx"
