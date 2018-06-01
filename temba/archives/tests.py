@@ -31,28 +31,40 @@ class ArchiveViewTest(TembaTest):
 
     def test_empty_list(self):
         self.login(self.admin)
-        response = self.client.get(reverse("archives.archive_list", args=["runs"]))
+        response = self.client.get(reverse("archives.archive_list", args=["run"]))
         self.assertEqual(0, response.context["object_list"].count())
         self.assertEqual("Run Archive", response.context["title"])
 
-        response = self.client.get(reverse("archives.archive_list", args=["messages"]))
+        response = self.client.get(reverse("archives.archive_list", args=["message"]))
         self.assertEqual(0, response.context["object_list"].count())
         self.assertEqual("Message Archive", response.context["title"])
 
     def test_archive_type_filter(self):
-        for idx in range(1, 10):
-            self.create_archive((idx))
+        archives = [self.create_archive(idx) for idx in range(1, 10)]
 
         # create a daily archive
         self.create_archive(1, start_date=date(2018, 2, 1), period="D")
 
+        # create a daily archive that has been rolled up and will not appear in the results
+        Archive.objects.create(
+            org=self.org,
+            start_date=date(2018, 10, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+            rollup_id=archives[-1].id,
+        )
+
         self.login(self.admin)
 
         # make sure we have the right number of each
-        response = self.client.get(reverse("archives.archive_list", args=["runs"]))
+        response = self.client.get(reverse("archives.archive_list", args=["run"]))
         self.assertEqual(6, response.context["object_list"].count())
 
-        response = self.client.get(reverse("archives.archive_list", args=["messages"]))
+        response = self.client.get(reverse("archives.archive_list", args=["message"]))
         self.assertEqual(4, response.context["object_list"].count())
 
     def test_download(self):

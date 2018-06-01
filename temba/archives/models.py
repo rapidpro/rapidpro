@@ -12,18 +12,18 @@ from temba.utils import sizeof_fmt
 
 class Archive(models.Model):
     DOWNLOAD_EXPIRES = 600
-    TYPE_MSG = "messages"
-    TYPE_FLOWRUN = "runs"
+    TYPE_MSG = "message"
+    TYPE_FLOWRUN = "run"
 
     PERIOD_MONTHLY = "monthly"
     PERIOD_DAILY = "daily"
 
     TYPE_CHOICES = ((TYPE_MSG, _("Message")), (TYPE_FLOWRUN, _("Run")))
 
-    DAY = "D"
-    MONTH = "M"
+    PERIOD_DAILY = "D"
+    PERIOD_MONTHLY = "M"
 
-    PERIOD_CHOICES = ((DAY, "Day"), (MONTH, "Month"))
+    PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
     org = models.ForeignKey("orgs.Org", db_constraint=False, help_text="The org this archive is for")
     archive_type = models.CharField(
@@ -31,7 +31,7 @@ class Archive(models.Model):
     )
     created_on = models.DateTimeField(default=timezone.now, help_text="When this archive was created")
     period = models.CharField(
-        max_length=1, choices=PERIOD_CHOICES, default=DAY, help_text="The length of time this archive covers"
+        max_length=1, choices=PERIOD_CHOICES, default=PERIOD_DAILY, help_text="The length of time this archive covers"
     )
 
     start_date = models.DateField(help_text="The starting modified_on date for records in this archive (inclusive")
@@ -54,7 +54,7 @@ class Archive(models.Model):
         help_text=_("The archive we were rolled up into, if any"),
     )
 
-    def archive_size_display(self):
+    def size_display(self):
         return sizeof_fmt(self.size)
 
     def get_s3_location(self):
@@ -62,17 +62,20 @@ class Archive(models.Model):
         return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
 
     def get_download_link(self):
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-        s3 = session.client("s3")
+        if self.url:
+            session = boto3.Session(
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+            )
+            s3 = session.client("s3")
 
-        s3_params = {
-            **self.get_s3_location(),
-            # force browser to download and not uncompress our gzipped files
-            "ResponseContentDisposition": "attachment;",
-            "ResponseContentType": "application/octet",
-            "ResponseContentEncoding": "none",
-        }
+            s3_params = {
+                **self.get_s3_location(),
+                # force browser to download and not uncompress our gzipped files
+                "ResponseContentDisposition": "attachment;",
+                "ResponseContentType": "application/octet",
+                "ResponseContentEncoding": "none",
+            }
 
-        return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+        else:
+            return ""

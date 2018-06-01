@@ -61,6 +61,7 @@ def serialize_contact(contact):
 
     return {
         "uuid": contact.uuid,
+        "id": contact.id,
         "name": contact.name,
         "language": contact.language,
         "timezone": "UTC",
@@ -78,6 +79,7 @@ def serialize_environment(org):
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
         "languages": languages,
+        "redaction_policy": "urns" if org.is_anon else "none",
     }
 
 

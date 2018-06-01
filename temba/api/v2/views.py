@@ -20,6 +20,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
@@ -32,6 +33,7 @@ from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 from .serializers import (
     AdminBoundaryReadSerializer,
+    ArchiveReadSerializer,
     BroadcastReadSerializer,
     BroadcastWriteSerializer,
     CampaignEventReadSerializer,
@@ -67,6 +69,7 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
+     * [/api/v2/archives](/api/v2/archives) - to list archives
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
@@ -200,6 +203,7 @@ class ExplorerView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["endpoints"] = [
+            ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_write_explorer(),
@@ -520,6 +524,91 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
 # ============================================================
 # Endpoints (A-Z)
 # ============================================================
+
+
+class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the data archives associated with your account.
+
+    ## Listing Archives
+
+    A `GET` returns the archives for your organization with the following fields.
+
+      * **archive_type** - the type of the archive: *message*, *run* (string) (filterable as `archive_type`)
+      * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`)
+      * **period** - *daily* for daily archives, *monthly* for monthly archives (string) (filterable as `period`)
+      * **record_count** - number of records in the archive (int)
+      * **size** - size of the gziped archive content (int)
+      * **hash** - MD5 hash of the gziped archive (string)
+      * **download_url** - temporary download URL of the archive (string)
+
+    Example:
+
+        GET /api/v2/archives.json?archive_type=message&before=2017-05-15&period=daily
+
+    Response is a list of the archives on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "count": 248,
+            "results": [
+            {
+                "archive_type":"message",
+                "start_date":"2017-02-20",
+                "period":"daily",
+                "record_count":1432,
+                "size":2304,
+                "hash":"feca9988b7772c003204a28bd741d0d0",
+                "download_url":"<redacted>"
+            },
+            ...
+        }
+
+    """
+
+    permission = "archives.archive_api"
+    model = Archive
+    serializer_class = ArchiveReadSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        return queryset.order_by("-start_date").exclude(period=Archive.PERIOD_DAILY, rollup_id__isnull=False)
+
+    def filter_queryset(self, queryset):
+        # filter by `archive_type`
+        archive_type = self.request.query_params.get("archive_type")
+        if archive_type:
+            queryset = queryset.filter(archive_type=archive_type)
+
+        # filter by `period`
+        period = self.request.query_params.get("period")
+
+        if period == "daily":
+            queryset = queryset.filter(period="D")
+        elif period == "monthly":
+            queryset = queryset.filter(period="M")
+
+        # setup filter by before/after on start_date
+        return self.filter_before_after(queryset, "start_date")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Archives",
+            "url": reverse("api.v2.archives"),
+            "slug": "archive-list",
+            "params": [
+                {
+                    "name": "archive_type",
+                    "required": False,
+                    "help": "An archive_type to filter by, like: run, message",
+                },
+                {"name": "period", "required": False, "help": "A period to filter by: daily, monthly"},
+            ],
+        }
 
 
 class BoundariesEndpoint(ListAPIMixin, BaseAPIView):

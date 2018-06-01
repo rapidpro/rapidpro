@@ -74,6 +74,7 @@ class ClientTest(TembaTest):
                         "created_on": "2018-01-18T14:24:30+00:00",
                         "contact": {
                             "uuid": str(self.contact.uuid),
+                            "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
                             "timezone": "UTC",
@@ -101,6 +102,7 @@ class ClientTest(TembaTest):
                             "languages": [],
                             "time_format": "tt:mm",
                             "timezone": "Africa/Kigali",
+                            "redaction_policy": "none",
                         },
                     }
                 ],
@@ -140,27 +142,20 @@ class TrialTest(TembaTest):
 
     def test_is_flow_suitable(self):
         self.assertTrue(trial.is_flow_suitable(self.get_flow("favorites")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("action_packed")))
+        self.assertTrue(trial.is_flow_suitable(self.get_flow("action_packed")))
+
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("resthooks")))  # resthooks
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
-        action_packed = self.get_flow("action_packed")
-        favorites = self.get_flow("favorites")
-
-        # trying a flow that can't be resumed won't effect throttling
-        action_packed.start([], [self.contact])
-        Msg.create_incoming(self.channel, "tel:+12065552020", "color")
-
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 0)
-
         # first resume in a suitable flow will be trialled
-        favorites.start([], [self.contact])
+        favorites = self.get_flow("favorites")
+        favorites.start([], [self.contact], interrupt=True)
         Msg.create_incoming(self.channel, "tel:+12065552020", "red")
 
         self.assertEqual(mock_report_success.call_count, 1)
@@ -358,21 +353,20 @@ class TrialTest(TembaTest):
             self.assertEqual(mock_report_failure.call_count, 1)
 
     @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="always")
+    @override_settings(FLOW_SERVER_TRIAL="always", SEND_WEBHOOKS=True)
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
-        # checks that we got a mocked response back from the webhook call
-        def failure(t):
-            self.assertEqual(t.differences["diffs"], {"results": {"webhook_2": {"value": "MOCKED"}}})
-
-        mock_report_failure.side_effect = failure
-
         flow = self.get_flow("dual_webhook")
+
+        # mock the two webhook calls in this flow
+        self.mockRequest("POST", "/code", '{"code": "ABABUUDDLRS"}', content_type="application/json")
+        self.mockRequest("GET", "/success", "Success")
 
         flow.start([], [self.contact])
         Msg.create_incoming(self.channel, "tel:+12065552020", "Bob")
 
-        # trial fails due to differing webhook result
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 1)
+        self.assertAllRequestsMade()
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
