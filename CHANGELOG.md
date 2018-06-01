@@ -1,3 +1,9 @@
+v3.0.413
+----------
+ * Don't blow up if trialled run has no events
+ * Allow editors to see archives / api
+ * Migration to backfill run parent_context and child_context
+
 v3.0.412
 ----------
  * Fix archive filter test
