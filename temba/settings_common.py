@@ -615,6 +615,7 @@ GROUP_PERMISSIONS = {
         "api.webhookevent_api",
         "api.webhookevent_list",
         "api.webhookevent_read",
+        "archives.archive.*",
         "airtime.airtimetransfer_list",
         "airtime.airtimetransfer_read",
         "campaigns.campaign.*",
