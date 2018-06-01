@@ -94,17 +94,15 @@ class BaseExportTask(TembaModel):
             traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
 
-            gc.collect()  # force garbage collection
             raise e  # log the error to sentry
         else:
             self.update_status(self.STATUS_COMPLETE)
-        finally:
             elapsed = time.time() - start
             print("Completed %s in %.1f seconds" % (self.analytics_key, elapsed))
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
-
+        finally:
             gc.collect()  # force garbage collection
 
     def write_export(self):  # pragma: no cover
