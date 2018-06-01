@@ -30,7 +30,6 @@ from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
-from django.utils.functional import cached_property
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
@@ -3143,19 +3142,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     current_node_uuid = models.UUIDField(null=True, help_text=_("The current node location of this run in the flow"))
 
-    @cached_property
-    def cached_child(self):
-        child = FlowRun.objects.filter(parent=self).order_by("-created_on").select_related("flow").first()
-        if child:
-            child.org = self.org
-            child.flow.org = self.org
-            child.contact = self.contact
-        return child
-
-    def clear_cached_child(self):
-        if "cached_child" in self.__dict__:
-            del self.__dict__["cached_child"]
-
     @classmethod
     def get_active_for_contact(cls, contact):
         runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
@@ -3717,9 +3703,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if created_on:
             args["created_on"] = created_on
-
-        if parent:
-            parent.clear_cached_child()
 
         if db_insert:
             run = FlowRun.objects.create(**args)
