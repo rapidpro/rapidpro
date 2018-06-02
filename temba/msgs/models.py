@@ -768,6 +768,7 @@ class Msg(models.Model):
 
     contact = models.ForeignKey(
         Contact,
+        on_delete=models.PROTECT,
         related_name="msgs",
         verbose_name=_("Contact"),
         help_text=_("The contact this message is communicating with"),
@@ -776,6 +777,7 @@ class Msg(models.Model):
 
     contact_urn = models.ForeignKey(
         ContactURN,
+        on_delete=models.PROTECT,
         null=True,
         related_name="msgs",
         verbose_name=_("Contact URN"),

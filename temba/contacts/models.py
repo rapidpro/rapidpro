@@ -539,6 +539,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="org_contacts",
         help_text=_("The organization that this contact belongs to"),
@@ -1813,6 +1814,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for msg in self.msgs.all():
             msg.release()
 
+        # any urns currently owned by us
+        for urn in self.urns.all():
+            urn.release()
+
         # release our channel events
         for event in self.channel_events.all():
             event.release()
@@ -1820,10 +1825,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # release our runs too
         for run in self.runs.all():
             run.release()
-
-        # any urns currently owned by us
-        for urn in self.urns.all():
-            urn.release()
 
         # and any event fire history
         for fire in self.fire_events.all():
@@ -2290,7 +2291,12 @@ class ContactURN(models.Model):
     ANON_MASK_HTML = "\u2022" * 8  # Pretty HTML version of anon mask
 
     contact = models.ForeignKey(
-        Contact, null=True, blank=True, related_name="urns", help_text="The contact that this URN is for, can be null"
+        Contact,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="urns",
+        help_text="The contact that this URN is for, can be null",
     )
 
     identity = models.CharField(
@@ -2306,13 +2312,15 @@ class ContactURN(models.Model):
         max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
     )
 
-    org = models.ForeignKey(Org, help_text="The organization for this URN, can be null")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization for this URN, can be null")
 
     priority = models.IntegerField(
         default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
     )
 
-    channel = models.ForeignKey(Channel, null=True, blank=True, help_text="The preferred channel for this URN")
+    channel = models.ForeignKey(
+        Channel, on_delete=models.PROTECT, null=True, blank=True, help_text="The preferred channel for this URN"
+    )
 
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
 

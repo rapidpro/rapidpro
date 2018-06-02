@@ -1636,7 +1636,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url, fetch_returns=405)
 
         # create some contacts to act on
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         contact1 = self.create_contact("Ann", "+250788000001")
         contact2 = self.create_contact("Bob", "+250788000002")
         contact3 = self.create_contact("Cat", "+250788000003")

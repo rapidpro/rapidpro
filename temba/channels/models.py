@@ -396,6 +396,7 @@ class Channel(TembaModel):
 
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="channels",
         blank=True,

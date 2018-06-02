@@ -2896,8 +2896,8 @@ class CeleryTaskTest(TembaTest):
         Msg.objects.all().delete()
         Channel.objects.all().delete()
         AdminBoundary.objects.all().delete()
+        self.releaseContacts(delete=True)
         Org.objects.all().delete()
-        Contact.objects.all().delete()
         User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 
     @classmethod
