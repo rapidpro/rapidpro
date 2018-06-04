@@ -79,3 +79,6 @@ class Archive(models.Model):
             return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
+
+    class Meta:
+        unique_together = ("org", "archive_type", "start_date", "period")
