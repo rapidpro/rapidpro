@@ -1270,7 +1270,8 @@ class ExportTest(TembaTest):
         with patch.object(task2, "write_export") as mock_write_export:
             mock_write_export.side_effect = ValueError("Problem!")
 
-            task2.perform()
+            with self.assertRaises(Exception):
+                task2.perform()
 
             self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
 
