@@ -27,4 +27,11 @@ def check_calls_task():
 
     for call in calls_to_retry:
         # TODO: should we record this as an event in the *channellog*?
-        call.do_start_call()
+
+        # TODO: which queue should be used for scheduling call retries?
+        start_call_task.apply_async(kwargs={"call_pk": call.id})
+
+        # reset the next_attempt, after we created the call task because task execution is asynchronous
+        # this prevents scheduling multiple call retries while waiting for the upstream service callback request
+        call.next_attempt = None
+        call.save()

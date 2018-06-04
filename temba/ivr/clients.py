@@ -55,6 +55,9 @@ class NexmoClient(NexmoCli):
             raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
+        if not settings.SEND_CALLS:
+            raise IVRException("SEND_CALLS set to False, skipping call start")
+
         url = "https://%s%s" % (self.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
 
         params = dict()

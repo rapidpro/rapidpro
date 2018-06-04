@@ -131,6 +131,14 @@ class IVRCall(ChannelSession):
 
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
 
+    def schedule_call_retry(self):
+        # retry the call if it has not been retried maximum number of times
+        self.retry_count += 1
+        if self.retry_count < IVRCall.MAX_RETRY_ATTEMPTS:
+            self.next_attempt = timezone.now() + timedelta(minutes=IVRCall.RETRY_BACKOFF_MINUTES)
+        else:
+            self.next_attempt = None
+
     def update_status(self, status, duration, channel_type):
         """
         Updates our status from a provide call status string
@@ -148,6 +156,9 @@ class IVRCall(ChannelSession):
                 self.status = self.RINGING
             elif status == "no-answer":
                 self.status = self.NO_ANSWER
+
+                self.schedule_call_retry()
+
             elif status == "in-progress":
                 if self.status != self.IN_PROGRESS:
                     self.started_on = timezone.now()
@@ -168,15 +179,11 @@ class IVRCall(ChannelSession):
         # https://developer.nexmo.com/api/voice#status-values
         # TODO: unanswered is not defined in the docs, cancelled is not used in the code
         # TODO: cancelled seems like it's an event generated on nexmo system, they are canceling the call
-        # reset next_attempt on most statues, but not on 'completed' because that is a message from the Nexmo platform
-        # which is preceded by some other status which is more important
         elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
             if status in ("ringing", "started"):
                 self.status = self.RINGING
-                self.next_attempt = None
             elif status == "answered":
                 self.status = self.IN_PROGRESS
-                self.next_attempt = None
                 # record time when call was started
                 self.started_on = timezone.now()
             elif status == "completed":
@@ -184,20 +191,12 @@ class IVRCall(ChannelSession):
                 self.status = self.COMPLETED
             elif status == "failed":
                 self.status = self.FAILED
-                self.next_attempt = None
             elif status in ("rejected", "busy"):
                 self.status = self.BUSY
-                self.next_attempt = None
             elif status in ("unanswered", "timeout", "cancelled"):
                 self.status = self.NO_ANSWER
 
-                # retry the call if it has not been retries maximum number of times
-                self.retry_count += 1
-                if self.retry_count < IVRCall.MAX_RETRY_ATTEMPTS:
-                    # TODO: should we record this as an event in the *channellog*?
-                    self.next_attempt = timezone.now() + timedelta(minutes=IVRCall.RETRY_BACKOFF_MINUTES)
-                else:
-                    self.next_attempt = None
+                self.schedule_call_retry()
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
