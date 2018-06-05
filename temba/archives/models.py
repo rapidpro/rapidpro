@@ -54,12 +54,18 @@ class Archive(models.Model):
         help_text=_("The archive we were rolled up into, if any"),
     )
 
+    deletion_date = models.DateTimeField(null=True, help_text="When this archive's records where deleted (if any)")
+
     def size_display(self):
         return sizeof_fmt(self.size)
 
-    def get_s3_location(self):
+    def s3_location(self):
         url_parts = urlparse(self.url)
         return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
+
+    def filename(self):
+        url_parts = urlparse(self.url)
+        return url_parts.path.split("/")[-1]
 
     def get_download_link(self):
         if self.url:
@@ -69,7 +75,7 @@ class Archive(models.Model):
             s3 = session.client("s3")
 
             s3_params = {
-                **self.get_s3_location(),
+                **self.s3_location(),
                 # force browser to download and not uncompress our gzipped files
                 "ResponseContentDisposition": "attachment;",
                 "ResponseContentType": "application/octet",

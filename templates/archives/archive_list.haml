@@ -31,7 +31,7 @@
     %table.archives
       %thead
         %th.name
-          -trans "Name"
+          -trans "File"
         %th
           -trans "Records"
         %th
@@ -44,7 +44,7 @@
         %tr.archive-row
           %td
             %a{href:"{% url 'archives.archive_read' archive.id %}"}
-              {{archive.hash}}
+              {{archive.filename}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}
           %td.archive-size.cell
