@@ -171,6 +171,9 @@ class IVRCall(ChannelSession):
                 self.status = self.COMPLETED
             elif status == "busy":
                 self.status = self.BUSY
+
+                self.schedule_call_retry()
+
             elif status == "failed":
                 self.status = self.FAILED
             elif status == "canceled":
@@ -193,6 +196,9 @@ class IVRCall(ChannelSession):
                 self.status = self.FAILED
             elif status in ("rejected", "busy"):
                 self.status = self.BUSY
+
+                self.schedule_call_retry()
+
             elif status in ("unanswered", "timeout", "cancelled"):
                 self.status = self.NO_ANSWER
 
