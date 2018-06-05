@@ -1,3 +1,7 @@
+v3.0.415
+----------
+ * add needs_deletion field, remove is_purged
+
 v3.0.414
 ----------
  * Set run.child_context when child has no waits
