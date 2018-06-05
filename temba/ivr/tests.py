@@ -96,8 +96,8 @@ class IVRTests(FlowFileTest):
         contact.set_preferred_channel(nexmo)
 
         # clear open calls and runs
-        IVRCall.objects.all().delete()
-        FlowRun.objects.all().delete()
+        self.releaseIVRCalls()
+        self.releaseRuns()
 
         # restart the flow
         flow.start([], [contact], restart_participants=True)
@@ -1053,8 +1053,8 @@ class IVRTests(FlowFileTest):
         self.assertEqual("Press one, two, or three. Thanks.", msgs[2].text)
 
         ActionLog.objects.all().delete()
-        IVRCall.objects.all().delete()
-        Msg.objects.all().delete()
+        self.releaseIVRCalls()
+        self.releaseMessages()
 
         # now pretend we are a normal caller
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
@@ -1166,7 +1166,7 @@ class IVRTests(FlowFileTest):
         test_status_update(call, "busy", IVRCall.BUSY, "NX")
         test_status_update(call, "rejected", IVRCall.BUSY, "NX")
 
-        IVRCall.objects.all().delete()
+        self.releaseIVRCalls(delete=True)
 
         # try sending callme trigger
         from temba.msgs.models import INCOMING

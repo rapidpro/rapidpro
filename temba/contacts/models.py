@@ -25,7 +25,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
@@ -2384,6 +2384,8 @@ class ContactURN(models.Model):
         return existing
 
     def release(self):
+        for event in ChannelEvent.objects.filter(contact_urn=self):
+            event.release()
         self.delete()
 
     def update_auth(self, auth):

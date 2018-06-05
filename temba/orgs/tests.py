@@ -3005,7 +3005,7 @@ class BulkExportTest(TembaTest):
         exported = response.json()
 
         # try to import the flow
-        flow.delete()
+        flow.release()
         response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
