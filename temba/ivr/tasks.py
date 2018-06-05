@@ -26,8 +26,6 @@ def check_calls_task():
     )
 
     for call in calls_to_retry:
-        # TODO: should we record this as an event in the *channellog*?
-
         # TODO: which queue should be used for scheduling call retries?
         start_call_task.apply_async(kwargs={"call_pk": call.id})
 

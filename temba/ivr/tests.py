@@ -19,6 +19,7 @@ from django.utils.encoding import force_text
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import ActionLog, Flow, FlowRevision, FlowRun
+from temba.ivr.tasks import check_calls_task
 from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
@@ -168,7 +169,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
-    def test_disable_calls(self):
+    def test_disable_calls_twilio(self):
         with self.settings(SEND_CALLS=False):
             self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
             self.org.save()
@@ -184,6 +185,33 @@ class IVRTests(FlowFileTest):
                 self.assertEqual(mock.call_count, 0)
                 call = IVRCall.objects.get()
                 self.assertEqual(IVRCall.FAILED, call.status)
+
+    @patch("nexmo.Client.create_application")
+    @patch("nexmo.Client.create_call")
+    def test_disable_calls_nexmo(self, mock_create_call, mock_create_application):
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key"))
+        mock_create_call.return_value = dict(uuid="12345")
+
+        with self.settings(SEND_CALLS=False):
+            self.org.connect_nexmo("123", "456", self.admin)
+            self.org.save()
+
+            self.channel.channel_type = "NX"
+            self.channel.save()
+
+            # import an ivr flow
+            self.import_file("gather_digits")
+
+            # make sure our flow is there as expected
+            flow = Flow.objects.filter(name="Gather Digits").first()
+
+            # start our flow
+            eric = self.create_contact("Eric Newcomer", number="+13603621737")
+            flow.start([], [eric])
+
+            self.assertEqual(mock_create_call.call_count, 0)
+            call = IVRCall.objects.get()
+            self.assertEqual(IVRCall.FAILED, call.status)
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
@@ -1784,3 +1812,96 @@ class IVRTests(FlowFileTest):
                 params=None,
                 headers={"User-Agent": user_agent, "Authorization": b"Bearer TOKEN"},
             )
+
+    @patch("temba.ivr.tasks.start_call_task.apply_async")
+    def test_check_calls_task(self, mock_start_call):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=0,
+            next_attempt=timezone.now() - timedelta(days=180),
+        )
+        call2 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=IVRCall.MAX_RETRY_ATTEMPTS - 1,
+            next_attempt=timezone.now() - timedelta(days=180),
+        )
+        #
+        call3 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=IVRCall.MAX_RETRY_ATTEMPTS + 1,
+            next_attempt=timezone.now() - timedelta(days=180),
+        )
+
+        self.assertTrue(all((call1.next_attempt, call2.next_attempt, call3.next_attempt)))
+
+        # expect only two new tasks, third one is over MAX_RETRY_ATTEMPTS
+        check_calls_task()
+        self.assertEqual(2, mock_start_call.call_count)
+
+        call1.refresh_from_db()
+        call2.refresh_from_db()
+        call3.refresh_from_db()
+
+        # these calls have been rescheduled
+        self.assertIsNone(call1.next_attempt)
+        self.assertIsNone(call2.next_attempt)
+
+        # this one is not rescheduled
+        self.assertIsNotNone(call3.next_attempt)
+
+    def test_schedule_call_retry(self):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        self.assertIsNone(call1.next_attempt)
+        self.assertEqual(call1.retry_count, 0)
+
+        # schedule a call retry
+        call1.schedule_call_retry()
+        self.assertTrue(call1.next_attempt > timezone.now())
+        self.assertEqual(call1.retry_count, 1)
+
+        # schedule second call retry
+        call1.schedule_call_retry()
+        self.assertTrue(call1.next_attempt > timezone.now())
+        self.assertEqual(call1.retry_count, 2)
+
+        # call should not be retried if we are over IVRCall.MAX_RETRY_ATTEMPTS
+        total_retries = IVRCall.MAX_RETRY_ATTEMPTS + 33
+        call1.retry_count = total_retries
+        call1.save()
+
+        call1.schedule_call_retry()
+        self.assertIsNone(call1.next_attempt)
+        self.assertEqual(call1.retry_count, total_retries)

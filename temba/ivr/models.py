@@ -133,9 +133,9 @@ class IVRCall(ChannelSession):
 
     def schedule_call_retry(self):
         # retry the call if it has not been retried maximum number of times
-        self.retry_count += 1
         if self.retry_count < IVRCall.MAX_RETRY_ATTEMPTS:
             self.next_attempt = timezone.now() + timedelta(minutes=IVRCall.RETRY_BACKOFF_MINUTES)
+            self.retry_count += 1
         else:
             self.next_attempt = None
 
