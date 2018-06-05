@@ -42,8 +42,8 @@ class Archive(models.Model):
     hash = models.TextField(help_text="The md5 hash of this archive (after gzipping)")
     url = models.URLField(help_text="The full URL for this archive")
 
-    is_purged = models.BooleanField(
-        default=False, help_text="Whether the records in this archive have been purged from the database"
+    needs_deletion = models.BooleanField(
+        default=False, help_text="Whether the records in this archive need to be deleted"
     )
     build_time = models.IntegerField(help_text="The number of milliseconds it took to build and upload this archive")
 
