@@ -1186,8 +1186,9 @@ class Flow(TembaModel):
                             interrupt=False,
                         )
 
-                        if child_runs:
-                            child_run = child_runs[0]
+                        child_run = child_runs[0] if child_runs else None
+
+                        if child_run:
                             msgs_out += child_run.start_msgs
                             continue_parent = getattr(child_run, "continue_parent", False)
                         else:  # pragma: no cover
@@ -1197,6 +1198,11 @@ class Flow(TembaModel):
                         run.refresh_from_db(fields=("is_active",))
                         if continue_parent and run.is_active:
                             started_flows.remove(flow.id)
+
+                            run.child_context = child_run.build_expressions_context(
+                                contact_context=str(run.contact.uuid)
+                            )
+                            run.save(update_fields=("child_context",))
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 

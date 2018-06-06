@@ -1803,36 +1803,37 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         release_contact.delay(self.id, user.id)
 
     def release(self, user):
+        with transaction.atomic():
 
-        # make sure we've been deactivated
-        self.deactivate(user)
+            # make sure we've been deactivated
+            self.deactivate(user)
 
-        # no group for you!
-        self.clear_all_groups(user)
+            # no group for you!
+            self.clear_all_groups(user)
 
-        # release our messages
-        for msg in self.msgs.all():
-            msg.release()
+            # release our messages
+            for msg in self.msgs.all():
+                msg.release()
 
-        # any urns currently owned by us
-        for urn in self.urns.all():
-            urn.release()
+            # any urns currently owned by us
+            for urn in self.urns.all():
+                urn.release()
 
-        # release our channel events
-        for event in self.channel_events.all():
-            event.release()
+            # release our channel events
+            for event in self.channel_events.all():
+                event.release()
 
-        # release our runs too
-        for run in self.runs.all():
-            run.release()
+            # release our runs too
+            for run in self.runs.all():
+                run.release()
 
-        # and any event fire history
-        for fire in self.fire_events.all():
-            fire.release()
+            # and any event fire history
+            for fire in self.fire_events.all():
+                fire.release()
 
-        # take us out of broadcast addressed contacts
-        for broadcast in self.addressed_broadcasts.all():
-            broadcast.contacts.remove(self)
+            # take us out of broadcast addressed contacts
+            for broadcast in self.addressed_broadcasts.all():
+                broadcast.contacts.remove(self)
 
     def cached_send_channel(self, contact_urn):
         cache = getattr(self, "_send_channels", {})
