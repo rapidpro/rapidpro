@@ -30,7 +30,6 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
-    MigrationTest,
     MockResponse,
     TembaTest,
     also_in_flowserver,
@@ -5700,6 +5699,51 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
+    def run_flowrun_deletion(self, delete_reason, test_cases):
+        """
+        Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final
+        state with test_cases.
+        """
+        favorites = self.get_flow("favorites")
+        action_set1, action_set3, action_set3 = favorites.action_sets.order_by("y")[:3]
+        rule_set1, rule_set2 = favorites.rule_sets.order_by("y")[:2]
+
+        start = FlowStart.create(favorites, self.admin, contacts=[self.contact])
+        start.start()
+
+        Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
+        Msg.create_incoming(self.channel, "tel:+12065552020", "primus")
+        Msg.create_incoming(self.channel, "tel:+12065552020", "Ben")
+
+        run = FlowRun.objects.get(flow=favorites, contact=self.contact)
+        run.release(delete_reason)
+
+        recent = FlowPathRecentRun.get_recent([action_set1.exit_uuid], rule_set1.uuid)
+        self.assertEqual(len(recent), 0)
+
+        cat_counts = {c["key"]: c for c in favorites.get_category_counts()["counts"]}
+        self.assertEqual(len(cat_counts), 2)
+        self.assertEqual(cat_counts["color"]["categories"][0]["count"], test_cases["red_count"])
+        self.assertEqual(cat_counts["color"]["categories"][0]["count"], test_cases["primus_count"])
+
+        self.assertEqual(FlowStartCount.get_count(start), test_cases["start_count"])
+        self.assertEqual(FlowRunCount.get_totals(favorites), test_cases["run_count"])
+
+    def test_deletion(self):
+        self.run_flowrun_deletion(
+            None, {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
+        )
+
+    def test_user_deletion(self):
+        self.run_flowrun_deletion(
+            "U", {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
+        )
+
+    def test_archiving(self):
+        self.run_flowrun_deletion(
+            "A", {"red_count": 1, "primus_count": 1, "start_count": 1, "run_count": {"C": 1, "E": 0, "I": 0, "A": 0}}
+        )
+
     @also_in_flowserver
     def test_simple(self, in_flowserver):
         favorites = self.get_flow("favorites")
@@ -10887,47 +10931,3 @@ class AssetServerTest(TembaTest):
                 ],
             },
         )
-
-
-class BackfillRelatedRunContextsTest(MigrationTest):
-    migrate_from = "0162_auto_20180528_1705"
-    migrate_to = "0163_backfill_related_run_contexts"
-    app = "flows"
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Joe", number="+250783831111")
-        contact2 = self.create_contact("Frank", number="+250783832222")
-        self.create_contact("Oprah Winfrey", "+12065552121")
-
-        # create a parent-child loop
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-        parent.start([], [contact1])
-        Msg.create_incoming(self.channel, "tel:+250783831111", "color")
-        Msg.create_incoming(self.channel, "tel:+250783831111", "red")
-        Msg.create_incoming(self.channel, "tel:+250783831111", "color")
-
-        # create a triggered child
-        action_packed = self.get_flow("action_packed")
-        action_packed.start([], [contact2])
-
-        Msg.create_incoming(self.channel, "tel:+250783832222", "Frank")
-        Msg.create_incoming(self.channel, "tel:+250783832222", "Male")
-
-        # save the generated contexts
-        self.context_results = {
-            r.id: {"parent_context": r.parent_context, "child_context": r.child_context}
-            for r in FlowRun.objects.filter(is_active=True)
-        }
-
-        # clear contexts so migration populates them
-        FlowRun.objects.all().update(parent_context=None, child_context=None)
-
-    def test_contexts(self):
-        self.assertEqual(len(self.context_results), 4)
-
-        # compare with results set by trigger
-        for r_id, expected in self.context_results.items():
-            run = FlowRun.objects.get(id=r_id)
-            self.assertEqual(run.parent_context, expected["parent_context"])
-            self.assertEqual(run.child_context, expected["child_context"])

@@ -27,7 +27,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
-from django.db import connection as db_connection, models
+from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -3077,6 +3077,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     EVENT_STEP_UUID = "step_uuid"
     EVENT_CREATED_ON = "created_on"
 
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, related_name="runs", db_index=False)
@@ -3157,6 +3162,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     current_node_uuid = models.UUIDField(null=True, help_text=_("The current node location of this run in the flow"))
+
+    delete_reason = models.CharField(
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the run is being deleted")
+    )
 
     @cached_property
     def cached_child(self):
@@ -4123,11 +4132,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         msg.contact = self.contact
                     Flow.find_and_handle(msg, resume_after_timeout=True)
 
-    def release(self):
+    def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
         """
-        self.delete()
+        with transaction.atomic():
+            if delete_reason:
+                self.delete_reason = delete_reason
+                self.save(update_fields=["delete_reason"])
+
+            self.delete()
 
     def set_completed(self, completed_on=None):
         """

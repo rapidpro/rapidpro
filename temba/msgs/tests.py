@@ -649,7 +649,7 @@ class MsgTest(TembaTest):
         label1 = Label.label_objects.get(pk=label1.pk)
         self.assertEqual("Foo", label1.name)
 
-        # test deleting the label
+        # test deletig the label
         response = self.client.get(reverse("msgs.label_delete", args=[label1.pk]))
         self.assertEqual(200, response.status_code)
 
