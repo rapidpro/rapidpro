@@ -1,5 +1,16 @@
-v3.0.413
+v3.0.416
 ----------
+ * add deletion_date, use full path as link name
+ * add unique constraint to disallow dupe archives
+
+v3.0.415
+----------
+ * add needs_deletion field, remove is_purged
+
+v3.0.414
+----------
+ * Set run.child_context when child has no waits
+ * Use latest openpyxl and log the errors to sentry
  * Don't blow up if trialled run has no events
  * Allow editors to see archives / api
  * Migration to backfill run parent_context and child_context

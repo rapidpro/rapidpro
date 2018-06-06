@@ -21,7 +21,7 @@ class ArchiveViewTest(TembaTest):
             archive_type=Archive.TYPE_MSG if idx % 2 == 0 else Archive.TYPE_FLOWRUN,
             size=100000 * idx,
             hash=archive_hash,
-            url=f"http://s3-bucket.aws.com/my/{archive_hash}",
+            url=f"http://s3-bucket.aws.com/my/{archive_hash}.jsonl.gz",
             record_count=123456789 * idx,
             start_date=start_date,
             period=period,
@@ -63,9 +63,11 @@ class ArchiveViewTest(TembaTest):
         # make sure we have the right number of each
         response = self.client.get(reverse("archives.archive_list", args=["run"]))
         self.assertEqual(6, response.context["object_list"].count())
+        self.assertContains(response, "jsonl.gz")
 
         response = self.client.get(reverse("archives.archive_list", args=["message"]))
         self.assertEqual(4, response.context["object_list"].count())
+        self.assertContains(response, "jsonl.gz")
 
     def test_download(self):
         self.login(self.admin)
@@ -76,7 +78,7 @@ class ArchiveViewTest(TembaTest):
 
         self.assertEqual(302, response.status_code)
         self.assertIn(
-            f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}?"
+            f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}.jsonl.gz?"
             f"response-content-disposition=attachment%3B&"
             f"response-content-type=application%2Foctet&"
             f"response-content-encoding=none",
