@@ -30,7 +30,6 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
-    MigrationTest,
     MockResponse,
     TembaTest,
     also_in_flowserver,
@@ -10887,47 +10886,3 @@ class AssetServerTest(TembaTest):
                 ],
             },
         )
-
-
-class BackfillRelatedRunContextsTest(MigrationTest):
-    migrate_from = "0162_auto_20180528_1705"
-    migrate_to = "0163_backfill_related_run_contexts"
-    app = "flows"
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Joe", number="+250783831111")
-        contact2 = self.create_contact("Frank", number="+250783832222")
-        self.create_contact("Oprah Winfrey", "+12065552121")
-
-        # create a parent-child loop
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-        parent.start([], [contact1])
-        Msg.create_incoming(self.channel, "tel:+250783831111", "color")
-        Msg.create_incoming(self.channel, "tel:+250783831111", "red")
-        Msg.create_incoming(self.channel, "tel:+250783831111", "color")
-
-        # create a triggered child
-        action_packed = self.get_flow("action_packed")
-        action_packed.start([], [contact2])
-
-        Msg.create_incoming(self.channel, "tel:+250783832222", "Frank")
-        Msg.create_incoming(self.channel, "tel:+250783832222", "Male")
-
-        # save the generated contexts
-        self.context_results = {
-            r.id: {"parent_context": r.parent_context, "child_context": r.child_context}
-            for r in FlowRun.objects.filter(is_active=True)
-        }
-
-        # clear contexts so migration populates them
-        FlowRun.objects.all().update(parent_context=None, child_context=None)
-
-    def test_contexts(self):
-        self.assertEqual(len(self.context_results), 4)
-
-        # compare with results set by trigger
-        for r_id, expected in self.context_results.items():
-            run = FlowRun.objects.get(id=r_id)
-            self.assertEqual(run.parent_context, expected["parent_context"])
-            self.assertEqual(run.child_context, expected["child_context"])

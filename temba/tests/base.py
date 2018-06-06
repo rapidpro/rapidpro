@@ -617,6 +617,13 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
         # clear any unused mock requests
         self.mock_server.mocked_requests = []
 
+    def releaseContacts(self, contacts=None, delete=False):
+        contacts = contacts if contacts else Contact.objects.all()
+        for contact in contacts:
+            contact.release(self.admin)
+            if delete:
+                contact.delete()
+
 
 class FlowFileTest(TembaTest):
 
