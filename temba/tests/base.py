@@ -30,7 +30,8 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, clear_flow_users
+from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, RuleSet, clear_flow_users
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org
@@ -616,6 +617,36 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
 
         # clear any unused mock requests
         self.mock_server.mocked_requests = []
+
+    def release(self, objs, delete=False, user=None):
+        for obj in objs:
+            if user:
+                obj.release(user)
+            else:
+                obj.release()
+
+            if obj.id and delete:
+                obj.delete()
+
+    def releaseChannels(self, delete=False):
+        channels = Channel.objects.all()
+        self.release(channels)
+        if delete:
+            for channel in channels:
+                channel.counts.all().delete()
+                channel.delete()
+
+    def releaseIVRCalls(self, delete=False):
+        self.release(IVRCall.objects.all(), delete=delete)
+
+    def releaseMessages(self):
+        self.release(Msg.objects.all())
+
+    def releaseContacts(self, delete=False):
+        self.release(Contact.objects.all(), delete=delete, user=self.admin)
+
+    def releaseRuns(self, delete=False):
+        self.release(FlowRun.objects.all(), delete=delete)
 
 
 class FlowFileTest(TembaTest):

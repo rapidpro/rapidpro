@@ -540,8 +540,8 @@ class TriggerTest(TembaTest):
             self.assertEqual(1, choices.queryset.all().count())
             self.assertIsNone(choices.queryset.filter(pk=pick.pk).first())
 
-            pick.delete()
-            favorites.delete()
+            pick.release()
+            favorites.release()
 
     def test_unicode_trigger(self):
         self.login(self.admin)
@@ -893,8 +893,8 @@ class TriggerTest(TembaTest):
         old_catch_all.save()
 
         # try a message again, this shouldn't cause anything since the contact isn't part of our group
-        FlowRun.objects.all().delete()
-        Msg.objects.all().delete()
+        self.releaseRuns()
+        self.releaseMessages()
 
         incoming = Msg.create_incoming(self.channel, str(contact.get_urn()), "Hi")
         self.assertEqual(0, FlowRun.objects.all().count())

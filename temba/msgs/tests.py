@@ -46,7 +46,7 @@ from temba.msgs.models import (
     SystemLabelCount,
     UnreachableException,
 )
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.utils import dict_to_json, dict_to_struct
@@ -158,11 +158,15 @@ class MsgTest(TembaTest):
 
         msg1.restore()
 
-        msg1 = Msg.objects.get(pk=msg1.pk)
+        msg1 = Msg.objects.get(pk=msg1.id)
         self.assertEqual(msg1.visibility, Msg.VISIBILITY_VISIBLE)
 
         msg1.release()
-        self.assertFalse(Msg.objects.filter(id=msg1.pk))
+        self.assertFalse(Msg.objects.filter(pk=msg1.pk).exists())
+
+        label = Label.label_objects.filter(pk=label.pk).first()
+        self.assertEqual(0, label.get_messages().count())  # do remove labels
+        self.assertIsNotNone(label)
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -2889,11 +2893,16 @@ class CeleryTaskTest(TembaTest):
         )
 
     def _fixture_teardown(self):
-        Msg.objects.all().delete()
-        Channel.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+
+        self.releaseMessages()
+        self.releaseContacts(delete=True)
+        self.releaseChannels(delete=True)
+
+        TopUpCredits.objects.all().delete()
+        TopUp.objects.all().delete()
         Org.objects.all().delete()
-        Contact.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+
         User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 
     @classmethod

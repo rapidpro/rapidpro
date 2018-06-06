@@ -3005,7 +3005,7 @@ class BulkExportTest(TembaTest):
         exported = response.json()
 
         # try to import the flow
-        flow.delete()
+        flow.release()
         response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
@@ -3297,11 +3297,11 @@ class BulkExportTest(TembaTest):
         self.assertContains(response, "Register Patient")
 
         # delete our flow, and reimport
-        confirm_appointment.delete()
+        confirm_appointment.release()
         self.org.import_app(exported, self.admin, site="https://app.rapidpro.io")
 
         # make sure we have the previously exported expiration
-        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
+        confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
         # now delete a flow
