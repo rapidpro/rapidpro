@@ -972,6 +972,26 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
+    def test_ivr_simulation(self):
+
+        # import an ivr flow
+        flow = self.get_flow("call_me_maybe")
+        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
+        post_data = dict(has_refresh=True, version="1")
+
+        self.login(self.admin)
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        first_call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
+
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        second_call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
+
+        # it should have hung up and deleted our first call and created a new one
+        self.assertFalse(IVRCall.objects.filter(id=first_call.id).exists())
+        self.assertNotEqual(first_call.id, second_call.id)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_ivr_flow(self):
 
         # should be able to create an ivr flow
