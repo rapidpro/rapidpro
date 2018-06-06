@@ -1,3 +1,8 @@
+v3.0.416
+----------
+ * add deletion_date, use full path as link name
+ * add unique constraint to disallow dupe archives
+
 v3.0.415
 ----------
  * add needs_deletion field, remove is_purged
