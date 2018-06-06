@@ -1470,7 +1470,6 @@ class ChannelTest(TembaTest):
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
         self.releaseChannels(delete=True)
-        print(Channel.objects.all())
 
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
