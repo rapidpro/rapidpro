@@ -46,7 +46,7 @@ from temba.msgs.models import (
     SystemLabelCount,
     UnreachableException,
 )
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.utils import dict_to_json, dict_to_struct
@@ -2893,11 +2893,16 @@ class CeleryTaskTest(TembaTest):
         )
 
     def _fixture_teardown(self):
-        Msg.objects.all().delete()
-        Channel.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+
+        self.releaseMessages()
         self.releaseContacts(delete=True)
+        self.releaseChannels(delete=True)
+
+        TopUpCredits.objects.all().delete()
+        TopUp.objects.all().delete()
         Org.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+
         User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 
     @classmethod

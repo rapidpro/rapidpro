@@ -1435,9 +1435,14 @@ class FlowCRUDL(SmartCRUDL):
                 for batch in chunk_list(msg_ids, 25):
                     Msg.objects.filter(id__in=list(batch)).delete()
 
-                IVRCall.objects.filter(contact=test_contact).delete()
-                USSDSession.objects.filter(contact=test_contact).delete()
-                FlowRun.objects.filter(contact=test_contact).delete()
+                for ivr_call in IVRCall.objects.filter(contact=test_contact):
+                    ivr_call.release()
+
+                for session in USSDSession.objects.filter(contact=test_contact):
+                    session.release()
+
+                for run in FlowRun.objects.filter(contact=test_contact):
+                    run.release()
 
                 # reset the name for our test contact too
                 test_contact.fields = {}
