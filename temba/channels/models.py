@@ -2192,21 +2192,27 @@ def get_alert_user():
 
 
 class ChannelSession(SmartModel):
-    PENDING = "P"
-    QUEUED = "Q"
-    RINGING = "R"
-    IN_PROGRESS = "I"
-    COMPLETED = "D"
-    BUSY = "B"
-    FAILED = "F"
-    NO_ANSWER = "N"
-    CANCELED = "C"
+    PENDING = "P"  # initial state for all sessions
+    QUEUED = "Q"  # the session is queued internally
+    WIRED = "W"  # the API provider has confirmed that it successfully received the API request
+
+    # valid for IVR sessions
+    RINGING = "R"  # the call in ringing
+    IN_PROGRESS = "I"  # the call has been answered
+    BUSY = "B"  # the call is busy or rejected by the user
+    FAILED = "F"  # the platform failed to initiate the call (bad phone number)
+    NO_ANSWER = "N"  # the call has timed-out or ringed-out
+    CANCELED = "C"  # the call was terminated by platform
+    COMPLETED = "D"  # the call was completed successfully
+
+    # valid for USSD sessions
     TRIGGERED = "T"
     INTERRUPTED = "X"
     INITIATED = "A"
     ENDING = "E"
 
     DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
+    RETRY_CALL = [BUSY, NO_ANSWER]
 
     INCOMING = "I"
     OUTGOING = "O"
@@ -2221,6 +2227,7 @@ class ChannelSession(SmartModel):
     STATUS_CHOICES = (
         (PENDING, "Pending"),
         (QUEUED, "Queued"),
+        (WIRED, "Wired"),
         (RINGING, "Ringing"),
         (IN_PROGRESS, "In Progress"),
         (COMPLETED, "Complete"),

@@ -151,7 +151,7 @@ class IVRCall(ChannelSession):
 
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
             if status == "queued":
-                self.status = self.QUEUED
+                self.status = self.WIRED
             elif status == "ringing":
                 self.status = self.RINGING
             elif status == "no-answer":
@@ -160,7 +160,7 @@ class IVRCall(ChannelSession):
                 self.schedule_call_retry()
 
             elif status == "in-progress":
-                if self.status != self.IN_PROGRESS:
+                if previous_status != self.IN_PROGRESS:
                     self.started_on = timezone.now()
                 self.status = self.IN_PROGRESS
             elif status == "completed":
@@ -171,13 +171,12 @@ class IVRCall(ChannelSession):
                 self.status = self.COMPLETED
             elif status == "busy":
                 self.status = self.BUSY
-
-                self.schedule_call_retry()
-
             elif status == "failed":
                 self.status = self.FAILED
             elif status == "canceled":
                 self.status = self.CANCELED
+            else:
+                raise ValueError(f"Unhandled IVR call status: {status}")
 
         # https://developer.nexmo.com/api/voice#status-values
         # TODO: unanswered is not defined in the docs, cancelled is not used in the code
@@ -196,17 +195,24 @@ class IVRCall(ChannelSession):
                 self.status = self.FAILED
             elif status in ("rejected", "busy"):
                 self.status = self.BUSY
-
-                self.schedule_call_retry()
-
             elif status in ("unanswered", "timeout", "cancelled"):
                 self.status = self.NO_ANSWER
 
                 self.schedule_call_retry()
+            else:
+                raise ValueError(f"Unhandled IVR call status: {status}")
+
+        self.execute_status_change_actions(previous_status, duration)
+
+    def execute_status_change_actions(self, previous_status, duration):
+        from temba.flows.models import FlowRun
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
+
+        elif self.status in ChannelSession.RETRY_CALL:
+            self.schedule_call_retry()
 
         if duration is not None:
             self.duration = duration
@@ -223,7 +229,7 @@ class IVRCall(ChannelSession):
         it from the approximate time it was started
         """
         duration = self.duration
-        if not duration and self.status == "I" and self.started_on:
+        if not duration and self.status == self.IN_PROGRESS and self.started_on:
             duration = (timezone.now() - self.started_on).seconds
 
         if not duration:

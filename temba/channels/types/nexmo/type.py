@@ -11,6 +11,20 @@ from temba.utils.timezones import timezone_to_country_code
 class NexmoType(ChannelType):
     """
     An Nexmo channel
+
+    Callback status information (https://developer.nexmo.com/api/voice#status-values):
+
+        started: Platform has started the call.
+        ringing: The user's handset is ringing.
+        answered: The user has answered your call.
+        machine: Platform detected an answering machine.
+        human: Platform detected human answering the call.
+        completed: Platform has terminated this call.
+        timeout: Your user did not answer your call within ringing_timer seconds.
+        failed: The call failed to complete
+        rejected: The call was rejected
+        cancelled: The call was not answered
+        busy: The number being dialled was on another call
     """
 
     code = "NX"
