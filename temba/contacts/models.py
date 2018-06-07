@@ -49,6 +49,7 @@ END_TEST_CONTACT_PATH = 12065550199
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
+DELETED_SCHEME = "deleted"
 EMAIL_SCHEME = "mailto"
 EXTERNAL_SCHEME = "ext"
 FACEBOOK_SCHEME = "facebook"
@@ -1787,9 +1788,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # prep our urns for deletion so our old path creates a new urn
                 for urn in self.urns.all():
                     path = str(uuid.uuid4())
-                    urn.identity = path
+                    urn.identity = f"{DELETED_SCHEME}:{path}"
                     urn.path = path
-                    urn.scheme = "deleted"
+                    urn.scheme = DELETED_SCHEME
                     urn.channel = None
                     urn.save(update_fields=("identity", "path", "scheme", "channel"))
 

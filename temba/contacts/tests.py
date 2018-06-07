@@ -25,6 +25,7 @@ from django.utils import timezone
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -1102,8 +1103,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
-            uuid.UUID(urn.identity, version=4)
-            self.assertEqual("deleted", urn.scheme)
+            self.assertEqual(DELETED_SCHEME, urn.scheme)
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", "+12065552000", "tweettweet")
