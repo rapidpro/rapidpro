@@ -425,7 +425,9 @@ class IVRTests(FlowFileTest):
         )
 
         # any request with has_event params return empty content response
-        response = self.client.get("%s?has_event=1" % callback_url)
+        response = self.client.post(
+            f"{callback_url}?has_event=1", content_type="application/json", data=json.dumps(dict(duration=0))
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get("description"), "Updated call status")
@@ -589,7 +591,9 @@ class IVRTests(FlowFileTest):
             self.assertEqual(len(child_run.path), 2)
 
             # answer back with red
-            response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=1))
+            response = self.client.post(
+                reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=1, CallStatus="in-progress")
+            )
 
             self.assertContains(response, "Thanks, returning to the parent flow now.")
             self.assertContains(response, "Redirect")
@@ -631,7 +635,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(len(run.path), 2)
 
         # press 1
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=1))
+        response = self.client.post(
+            reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=1, CallStatus="in-progress")
+        )
         self.assertContains(response, "<Say>I just sent you a text.")
 
         # should have also started a new flow and received our text
@@ -1083,7 +1089,9 @@ class IVRTests(FlowFileTest):
         self.assertIsNotNone(call.get_duration())
 
         # simulate a button press and that our message is handled
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=4))
+        response = self.client.post(
+            reverse("ivr.ivrcall_handle", args=[call.pk]), dict(CallStatus="in-progress", Digits=4)
+        )
         msg = Msg.objects.filter(contact=test_contact, text="4", direction="I").first()
         self.assertIsNotNone(msg)
         self.assertEqual("H", msg.status)
@@ -1137,12 +1145,16 @@ class IVRTests(FlowFileTest):
         self.assertEqual(IVRCall.IN_PROGRESS, call.status)
 
         # don't press any numbers, but # instead
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]) + "?empty=1", dict())
+        response = self.client.post(
+            reverse("ivr.ivrcall_handle", args=[call.pk]) + "?empty=1", dict(CallStatus="in-progress")
+        )
         self.assertContains(response, "<Say>Press one, two, or three. Thanks.</Say>")
         self.assertEqual(3, self.org.get_credits_used())
 
         # press the number 4 (unexpected)
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=4))
+        response = self.client.post(
+            reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=4, CallStatus="in-progress")
+        )
 
         # our inbound message should be handled
         msg = Msg.objects.filter(text="4", msg_type=IVR).order_by("-created_on").first()
@@ -1155,7 +1167,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(4, Msg.objects.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(Digits=3))
+        response = self.client.post(
+            reverse("ivr.ivrcall_handle", args=[call.pk]), dict(CallStatus="in-progress", Digits=3)
+        )
         self.assertContains(response, "<Say>This might be crazy.</Say>")
         messages = Msg.objects.filter(msg_type=IVR).order_by("pk")
         self.assertEqual(6, messages.count())
@@ -1198,7 +1212,7 @@ class IVRTests(FlowFileTest):
             else:
                 self.assertIsNone(call_to_update.ended_on)
 
-        test_status_update(call, "queued", IVRCall.QUEUED, "T")
+        test_status_update(call, "queued", IVRCall.WIRED, "T")
         test_status_update(call, "ringing", IVRCall.RINGING, "T")
         test_status_update(call, "canceled", IVRCall.CANCELED, "T")
         test_status_update(call, "busy", IVRCall.BUSY, "T")
@@ -2048,3 +2062,9 @@ class IVRTests(FlowFileTest):
         call1.next_attempt = None
         call1.retry_count = 0
         call1.save()
+
+    def test_IVR_view_request_handler(self):
+        call_pk = 0
+        callback_url = reverse("ivr.ivrcall_handle", args=[call_pk])
+
+        self.assertRaises(ValueError, self.client.get, callback_url)

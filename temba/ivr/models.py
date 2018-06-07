@@ -211,7 +211,7 @@ class IVRCall(ChannelSession):
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
 
-        elif self.status in ChannelSession.RETRY_CALL:
+        if self.status in ChannelSession.RETRY_CALL:
             self.schedule_call_retry()
 
         if duration is not None:
