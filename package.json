@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "bower": "1.7.9",
-    "coffeescript": "1.9.3",
+    "coffee-script": "1.9.3",
     "less": "2.7.1"
   },
   "devDependencies": {
