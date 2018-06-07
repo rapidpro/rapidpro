@@ -1,3 +1,7 @@
+v3.0.417
+----------
+ * add protect to contacts and flows, you can fake the migrations in this release
+
 v3.0.416
 ----------
  * add deletion_date, use full path as link name
