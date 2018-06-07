@@ -25,7 +25,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
@@ -539,6 +539,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="org_contacts",
         help_text=_("The organization that this contact belongs to"),
@@ -1780,31 +1781,59 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
+    def deactivate(self, user):
+        if self.is_active:
+            self.is_active = False
+            self.name = None
+            self.fields = None
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
+
+    def release_async(self, user):
+        """
+        Marks this contact for deletion
+        """
+
+        # mark us as inactive
+        self.deactivate(user)
+
+        # kick off a task to remove all the things related to us
+        from temba.contacts.tasks import release_contact
+
+        release_contact.delay(self.id, user.id)
+
     def release(self, user):
-        """
-        Releases (i.e. deletes) this contact, provided it is currently not deleted
-        """
-        # detach all contact's URNs
-        self.update_urns(user, [])
+        with transaction.atomic():
 
-        # remove from all groups
-        self.clear_all_groups(user)
+            # make sure we've been deactivated
+            self.deactivate(user)
 
-        # release all messages with this contact
-        for msg in self.msgs.all():
-            msg.release()
+            # no group for you!
+            self.clear_all_groups(user)
 
-        # release all channel events with this contact
-        for event in self.channel_events.all():
-            event.release()
+            # release our messages
+            for msg in self.msgs.all():
+                msg.release()
 
-        # remove all flow runs and steps
-        for run in self.runs.all():
-            run.release()
+            # any urns currently owned by us
+            for urn in self.urns.all():
+                urn.release()
 
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("is_active", "modified_on", "modified_by"))
+            # release our channel events
+            for event in self.channel_events.all():
+                event.release()
+
+            # release our runs too
+            for run in self.runs.all():
+                run.release()
+
+            # and any event fire history
+            for fire in self.fire_events.all():
+                fire.release()
+
+            # take us out of broadcast addressed contacts
+            for broadcast in self.addressed_broadcasts.all():
+                broadcast.contacts.remove(self)
 
     def cached_send_channel(self, contact_urn):
         cache = getattr(self, "_send_channels", {})
@@ -2263,7 +2292,12 @@ class ContactURN(models.Model):
     ANON_MASK_HTML = "\u2022" * 8  # Pretty HTML version of anon mask
 
     contact = models.ForeignKey(
-        Contact, null=True, blank=True, related_name="urns", help_text="The contact that this URN is for, can be null"
+        Contact,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="urns",
+        help_text="The contact that this URN is for, can be null",
     )
 
     identity = models.CharField(
@@ -2279,13 +2313,15 @@ class ContactURN(models.Model):
         max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
     )
 
-    org = models.ForeignKey(Org, help_text="The organization for this URN, can be null")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization for this URN, can be null")
 
     priority = models.IntegerField(
         default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
     )
 
-    channel = models.ForeignKey(Channel, null=True, blank=True, help_text="The preferred channel for this URN")
+    channel = models.ForeignKey(
+        Channel, on_delete=models.PROTECT, null=True, blank=True, help_text="The preferred channel for this URN"
+    )
 
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
 
@@ -2347,6 +2383,11 @@ class ContactURN(models.Model):
                 return twitterid_urn
 
         return existing
+
+    def release(self):
+        for event in ChannelEvent.objects.filter(contact_urn=self):
+            event.release()
+        self.delete()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:

@@ -1,4 +1,3 @@
-
 import logging
 import time
 import traceback
@@ -23,7 +22,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
@@ -769,6 +768,7 @@ class Msg(models.Model):
 
     contact = models.ForeignKey(
         Contact,
+        on_delete=models.PROTECT,
         related_name="msgs",
         verbose_name=_("Contact"),
         help_text=_("The contact this message is communicating with"),
@@ -777,6 +777,7 @@ class Msg(models.Model):
 
     contact_urn = models.ForeignKey(
         ContactURN,
+        on_delete=models.PROTECT,
         null=True,
         related_name="msgs",
         verbose_name=_("Contact URN"),
@@ -1867,6 +1868,9 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
+        for log in ChannelLog.objects.filter(msg=self):
+            log.release()
+
         if delete_reason:
             self.delete_reason = delete_reason
             self.save(update_fields=["delete_reason"])

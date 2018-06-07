@@ -6,6 +6,7 @@ import iso8601
 import pytz
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
@@ -39,6 +40,15 @@ def reevaluate_dynamic_group(group_id):
     (Re)evaluate a dynamic group
     """
     ContactGroup.user_groups.get(id=group_id).reevaluate()
+
+
+@task(track_started=True, name="release_contact")
+def release_contact(contact_id, user_id):
+    contact = Contact.objects.filter(id=contact_id).first()
+    user = User.objects.filter(id=user_id).first()
+
+    if contact:
+        contact.release(user)
 
 
 @task(name="check_elasticsearch_lag")

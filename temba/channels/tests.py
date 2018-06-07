@@ -1469,8 +1469,7 @@ class ChannelTest(TembaTest):
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
-
-        Channel.objects.all().delete()
+        self.releaseChannels(delete=True)
 
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
