@@ -4154,7 +4154,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if delete_reason:
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
-                
+
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
 
