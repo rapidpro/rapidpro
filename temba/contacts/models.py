@@ -95,6 +95,7 @@ class URN(object):
         * Path component can be any non-blank unicode string
         * No hex escaping in URN path
     """
+
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
     IMPORT_HEADERS = {s[2] for s in URN_SCHEME_CONFIG}
 
@@ -348,6 +349,7 @@ class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
+
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
@@ -2242,6 +2244,7 @@ class ContactURN(models.Model):
     """
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
+
     # schemes that we actually support
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
     CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
@@ -2460,13 +2463,11 @@ class ContactURN(models.Model):
 
 
 class SystemContactGroupManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
@@ -2883,6 +2884,7 @@ class ContactGroupCount(SquashableModel):
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
     by a recurring task.
     """
+
     SQUASH_OVER = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, related_name="counts", db_index=True)

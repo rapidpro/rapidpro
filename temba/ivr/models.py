@@ -10,7 +10,6 @@ from temba.utils import on_transaction_commit
 
 
 class IVRManager(models.Manager):
-
     def create(self, *args, **kwargs):
         return super().create(*args, session_type=IVRCall.IVR, **kwargs)
 

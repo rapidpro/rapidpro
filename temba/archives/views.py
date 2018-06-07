@@ -53,6 +53,5 @@ class ArchiveCRUDL(SmartCRUDL):
             return context
 
     class Read(OrgPermsMixin, SmartReadView):
-
         def render_to_response(self, context, **response_kwargs):
             return HttpResponseRedirect(self.get_object().get_download_link())

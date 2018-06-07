@@ -26,6 +26,7 @@ class AssetAccessDenied(AssetException):
     """
     User does not have permission to access the given asset
     """
+
     pass
 
 
@@ -33,6 +34,7 @@ class AssetEntityNotFound(AssetException):
     """
     Database entity associated with the asset could not be found
     """
+
     pass
 
 
@@ -40,6 +42,7 @@ class AssetFileNotFound(AssetException):
     """
     Asset file could not be found
     """
+
     pass
 
 
@@ -47,6 +50,7 @@ class BaseAssetStore(object):
     """
     Base class for asset handlers. Assumes that pk is primary key of a db object with an associated asset.
     """
+
     model = None
     key = None
     directory = None

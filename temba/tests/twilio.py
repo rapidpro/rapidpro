@@ -4,7 +4,6 @@ from temba.ivr.clients import TwilioClient
 
 
 class MockRequestValidator(RequestValidator):
-
     def __init__(self, token):
         pass
 
@@ -13,7 +12,6 @@ class MockRequestValidator(RequestValidator):
 
 
 class MockTwilioClient(TwilioClient):
-
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base
@@ -28,13 +26,11 @@ class MockTwilioClient(TwilioClient):
         return True
 
     class MockShortCode(object):
-
         def __init__(self, short_code):
             self.short_code = short_code
             self.sid = "ShortSid"
 
     class MockShortCodes(object):
-
         def __init__(self, *args):
             pass
 
@@ -45,13 +41,11 @@ class MockTwilioClient(TwilioClient):
             print("Updating short code with sid %s" % sid)
 
     class MockSMS(object):
-
         def __init__(self, *args):
             self.uri = "/SMS"
             self.short_codes = MockTwilioClient.MockShortCodes()
 
     class MockCall(object):
-
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
             self.to = to
             self.from_ = from_
@@ -60,26 +54,22 @@ class MockTwilioClient(TwilioClient):
             self.sid = "CallSid"
 
     class MockApplication(object):
-
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
             self.sid = "TwilioTestSid"
 
     class MockPhoneNumber(object):
-
         def __init__(self, phone_number):
             self.phone_number = phone_number
             self.sid = "PhoneNumberSid"
 
     class MockAccount(object):
-
         def __init__(self, account_type, auth_token="AccountToken"):
             self.type = account_type
             self.auth_token = auth_token
             self.sid = "AccountSid"
 
     class MockAccounts(object):
-
         def __init__(self, *args):
             pass
 
@@ -87,7 +77,6 @@ class MockTwilioClient(TwilioClient):
             return MockTwilioClient.MockAccount(account_type)
 
     class MockPhoneNumbers(object):
-
         def __init__(self, *args):
             pass
 
@@ -101,7 +90,6 @@ class MockTwilioClient(TwilioClient):
             print("Updating phone number with sid %s" % sid)
 
     class MockApplications(object):
-
         def __init__(self, *args):
             pass
 
@@ -115,7 +103,6 @@ class MockTwilioClient(TwilioClient):
             return True
 
     class MockCalls(object):
-
         def __init__(self):
             self.events = []
 

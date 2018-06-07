@@ -128,7 +128,6 @@ from .views import FlowCRUDL
 
 
 class FlowTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -3585,7 +3584,6 @@ class FlowTest(TembaTest):
 
 
 class ActionPackedTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         self.flow = self.get_flow("action_packed")
@@ -3998,7 +3996,6 @@ class ActionPackedTest(FlowFileTest):
 
 
 class ActionTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -5005,7 +5002,6 @@ class ActionTest(TembaTest):
 
 
 class FlowRunTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -5130,7 +5126,6 @@ class FlowRunTest(TembaTest):
 
 
 class FlowLabelTest(FlowFileTest):
-
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
         response = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
@@ -5485,7 +5480,6 @@ class WebhookTest(TembaTest):
 
 
 class SimulationTest(FlowFileTest):
-
     def add_message(self, payload, text):
         """
         Add a message to the payload for the flow server using the default contact
@@ -5698,7 +5692,6 @@ class SimulationTest(FlowFileTest):
 
 
 class FlowsTest(FlowFileTest):
-
     def run_flowrun_deletion(self, delete_reason, test_cases):
         """
         Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final
@@ -6167,7 +6160,6 @@ class FlowsTest(FlowFileTest):
         )
 
     def test_flow_category_counts(self):
-
         def assertCount(counts, result_key, category_name, truth):
             found = False
             for count in counts["counts"]:
@@ -8638,7 +8630,6 @@ class FlowsTest(FlowFileTest):
 
 
 class FlowMigrationTest(FlowFileTest):
-
     def test_is_before_version(self):
 
         # works with numbers
@@ -9526,7 +9517,6 @@ class FlowMigrationTest(FlowFileTest):
 
 
 class DuplicateResultTest(FlowFileTest):
-
     def test_duplicate_value_test(self):
         flow = self.get_flow("favorites")
         self.assertEqual("I don't know that color. Try again.", self.send_message(flow, "carpet"))
@@ -9551,7 +9541,6 @@ class DuplicateResultTest(FlowFileTest):
 
 
 class ChannelSplitTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
 
@@ -9599,7 +9588,6 @@ class ChannelSplitTest(FlowFileTest):
 
 
 class WebhookLoopTest(FlowFileTest):
-
     @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_loop(self):
         flow = self.get_flow("webhook_loop")
@@ -9615,7 +9603,6 @@ class WebhookLoopTest(FlowFileTest):
 
 
 class MissedCallChannelTest(FlowFileTest):
-
     def test_missed_call_channel(self):
         flow = self.get_flow("call_channel_split")
 
@@ -9653,7 +9640,6 @@ class MissedCallChannelTest(FlowFileTest):
 
 
 class GhostActionNodeTest(FlowFileTest):
-
     def test_ghost_action_node_test(self):
         # load our flows
         self.get_flow("parent_child_flow")
@@ -9679,7 +9665,6 @@ class GhostActionNodeTest(FlowFileTest):
 
 
 class TriggerStartTest(FlowFileTest):
-
     def test_trigger_start(self):
         """
         Test case for a flow starting with a split on a contact field, sending an action, THEN waiting for a message.
@@ -9733,7 +9718,6 @@ class TriggerStartTest(FlowFileTest):
 
 @patch("temba.flows.models.START_FLOW_BATCH_SIZE", 10)
 class FlowBatchTest(FlowFileTest):
-
     def test_flow_batch_start(self):
         """
         Tests starting a flow for a group of contacts
@@ -9768,7 +9752,6 @@ class FlowBatchTest(FlowFileTest):
 
 
 class TwoInRowTest(FlowFileTest):
-
     def test_two_in_row(self):
         flow = self.get_flow("two_in_row")
         flow.start([], [self.contact])
@@ -9779,7 +9762,6 @@ class TwoInRowTest(FlowFileTest):
 
 
 class SendActionTest(FlowFileTest):
-
     def test_send(self):
         contact1 = self.create_contact("Mark", "+14255551212")
         contact2 = self.create_contact("Gregg", "+12065551212")
@@ -9810,7 +9792,6 @@ class SendActionTest(FlowFileTest):
 
 
 class ExitTest(FlowFileTest):
-
     def test_exit_via_start(self):
         # start contact in one flow
         first_flow = self.get_flow("substitution")
@@ -9901,7 +9882,6 @@ class ExitTest(FlowFileTest):
 
 
 class OrderingTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
 
@@ -9996,7 +9976,6 @@ class OrderingTest(FlowFileTest):
 
 
 class TimeoutTest(FlowFileTest):
-
     def _update_timeout(self, run, timeout_on):
         run.refresh_from_db()
         run.timeout_on = timeout_on
@@ -10292,7 +10271,6 @@ class TimeoutTest(FlowFileTest):
 
 
 class MigrationUtilsTest(TembaTest):
-
     def test_map_actions(self):
         # minimalist flow def with just actions and entry
         flow_def = dict(
@@ -10363,7 +10341,6 @@ class MigrationUtilsTest(TembaTest):
 
 
 class TriggerFlowTest(FlowFileTest):
-
     def test_trigger_then_loop(self):
         # start our parent flow
         flow = self.get_flow("parent_child_loop")
@@ -10394,7 +10371,6 @@ class TriggerFlowTest(FlowFileTest):
 
 
 class StackedExitsTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
 
@@ -10490,7 +10466,6 @@ class StackedExitsTest(FlowFileTest):
 
 
 class ParentChildOrderingTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         self.channel.delete()
@@ -10524,7 +10499,6 @@ class ParentChildOrderingTest(FlowFileTest):
 
 
 class AndroidChildStatus(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         self.channel.delete()
@@ -10550,7 +10524,6 @@ class AndroidChildStatus(FlowFileTest):
 
 
 class QueryTest(FlowFileTest):
-
     @override_settings(SEND_WEBHOOKS=True)
     def test_num_queries(self):
 
@@ -10564,7 +10537,6 @@ class QueryTest(FlowFileTest):
 
 
 class FlowChannelSelectionTest(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         self.channel.delete()
@@ -10603,7 +10575,6 @@ class FlowChannelSelectionTest(FlowFileTest):
 
 
 class FlowTriggerTest(TembaTest):
-
     def test_group_trigger(self):
         flow = self.get_flow("favorites")
 
@@ -10653,7 +10624,6 @@ class FlowTriggerTest(TembaTest):
 
 
 class TypeTest(TembaTest):
-
     @also_in_flowserver
     def test_value_types(self, in_flowserver):
 
@@ -10737,7 +10707,6 @@ class TypeTest(TembaTest):
 
 
 class FlowServerTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -10821,7 +10790,6 @@ class FlowServerTest(TembaTest):
 
 
 class AssetServerTest(TembaTest):
-
     @override_settings(FLOW_SERVER_AUTH_TOKEN="112233445566")
     def test_authentication(self):
         flows_url = reverse("flows.flow_assets", args=[self.org.id, "1234", "flow"])

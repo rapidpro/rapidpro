@@ -48,7 +48,6 @@ class Events(Enum):
 
 
 class RequestBuilder(object):
-
     def __init__(self, client, org, base_assets_url):
         self.client = client
         self.org = org
@@ -252,7 +251,6 @@ class RequestBuilder(object):
 
 
 class Output(object):
-
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json["session"], output_json.get("events", []))
@@ -273,6 +271,7 @@ class FlowServerClient(object):
     """
     Basic client for GoFlow's flow server
     """
+
     headers = {"User-Agent": "Temba"}
 
     def __init__(self, base_url, debug=False):

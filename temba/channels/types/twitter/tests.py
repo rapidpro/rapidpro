@@ -10,7 +10,6 @@ from ...models import Channel
 
 
 class TwitterTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

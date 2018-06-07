@@ -61,7 +61,6 @@ from .templatetags.sms import as_icon
 
 
 class MsgTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1286,7 +1285,6 @@ class MsgTest(TembaTest):
 
 
 class MsgCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1364,7 +1362,6 @@ class MsgCRUDLTest(TembaTest):
 
 
 class BroadcastTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1567,7 +1564,6 @@ class BroadcastTest(TembaTest):
             msgs_models.BATCH_SIZE = orig_batch_size
 
     def test_broadcast_model(self):
-
         def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
             msg.status = new_msg_status
             msg.save(update_fields=("status",))
@@ -1804,33 +1800,25 @@ class BroadcastTest(TembaTest):
         self.assertEqual([""], Msg.get_text_parts(sms.text))
 
         # 160 chars
-        sms.text = (
-            "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        )
+        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
         self.assertEqual(1, len(Msg.get_text_parts(sms.text)))
 
         # 161 characters with space
-        sms.text = (
-            "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 1234567890"
-        )
+        sms.text = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 1234567890"
         parts = Msg.get_text_parts(sms.text)
         self.assertEqual(2, len(parts))
         self.assertEqual(150, len(parts[0]))
         self.assertEqual(10, len(parts[1]))
 
         # 161 characters without space
-        sms.text = (
-            "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
-        )
+        sms.text = "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
         parts = Msg.get_text_parts(sms.text)
         self.assertEqual(2, len(parts))
         self.assertEqual(160, len(parts[0]))
         self.assertEqual(1, len(parts[1]))
 
         # 160 characters with max length 40
-        sms.text = (
-            "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        )
+        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
         parts = Msg.get_text_parts(sms.text, max_length=40)
         self.assertEqual(4, len(parts))
         self.assertEqual(40, len(parts[0]))
@@ -2040,7 +2028,6 @@ class BroadcastTest(TembaTest):
 
 
 class BroadcastCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2144,7 +2131,6 @@ class BroadcastCRUDLTest(TembaTest):
 
 
 class LabelTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2336,7 +2322,6 @@ class LabelTest(TembaTest):
 
 
 class LabelCRUDLTest(TembaTest):
-
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_create_and_update(self):
         create_label_url = reverse("msgs.label_create")
@@ -2433,7 +2418,6 @@ class LabelCRUDLTest(TembaTest):
 
 
 class ScheduleTest(TembaTest):
-
     def tearDown(self):
         from temba.channels import models as channel_models
 
@@ -2477,7 +2461,6 @@ class ScheduleTest(TembaTest):
 
 
 class ConsoleTest(TembaTest):
-
     def setUp(self):
         from temba.triggers.models import Trigger
 
@@ -2555,7 +2538,6 @@ class ConsoleTest(TembaTest):
 
 
 class BroadcastLanguageTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2627,7 +2609,6 @@ class BroadcastLanguageTest(TembaTest):
 
 
 class SystemLabelTest(TembaTest):
-
     def test_get_counts(self):
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2804,7 +2785,6 @@ class SystemLabelTest(TembaTest):
 
 
 class TagsTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2872,7 +2852,6 @@ class TagsTest(TembaTest):
 
 
 class CeleryTaskTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2955,7 +2934,6 @@ class CeleryTaskTest(TembaTest):
 
 
 class HandleEventTest(TembaTest):
-
     def test_stop_contact_task(self):
         self.joe = self.create_contact("Joe", "+12065551212")
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))

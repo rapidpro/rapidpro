@@ -26,6 +26,7 @@ class NonBlockingLock(Lock):
             .
             .
     """
+
     acquired = False
 
     def __enter__(self):

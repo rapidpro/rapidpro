@@ -85,7 +85,6 @@ TEST_URLS = (
 
 
 class URLResult(object):
-
     def __init__(self, url, times, allowed_max, prev_times):
         self.url = url
         self.times = times
@@ -311,9 +310,7 @@ class Command(BaseCommand):  # pragma: no cover
             )
 
     def save_html_results(self, path, results):
-        header = (
-            """<table style="font-family: Arial, Helvetica, sans-serif; border-spacing: 0; border-collapse: separate;">"""
-        )
+        header = """<table style="font-family: Arial, Helvetica, sans-serif; border-spacing: 0; border-collapse: separate;">"""
         footer = """</table>"""
         with open(path, "w") as f:
             f.write(header)

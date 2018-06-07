@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class StartTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

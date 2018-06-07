@@ -37,6 +37,7 @@ class ContactQuery(object):
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
     """
+
     PROP_ATTRIBUTE = "A"
     PROP_SCHEME = "S"
     PROP_FIELD = "F"
@@ -418,6 +419,7 @@ class IsSetCondition(Condition):
       * A condition of the form x != "" is interpreted as "x is set"
       * A condition of the form x = "" is interpreted as "x is not set"
     """
+
     IS_SET_LOOKUPS = ("!=",)
     IS_NOT_SET_LOOKUPS = ("is", "=")
 
@@ -612,6 +614,7 @@ class BoolCombination(QueryNode):
     """
     A combination of two or more conditions using an AND or OR logical operation
     """
+
     AND = operator.and_
     OR = operator.or_
 
@@ -717,7 +720,6 @@ class SinglePropCombination(BoolCombination):
 
 
 class ContactQLVisitor(ParseTreeVisitor):
-
     def __init__(self, as_anon):
         self.as_anon = as_anon
 
@@ -876,11 +878,14 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
         es_match = es_Q()
 
     return (
-        ModelESSearch(model=Contact, index="contacts")
-        .params(routing=org.id)
-        .query(es_match & es_filter)
-        .sort(sort_field)
-    ), parsed
+        (
+            ModelESSearch(model=Contact, index="contacts")
+            .params(routing=org.id)
+            .query(es_match & es_filter)
+            .sort(sort_field)
+        ),
+        parsed,
+    )
 
 
 def extract_fields(org, text):

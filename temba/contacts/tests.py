@@ -64,7 +64,6 @@ from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
 class ContactCRUDLTest(_CRUDLTest):
-
     def setUp(self):
         from temba.contacts.views import ContactCRUDL
 
@@ -226,7 +225,6 @@ class ContactCRUDLTest(_CRUDLTest):
 
 
 class ContactGroupTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -575,7 +573,6 @@ class ContactGroupTest(TembaTest):
 
 
 class ElasticSearchLagTest(TembaTest):
-
     def test_lag(self):
         mock_es_data = [
             {
@@ -617,7 +614,6 @@ class ElasticSearchLagTest(TembaTest):
 
 
 class ContactGroupCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -795,7 +791,6 @@ class ContactGroupCRUDLTest(TembaTest):
 
 
 class ContactTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -5781,7 +5776,6 @@ class ContactTest(TembaTest):
 
 
 class ContactURNTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -5821,7 +5815,6 @@ class ContactURNTest(TembaTest):
 
 
 class ContactFieldTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -6680,7 +6673,6 @@ class ContactFieldTest(TembaTest):
 
 
 class URNTest(TembaTest):
-
     def test_line_urn(self):
         self.assertEqual("line:asdf", URN.from_line("asdf"))
 
@@ -6811,7 +6803,6 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-
     def test_is_phonenumber(self):
         # these should match as phone numbers
         self.assertEqual(is_phonenumber("+12345678901"), (True, "12345678901"))
@@ -6830,7 +6821,6 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
-
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")

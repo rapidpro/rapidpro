@@ -13,7 +13,6 @@ JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK = "jiochat_channel_access_token:refresh-lock:%
 
 
 class JiochatClient:
-
     def __init__(self, channel_uuid, app_id, app_secret):
         self.channel_uuid = channel_uuid
         self.app_id = app_id

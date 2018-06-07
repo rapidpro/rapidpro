@@ -28,7 +28,6 @@ class CampaignActionForm(BaseActionForm):
 
 
 class CampaignActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -69,7 +68,6 @@ class CampaignCRUDL(SmartCRUDL):
     actions = ("create", "read", "update", "list", "archived")
 
     class OrgMixin(OrgPermsMixin):
-
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
             if not self.request.user.is_authenticated():  # pragma: no cover
@@ -118,7 +116,6 @@ class CampaignCRUDL(SmartCRUDL):
             return response
 
     class Read(OrgMixin, SmartReadView):
-
         def get_gear_links(self):
             links = []
             if self.has_org_perm("campaigns.campaignevent_create"):
@@ -130,9 +127,7 @@ class CampaignCRUDL(SmartCRUDL):
             return links
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
-
         class CampaignForm(forms.ModelForm):
-
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -364,7 +359,6 @@ class CampaignEventCRUDL(SmartCRUDL):
     actions = ("create", "delete", "read", "update")
 
     class Read(OrgObjPermsMixin, SmartReadView):
-
         def get_object_org(self):
             return self.get_object().campaign.org
 

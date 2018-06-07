@@ -10,6 +10,7 @@ class ExternalType(ChannelType):
     """
     A external channel which speaks our own API language
     """
+
     code = "EX"
     category = ChannelType.Category.PHONE
 

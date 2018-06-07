@@ -57,7 +57,6 @@ class MockServer(HTTPServer):
     """
 
     class Request(object):
-
         def __init__(self, method, path, content, content_type, status):
             self.method = method
             self.path = path

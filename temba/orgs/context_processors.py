@@ -4,7 +4,6 @@ from .models import get_stripe_credentials
 
 
 class GroupPermWrapper(object):
-
     def __init__(self, group):
         self.group = group
         self.empty = defaultdict(lambda: False)

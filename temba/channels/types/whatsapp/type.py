@@ -17,6 +17,7 @@ class WhatsAppType(ChannelType):
     """
     A WhatsApp Channel Type
     """
+
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA
 

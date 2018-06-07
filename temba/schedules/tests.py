@@ -22,7 +22,6 @@ SUNDAY = 6  # 128
 
 
 class ScheduleTest(TembaTest):
-
     def create_schedule(self, repeat_period, repeat_days=[], start_date=None):
 
         if not start_date:

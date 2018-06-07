@@ -100,7 +100,6 @@ IVR_EXPIRES_CHOICES = (
 
 
 class BaseFlowForm(forms.ModelForm):
-
     def clean_keyword_triggers(self):
         org = self.user.get_org()
         value = self.cleaned_data.get("keyword_triggers", "")
@@ -166,7 +165,6 @@ class FlowActionForm(BaseActionForm):
 
 
 class FlowActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -218,7 +216,6 @@ def msg_log_cmp(a, b):
 
 
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
-
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs["template"]
         return
@@ -272,7 +269,6 @@ class FlowCRUDL(SmartCRUDL):
     model = Flow
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
-
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
@@ -293,7 +289,6 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(recent_messages, safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
-
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
@@ -322,7 +317,6 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(revisions, safe=False)
 
     class OrgQuerysetMixin(object):
-
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
             if not self.request.user.is_authenticated():  # pragma: needs cover
@@ -331,7 +325,6 @@ class FlowCRUDL(SmartCRUDL):
                 return queryset.filter(org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-
         class FlowCreateForm(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
@@ -478,7 +471,6 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-
         class FlowUpdateForm(BaseFlowForm):
 
             expires_after_minutes = forms.ChoiceField(
@@ -626,7 +618,6 @@ class FlowCRUDL(SmartCRUDL):
             return obj
 
     class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
-
         def post(self, request, *args, **kwargs):  # pragma: needs cover
             path = self.save_recording_upload(
                 self.request.FILES["file"], self.request.POST.get("actionset"), self.request.POST.get("action")
@@ -638,7 +629,6 @@ class FlowCRUDL(SmartCRUDL):
             return default_storage.save("recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file)
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
-
         def post(self, request, *args, **kwargs):
             generated_uuid = str(uuid4())
             path = self.save_media_upload(
@@ -823,7 +813,6 @@ class FlowCRUDL(SmartCRUDL):
             return qs
 
     class Completion(OrgPermsMixin, SmartListView):
-
         def render_to_response(self, context, **response_kwargs):
 
             org = self.request.user.get_org()
@@ -986,7 +975,6 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-
         class ExportForm(forms.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
@@ -1341,7 +1329,6 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):
-
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
             (active, visited) = flow.get_activity()
@@ -1349,7 +1336,6 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(dict(activity=active, visited=visited, is_starting=flow.is_starting()))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
-
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
@@ -1614,9 +1600,7 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse({"status": "failure", "description": error}, status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-
         class BroadcastForm(forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
@@ -1728,7 +1712,6 @@ class FlowCRUDL(SmartCRUDL):
         """
 
         class Resource(object):
-
             def __init__(self, queryset, serializer):
                 self.queryset = queryset
                 self.serializer = serializer
@@ -1740,7 +1723,6 @@ class FlowCRUDL(SmartCRUDL):
                 return self.get_root(org).filter(uuid=uuid).first()
 
         class BoundaryResource(object):
-
             def __init__(self, serializer):
                 self.serializer = serializer
 
@@ -1828,7 +1810,6 @@ class FlowCRUDL(SmartCRUDL):
 
 # this is just for adhoc testing of the preprocess url
 class PreprocessTest(FormView):  # pragma: no cover
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)

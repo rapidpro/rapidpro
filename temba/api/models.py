@@ -80,6 +80,7 @@ class Resthook(SmartModel):
     Represents a hook that a user creates on an organization. Outside apps can integrate by subscribing
     to this particular resthook.
     """
+
     org = models.ForeignKey(Org, related_name="resthooks", help_text=_("The organization this resthook belongs to"))
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
@@ -133,6 +134,7 @@ class ResthookSubscriber(SmartModel):
     """
     Represents a subscriber on a specific resthook within one of our flows.
     """
+
     resthook = models.ForeignKey(Resthook, related_name="subscribers", help_text=_("The resthook being subscribed to"))
     target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
 
@@ -153,6 +155,7 @@ class WebHookEvent(SmartModel):
     """
     Represents an event that needs to be sent to the web hook for a channel.
     """
+
     TYPE_SMS_RECEIVED = "mo_sms"
     TYPE_SMS_SENT = "mt_sent"
     TYPE_SMS_DELIVERED = "mt_dlvd"
@@ -583,6 +586,7 @@ class WebHookResult(SmartModel):
     """
     Represents the result of trying to deliver an event to a web hook
     """
+
     event = models.ForeignKey(WebHookEvent, related_name="results", help_text="The event that this result is tied to")
     url = models.TextField(null=True, blank=True, help_text="The URL the event was delivered to")
     data = models.TextField(null=True, blank=True, help_text="The data that was posted to the webhook")
@@ -641,6 +645,7 @@ class APIToken(models.Model):
     """
     Our API token, ties in orgs
     """
+
     CODE_TO_ROLE = {"A": "Administrators", "E": "Editors", "S": "Surveyors"}
 
     ROLE_GRANTED_TO = {

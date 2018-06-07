@@ -8,7 +8,6 @@ from .views import VideoCRUDL
 
 
 class PublicTest(SmartminTest):
-
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
@@ -144,7 +143,6 @@ class PublicTest(SmartminTest):
 
 
 class VideoCRUDLTest(_CRUDLTest):
-
     def setUp(self):
         super().setUp()
         self.crudl = VideoCRUDL

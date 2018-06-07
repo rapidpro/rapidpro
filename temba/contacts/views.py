@@ -153,6 +153,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
+
     system_group = None
     add_button = True
     paginate_by = 50
@@ -333,7 +334,6 @@ class ContactActionForm(BaseActionForm):
 
 
 class ContactActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -364,7 +364,6 @@ class ContactFieldForm(forms.ModelForm):
 
 
 class ContactForm(forms.ModelForm):
-
     def __init__(self, *args, **kwargs):
         self.user = kwargs["user"]
         self.org = self.user.get_org()
@@ -510,7 +509,6 @@ class ContactCRUDL(SmartCRUDL):
     )
 
     class Export(OrgPermsMixin, SmartTemplateView):
-
         def render_to_response(self, context, **response_kwargs):
             user = self.request.user
             org = user.get_org()
@@ -564,9 +562,7 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
 
     class Customize(OrgPermsMixin, SmartUpdateView):
-
         class CustomizeForm(forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
                 del kwargs["org"]
@@ -769,9 +765,7 @@ class ContactCRUDL(SmartCRUDL):
             return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
 
     class Import(OrgPermsMixin, SmartCSVImportView):
-
         class ImportForm(forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
                 del kwargs["org"]
@@ -1399,6 +1393,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Block this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact blocked")
@@ -1411,6 +1406,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Unblock this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact unblocked")
@@ -1423,6 +1419,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Unstops this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact unstopped")
@@ -1435,6 +1432,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Delete this contact (can't be undone)
         """
+
         fields = ()
         success_url = "@contacts.contact_list"
         success_message = ""
@@ -1550,7 +1548,6 @@ class ContactGroupCRUDL(SmartCRUDL):
 
 
 class ManageFieldsForm(forms.Form):
-
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
         del kwargs["org"]
@@ -1595,7 +1592,6 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "managefields", "json")
 
     class List(OrgPermsMixin, SmartListView):
-
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=self.request.user.get_org(), is_active=True)

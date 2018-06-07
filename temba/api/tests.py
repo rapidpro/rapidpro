@@ -22,7 +22,6 @@ from temba.tests import MockResponse, TembaTest, matchers
 
 
 class APITokenTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -92,7 +91,6 @@ class APITokenTest(TembaTest):
 
 
 class WebHookTest(TembaTest):
-
     def setUp(self):
         super().setUp()
         self.joe = self.create_contact("Joe Blow", "0788123123")

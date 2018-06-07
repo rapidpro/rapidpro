@@ -17,6 +17,7 @@ class TwitterActivityType(ChannelType):
     """
     A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
     """
+
     code = "TWT"
     category = ChannelType.Category.SOCIAL_MEDIA
 

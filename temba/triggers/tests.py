@@ -21,7 +21,6 @@ from .views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
-
     def test_no_trigger_redirects_to_create_page(self):
         self.login(self.admin)
 
