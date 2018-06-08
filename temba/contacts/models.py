@@ -1833,6 +1833,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # any urns currently owned by us
             for urn in self.urns.all():
+
+                # release any messages attached with each urn,
+                # these could include messages that began life
+                # on a different contact
+                for msg in urn.msgs.all():
+                    msg.release()
+
                 urn.release()
 
             # release our channel events

@@ -1050,16 +1050,8 @@ class ContactTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_release(self):
-        flow = self.get_flow("favorites")
-        contact = self.create_contact("Joe", "+12065552000", "tweettweet")
-        contact.fields = {"gender": "Male", "age": 40}
-        contact.save(update_fields=("fields",))
 
-        flow.start([], [contact])
-        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", [contact])
-        broadcast.send()
-
-        def send(message):
+        def send(message, contact):
             msg = Msg.objects.create(
                 org=self.org,
                 direction=INCOMING,
@@ -1071,8 +1063,27 @@ class ContactTest(TembaTest):
             )
             Flow.find_and_handle(msg)
 
-        send("red")
-        send("primus")
+        flow = self.get_flow("favorites")
+
+        # create a contact with a message
+        old_contact = self.create_contact("Jose", "+12065552000")
+        send("hola mundo", old_contact)
+        urn = old_contact.get_urn()
+
+        # steal his urn into a new contact
+        contact = self.create_contact("Joe", "tweettweet")
+        urn.contact = contact
+        urn.save(update_fields=('contact',))
+
+        contact.fields = {"gender": "Male", "age": 40}
+        contact.save(update_fields=("fields",))
+
+        flow.start([], [contact])
+        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", [contact])
+        broadcast.send()
+
+        send("red", contact)
+        send("primus", contact)
 
         with override_settings(SEND_CALLS=True):
             # simulate an ivr call to test session release
