@@ -1842,6 +1842,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for msg in urn.msgs.all():
                     msg.release()
 
+                # same thing goes for sessions
+                for session in urn.channelsession_set.all():
+                    session.release()
+
                 urn.release()
 
             # release our channel events
@@ -2486,11 +2490,13 @@ class ContactURN(models.Model):
 
 
 class SystemContactGroupManager(models.Manager):
+
     def get_queryset(self):
         return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
+
     def get_queryset(self):
         return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
