@@ -1083,6 +1083,7 @@ class ContactTest(TembaTest):
         contact = self.create_contact("Joe", "tweettweet")
         urn.contact = contact
         urn.save(update_fields=("contact",))
+        group = self.create_group("Test Group", contacts=[contact])
 
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",))
@@ -1096,6 +1097,7 @@ class ContactTest(TembaTest):
 
         ivr_flow.start([], [contact])
 
+        self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.sessions.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
@@ -1118,6 +1120,7 @@ class ContactTest(TembaTest):
         contact.release(self.admin)
 
         contact.refresh_from_db()
+        self.assertEqual(0, group.contacts.all().count())
         self.assertEqual(0, contact.sessions.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
