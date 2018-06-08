@@ -1,3 +1,7 @@
+v3.0.421
+----------
+ * Degroup contacts on deactivate
+
 v3.0.420
 ----------
  * release sessions on reclaimed urns
