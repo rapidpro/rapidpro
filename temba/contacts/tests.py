@@ -1045,7 +1045,6 @@ class ContactTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_release(self):
-
         def send(message, contact):
             msg = Msg.objects.create(
                 org=self.org,
