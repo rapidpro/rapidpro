@@ -1969,47 +1969,6 @@ class IVRTests(FlowFileTest):
         call1.retry_count = 0
         call1.save()
 
-        # nexmo
-        call1.update_status("busy", 0, "NX")
-        call1.save()
-        self.assertTrue(call1.next_attempt > timezone.now())
-
-        call1.next_attempt = None
-        call1.retry_count = 0
-        call1.save()
-
-        call1.update_status("rejected", 0, "NX")
-        call1.save()
-        self.assertTrue(call1.next_attempt > timezone.now())
-
-        call1.next_attempt = None
-        call1.retry_count = 0
-        call1.save()
-
-        call1.update_status("unanswered", 0, "NX")
-        call1.save()
-        self.assertTrue(call1.next_attempt > timezone.now())
-
-        call1.next_attempt = None
-        call1.retry_count = 0
-        call1.save()
-
-        call1.update_status("timeout", 0, "NX")
-        call1.save()
-        self.assertTrue(call1.next_attempt > timezone.now())
-
-        call1.next_attempt = None
-        call1.retry_count = 0
-        call1.save()
-
-        call1.update_status("cancelled", 0, "NX")
-        call1.save()
-        self.assertTrue(call1.next_attempt > timezone.now())
-
-        call1.next_attempt = None
-        call1.retry_count = 0
-        call1.save()
-
     def test_update_status_for_call_retry_nexmo(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
@@ -2068,3 +2027,27 @@ class IVRTests(FlowFileTest):
         callback_url = reverse("ivr.ivrcall_handle", args=[call_pk])
 
         self.assertRaises(ValueError, self.client.get, callback_url)
+
+    def test_update_status_ValueError_input(self):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        # status is None
+        self.assertRaises(ValueError, call1.update_status, None, 0, "NX")
+
+        # status is empty
+        self.assertRaises(ValueError, call1.update_status, "", 0, "NX")
+
+        # unknown status for nexmo
+        self.assertRaises(ValueError, call1.update_status, "cilantro", 0, "NX")
+
+        # unknown status for twilio
+        self.assertRaises(ValueError, call1.update_status, "potato", 0, "T")

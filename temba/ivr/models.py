@@ -144,6 +144,9 @@ class IVRCall(ChannelSession):
         Updates our status from a provide call status string
 
         """
+        if not status:
+            raise ValueError("IVR Call status must be defined, got None")
+
         from temba.flows.models import FlowRun, ActionLog
 
         previous_status = self.status
