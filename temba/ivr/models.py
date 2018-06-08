@@ -37,6 +37,7 @@ class IVRCall(ChannelSession):
             org=channel.org,
             created_by=user,
             modified_by=user,
+            status=IVRCall.PENDING,
         )
 
     @classmethod
@@ -50,6 +51,7 @@ class IVRCall(ChannelSession):
             created_by=user,
             modified_by=user,
             external_id=external_id,
+            status=IVRCall.PENDING,
         )
 
     @classmethod
@@ -109,8 +111,7 @@ class IVRCall(ChannelSession):
                 import traceback
 
                 traceback.print_exc()
-                self.status = self.FAILED
-                self.save()
+
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended. %s" % str(e))
@@ -119,6 +120,7 @@ class IVRCall(ChannelSession):
                 import traceback
 
                 traceback.print_exc()
+
                 self.status = self.FAILED
                 self.save()
 
@@ -128,6 +130,9 @@ class IVRCall(ChannelSession):
 
     def start_call(self):
         from temba.ivr.tasks import start_call_task
+
+        self.status = IVRCall.QUEUED
+        self.save()
 
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
 
@@ -139,7 +144,7 @@ class IVRCall(ChannelSession):
         else:
             self.next_attempt = None
 
-    def update_status(self, status, duration, channel_type):
+    def update_status(self, status: str, duration: float, channel_type: str):
         """
         Updates our status from a provide call status string
 
@@ -179,7 +184,10 @@ class IVRCall(ChannelSession):
             self.duration = duration
 
         # if we are moving into IN_PROGRESS, make sure our runs have proper expirations
-        if previous_status in [self.QUEUED, self.PENDING] and self.status in [self.IN_PROGRESS, self.RINGING]:
+        if previous_status in (self.PENDING, self.QUEUED, self.WIRED) and self.status in (
+            self.IN_PROGRESS,
+            self.RINGING,
+        ):
             runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
             for run in runs:
                 run.update_expiration()

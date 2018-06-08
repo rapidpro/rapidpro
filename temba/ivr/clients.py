@@ -72,7 +72,11 @@ class NexmoClient(NexmoCli):
             response = self.create_call(params=params)
             call_uuid = response.get("uuid", None)
             call.external_id = str(call_uuid)
+
+            # the call was successfully sent to the IVR provider
+            call.status = IVRCall.WIRED
             call.save()
+
             for event in self.events:
                 ChannelLog.log_ivr_interaction(call, "Started call", event)
 
@@ -82,6 +86,7 @@ class NexmoClient(NexmoCli):
 
             call.status = IVRCall.FAILED
             call.save()
+
             raise IVRException(_("Nexmo call failed, with error %s") % str(e))
 
     def download_media(self, call, media_url):
@@ -131,11 +136,14 @@ class TwilioClient(TembaTwilioRestClient):
         if not settings.SEND_CALLS:
             raise IVRException("SEND_CALLS set to False, skipping call start")
 
+        params = dict(to=to, from_=call.channel.address, url=status_callback, status_callback=status_callback)
+
         try:
-            twilio_call = self.calls.create(
-                to=to, from_=call.channel.address, url=status_callback, status_callback=status_callback
-            )
+            twilio_call = self.calls.create(**params)
             call.external_id = str(twilio_call.sid)
+
+            # the call was successfully sent to the IVR provider
+            call.status = IVRCall.WIRED
             call.save()
 
             for event in self.calls.events:
@@ -145,6 +153,12 @@ class TwilioClient(TembaTwilioRestClient):
             message = "Twilio Error: %s" % twilio_error.msg
             if twilio_error.code == 20003:
                 message = _("Could not authenticate with your Twilio account. Check your token and try again.")
+
+            event = HttpEvent("POST", "https://api.nexmo.com/v1/calls", json.dumps(params), response_body=str(message))
+            ChannelLog.log_ivr_interaction(call, "Call start failed", event, is_error=True)
+
+            call.status = IVRCall.FAILED
+            call.save()
 
             raise IVRException(message)
 
@@ -217,9 +231,14 @@ class VerboiceClient:  # pragma: needs cover
         response = requests.post(url, data=payload, auth=self.auth).json()
 
         if "call_id" not in response:
+            call.status = IVRCall.FAILED
+            call.save()
+
             raise IVRException(_("Verboice connection failed."))
 
         # store the verboice call id in our IVRCall
         call.external_id = response["call_id"]
-        call.status = IVRCall.IN_PROGRESS
+
+        # the call was successfully sent to the IVR provider
+        call.status = IVRCall.WIRED
         call.save()

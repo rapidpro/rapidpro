@@ -63,7 +63,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact])
 
         call = IVRCall.objects.get()
-        self.assertEqual(IVRCall.PENDING, call.status)
+        self.assertEqual(IVRCall.QUEUED, call.status)
 
         # call should be on a Twilio channel since that's all we have
         self.assertEqual("T", call.channel.channel_type)
@@ -90,7 +90,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact], restart_participants=True)
 
         call = IVRCall.objects.all().last()
-        self.assertEqual(IVRCall.PENDING, call.status)
+        self.assertEqual(IVRCall.QUEUED, call.status)
         self.assertEqual("T", call.channel.channel_type)
 
         # switch back to Nexmo being the preferred channel
@@ -104,7 +104,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact], restart_participants=True)
 
         call = IVRCall.objects.all().last()
-        self.assertEqual(IVRCall.PENDING, call.status)
+        self.assertEqual(IVRCall.WIRED, call.status)
         self.assertEqual("NX", call.channel.channel_type)
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
@@ -892,7 +892,7 @@ class IVRTests(FlowFileTest):
         # since it hasn't started, our call should be pending and run should have no expiration
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         run = FlowRun.objects.get()
-        self.assertEqual(ChannelSession.PENDING, call.status)
+        self.assertEqual(ChannelSession.WIRED, call.status)
         self.assertIsNone(run.expires_on)
 
         # trigger a status update to show the call was answered
@@ -1074,6 +1074,8 @@ class IVRTests(FlowFileTest):
         Contact.set_simulation(True)
         flow.start([], [test_contact])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+
+        self.assertEqual(call.status, IVRCall.WIRED)
 
         # should be using the usersettings number in test mode
         self.assertEqual("Placing test call to +1 800-555-1212", ActionLog.objects.all().first().text)
@@ -1867,6 +1869,7 @@ class IVRTests(FlowFileTest):
     def test_check_calls_task(self, mock_start_call):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
+        # calls that should be retried
         call1 = IVRCall.objects.create(
             channel=self.channel,
             org=self.org,
@@ -1878,6 +1881,7 @@ class IVRTests(FlowFileTest):
             is_active=True,
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.NO_ANSWER,
         )
         call2 = IVRCall.objects.create(
             channel=self.channel,
@@ -1890,8 +1894,10 @@ class IVRTests(FlowFileTest):
             is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS - 1,
             next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.BUSY,
         )
-        #
+
+        # busy, but reached max retries
         call3 = IVRCall.objects.create(
             channel=self.channel,
             org=self.org,
@@ -1903,9 +1909,24 @@ class IVRTests(FlowFileTest):
             is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS + 1,
             next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.BUSY,
+        )
+        # call in progress
+        call4 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=0,
+            next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.IN_PROGRESS,
         )
 
-        self.assertTrue(all((call1.next_attempt, call2.next_attempt, call3.next_attempt)))
+        self.assertTrue(all((call1.next_attempt, call2.next_attempt, call3.next_attempt, call4.next_attempt)))
 
         # expect only two new tasks, third one is over MAX_RETRY_ATTEMPTS
         check_calls_task()
@@ -1914,13 +1935,21 @@ class IVRTests(FlowFileTest):
         call1.refresh_from_db()
         call2.refresh_from_db()
         call3.refresh_from_db()
+        call4.refresh_from_db()
 
         # these calls have been rescheduled
         self.assertIsNone(call1.next_attempt)
-        self.assertIsNone(call2.next_attempt)
+        self.assertEqual(call1.status, IVRCall.QUEUED)
 
-        # this one is not rescheduled
+        self.assertIsNone(call2.next_attempt)
+        self.assertEqual(call2.status, IVRCall.QUEUED)
+
+        # these calls should not be rescheduled
         self.assertIsNotNone(call3.next_attempt)
+        self.assertEqual(call3.status, IVRCall.BUSY)
+
+        self.assertIsNotNone(call4.next_attempt)
+        self.assertEqual(call4.status, IVRCall.IN_PROGRESS)
 
     def test_schedule_call_retry(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
@@ -2067,3 +2096,33 @@ class IVRTests(FlowFileTest):
 
         # unknown status for twilio
         self.assertRaises(ValueError, call1.update_status, "potato", 0, "T")
+
+    def test_create_outgoing_implicit_values(self):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call = IVRCall.create_outgoing(
+            channel=self.channel, contact=a_contact, contact_urn=a_contact.urns.first(), user=self.admin
+        )
+
+        self.assertEqual(call.direction, IVRCall.OUTGOING)
+        self.assertEqual(call.org, self.org)
+        self.assertEqual(call.created_by, self.admin)
+        self.assertEqual(call.modified_by, self.admin)
+        self.assertEqual(call.status, IVRCall.PENDING)
+
+    def test_create_incoming_implicit_values(self):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call = IVRCall.create_incoming(
+            channel=self.channel,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            user=self.admin,
+            external_id="an_external_id",
+        )
+
+        self.assertEqual(call.direction, IVRCall.INCOMING)
+        self.assertEqual(call.org, self.org)
+        self.assertEqual(call.created_by, self.admin)
+        self.assertEqual(call.modified_by, self.admin)
+        self.assertEqual(call.status, IVRCall.PENDING)
