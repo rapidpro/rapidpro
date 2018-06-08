@@ -1219,8 +1219,8 @@ class IVRTests(FlowFileTest):
         test_status_update(call, "failed", IVRCall.FAILED, "T")
         test_status_update(call, "no-answer", IVRCall.NO_ANSWER, "T")
 
-        test_status_update(call, "answered", IVRCall.IN_PROGRESS, "NX")
         test_status_update(call, "ringing", IVRCall.RINGING, "NX")
+        test_status_update(call, "answered", IVRCall.IN_PROGRESS, "NX")
         test_status_update(call, "completed", IVRCall.COMPLETED, "NX")
         test_status_update(call, "failed", IVRCall.FAILED, "NX")
         test_status_update(call, "unanswered", IVRCall.NO_ANSWER, "NX")
@@ -1542,6 +1542,22 @@ class IVRTests(FlowFileTest):
 
         self.assertIsNot(call.status, IVRCall.COMPLETED)
 
+        # set call to 'in-progress'
+        post_data = dict()
+        post_data["status"] = "answered"
+        post_data["duration"] = "0"
+        post_data["conversation_uuid"] = "ext-id"
+        post_data["uuid"] = "call-ext-id"
+
+        response = self.client.post(
+            reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]),
+            json.dumps(post_data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Updated call status")
+
         # event for non-existing external_id call
         post_data = dict()
         post_data["status"] = "completed"
@@ -1562,7 +1578,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.status, IVRCall.COMPLETED)
         self.assertTrue(run.is_completed())
 
-        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        self.assertEqual(ChannelLog.objects.all().count(), 3)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")

@@ -147,72 +147,30 @@ class IVRCall(ChannelSession):
         if not status:
             raise ValueError("IVR Call status must be defined, got None")
 
+        previous_status = self.status
+
         from temba.flows.models import FlowRun, ActionLog
 
-        previous_status = self.status
         ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
-
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            if status == "queued":
-                self.status = self.WIRED
-            elif status == "ringing":
-                self.status = self.RINGING
-            elif status == "no-answer":
-                self.status = self.NO_ANSWER
-
-                self.schedule_call_retry()
-
-            elif status == "in-progress":
-                if previous_status != self.IN_PROGRESS:
-                    self.started_on = timezone.now()
-                self.status = self.IN_PROGRESS
-            elif status == "completed":
-                if self.contact.is_test:
-                    run = FlowRun.objects.filter(connection=self)
-                    if run:
-                        ActionLog.create(run[0], _("Call ended."))
-                self.status = self.COMPLETED
-            elif status == "busy":
-                self.status = self.BUSY
-            elif status == "failed":
-                self.status = self.FAILED
-            elif status == "canceled":
-                self.status = self.CANCELED
-            else:
-                raise ValueError(f"Unhandled IVR call status: {status}")
-
-        # https://developer.nexmo.com/api/voice#status-values
-        # TODO: unanswered is not defined in the docs, cancelled is not used in the code
-        # TODO: cancelled seems like it's an event generated on nexmo system, they are canceling the call
+            self.status = self.derive_ivr_status_twiml(status, previous_status)
         elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
-            if status in ("ringing", "started"):
-                self.status = self.RINGING
-            elif status == "answered":
-                self.status = self.IN_PROGRESS
-                # record time when call was started
-                self.started_on = timezone.now()
-            elif status == "completed":
-                # noop
-                self.status = self.COMPLETED
-            elif status == "failed":
-                self.status = self.FAILED
-            elif status in ("rejected", "busy"):
-                self.status = self.BUSY
-            elif status in ("unanswered", "timeout", "cancelled"):
-                self.status = self.NO_ANSWER
+            self.status = self.derive_ivr_status_nexmo(status, previous_status)
+        else:  # pragma: no cover
+            raise ValueError(f"Unhandled IVR protocol: {ivr_protocol}")
 
-                self.schedule_call_retry()
-            else:
-                raise ValueError(f"Unhandled IVR call status: {status}")
-
-        self.execute_status_change_actions(previous_status, duration)
-
-    def execute_status_change_actions(self, previous_status, duration):
-        from temba.flows.models import FlowRun
+        # if we are in progress, mark our start time
+        if self.status == self.IN_PROGRESS and previous_status != self.IN_PROGRESS:
+            self.started_on = timezone.now()
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
+
+            if self.contact.is_test:
+                run = FlowRun.objects.filter(connection=self)
+                if run:
+                    ActionLog.create(run[0], _("Call ended."))
 
         if self.status in ChannelSession.RETRY_CALL:
             self.schedule_call_retry()
@@ -225,6 +183,50 @@ class IVRCall(ChannelSession):
             runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
             for run in runs:
                 run.update_expiration()
+
+    def derive_ivr_status_twiml(self, status: str, previous_status: str) -> str:
+        if status == "queued":
+            new_status = self.WIRED
+        elif status == "ringing":
+            new_status = self.RINGING
+        elif status == "no-answer":
+            new_status = self.NO_ANSWER
+        elif status == "in-progress":
+            new_status = self.IN_PROGRESS
+        elif status == "completed":
+            new_status = self.COMPLETED
+        elif status == "busy":
+            new_status = self.BUSY
+        elif status == "failed":
+            new_status = self.FAILED
+        elif status == "canceled":
+            new_status = self.CANCELED
+        else:
+            raise ValueError(f"Unhandled IVR call status: {status}")
+        return new_status
+
+    def derive_ivr_status_nexmo(self, status: str, previous_status: str) -> str:
+        if status in ("ringing", "started"):
+            new_status = self.RINGING
+        elif status == "answered":
+            new_status = self.IN_PROGRESS
+        elif status == "completed":
+            # nexmo sends `completed` as a final state for all call exits, we only want to mark call as completed if
+            # it was previously `in progress`
+            if previous_status == self.IN_PROGRESS:
+                new_status = self.COMPLETED
+            else:
+                new_status = previous_status
+        elif status == "failed":
+            new_status = self.FAILED
+        elif status in ("rejected", "busy"):
+            new_status = self.BUSY
+        elif status in ("unanswered", "timeout", "cancelled"):
+            new_status = self.NO_ANSWER
+        else:
+            raise ValueError(f"Unhandled IVR call status: {status}")
+
+        return new_status
 
     def get_duration(self):
         """

@@ -20,7 +20,7 @@ class CallHandler(View):
         return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        raise ValueError("IVR callback handler does not support request method GET")
+        raise ValueError("IVR callback handler does not support GET request method")
 
     def post(self, request, *args, **kwargs):
         call = IVRCall.objects.filter(pk=kwargs["pk"]).first()
