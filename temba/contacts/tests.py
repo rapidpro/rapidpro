@@ -1073,7 +1073,7 @@ class ContactTest(TembaTest):
         # steal his urn into a new contact
         contact = self.create_contact("Joe", "tweettweet")
         urn.contact = contact
-        urn.save(update_fields=('contact',))
+        urn.save(update_fields=("contact",))
 
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",))
