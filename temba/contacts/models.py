@@ -1842,6 +1842,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for msg in urn.msgs.all():
                     msg.release()
 
+                # same thing goes for sessions
+                for session in urn.channelsession_set.all():
+                    session.release()
+
                 urn.release()
 
             # release our channel events
