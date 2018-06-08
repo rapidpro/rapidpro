@@ -12,7 +12,6 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class TwimlApiClaimForm(ClaimViewMixin.Form):
         ROLES = (
             (Channel.ROLE_SEND + Channel.ROLE_RECEIVE, _("Messaging")),

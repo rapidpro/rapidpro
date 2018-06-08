@@ -42,7 +42,6 @@ class RootView(views.APIView):
 
 
 class AuthenticateEndpoint(SmartFormView):
-
     class LoginForm(forms.Form):
         email = forms.CharField()
         password = forms.CharField()
@@ -84,6 +83,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
+
     permission_classes = (SSLPermission, APIPermission)
 
 
@@ -91,6 +91,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+
     pagination_class = pagination.PageNumberPagination
     cache_counts = False
 
@@ -151,6 +152,7 @@ class CreateAPIMixin(object):
     differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
     and sometimes we use another serializer again for write output
     """
+
     write_serializer_class = None
 
     def post(self, request, *args, **kwargs):
@@ -259,6 +261,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             }]
         }
     """
+
     permission = "orgs.org_surveyor"
     model = Contact
     serializer_class = ContactReadSerializer
@@ -422,6 +425,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "value_type": "T"
         }
     """
+
     permission = "orgs.org_surveyor"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
@@ -494,6 +498,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "orgs.org_surveyor"
     model = AdminBoundary
 
@@ -598,6 +603,7 @@ class FlowDefinitionEndpoint(BaseAPIView):
         }
 
     """
+
     permission = "orgs.org_surveyor"
     model = Flow
 
@@ -670,6 +676,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "orgs.org_surveyor"
     model = Flow
     serializer_class = FlowReadSerializer
@@ -738,6 +745,7 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
+
     permission = "orgs.org_surveyor"
 
     def get(self, request, *args, **kwargs):
@@ -796,6 +804,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
 
     Response is the updated or created flow run.
     """
+
     permission = "orgs.org_surveyor"
     model = FlowRun
     serializer_class = FlowRunReadSerializer

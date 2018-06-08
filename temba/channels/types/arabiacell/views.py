@@ -10,7 +10,6 @@ from temba.contacts.models import TEL_SCHEME
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this channel will be used in")

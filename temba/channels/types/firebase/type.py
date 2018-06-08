@@ -11,6 +11,7 @@ class FirebaseCloudMessagingType(ChannelType):
     """
     A Firebase Cloud Messaging channel (https://firebase.google.com/docs/cloud-messaging/)
     """
+
     code = "FCM"
     category = ChannelType.Category.API
 

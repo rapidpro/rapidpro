@@ -8,7 +8,6 @@ from temba.tests import MockResponse, TembaTest
 
 
 class AirtimeEventTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

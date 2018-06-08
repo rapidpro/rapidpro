@@ -19,7 +19,6 @@ SESSION_TWITTER_OAUTH_SECRET = "twitter_oauth_token_secret"
 
 
 class ClaimView(ClaimViewMixin, SmartTemplateView):
-
     def pre_process(self, *args, **kwargs):
         response = super().pre_process(*args, **kwargs)
 

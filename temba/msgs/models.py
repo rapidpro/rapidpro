@@ -137,6 +137,7 @@ class UnreachableException(Exception):
     """
     Exception thrown when a message is being sent to a contact that we don't have a sendable URN for
     """
+
     pass
 
 
@@ -144,6 +145,7 @@ class BroadcastRecipient(models.Model):
     """
     Through table for broadcast recipients many-to-many
     """
+
     broadcast = models.ForeignKey("msgs.Broadcast")
 
     contact = models.ForeignKey(Contact)
@@ -162,6 +164,7 @@ class Broadcast(models.Model):
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
+
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
@@ -712,6 +715,7 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
+
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     VISIBILITY_VISIBLE = "V"
@@ -2002,6 +2006,7 @@ class SystemLabelCount(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
+
     SQUASH_OVER = ("org_id", "label_type", "is_archived")
 
     org = models.ForeignKey(Org, related_name="system_labels")
@@ -2043,13 +2048,11 @@ class SystemLabelCount(SquashableModel):
 
 
 class UserFolderManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(label_type=Label.TYPE_FOLDER)
 
 
 class UserLabelManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
@@ -2059,6 +2062,7 @@ class Label(TembaModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
+
     MAX_NAME_LEN = 64
     MAX_ORG_LABELS = 250
     MAX_ORG_FOLDERS = 250
@@ -2221,6 +2225,7 @@ class LabelCount(SquashableModel):
     """
     Counts of user labels maintained by database level triggers
     """
+
     SQUASH_OVER = ("label_id", "is_archived")
 
     label = models.ForeignKey(Label, related_name="counts")
@@ -2302,6 +2307,7 @@ class ExportMessagesTask(BaseExportTask):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
+
     analytics_key = "msg_export"
     email_subject = "Your messages export is ready"
     email_template = "msgs/email/msg_export_download"

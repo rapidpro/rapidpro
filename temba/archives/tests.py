@@ -9,7 +9,6 @@ from .models import Archive
 
 
 class ArchiveViewTest(TembaTest):
-
     def create_archive(self, idx, start_date=None, period="D"):
 
         if not start_date:

@@ -21,6 +21,7 @@ class Trigger(SmartModel):
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
     for missed calls, inboud sms messages starting with a keyword, or on a repeating schedule.
     """
+
     TYPE_CATCH_ALL = "C"
     TYPE_FOLLOW = "F"
     TYPE_KEYWORD = "K"

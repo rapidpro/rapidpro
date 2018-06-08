@@ -76,7 +76,6 @@ def migrate_export_to_version_11_2(exported_json, org, same_site=True):
 
 
 def _base_migrate_to_version_11_1(json_flow, country_code):
-
     def _is_this_a_lang_object(obj):
         """
         Lang objects should only have keys of length == 3

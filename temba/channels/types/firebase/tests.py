@@ -11,7 +11,6 @@ from ...models import Channel
 
 
 class FirebaseCloudMessagingTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

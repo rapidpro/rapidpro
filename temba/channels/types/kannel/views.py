@@ -11,7 +11,6 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class KannelClaimForm(ClaimViewMixin.Form):
         number = forms.CharField(
             max_length=14,

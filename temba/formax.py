@@ -9,7 +9,6 @@ from temba.orgs.context_processors import user_group_perms_processor
 
 
 class FormaxMixin(object):
-
     def derive_formax_sections(self, formax, context):  # pragma: needs cover
         return None
 
@@ -24,7 +23,6 @@ class FormaxMixin(object):
 
 
 class Formax(object):
-
     def __init__(self, request):
         self.sections = []
         self.request = request

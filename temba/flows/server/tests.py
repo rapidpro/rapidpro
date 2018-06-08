@@ -18,7 +18,6 @@ from .client import FlowServerException, get_client, serialize_channel, serializ
 
 
 class SerializationTest(TembaTest):
-
     def test_serialize_field(self):
         gender = self.create_field("gender", "Gender", Value.TYPE_TEXT)
         age = self.create_field("age", "Age", Value.TYPE_NUMBER)
@@ -44,7 +43,6 @@ class SerializationTest(TembaTest):
 
 
 class ClientTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -134,7 +132,6 @@ class ClientTest(TembaTest):
 
 
 class TrialTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

@@ -9,7 +9,6 @@ from ...models import Channel
 
 
 class DMarkTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

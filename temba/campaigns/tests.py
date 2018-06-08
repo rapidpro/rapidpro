@@ -19,7 +19,6 @@ from .models import Campaign, CampaignEvent, EventFire
 
 
 class CampaignTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

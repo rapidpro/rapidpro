@@ -32,6 +32,7 @@ class BaseTriggerForm(forms.ModelForm):
     """
     Base form for creating different trigger types
     """
+
     flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
 
     def __init__(self, user, flows, *args, **kwargs):
@@ -180,7 +181,6 @@ class RegisterTriggerForm(BaseTriggerForm):
     """
 
     class AddNewGroupChoiceField(forms.ModelChoiceField):
-
         def clean(self, value):
             if value.startswith("[_NEW_]"):  # pragma: needs cover
                 value = value[7:]
@@ -262,7 +262,6 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 
 
 class InboundCallTriggerForm(GroupBasedTriggerForm):
-
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.VOICE)
         super().__init__(user, flows, *args, **kwargs)
@@ -277,6 +276,7 @@ class FollowTriggerForm(BaseTriggerForm):
     """
     Form for social network follow triggers
     """
+
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):  # pragma: needs cover
@@ -295,6 +295,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
     """
     Form for New Conversation triggers
     """
+
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
@@ -332,6 +333,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     """
     Form for referral triggers
     """
+
     channel = forms.ModelChoiceField(
         Channel.objects.filter(pk__lt=0),
         label=_("Channel"),
@@ -378,6 +380,7 @@ class UssdTriggerForm(BaseTriggerForm):
     """
     Form for USSD triggers
     """
+
     keyword = forms.CharField(
         max_length=32, required=True, label=_("USSD Code"), help_text=_("USSD code to dial (eg: *111#)")
     )
@@ -424,7 +427,6 @@ class TriggerActionForm(BaseActionForm):
 
 
 class TriggerActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -459,7 +461,6 @@ class TriggerCRUDL(SmartCRUDL):
     )
 
     class OrgMixin(OrgPermsMixin):
-
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
             if not self.request.user.is_authenticated():  # pragma: needs cover
@@ -471,7 +472,6 @@ class TriggerCRUDL(SmartCRUDL):
         title = _("Create Trigger")
 
         def derive_formax_sections(self, formax, context):
-
             def add_section(name, url, icon):
                 formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("Create Trigger"))
 

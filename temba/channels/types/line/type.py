@@ -11,6 +11,7 @@ class LineType(ChannelType):
     """
     A LINE channel (https://line.me/)
     """
+
     code = "LN"
     category = ChannelType.Category.SOCIAL_MEDIA
 

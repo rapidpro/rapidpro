@@ -72,7 +72,6 @@ class TranslatableField(HStoreField):
     """
 
     class Validator(object):
-
         def __init__(self, max_length):
             self.max_length = max_length
 
@@ -101,6 +100,7 @@ class CheckFieldDefaultMixin(object):
 
     More info: https://code.djangoproject.com/ticket/28577
     """
+
     _default_hint = ("<valid default>", "<invalid default>")
 
     def _check_default(self):
@@ -207,7 +207,6 @@ class TembaModel(SmartModel):
 
 
 class RequireUpdateFieldsMixin(object):
-
     def save(self, *args, **kwargs):
         if self.id and "update_fields" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
@@ -219,6 +218,7 @@ class SquashableModel(models.Model):
     """
     Base class for models which track counts by delta insertions which are then periodically squashed
     """
+
     SQUASH_OVER = None
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")

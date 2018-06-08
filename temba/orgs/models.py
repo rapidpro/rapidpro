@@ -147,6 +147,7 @@ class OrgLock(Enum):
     """
     Org-level lock types
     """
+
     contacts = 1
     channels = 2
     credits = 3
@@ -157,6 +158,7 @@ class OrgCache(Enum):
     """
     Org-level cache types
     """
+
     display = 1
     credits = 2
 
@@ -170,6 +172,7 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
         verbose_name=_("Plan"),
@@ -2240,6 +2243,7 @@ class Language(SmartModel):
     and it is not really restricted to real-world languages at this level. Instead we restrict the
     language selection options to real-world languages.
     """
+
     name = models.CharField(max_length=128)
 
     iso_code = models.CharField(max_length=4)
@@ -2285,6 +2289,7 @@ class Invitation(SmartModel):
     """
     An Invitation to an e-mail address to join an Org with specific roles.
     """
+
     org = models.ForeignKey(
         Org,
         on_delete=models.PROTECT,
@@ -2354,6 +2359,7 @@ class UserSettings(models.Model):
     """
     User specific configuration
     """
+
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(
         max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
@@ -2379,6 +2385,7 @@ class TopUp(SmartModel):
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
     credits that can be consumed by messages.
     """
+
     org = models.ForeignKey(
         Org, on_delete=models.PROTECT, related_name="topups", help_text="The organization that was toppped up"
     )
@@ -2539,6 +2546,7 @@ class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
+
     TYPE_ALLOCATION = "A"
 
     DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"),)
@@ -2578,6 +2586,7 @@ class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
+
     SQUASH_OVER = ("topup_id",)
 
     topup = models.ForeignKey(

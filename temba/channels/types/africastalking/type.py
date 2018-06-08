@@ -10,6 +10,7 @@ class AfricasTalkingType(ChannelType):
     """
     An Africa's Talking channel (https://africastalking.com/)
     """
+
     code = "AT"
     category = ChannelType.Category.PHONE
 

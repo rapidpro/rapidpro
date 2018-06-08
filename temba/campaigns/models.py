@@ -240,6 +240,7 @@ class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
+
     TYPE_FLOW = "F"
     TYPE_MESSAGE = "M"
 

@@ -16,6 +16,7 @@ class Home(OrgPermsMixin, SmartTemplateView):
     """
     The main dashboard view
     """
+
     permission = "orgs.org_dashboard"
     template_name = "dashboard/home.haml"
 
@@ -24,6 +25,7 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
     """
     Endpoint to expose message history since the dawn of time by day as JSON blob
     """
+
     permission = "orgs.org_dashboard"
 
     def render_to_response(self, context, **response_kwargs):
@@ -117,6 +119,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
     """
     Intercooler snippet to show detailed information for a specific range
     """
+
     permission = "orgs.org_dashboard"
     template_name = "dashboard/range_details.haml"
 

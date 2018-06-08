@@ -8,7 +8,6 @@ from ...models import Channel
 
 
 class Hub9TypeTest(TembaTest):
-
     @override_settings(IP_ADDRESSES=("10.10.10.10", "172.16.20.30"))
     def test_claim(self):
         Channel.objects.all().delete()

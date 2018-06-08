@@ -38,6 +38,7 @@ class AssetDownloadView(SmartTemplateView):
     """
     Provides a landing page for an asset, e.g. /assets/download/contact_export/123/
     """
+
     template_name = "assets/asset_read.haml"
 
     def has_permission(self, request, *args, **kwargs):
