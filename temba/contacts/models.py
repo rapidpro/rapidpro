@@ -2490,13 +2490,11 @@ class ContactURN(models.Model):
 
 
 class SystemContactGroupManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
