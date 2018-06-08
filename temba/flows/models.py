@@ -4141,6 +4141,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Permanently deletes this flow run
         """
+        # clear any runs that reference us
+        FlowRun.objects.filter(parent=self).update(parent=None)
         for recent in FlowPathRecentRun.objects.filter(run=self):
             recent.release()
 

@@ -1945,6 +1945,11 @@ class SyncEvent(SmartModel):
 
         return sync_event
 
+    def release(self):
+        for alert in self.alert_set.all():
+            alert.release()
+        self.delete()
+
     def get_pending_messages(self):
         return getattr(self, "pending_messages", [])
 
@@ -1954,7 +1959,8 @@ class SyncEvent(SmartModel):
     @classmethod
     def trim(cls):
         month_ago = timezone.now() - timedelta(days=30)
-        cls.objects.filter(created_on__lte=month_ago).delete()
+        for event in cls.objects.filter(created_on__lte=month_ago):
+            event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)
@@ -2179,6 +2185,9 @@ class Alert(SmartModel):
         context["subject"] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
+
+    def release(self):
+        self.delete()
 
 
 def get_alert_user():
