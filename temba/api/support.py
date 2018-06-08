@@ -24,6 +24,7 @@ class APITokenAuthentication(TokenAuthentication):
 
         Authorization: Token 401f7ac837da42b97f613d789819ff93537bee6a
     """
+
     model = APIToken
 
     def authenticate_credentials(self, key):
@@ -98,6 +99,7 @@ class InvalidQueryError(APIException):
     """
     Exception class for invalid queries in list endpoints
     """
+
     status_code = status.HTTP_400_BAD_REQUEST
 
 

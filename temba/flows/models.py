@@ -27,7 +27,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
-from django.db import connection as db_connection, models
+from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -89,20 +89,17 @@ class FlowException(Exception):
 
 
 class FlowInvalidCycleException(FlowException):
-
     def __init__(self, node_uuids):
         self.node_uuids = node_uuids
 
 
 class FlowUserConflictException(FlowException):
-
     def __init__(self, other_user, last_saved_on):
         self.other_user = other_user
         self.last_saved_on = last_saved_on
 
 
 class FlowVersionConflictException(FlowException):
-
     def __init__(self, rejected_version):
         self.rejected_version = rejected_version
 
@@ -120,6 +117,7 @@ class FlowLock(Enum):
     """
     Locks that are flow specific
     """
+
     participation = 1
     definition = 3
 
@@ -128,6 +126,7 @@ class FlowPropsCache(Enum):
     """
     Properties of a flow that we cache
     """
+
     terminal_nodes = 1
     category_nodes = 2
 
@@ -136,6 +135,7 @@ class FlowSession(models.Model):
     """
     A contact's session with the flow engine
     """
+
     STATUS_WAITING = "W"
     STATUS_COMPLETED = "C"
     STATUS_INTERRUPTED = "I"
@@ -3084,6 +3084,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     EVENT_STEP_UUID = "step_uuid"
     EVENT_CREATED_ON = "created_on"
 
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
@@ -3171,6 +3176,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     current_node_uuid = models.UUIDField(null=True, help_text=_("The current node location of this run in the flow"))
+
+    delete_reason = models.CharField(
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the run is being deleted")
+    )
 
     @cached_property
     def cached_child(self):
@@ -4137,16 +4146,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         msg.contact = self.contact
                     Flow.find_and_handle(msg, resume_after_timeout=True)
 
-    def release(self):
+    def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
         """
-        # clear any runs that reference us
-        FlowRun.objects.filter(parent=self).update(parent=None)
-        for recent in FlowPathRecentRun.objects.filter(run=self):
-            recent.release()
+        with transaction.atomic():
+            if delete_reason:
+                self.delete_reason = delete_reason
+                self.save(update_fields=["delete_reason"])
 
-        self.delete()
+            # clear any runs that reference us
+            FlowRun.objects.filter(parent=self).update(parent=None)
+
+            # and any recent runs
+            for recent in FlowPathRecentRun.objects.filter(run=self):
+                recent.release()
+
+            self.delete()
 
     def set_completed(self, completed_on=None):
         """
@@ -4827,6 +4843,7 @@ class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions
     """
+
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
@@ -4970,6 +4987,7 @@ class FlowCategoryCount(SquashableModel):
     """
     Maintains counts for categories across all possible results in a flow
     """
+
     SQUASH_OVER = ("flow_id", "node_uuid", "result_key", "result_name", "category_name")
 
     flow = models.ForeignKey(
@@ -5014,6 +5032,7 @@ class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
     """
+
     SQUASH_OVER = ("flow_id", "from_uuid", "to_uuid", "period")
 
     flow = models.ForeignKey(
@@ -5062,6 +5081,7 @@ class FlowPathRecentRun(models.Model):
     """
     Maintains recent runs for a flow path segment
     """
+
     PRUNE_TO = 5
     LAST_PRUNED_KEY = "last_recentrun_pruned"
 
@@ -5159,6 +5179,7 @@ class FlowNodeCount(SquashableModel):
     """
     Maintains counts of unique contacts at each flow node.
     """
+
     SQUASH_OVER = ("node_uuid",)
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT)
@@ -5190,6 +5211,7 @@ class FlowRunCount(SquashableModel):
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
     via triggers on the database.
     """
+
     SQUASH_OVER = ("flow_id", "exit_type")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts")
@@ -5251,6 +5273,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
     Container for managing our export requests
     """
+
     analytics_key = "flowresult_export"
     email_subject = "Your results export is ready"
     email_template = "flows/email/flow_export_download"
@@ -5584,6 +5607,7 @@ class ActionLog(models.Model):
     """
     Log of an event that occurred whilst executing a flow in the simulator
     """
+
     LEVEL_INFO = "I"
     LEVEL_WARN = "W"
     LEVEL_ERROR = "E"
@@ -5755,6 +5779,7 @@ class FlowStartCount(SquashableModel):
     """
     Maintains count of how many runs a FlowStart has created.
     """
+
     SQUASH_OVER = ("start_id",)
 
     start = models.ForeignKey(FlowStart, on_delete=models.PROTECT, related_name="counts", db_index=True)
@@ -5903,6 +5928,7 @@ class Action(object):
     """
     Base class for actions that can be added to an action set and executed during a flow run
     """
+
     TYPE = "type"
     UUID = "uuid"
 
@@ -5955,6 +5981,7 @@ class EmailAction(Action):
     """
     Sends an email to someone
     """
+
     TYPE = "email"
     EMAILS = "emails"
     SUBJECT = "subject"
@@ -6025,6 +6052,7 @@ class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
     """
+
     TYPE = "api"
     ACTION = "action"
 
@@ -6074,6 +6102,7 @@ class AddToGroupAction(Action):
     """
     Adds the user to a group
     """
+
     TYPE = "add_group"
     GROUP = "group"
     GROUPS = "groups"
@@ -6183,6 +6212,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     """
     Removes the user from a group
     """
+
     TYPE = "del_group"
 
     def get_type(self):
@@ -6222,6 +6252,7 @@ class AddLabelAction(Action):
     """
     Add a label to the incoming message
     """
+
     TYPE = "add_label"
     LABELS = "labels"
 
@@ -6299,6 +6330,7 @@ class SayAction(Action):
     """
     Voice action for reading some text to a user
     """
+
     TYPE = "say"
     MESSAGE = "msg"
     RECORDING = "recording"
@@ -6351,6 +6383,7 @@ class PlayAction(Action):
     """
     Voice action for reading some text to a user
     """
+
     TYPE = "play"
     URL = "url"
 
@@ -6385,6 +6418,7 @@ class ReplyAction(Action):
     """
     Simple action for sending back a message
     """
+
     TYPE = "reply"
     MESSAGE = "msg"
     MSG_TYPE = None
@@ -6512,6 +6546,7 @@ class EndUssdAction(ReplyAction):
     """
     Reply action that ends a USSD session gracefully with a message
     """
+
     TYPE = "end_ussd"
     MSG_TYPE = MSG_TYPE_USSD
 
@@ -6522,6 +6557,7 @@ class UssdAction(ReplyAction):
     Created from a USSD ruleset
     It builds localised text with localised USSD menu support
     """
+
     TYPE = "ussd"
     MESSAGE = "ussd_message"
     TYPE_WAIT_USSD_MENU = "wait_menu"
@@ -6603,6 +6639,7 @@ class VariableContactAction(Action):
     Base action that resolves variables into contacts. Used for actions that take
     SendAction, TriggerAction, etc
     """
+
     CONTACTS = "contacts"
     GROUPS = "groups"
     VARIABLES = "variables"
@@ -6724,6 +6761,7 @@ class TriggerFlowAction(VariableContactAction):
     """
     Action that starts a set of contacts down another flow
     """
+
     TYPE = "trigger-flow"
 
     def __init__(self, uuid, flow, groups, contacts, variables):
@@ -6808,6 +6846,7 @@ class SetLanguageAction(Action):
     """
     Action that sets the language for a contact
     """
+
     TYPE = "lang"
     LANG = "lang"
     NAME = "name"
@@ -6850,6 +6889,7 @@ class StartFlowAction(Action):
     """
     Action that starts the contact into another flow
     """
+
     TYPE = "flow"
     FLOW = "flow"
     NAME = "name"
@@ -6917,6 +6957,7 @@ class SaveToContactAction(Action):
     """
     Action to save a variable substitution to a field on a contact
     """
+
     TYPE = "save"
     FIELD = "field"
     LABEL = "label"
@@ -7058,6 +7099,7 @@ class SetChannelAction(Action):
     Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
     the Channel being set then this is a no-op.
     """
+
     TYPE = "channel"
     CHANNEL = "channel"
     NAME = "name"
@@ -7109,6 +7151,7 @@ class SendAction(VariableContactAction):
     """
     Action which sends a message to a specified set of contacts and groups.
     """
+
     TYPE = "send"
     MESSAGE = "msg"
     MEDIA = "media"
@@ -7200,7 +7243,6 @@ class SendAction(VariableContactAction):
 
 
 class Rule(object):
-
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
@@ -7353,6 +7395,7 @@ class WebhookStatusTest(Test):
     """
     {op: 'webhook', status: 'success' }
     """
+
     TYPE = "webhook_status"
     STATUS = "status"
 
@@ -7385,6 +7428,7 @@ class AirtimeStatusTest(Test):
     """
     {op: 'airtime_status'}
     """
+
     TYPE = "airtime_status"
     EXIT = "exit_status"
 
@@ -7414,6 +7458,7 @@ class InGroupTest(Test):
     """
     { op: "in_group" }
     """
+
     TYPE = "in_group"
     NAME = "name"
     UUID = "uuid"
@@ -7443,6 +7488,7 @@ class SubflowTest(Test):
     """
     { op: "subflow" }
     """
+
     TYPE = "subflow"
     EXIT = "exit_type"
 
@@ -7474,6 +7520,7 @@ class TimeoutTest(Test):
     """
     { op: "timeout", minutes: 60 }
     """
+
     TYPE = "timeout"
     MINUTES = "minutes"
 
@@ -7499,6 +7546,7 @@ class TrueTest(Test):
     """
     { op: "true" }
     """
+
     TYPE = "true"
 
     def __init__(self):
@@ -7519,6 +7567,7 @@ class FalseTest(Test):
     """
     { op: "false" }
     """
+
     TYPE = "false"
 
     def __init__(self):
@@ -7539,6 +7588,7 @@ class AndTest(Test):
     """
     { op: "and",  "tests": [ ... ] }
     """
+
     TESTS = "tests"
     TYPE = "and"
 
@@ -7569,6 +7619,7 @@ class OrTest(Test):
     """
     { op: "or",  "tests": [ ... ] }
     """
+
     TESTS = "tests"
     TYPE = "or"
 
@@ -7618,6 +7669,7 @@ class ContainsTest(Test):
     """
     { op: "contains", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains"
 
@@ -7679,6 +7731,7 @@ class HasEmailTest(Test):
     """
     { op: "has_email" }
     """
+
     TYPE = "has_email"
 
     def __init__(self):
@@ -7706,6 +7759,7 @@ class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_any"
 
@@ -7748,6 +7802,7 @@ class ContainsOnlyPhraseTest(ContainsTest):
     """
     { op: "contains_only_phrase", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_only_phrase"
 
@@ -7777,6 +7832,7 @@ class ContainsPhraseTest(ContainsTest):
     """
     { op: "contains_phrase", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_phrase"
 
@@ -7822,6 +7878,7 @@ class StartsWithTest(Test):
     """
     { op: "starts", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "starts"
 
@@ -7962,6 +8019,7 @@ class DateTest(Test):
     """
     Base class for those tests that check relative dates
     """
+
     TEST = None
     TYPE = "date"
 
@@ -8028,6 +8086,7 @@ class NumericTest(Test):
     """
     Base class for those tests that do numeric tests.
     """
+
     TEST = "test"
     TYPE = ""
 
@@ -8069,6 +8128,7 @@ class BetweenTest(NumericTest):
     """
     Test whether we are between two numbers (inclusive)
     """
+
     MIN = "min"
     MAX = "max"
     TYPE = "between"
@@ -8101,6 +8161,7 @@ class NumberTest(NumericTest):
     """
     Tests that there is any number in the string.
     """
+
     TYPE = "number"
 
     def __init__(self):
@@ -8121,6 +8182,7 @@ class SimpleNumericTest(NumericTest):
     """
     Base class for those tests that do a numeric test with a single value
     """
+
     TEST = "test"
     TYPE = ""
 
@@ -8196,6 +8258,7 @@ class PhoneTest(Test):
     """
     Test for whether a response contains a phone number
     """
+
     TYPE = "phone"
 
     def __init__(self):
@@ -8233,6 +8296,7 @@ class RegexTest(Test):  # pragma: needs cover
     """
     Test for whether a response matches a regular expression
     """
+
     TEST = "test"
     TYPE = "regex"
 
@@ -8281,6 +8345,7 @@ class InterruptTest(Test):
     """
     Test if it's an interrupt status message
     """
+
     TYPE = "interrupted_status"
 
     def __init__(self):

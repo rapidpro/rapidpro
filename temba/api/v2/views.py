@@ -164,6 +164,7 @@ class RootView(views.APIView):
     There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
     Python users of the API.
     """
+
     permission_classes = (SSLPermission, IsAuthenticated)
 
     def get(self, request, *args, **kwargs):
@@ -198,6 +199,7 @@ class ExplorerView(SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
+
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
@@ -301,6 +303,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
+
     permission_classes = (SSLPermission, APIPermission)
     throttle_scope = "v2"
     model = None
@@ -383,6 +386,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+
     exclusive_params = ()
 
     def get(self, request, *args, **kwargs):
@@ -445,6 +449,7 @@ class WriteAPIMixin(object):
     the REST framework default way as we use POST requests for both create and update operations, and use separate
     serializers for reading and writing.
     """
+
     write_serializer_class = None
 
     def post_save(self, instance):
@@ -765,6 +770,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "created_on": "2013-03-02T17:28:12.123456Z"
         }
     """
+
     permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
@@ -905,6 +911,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "campaigns.campaign_api"
     model = Campaign
     serializer_class = CampaignReadSerializer
@@ -1060,6 +1067,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
 
     """
+
     permission = "campaigns.campaignevent_api"
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
@@ -1214,6 +1222,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "channels.channel_api"
     model = Channel
     serializer_class = ChannelReadSerializer
@@ -1291,6 +1300,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
+
     permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
@@ -1475,6 +1485,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
+
     permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
@@ -1644,6 +1655,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
+
     permission = "contacts.contact_api"
     serializer_class = ContactBulkActionSerializer
 
@@ -1750,6 +1762,7 @@ class DefinitionsEndpoint(BaseAPIView):
           }]
         }
     """
+
     permission = "orgs.org_api"
 
     class Depends(Enum):
@@ -1890,6 +1903,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "value_type": "text"
         }
     """
+
     permission = "contacts.contactfield_api"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
@@ -1980,6 +1994,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             ]
         }
     """
+
     permission = "flows.flow_api"
     model = Flow
     serializer_class = FlowReadSerializer
@@ -2110,6 +2125,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
+
     permission = "contacts.contactgroup_api"
     model = ContactGroup
     model_manager = "user_groups"
@@ -2254,6 +2270,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
+
     permission = "contacts.label_api"
     model = Label
     model_manager = "label_objects"
@@ -2325,6 +2342,7 @@ class MediaEndpoint(BaseAPIView):
 
     By making a `POST` request to the endpoint you can add a new media files
     """
+
     parser_classes = (MultiPartParser, FormParser)
     permission = "msgs.msg_api"
 
@@ -2568,6 +2586,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
+
     permission = "msgs.msg_api"
     serializer_class = MsgBulkActionSerializer
 
@@ -2613,6 +2632,7 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
+
     permission = "orgs.org_api"
 
     def get(self, request, *args, **kwargs):
@@ -2666,6 +2686,7 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
@@ -2759,6 +2780,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
     You will receive either a 204 response if a subscriber was deleted, or a 404 response if no matching subscriber was found.
 
     """
+
     permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
@@ -2900,6 +2922,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
@@ -2992,6 +3015,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "flows.flow_api"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
@@ -3180,6 +3204,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "api.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer

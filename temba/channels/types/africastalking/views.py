@@ -9,7 +9,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         shortcode = forms.CharField(max_length=6, min_length=1, help_text=_("Your short code on Africa's Talking"))
         country = forms.ChoiceField(choices=(("KE", _("Kenya")), ("UG", _("Uganda")), ("MW", _("Malawi"))))

@@ -30,7 +30,6 @@ from .models import IVRCall
 
 
 class IVRTests(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         settings.SEND_CALLS = True
@@ -110,7 +109,6 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_twilio_failed_auth(self):
-
         def create(self, to=None, from_=None, url=None, status_callback=None):
             from twilio import TwilioRestException
 

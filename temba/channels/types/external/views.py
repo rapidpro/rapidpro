@@ -12,7 +12,6 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class ClaimForm(ClaimViewMixin.Form):
         scheme = forms.ChoiceField(
             choices=ContactURN.SCHEME_CHOICES,

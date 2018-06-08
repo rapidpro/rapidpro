@@ -37,7 +37,6 @@ from .serializers import (
 
 
 class APITest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

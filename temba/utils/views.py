@@ -24,6 +24,7 @@ class BaseActionForm(forms.Form):
     """
     Base form class for bulk actions against domain models, typically initiated from list views
     """
+
     model = None
     model_manager = "objects"
     label_model = None

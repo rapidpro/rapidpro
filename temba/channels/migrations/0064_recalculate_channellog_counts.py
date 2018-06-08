@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     def recalculate_channellog_counts(apps, schema_editor):
         ChannelLog = apps.get_model("channels", "ChannelLog")
         Channel = apps.get_model("channels", "Channel")

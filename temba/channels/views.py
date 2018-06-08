@@ -756,7 +756,6 @@ class ClaimViewMixin(OrgPermsMixin):
     channel_type = None
 
     class Form(forms.Form):
-
         def __init__(self, **kwargs):
             self.request = kwargs.pop("request")
             self.channel_type = kwargs.pop("channel_type")
@@ -790,7 +789,6 @@ class ClaimViewMixin(OrgPermsMixin):
 
 
 class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
@@ -862,13 +860,11 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
 
 class AuthenticatedExternalCallbackClaimView(AuthenticatedExternalClaimView):
-
     def get_channel_config(self, org, data):
         return {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
 
 class BaseClaimNumberMixin(ClaimViewMixin):
-
     def pre_process(self, *args, **kwargs):  # pragma: needs cover
         return None
 
@@ -1080,7 +1076,6 @@ class ClaimAndroidForm(forms.Form):
 
 
 class UpdateChannelForm(forms.ModelForm):
-
     def __init__(self, *args, **kwargs):
         self.object = kwargs["object"]
         del kwargs["object"]
@@ -1101,20 +1096,17 @@ class UpdateChannelForm(forms.ModelForm):
 
 
 class UpdateNexmoForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         readonly = ("country",)
 
 
 class UpdateAndroidForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         readonly = []
         helps = {"address": _("Phone number of this device")}
 
 
 class UpdateTwitterForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         fields = "name", "address", "alert_email"
         readonly = ("address",)
@@ -1386,7 +1378,6 @@ class ChannelCRUDL(SmartCRUDL):
             return context
 
     class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
-
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -1530,7 +1521,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1564,7 +1554,6 @@ class ChannelCRUDL(SmartCRUDL):
         pass
 
     class CreateBulkSender(OrgPermsMixin, SmartFormView):
-
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
@@ -1609,7 +1598,6 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse("orgs.org_home")
 
     class CreateCaller(OrgPermsMixin, SmartFormView):
-
         class CallerForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
@@ -1763,7 +1751,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj.address if obj.address else _("Unknown")
 
     class SearchNumbers(OrgPermsMixin, SmartFormView):
-
         class SearchNumbersForm(forms.Form):
             area_code = forms.CharField(
                 max_length=3,
@@ -1834,7 +1821,6 @@ class ChannelCRUDL(SmartCRUDL):
             return JsonResponse(numbers, safe=False)
 
     class SearchNexmo(SearchNumbers):
-
         class SearchNexmoForm(forms.Form):
             area_code = forms.CharField(
                 max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
@@ -1865,7 +1851,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(dict(error=str(e)))
 
     class SearchPlivo(SearchNumbers):
-
         class SearchPlivoForm(forms.Form):
             area_code = forms.CharField(
                 max_length=3,

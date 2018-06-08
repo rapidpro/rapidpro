@@ -37,7 +37,6 @@ NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API reques
 
 
 class APITest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -258,7 +257,6 @@ class APITest(TembaTest):
         )  # base lang not provided
 
     def test_authentication(self):
-
         def api_request(endpoint, token):
             return self.client.get(
                 endpoint + ".json",

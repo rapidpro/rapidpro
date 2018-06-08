@@ -129,7 +129,6 @@ def nonoverlapping_task(*task_args, **task_kwargs):
     """
 
     def _nonoverlapping_task(task_func):
-
         @wraps(task_func)
         def wrapper(*exec_args, **exec_kwargs):
             r = get_redis_connection()

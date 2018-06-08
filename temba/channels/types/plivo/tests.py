@@ -10,7 +10,6 @@ from temba.tests import MockResponse, TembaTest
 
 
 class PlivoTypeTest(TembaTest):
-
     def test_claim(self):
         self.login(self.admin)
 

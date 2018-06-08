@@ -13,14 +13,12 @@ logger = logging.getLogger(__name__)
 
 # default manager for AdminBoundary, doesn't load geometries
 class NoGeometryManager(models.GeoManager):
-
     def get_queryset(self):
         return super().get_queryset().defer("geometry", "simplified_geometry")
 
 
 # optional 'geometries' manager for AdminBoundary, loads everything
 class GeometryManager(models.GeoManager):
-
     def get_queryset(self):
         return super().get_queryset()
 
@@ -29,6 +27,7 @@ class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
     """
+
     LEVEL_COUNTRY = 0
     LEVEL_STATE = 1
     LEVEL_DISTRICT = 2
@@ -167,6 +166,7 @@ class BoundaryAlias(SmartModel):
     """
     Alternative names for a boundaries
     """
+
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
     boundary = models.ForeignKey(

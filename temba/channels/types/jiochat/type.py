@@ -11,6 +11,7 @@ class JioChatType(ChannelType):
     """
     A JioChat channel (https://www.jiochat.com)
     """
+
     code = "JC"
     category = ChannelType.Category.SOCIAL_MEDIA
 

@@ -1,3 +1,9 @@
+v3.0.419
+----------
+ * special case deleted scheme in urn parsing
+ * release urn messages when releasing a contact
+ * add delete reason to run
+
 v3.0.418
 ----------
  * Clear child run parent reference when releasing parent

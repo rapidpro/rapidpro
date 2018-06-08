@@ -44,7 +44,6 @@ class PolicyCRUDL(SmartCRUDL):
             return obj
 
     class History(SmartReadView):
-
         def derive_title(self):
             return self.get_object().get_policy_type_display()
 
@@ -88,7 +87,6 @@ class PolicyCRUDL(SmartCRUDL):
             return context
 
     class GiveConsent(OrgPermsMixin, SmartFormView):
-
         class ConsentForm(forms.ModelForm):
             consent = forms.BooleanField(required=False)
 

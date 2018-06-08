@@ -27,7 +27,6 @@ from ...views import (
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(choices=ALL_COUNTRIES)
         phone_number = forms.CharField(help_text=_("The phone number being added"))

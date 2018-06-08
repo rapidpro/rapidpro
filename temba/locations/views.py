@@ -18,7 +18,6 @@ class BoundaryCRUDL(SmartCRUDL):
     model = AdminBoundary
 
     class Alias(OrgPermsMixin, SmartReadView):
-
         @classmethod
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
@@ -43,7 +42,6 @@ class BoundaryCRUDL(SmartCRUDL):
             return org.country
 
     class Geometry(OrgPermsMixin, SmartReadView):
-
         @classmethod
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
@@ -59,7 +57,6 @@ class BoundaryCRUDL(SmartCRUDL):
             return HttpResponse(self.object.get_geojson(), content_type="application/json")
 
     class Boundaries(OrgPermsMixin, SmartUpdateView):
-
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
@@ -74,7 +71,6 @@ class BoundaryCRUDL(SmartCRUDL):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
 
         def post(self, request, *args, **kwargs):
-
             def update_boundary_aliases(boundary):
                 level_boundary = AdminBoundary.objects.filter(osm_id=boundary["osm_id"]).first()
                 if level_boundary:

@@ -7,7 +7,6 @@ from temba.channels.views import AuthenticatedExternalClaimView, ClaimViewMixin
 
 
 class ClaimView(AuthenticatedExternalClaimView):
-
     class GlobeClaimForm(ClaimViewMixin.Form):
         number = forms.CharField(
             max_length=14,

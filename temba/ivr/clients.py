@@ -25,7 +25,6 @@ class IVRException(Exception):
 
 
 class NexmoClient(NexmoCli):
-
     def __init__(self, api_key, api_secret, app_id, app_private_key, org):
         self.org = org
         NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
@@ -127,7 +126,6 @@ class NexmoClient(NexmoCli):
 
 
 class TwilioClient(TembaTwilioRestClient):
-
     def __init__(self, account, token, org, **kwargs):
         self.org = org
         super().__init__(account=account, token=token, **kwargs)
@@ -202,7 +200,6 @@ class TwilioClient(TembaTwilioRestClient):
 
 
 class VerboiceClient:  # pragma: needs cover
-
     def __init__(self, channel):
         self.endpoint = "https://verboice.instedd.org/api/call"
 

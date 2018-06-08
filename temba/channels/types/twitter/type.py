@@ -17,6 +17,7 @@ class TwitterType(ChannelType):
     A Twitter channel which uses Mage to stream DMs for a handle which has given access to a Twitter app configured for
     this deployment.
     """
+
     code = "TT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
