@@ -1047,7 +1047,7 @@ class ContactTest(TembaTest):
     @override_settings(SEND_CALLS=True)
     def test_release(self):
 
-        # configure our org for deletion
+        # configure our org for ivr
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
         config = {
