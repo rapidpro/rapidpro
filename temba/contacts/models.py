@@ -107,7 +107,7 @@ class URN(object):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        if not scheme or scheme not in cls.VALID_SCHEMES:
+        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != DELETED_SCHEME):
             raise ValueError("Invalid scheme component: '%s'" % scheme)
 
         if not path:
@@ -125,7 +125,7 @@ class URN(object):
         except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if parsed.scheme not in cls.VALID_SCHEMES:
+        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
@@ -1833,6 +1833,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # any urns currently owned by us
             for urn in self.urns.all():
+
+                # release any messages attached with each urn,
+                # these could include messages that began life
+                # on a different contact
+                for msg in urn.msgs.all():
+                    msg.release()
+
                 urn.release()
 
             # release our channel events
