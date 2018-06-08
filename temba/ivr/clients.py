@@ -55,7 +55,7 @@ class NexmoClient(NexmoCli):
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
-            raise IVRException("SEND_CALLS set to False, skipping call start")
+            raise ValueError("SEND_CALLS set to False, skipping call start")
 
         url = "https://%s%s" % (self.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
 
@@ -132,7 +132,7 @@ class TwilioClient(TembaTwilioRestClient):
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
-            raise IVRException("SEND_CALLS set to False, skipping call start")
+            raise ValueError("SEND_CALLS set to False, skipping call start")
 
         params = dict(to=to, from_=call.channel.address, url=status_callback, status_callback=status_callback)
 
@@ -215,7 +215,7 @@ class VerboiceClient:  # pragma: needs cover
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
-            raise IVRException("SEND_CALLS set to False, skipping call start")
+            raise ValueError("SEND_CALLS set to False, skipping call start")
 
         channel = call.channel
         Contact.get_or_create(channel.org, URN.from_tel(to), channel)
