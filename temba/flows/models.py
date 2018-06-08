@@ -4155,10 +4155,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
+            # clear any runs that reference us
+            FlowRun.objects.filter(parent=self).update(parent=None)
+
+            # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
 
-        self.delete()
+            self.delete()
 
     def set_completed(self, completed_on=None):
         """

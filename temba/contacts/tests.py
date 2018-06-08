@@ -3,6 +3,7 @@ import copy
 import json
 import subprocess
 import time
+import uuid
 from datetime import date, datetime, timedelta
 
 import pytz
@@ -18,11 +19,13 @@ from django.core.urlresolvers import reverse
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -32,6 +35,7 @@ from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Ms
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.es import ES
@@ -1038,6 +1042,8 @@ class ContactTest(TembaTest):
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_release(self):
         flow = self.get_flow("favorites")
         contact = self.create_contact("Joe", "+12065552000", "tweettweet")
@@ -1063,15 +1069,46 @@ class ContactTest(TembaTest):
         send("red")
         send("primus")
 
+        with override_settings(SEND_CALLS=True):
+            # simulate an ivr call to test session release
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+            # twiml api config
+            config = {
+                Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+                Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+                Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+            }
+
+            Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
+
+            flow = self.get_flow("call_me_maybe")
+            flow.start([], [contact])
+
+        self.assertEqual(1, contact.sessions.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
-        self.assertEqual(1, contact.runs.all().count())
+        self.assertEqual(2, contact.runs.all().count())
         self.assertEqual(6, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
-        contact.release(self.admin)
-        contact.refresh_from_db()
+        # first try a deactivate and check our urns are anonymized
+        contact.deactivate(self.admin)
+        self.assertEqual(2, contact.urns.all().count())
+        for urn in contact.urns.all():
+            uuid.UUID(urn.path, version=4)
+            self.assertEqual(DELETED_SCHEME, urn.scheme)
 
+        # a new contact arrives with those urns
+        new_contact = self.create_contact("URN Thief", "+12065552000", "tweettweet")
+        self.assertEqual(2, new_contact.urns.all().count())
+
+        # now lets go for a full release
+        contact.release(self.admin)
+
+        contact.refresh_from_db()
+        self.assertEqual(0, contact.sessions.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())

@@ -49,6 +49,7 @@ END_TEST_CONTACT_PATH = 12065550199
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
+DELETED_SCHEME = "deleted"
 EMAIL_SCHEME = "mailto"
 EXTERNAL_SCHEME = "ext"
 FACEBOOK_SCHEME = "facebook"
@@ -1435,7 +1436,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
-        from uuid import uuid4
 
         # make sure our tmp directory is present (throws if already present)
         try:
@@ -1444,7 +1444,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             pass
 
         # write our file out
-        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid4()))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid.uuid4()))
 
         out_file = open(tmp_file, "wb")
         out_file.write(csv_file.read())
@@ -1785,11 +1785,23 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def deactivate(self, user):
         if self.is_active:
-            self.is_active = False
-            self.name = None
-            self.fields = None
-            self.modified_by = user
-            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
+            with transaction.atomic():
+
+                # prep our urns for deletion so our old path creates a new urn
+                for urn in self.urns.all():
+                    path = str(uuid.uuid4())
+                    urn.identity = f"{DELETED_SCHEME}:{path}"
+                    urn.path = path
+                    urn.scheme = DELETED_SCHEME
+                    urn.channel = None
+                    urn.save(update_fields=("identity", "path", "scheme", "channel"))
+
+                # now deactivate the contact itself
+                self.is_active = False
+                self.name = None
+                self.fields = None
+                self.modified_by = user
+                self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
 
     def release_async(self, user):
         """
@@ -1816,6 +1828,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # release our messages
             for msg in self.msgs.all():
                 msg.release()
+
+            # release any calls or ussd sessions
+            for session in self.sessions.all():
+                session.release()
 
             # any urns currently owned by us
             for urn in self.urns.all():

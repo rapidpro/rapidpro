@@ -5544,6 +5544,51 @@ class SimulationTest(FlowFileTest):
         self.assertEqual(1, len(replies))
         self.assertEqual("Good choice, I like Blue too! What is your favorite beer?", replies[0])
 
+    def test_release_action_logs(self):
+        flow = self.get_flow("group_split")
+
+        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
+        post_data = dict(has_refresh=True, version="1")
+        self.login(self.admin)
+
+        # start the simulation
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        post_data["new_message"] = "add Group A"
+        post_data["has_refresh"] = False
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        self.assertEqual(5, ActionLog.objects.all().count())
+
+        self.client.post(
+            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
+        )
+        self.assertEqual(1, ActionLog.objects.all().count())
+
+    def test_simulate_subflow(self):
+        self.get_flow("subflow")
+        flow = Flow.objects.get(name="Parent Flow")
+
+        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
+        post_data = dict(has_refresh=True, version="1")
+        self.login(self.admin)
+
+        # start the simulation
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        # send a response
+        post_data["new_message"] = "color"
+        post_data["has_refresh"] = False
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        # should have a parent and a child run
+        self.assertEqual(2, FlowRun.objects.all().count())
+
+        # start again
+        self.client.post(
+            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
+        )
+        self.assertEqual(1, FlowRun.objects.all().count())
+
     def test_simulation_legacy(self):
         flow = self.get_flow("pick_a_number")
 

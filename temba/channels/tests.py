@@ -1850,8 +1850,13 @@ class ChannelTest(TembaTest):
             0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
         )
 
-        # clear the alerts
-        Alert.objects.all().delete()
+        # make our events old so we can test trimming them
+        SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
+        SyncEvent.trim()
+
+        # should be cleared out
+        self.assertFalse(SyncEvent.objects.exists())
+        self.assertFalse(Alert.objects.exists())
 
         # the case the status is in unknown state
 
