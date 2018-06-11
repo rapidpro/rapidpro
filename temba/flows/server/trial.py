@@ -342,6 +342,10 @@ def reduce_events(events):
         new_event = copy_keys(event, {"type", "msg"})
         new_event["msg"] = copy_keys(event["msg"], {"text", "urn", "channel", "attachments"})
 
+        # legacy events are re-constructed from real messages which have their text stripped
+        if new_event["msg"]["text"]:
+            new_event["msg"]["text"] = new_event["msg"]["text"].strip()
+
         reduced.append(new_event)
     return reduced
 
