@@ -1,3 +1,9 @@
+v3.0.422
+----------
+ * Trim event fires older than a certain age
+ * More consistent name of date field on archive model
+ * Remove no longer needed functionality for runs that don't have child_context/parent_context set
+
 v3.0.421
 ----------
  * Degroup contacts on deactivate
