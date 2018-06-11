@@ -1,3 +1,7 @@
+v3.0.423
+----------
+ * trim event fires every 15 minutes
+
 v3.0.422
 ----------
  * Trim event fires older than a certain age
