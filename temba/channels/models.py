@@ -1845,7 +1845,7 @@ class ChannelLog(models.Model):
         return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
-        if not self.request:
+        if not self.request:  # pragma: no cover
             return "%s %s" % (self.method, self.url)
 
         try:

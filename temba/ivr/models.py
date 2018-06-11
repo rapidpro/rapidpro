@@ -149,7 +149,7 @@ class IVRCall(ChannelSession):
 
         """
         if not status:
-            raise ValueError("IVR Call status must be defined, got None")
+            raise ValueError(f"IVR Call status must be defined, got: '{status}'")
 
         previous_status = self.status
 
@@ -191,45 +191,48 @@ class IVRCall(ChannelSession):
             for run in runs:
                 run.update_expiration()
 
-    def derive_ivr_status_twiml(self, status: str, previous_status: str) -> str:
+    @staticmethod
+    def derive_ivr_status_twiml(status: str, previous_status: str) -> str:
         if status == "queued":
-            new_status = self.WIRED
+            new_status = IVRCall.WIRED
         elif status == "ringing":
-            new_status = self.RINGING
+            new_status = IVRCall.RINGING
         elif status == "no-answer":
-            new_status = self.NO_ANSWER
+            new_status = IVRCall.NO_ANSWER
         elif status == "in-progress":
-            new_status = self.IN_PROGRESS
+            new_status = IVRCall.IN_PROGRESS
         elif status == "completed":
-            new_status = self.COMPLETED
+            new_status = IVRCall.COMPLETED
         elif status == "busy":
-            new_status = self.BUSY
+            new_status = IVRCall.BUSY
         elif status == "failed":
-            new_status = self.FAILED
+            new_status = IVRCall.FAILED
         elif status == "canceled":
-            new_status = self.CANCELED
+            new_status = IVRCall.CANCELED
         else:
             raise ValueError(f"Unhandled IVR call status: {status}")
+
         return new_status
 
-    def derive_ivr_status_nexmo(self, status: str, previous_status: str) -> str:
+    @staticmethod
+    def derive_ivr_status_nexmo(status: str, previous_status: str) -> str:
         if status in ("ringing", "started"):
-            new_status = self.RINGING
+            new_status = IVRCall.RINGING
         elif status == "answered":
-            new_status = self.IN_PROGRESS
+            new_status = IVRCall.IN_PROGRESS
         elif status == "completed":
             # nexmo sends `completed` as a final state for all call exits, we only want to mark call as completed if
             # it was previously `in progress`
-            if previous_status == self.IN_PROGRESS:
-                new_status = self.COMPLETED
+            if previous_status == IVRCall.IN_PROGRESS:
+                new_status = IVRCall.COMPLETED
             else:
                 new_status = previous_status
         elif status == "failed":
-            new_status = self.FAILED
+            new_status = IVRCall.FAILED
         elif status in ("rejected", "busy"):
-            new_status = self.BUSY
+            new_status = IVRCall.BUSY
         elif status in ("unanswered", "timeout", "cancelled"):
-            new_status = self.NO_ANSWER
+            new_status = IVRCall.NO_ANSWER
         else:
             raise ValueError(f"Unhandled IVR call status: {status}")
 

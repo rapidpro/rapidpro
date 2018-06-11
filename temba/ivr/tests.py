@@ -423,9 +423,7 @@ class IVRTests(FlowFileTest):
         )
 
         # any request with has_event params return empty content response
-        response = self.client.post(
-            f"{callback_url}?has_event=1", content_type="application/json", data=json.dumps(dict(duration=0))
-        )
+        response = self.client.post(f"{callback_url}?has_event=1", content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get("description"), "Updated call status")
@@ -2089,12 +2087,6 @@ class IVRTests(FlowFileTest):
         # status is empty
         self.assertRaises(ValueError, call1.update_status, "", 0, "NX")
 
-        # unknown status for nexmo
-        self.assertRaises(ValueError, call1.update_status, "cilantro", 0, "NX")
-
-        # unknown status for twilio
-        self.assertRaises(ValueError, call1.update_status, "potato", 0, "T")
-
     def test_create_outgoing_implicit_values(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
@@ -2124,3 +2116,36 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.created_by, self.admin)
         self.assertEqual(call.modified_by, self.admin)
         self.assertEqual(call.status, IVRCall.PENDING)
+
+    def test_nexmo_derive_ivr_status(self):
+
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("ringing", None), IVRCall.RINGING)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("started", None), IVRCall.RINGING)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("answered", None), IVRCall.IN_PROGRESS)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("failed", None), IVRCall.FAILED)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("rejected", None), IVRCall.BUSY)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("busy", None), IVRCall.BUSY)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("unanswered", None), IVRCall.NO_ANSWER)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("timeout", None), IVRCall.NO_ANSWER)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("cancelled", None), IVRCall.NO_ANSWER)
+
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("completed", None), None)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("completed", IVRCall.RINGING), IVRCall.RINGING)
+        self.assertEqual(IVRCall.derive_ivr_status_nexmo("completed", IVRCall.IN_PROGRESS), IVRCall.COMPLETED)
+
+        self.assertRaises(ValueError, IVRCall.derive_ivr_status_nexmo, None, None)
+        self.assertRaises(ValueError, IVRCall.derive_ivr_status_nexmo, "cilantro", None)
+
+    def test_twiml_derive_ivr_status(self):
+
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("queued", None), IVRCall.WIRED)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("ringing", None), IVRCall.RINGING)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("no-answer", None), IVRCall.NO_ANSWER)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("in-progress", None), IVRCall.IN_PROGRESS)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("completed", None), IVRCall.COMPLETED)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("busy", None), IVRCall.BUSY)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("failed", None), IVRCall.FAILED)
+        self.assertEqual(IVRCall.derive_ivr_status_twiml("canceled", None), IVRCall.CANCELED)
+
+        self.assertRaises(ValueError, IVRCall.derive_ivr_status_twiml, None, None)
+        self.assertRaises(ValueError, IVRCall.derive_ivr_status_twiml, "potato", None)
