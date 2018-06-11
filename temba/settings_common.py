@@ -826,6 +826,7 @@ CELERYBEAT_SCHEDULE = {
     "clear-old-msg-external-ids": {"task": "clear_old_msg_external_ids", "schedule": crontab(hour=2, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
+    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": crontab(hour=0, minute=15)},
     "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
     "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
@@ -1056,6 +1057,12 @@ FLOWRUN_FIELDS_SIZE = 256
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# -----------------------------------------------------------------------------------
+# Installs can also choose how long to keep EventFires around. By default this is
+# 90 days which fits in nicely with the default archiving behavior.
+# -----------------------------------------------------------------------------------
+EVENT_FIRE_TRIM_DAYS = 90
 
 # -----------------------------------------------------------------------------------
 # Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
