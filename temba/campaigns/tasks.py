@@ -112,10 +112,9 @@ def update_event_fires_for_campaign(campaign_id):
 
 @nonoverlapping_task(track_started=True, name="trim_event_fires_task")
 def trim_event_fires_task():
-    # get all tasks older than our task timeout
     start = timezone.now()
     boundary = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS)
-    trim_ids = EventFire.objects.filter(fired__lt=boundary).values_list("id", flat=True).order_by("fired")[:10000]
+    trim_ids = EventFire.objects.filter(fired__lt=boundary).values_list("id", flat=True).order_by("fired")[:100000]
     for batch in chunk_list(trim_ids, 100):
         # use a bulk delete for performance reasons, nothing references EventFire
         EventFire.objects.filter(id__in=batch).delete()
