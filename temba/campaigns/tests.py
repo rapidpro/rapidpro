@@ -19,7 +19,6 @@ from .models import Campaign, CampaignEvent, EventFire
 
 
 class CampaignTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -142,6 +141,15 @@ class CampaignTest(TembaTest):
         EventFire.batch_fire(list(EventFire.objects.all()), self.reminder_flow)
         self.assertEqual(1, FlowStart.objects.all().count())
         self.assertEqual(0, EventFire.objects.filter(fired=None).count())
+
+        # fires should delete when we release a contact
+        self.assertEqual(1, EventFire.objects.filter(contact=self.farmer1).count())
+        self.farmer1.release(self.admin)
+        self.assertEqual(0, EventFire.objects.filter(contact=self.farmer1).count())
+
+        # but our campaign and group remains intact
+        Campaign.objects.get(id=campaign.id)
+        ContactGroup.user_groups.get(id=self.farmers.id)
 
     def test_message_event(self):
         # update the planting date for our contacts
@@ -537,7 +545,9 @@ class CampaignTest(TembaTest):
             "Planting Reminder and Reminder Flow are used inside a campaign. To archive them, first remove them from your campaigns.",
             response.get("Temba-Toast"),
         )
-        CampaignEvent.objects.filter(flow=self.reminder2_flow.pk).delete()
+
+        for e in CampaignEvent.objects.filter(flow=self.reminder2_flow.pk):
+            e.release()
 
         # archive the campaign
         post_data = dict(action="archive", objects=campaign.pk)
@@ -613,7 +623,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(event, fire.event)
         self.assertEqual(str(fire), "%s - %s" % (fire.event, fire.contact))
 
-        event = CampaignEvent.objects.get()
+        event = CampaignEvent.objects.filter(is_active=True).first()
 
         # get the detail page of the event
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))

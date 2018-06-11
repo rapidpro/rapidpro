@@ -67,7 +67,6 @@ from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
-
     def test_group_perms_wrapper(self):
         administrators = Group.objects.get(name="Administrators")
         editors = Group.objects.get(name="Editors")
@@ -87,7 +86,6 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class OrgTest(TembaTest):
-
     def test_get_org_users(self):
         org_users = self.org.get_org_users()
         self.assertTrue(self.user in org_users)
@@ -721,7 +719,6 @@ class OrgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
-
         def create_invite(group):
             return Invitation.objects.create(
                 org=self.org,
@@ -2284,7 +2281,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest):
-
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -2680,7 +2676,6 @@ class OrgCRUDLTest(TembaTest):
 
 
 class LanguageTest(TembaTest):
-
     def test_languages(self):
         url = reverse("orgs.org_languages")
 
@@ -2918,7 +2913,6 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
-
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
@@ -3005,7 +2999,7 @@ class BulkExportTest(TembaTest):
         exported = response.json()
 
         # try to import the flow
-        flow.delete()
+        flow.release()
         response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
@@ -3120,7 +3114,6 @@ class BulkExportTest(TembaTest):
         self.assertEqual(action_msg["eng"], "Hey")
 
     def test_export_import(self):
-
         def assert_object_counts():
             self.assertEqual(
                 8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type="F").count()
@@ -3297,11 +3290,11 @@ class BulkExportTest(TembaTest):
         self.assertContains(response, "Register Patient")
 
         # delete our flow, and reimport
-        confirm_appointment.delete()
+        confirm_appointment.release()
         self.org.import_app(exported, self.admin, site="https://app.rapidpro.io")
 
         # make sure we have the previously exported expiration
-        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
+        confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
         # now delete a flow
@@ -3319,7 +3312,6 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
-
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
         self.create_msg(contact=self.joe)
@@ -3458,7 +3450,6 @@ class CreditAlertTest(TembaTest):
 
 
 class EmailContextProcessorsTest(SmartminTest):
-
     def setUp(self):
         super().setUp()
         self.admin = self.create_user("Administrator")
@@ -3488,7 +3479,6 @@ class EmailContextProcessorsTest(SmartminTest):
 
 
 class StripeCreditsTest(TembaTest):
-
     @patch("stripe.Customer.create")
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
@@ -3594,7 +3584,6 @@ class StripeCreditsTest(TembaTest):
         self.org.save()
 
         class MockCard(object):
-
             def __init__(self):
                 self.id = "stripe-card-1"
 
@@ -3602,7 +3591,6 @@ class StripeCreditsTest(TembaTest):
                 pass
 
         class MockCards(object):
-
             def __init__(self):
                 self.throw = False
 
@@ -3616,7 +3604,6 @@ class StripeCreditsTest(TembaTest):
                     return MockCard()
 
         class MockCustomer(object):
-
             def __init__(self, id, email):
                 self.id = id
                 self.email = email
@@ -3674,7 +3661,6 @@ class StripeCreditsTest(TembaTest):
 
 
 class ParsingTest(TembaTest):
-
     def test_parse_location_path(self):
 
         self.country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)

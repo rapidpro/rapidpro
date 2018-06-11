@@ -30,7 +30,8 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, clear_flow_users
+from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, RuleSet, clear_flow_users
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org
@@ -133,7 +134,6 @@ class AddFlowServerTestsMeta(type):
 
 
 class ESMockWithScroll:
-
     def __init__(self, data=None):
         self.mock_es = patch("temba.utils.es.ES")
 
@@ -164,7 +164,6 @@ class ESMockWithScroll:
 
 
 class TembaTestMixin(object):
-
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
@@ -499,7 +498,6 @@ class TembaTestMixin(object):
 
 
 class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
-
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server
@@ -617,9 +615,38 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
         # clear any unused mock requests
         self.mock_server.mocked_requests = []
 
+    def release(self, objs, delete=False, user=None):
+        for obj in objs:
+            if user:
+                obj.release(user)
+            else:
+                obj.release()
+
+            if obj.id and delete:
+                obj.delete()
+
+    def releaseChannels(self, delete=False):
+        channels = Channel.objects.all()
+        self.release(channels)
+        if delete:
+            for channel in channels:
+                channel.counts.all().delete()
+                channel.delete()
+
+    def releaseIVRCalls(self, delete=False):
+        self.release(IVRCall.objects.all(), delete=delete)
+
+    def releaseMessages(self):
+        self.release(Msg.objects.all())
+
+    def releaseContacts(self, delete=False):
+        self.release(Contact.objects.all(), delete=delete, user=self.admin)
+
+    def releaseRuns(self, delete=False):
+        self.release(FlowRun.objects.all(), delete=delete)
+
 
 class FlowFileTest(TembaTest):
-
     def setUp(self):
         super().setUp()
         self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
@@ -723,7 +750,6 @@ class FlowFileTest(TembaTest):
 
 
 class MLStripper(HTMLParser):  # pragma: no cover
-
     def __init__(self):
         self.reset()
         self.fed = []
@@ -736,7 +762,6 @@ class MLStripper(HTMLParser):  # pragma: no cover
 
 
 class BrowserTest(LiveServerTestCase):  # pragma: no cover
-
     @classmethod
     def setUpClass(cls):
         cls.driver = WebDriver()
@@ -876,7 +901,6 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
 
 class MockResponse(object):
-
     def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
         self.text = force_text(text)
         self.content = force_bytes(text)

@@ -3,6 +3,7 @@ import copy
 import json
 import subprocess
 import time
+import uuid
 from datetime import date, datetime, timedelta
 
 import pytz
@@ -18,20 +19,23 @@ from django.core.urlresolvers import reverse
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
-from temba.flows.models import FlowRun
+from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
+from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.es import ES
@@ -64,7 +68,6 @@ from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
 class ContactCRUDLTest(_CRUDLTest):
-
     def setUp(self):
         from temba.contacts.views import ContactCRUDL
 
@@ -217,12 +220,15 @@ class ContactCRUDLTest(_CRUDLTest):
     def testDelete(self):
         object = self.getTestObject()
         self._do_test_view("delete", object, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.objects.get(pk=object.pk).is_active)  # check object is inactive
-        self.assertEqual(0, ContactURN.objects.filter(contact=object).count())  # check no attached URNs
+
+        # we should be deactivated
+        self.assertFalse(self.getCRUDL().model.objects.get(pk=object.pk).is_active)
+
+        # since we are eager, our other bits should be gone
+        self.assertEqual(0, ContactURN.objects.all().count())
 
 
 class ContactGroupTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -432,7 +438,8 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {test_contact})
 
     def test_system_group_counts(self):
-        Contact.objects.all().delete()  # start with none
+        # start with none
+        self.releaseContacts(delete=True)
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
@@ -570,7 +577,6 @@ class ContactGroupTest(TembaTest):
 
 
 class ElasticSearchLagTest(TembaTest):
-
     def test_lag(self):
         mock_es_data = [
             {
@@ -612,7 +618,6 @@ class ElasticSearchLagTest(TembaTest):
 
 
 class ContactGroupCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -790,7 +795,6 @@ class ContactGroupCRUDLTest(TembaTest):
 
 
 class ContactTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1037,6 +1041,104 @@ class ContactTest(TembaTest):
         self.assertEqual(out_msgs.count(), 2)
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @override_settings(SEND_CALLS=True)
+    def test_release(self):
+
+        # configure our org for ivr
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
+
+        Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
+
+        def send(message, contact):
+            msg = Msg.objects.create(
+                org=self.org,
+                direction=INCOMING,
+                contact=contact,
+                contact_urn=contact.get_urn(),
+                text=message,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+            )
+            Flow.find_and_handle(msg)
+
+        ivr_flow = self.get_flow("call_me_maybe")
+        msg_flow = self.get_flow("favorites")
+
+        # create a contact with a message
+        old_contact = self.create_contact("Jose", "+12065552000")
+        send("hola mundo", old_contact)
+        urn = old_contact.get_urn()
+        ivr_flow.start([], [old_contact])
+
+        # steal his urn into a new contact
+        contact = self.create_contact("Joe", "tweettweet")
+        urn.contact = contact
+        urn.save(update_fields=("contact",))
+        group = self.create_group("Test Group", contacts=[contact])
+
+        contact.fields = {"gender": "Male", "age": 40}
+        contact.save(update_fields=("fields",))
+
+        msg_flow.start([], [contact])
+        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", [contact])
+        broadcast.send()
+
+        send("red", contact)
+        send("primus", contact)
+
+        ivr_flow.start([], [contact])
+
+        self.assertEqual(1, group.contacts.all().count())
+        self.assertEqual(1, contact.sessions.all().count())
+        self.assertEqual(1, contact.addressed_broadcasts.all().count())
+        self.assertEqual(2, contact.urns.all().count())
+        self.assertEqual(2, contact.runs.all().count())
+        self.assertEqual(6, contact.msgs.all().count())
+        self.assertEqual(2, len(contact.fields))
+
+        # first try a deactivate and check our urns are anonymized
+        contact.deactivate(self.admin)
+        self.assertEqual(2, contact.urns.all().count())
+        for urn in contact.urns.all():
+            uuid.UUID(urn.path, version=4)
+            self.assertEqual(DELETED_SCHEME, urn.scheme)
+
+        # a new contact arrives with those urns
+        new_contact = self.create_contact("URN Thief", "+12065552000", "tweettweet")
+        self.assertEqual(2, new_contact.urns.all().count())
+
+        # now lets go for a full release
+        contact.release(self.admin)
+
+        contact.refresh_from_db()
+        self.assertEqual(0, group.contacts.all().count())
+        self.assertEqual(0, contact.sessions.all().count())
+        self.assertEqual(0, contact.addressed_broadcasts.all().count())
+        self.assertEqual(0, contact.urns.all().count())
+        self.assertEqual(0, contact.runs.all().count())
+        self.assertEqual(0, contact.msgs.all().count())
+
+        # contact who used to own our urn had theirs released too
+        self.assertEqual(0, old_contact.sessions.all().count())
+        self.assertEqual(0, old_contact.msgs.all().count())
+
+        self.assertIsNone(contact.fields)
+        self.assertIsNone(contact.name)
+        self.assertEqual(self.admin, contact.modified_by)
+
+        # nope, we aren't paranoid or anything
+        Org.objects.get(id=self.org.id)
+        Flow.objects.get(id=msg_flow.id)
+        Flow.objects.get(id=ivr_flow.id)
 
     def test_stop_contact_clear_triggers(self):
         flow = self.get_flow("favorites")
@@ -2964,7 +3066,7 @@ class ContactTest(TembaTest):
 
             bcast.purged = True
             bcast.save(update_fields=("purged",))
-            bcast.msgs.all().delete()
+            self.release(bcast.msgs.all(), delete=True)
 
             recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
             recipient.purged_status = "F"
@@ -4183,7 +4285,7 @@ class ContactTest(TembaTest):
         self.assertFalse(response.context["task"])
         self.assertEqual(response.context["group"], None)
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         records, _ = self.do_import(user, "sample_contacts_UPPER.XLS")
@@ -4194,7 +4296,7 @@ class ContactTest(TembaTest):
         self.assertEqual(group.name, "Sample Contacts Upper")
         self.assertEqual(3, group.contacts.count())
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         records, _ = self.do_import(user, "sample_contacts_with_filename_very_long_that_it_will_not_validate.xls")
@@ -4223,7 +4325,7 @@ class ContactTest(TembaTest):
             set(ContactGroup.user_groups.all().values_list("name", flat=True)),
         )
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
@@ -4259,7 +4361,7 @@ class ContactTest(TembaTest):
         self.assertEqual(list(eric.get_urns().values_list("path", flat=True)), ["+250788111111", "+250788382382"])
         self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
@@ -4313,7 +4415,7 @@ class ContactTest(TembaTest):
                 dict(records=4, errors=0, error_messages=[], creates=1, updates=3),
             )
 
-            Contact.objects.all().delete()
+            self.releaseContacts(delete=True)
             ContactGroup.user_groups.all().delete()
 
             self.assertContactImport(
@@ -4321,7 +4423,7 @@ class ContactTest(TembaTest):
                 dict(records=3, errors=0, error_messages=[], creates=3, updates=0),
             )
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         # import sample contact spreadsheet with valid headers
@@ -4372,7 +4474,7 @@ class ContactTest(TembaTest):
             dict(records=3, errors=0, error_messages=[], creates=3, updates=0),
         )
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         self.assertContactImport(
@@ -4389,7 +4491,7 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact.get_urns().values_list("path", flat=True)), ["+250788123123"])
         self.assertEqual(list(contact2.get_urns().values_list("path", flat=True)), ["+250788345345"])
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         # import a spreadsheet with phone, name and twitter columns
@@ -4416,7 +4518,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name="Kigali").count())
         self.assertEqual(1, Contact.objects.filter(name="Klab").count())
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         # some columns have either twitter or phone
@@ -4425,7 +4527,7 @@ class ContactTest(TembaTest):
             dict(records=3, errors=0, error_messages=[], creates=3, updates=0),
         )
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
@@ -4506,7 +4608,7 @@ class ContactTest(TembaTest):
             self.assertEqual(list(eric.get_urns().values_list("path", flat=True)), ["+250788111111"])
             self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
@@ -4587,7 +4689,7 @@ class ContactTest(TembaTest):
             self.assertEqual(list(eric.get_urns().values_list("path", flat=True)), ["+250788111111"])
             self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
@@ -4625,7 +4727,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertNoFormErrors(response)
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         records, _ = self.do_import(user, "sample_contacts.xlsx")
@@ -4640,7 +4742,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name="Nic Pottier").count())
         self.assertEqual(1, Contact.objects.filter(name="Jen Newcomer").count())
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         with patch("temba.contacts.models.Org.get_country_code") as mock_country_code:
@@ -4941,7 +5043,7 @@ class ContactTest(TembaTest):
             )
             Contact.import_csv(task, log=None)
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
         ContactGroup.user_groups.all().delete()
 
         # existing datetime field
@@ -5730,7 +5832,6 @@ class ContactTest(TembaTest):
 
 
 class ContactURNTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -5770,7 +5871,6 @@ class ContactURNTest(TembaTest):
 
 
 class ContactFieldTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -6629,7 +6729,6 @@ class ContactFieldTest(TembaTest):
 
 
 class URNTest(TembaTest):
-
     def test_line_urn(self):
         self.assertEqual("line:asdf", URN.from_line("asdf"))
 
@@ -6650,6 +6749,8 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
 
     def test_from_parts(self):
+
+        self.assertEqual(URN.from_parts("deleted", "12345"), "deleted:12345")
         self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")
         self.assertEqual(URN.from_parts("tel", "(917) 992-5253"), "tel:(917) 992-5253")
@@ -6672,6 +6773,7 @@ class URNTest(TembaTest):
         self.assertRaises(ValueError, URN.from_parts, "xxx", "12345")
 
     def test_to_parts(self):
+        self.assertEqual(URN.to_parts("deleted:12345"), ("deleted", "12345", None, None))
         self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", None, None))
         self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", None, None))
         self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None, None))
@@ -6760,7 +6862,6 @@ class URNTest(TembaTest):
 
 
 class PhoneNumberTest(TestCase):
-
     def test_is_phonenumber(self):
         # these should match as phone numbers
         self.assertEqual(is_phonenumber("+12345678901"), (True, "12345678901"))
@@ -6779,7 +6880,6 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
-
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")

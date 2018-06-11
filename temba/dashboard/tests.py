@@ -6,7 +6,6 @@ from temba.tests import TembaTest
 
 
 class DashboardTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

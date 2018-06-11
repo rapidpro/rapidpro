@@ -19,7 +19,6 @@ def get_haml_loader(loader):
     baseclass = loader.Loader
 
     class Loader(baseclass):
-
         def get_contents(self, origin):
             """
             Used by Django 1.9+

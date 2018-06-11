@@ -11,7 +11,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         channel_id = forms.CharField(
             label=_("Channel ID"), required=True, help_text=_("The Channel ID of the LINE channel for the Bot")

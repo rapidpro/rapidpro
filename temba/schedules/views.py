@@ -15,7 +15,6 @@ from .models import Schedule
 
 
 class BaseScheduleForm(object):
-
     def starts_never(self):
         return self.cleaned_data["start"] == "never"
 

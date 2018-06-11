@@ -37,7 +37,6 @@ for i in range(len(PRETTY_TIMEZONE_CHOICES)):
 
 
 class TimeZoneFormField(BaseTimeZoneFormField):
-
     def __init__(self, *args, **kwargs):
         kwargs["choices"] = PRETTY_TIMEZONE_CHOICES
 

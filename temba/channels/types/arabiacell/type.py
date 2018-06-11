@@ -11,6 +11,7 @@ class ArabiaCellType(ChannelType):
     """
     An ArabiaCell channel type (http://arabiacell.com)
     """
+
     code = "AC"
     name = "ArabiaCell"
     available_timezones = ["Asia/Amman"]

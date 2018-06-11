@@ -20,7 +20,6 @@ def encode_atom(atom):  # pragma: no cover
 
 
 class LoggingResource(Resource):  # pragma: no cover
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = []
@@ -62,19 +61,16 @@ class LoggingResource(Resource):  # pragma: no cover
 
 
 class LoggingCalls(LoggingResource, Calls):  # pragma: no cover
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 
 class LoggingMessages(LoggingResource, Messages):  # pragma: nocover
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 
 class TembaTwilioRestClient(TwilioRestClient):  # pragma: no cover
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

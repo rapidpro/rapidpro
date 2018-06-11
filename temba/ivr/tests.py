@@ -29,7 +29,6 @@ from .models import IVRCall
 
 
 class IVRTests(FlowFileTest):
-
     def setUp(self):
         super().setUp()
         settings.SEND_CALLS = True
@@ -96,8 +95,8 @@ class IVRTests(FlowFileTest):
         contact.set_preferred_channel(nexmo)
 
         # clear open calls and runs
-        IVRCall.objects.all().delete()
-        FlowRun.objects.all().delete()
+        self.releaseIVRCalls()
+        self.releaseRuns()
 
         # restart the flow
         flow.start([], [contact], restart_participants=True)
@@ -109,7 +108,6 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_twilio_failed_auth(self):
-
         def create(self, to=None, from_=None, url=None, status_callback=None):
             from twilio import TwilioRestException
 
@@ -972,6 +970,26 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
+    def test_ivr_simulation(self):
+
+        # import an ivr flow
+        flow = self.get_flow("call_me_maybe")
+        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
+        post_data = dict(has_refresh=True, version="1")
+
+        self.login(self.admin)
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        first_call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
+
+        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        second_call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
+
+        # it should have hung up and deleted our first call and created a new one
+        self.assertFalse(IVRCall.objects.filter(id=first_call.id).exists())
+        self.assertNotEqual(first_call.id, second_call.id)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_ivr_flow(self):
 
         # should be able to create an ivr flow
@@ -1053,8 +1071,8 @@ class IVRTests(FlowFileTest):
         self.assertEqual("Press one, two, or three. Thanks.", msgs[2].text)
 
         ActionLog.objects.all().delete()
-        IVRCall.objects.all().delete()
-        Msg.objects.all().delete()
+        self.releaseIVRCalls()
+        self.releaseMessages()
 
         # now pretend we are a normal caller
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
@@ -1166,7 +1184,7 @@ class IVRTests(FlowFileTest):
         test_status_update(call, "busy", IVRCall.BUSY, "NX")
         test_status_update(call, "rejected", IVRCall.BUSY, "NX")
 
-        IVRCall.objects.all().delete()
+        self.releaseIVRCalls(delete=True)
 
         # try sending callme trigger
         from temba.msgs.models import INCOMING

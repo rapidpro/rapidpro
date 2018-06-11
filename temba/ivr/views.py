@@ -14,7 +14,6 @@ from temba.utils.http import HttpEvent
 
 
 class CallHandler(View):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)

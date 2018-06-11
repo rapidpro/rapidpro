@@ -22,7 +22,6 @@ from .text import clean_string
 
 
 class BaseExportAssetStore(BaseAssetStore):
-
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
@@ -31,6 +30,7 @@ class BaseExportTask(TembaModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
+
     analytics_key = None
     asset_type = None
 

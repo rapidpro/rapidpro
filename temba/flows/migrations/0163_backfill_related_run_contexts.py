@@ -13,7 +13,6 @@ RESULT_CREATED_ON = "created_on"
 
 
 def build_context(run, snapshot_on):
-
     def result_wrapper(res):
         return {
             "__default__": res[RESULT_VALUE],

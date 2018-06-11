@@ -27,7 +27,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
-from django.db import connection as db_connection, models
+from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.html import escape
@@ -88,20 +88,17 @@ class FlowException(Exception):
 
 
 class FlowInvalidCycleException(FlowException):
-
     def __init__(self, node_uuids):
         self.node_uuids = node_uuids
 
 
 class FlowUserConflictException(FlowException):
-
     def __init__(self, other_user, last_saved_on):
         self.other_user = other_user
         self.last_saved_on = last_saved_on
 
 
 class FlowVersionConflictException(FlowException):
-
     def __init__(self, rejected_version):
         self.rejected_version = rejected_version
 
@@ -119,6 +116,7 @@ class FlowLock(Enum):
     """
     Locks that are flow specific
     """
+
     participation = 1
     definition = 3
 
@@ -127,6 +125,7 @@ class FlowPropsCache(Enum):
     """
     Properties of a flow that we cache
     """
+
     terminal_nodes = 1
     category_nodes = 2
 
@@ -135,6 +134,7 @@ class FlowSession(models.Model):
     """
     A contact's session with the flow engine
     """
+
     STATUS_WAITING = "W"
     STATUS_COMPLETED = "C"
     STATUS_INTERRUPTED = "I"
@@ -151,12 +151,15 @@ class FlowSession(models.Model):
 
     GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
 
-    org = models.ForeignKey(Org, help_text="The organization this session belongs to")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
 
-    contact = models.ForeignKey("contacts.Contact", help_text="The contact that this session is with")
+    contact = models.ForeignKey(
+        "contacts.Contact", on_delete=models.PROTECT, help_text="The contact that this session is with"
+    )
 
     connection = models.OneToOneField(
         "channels.ChannelSession",
+        on_delete=models.PROTECT,
         null=True,
         related_name="session",
         help_text=_("The channel connection used for flow sessions over IVR or USSD"),
@@ -232,6 +235,9 @@ class FlowSession(models.Model):
             runs.append(contact_runs[0])
 
         return runs
+
+    def release(self):
+        self.delete()
 
     def resume_by_input(self, msg_in):
         return self._resume(msg_in=msg_in)
@@ -433,7 +439,7 @@ class Flow(TembaModel):
         "FlowLabel", related_name="flows", verbose_name=_("Labels"), blank=True, help_text=_("Any labels on this flow")
     )
 
-    org = models.ForeignKey(Org, related_name="flows")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
 
     entry_uuid = models.CharField(null=True, max_length=36, unique=True)
 
@@ -460,7 +466,9 @@ class Flow(TembaModel):
 
     saved_on = models.DateTimeField(auto_now_add=True, help_text=_("When this item was saved"))
 
-    saved_by = models.ForeignKey(User, related_name="flow_saves", help_text=_("The user which last saved this flow"))
+    saved_by = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="flow_saves", help_text=_("The user which last saved this flow")
+    )
 
     base_language = models.CharField(
         max_length=4, null=True, blank=True, help_text=_("The primary language for editing this flow"), default="base"
@@ -1393,8 +1401,7 @@ class Flow(TembaModel):
 
     def deactivate_runs(self):
         """
-        Exits all flow runs, values and steps for a flow. For now, intentionally leave our values
-        and steps since those are not long for this world.
+        Exits all flow runs
         """
 
         # grab the ids of all our active runs
@@ -3066,16 +3073,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     EVENT_STEP_UUID = "step_uuid"
     EVENT_CREATED_ON = "created_on"
 
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    org = models.ForeignKey(Org, related_name="runs", db_index=False)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
 
-    flow = models.ForeignKey(Flow, related_name="runs")
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
 
-    contact = models.ForeignKey(Contact, related_name="runs")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
 
     session = models.ForeignKey(
         FlowSession,
+        on_delete=models.PROTECT,
         related_name="runs",
         null=True,
         help_text=_("The session that handled this flow run, only for voice flows"),
@@ -3083,6 +3096,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     connection = models.ForeignKey(
         "channels.ChannelSession",
+        on_delete=models.PROTECT,
         related_name="runs",
         null=True,
         blank=True,
@@ -3117,6 +3131,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     start = models.ForeignKey(
         "flows.FlowStart",
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="runs",
@@ -3124,11 +3139,15 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     submitted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, db_index=False, help_text="The user which submitted this flow run"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        db_index=False,
+        help_text="The user which submitted this flow run",
     )
 
     parent = models.ForeignKey(
-        "flows.FlowRun", null=True, help_text=_("The parent run that triggered us"), on_delete=models.SET_NULL
+        "flows.FlowRun", on_delete=models.PROTECT, null=True, help_text=_("The parent run that triggered us")
     )
 
     parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
@@ -3146,6 +3165,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     current_node_uuid = models.UUIDField(null=True, help_text=_("The current node location of this run in the flow"))
+
+    delete_reason = models.CharField(
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the run is being deleted")
+    )
 
     @classmethod
     def get_active_for_contact(cls, contact):
@@ -4096,11 +4119,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         msg.contact = self.contact
                     Flow.find_and_handle(msg, resume_after_timeout=True)
 
-    def release(self):
+    def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
         """
-        self.delete()
+        with transaction.atomic():
+            if delete_reason:
+                self.delete_reason = delete_reason
+                self.save(update_fields=["delete_reason"])
+
+            # clear any runs that reference us
+            FlowRun.objects.filter(parent=self).update(parent=None)
+
+            # and any recent runs
+            for recent in FlowPathRecentRun.objects.filter(run=self):
+                recent.release()
+
+            self.delete()
 
     def set_completed(self, completed_on=None):
         """
@@ -4360,7 +4395,7 @@ class RuleSet(models.Model):
 
     uuid = models.CharField(max_length=36, unique=True)
 
-    flow = models.ForeignKey(Flow, related_name="rule_sets", null=True)
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="rule_sets", null=True)
 
     label = models.CharField(max_length=64, null=True, blank=True, help_text=_("The label for this field"))
 
@@ -4690,7 +4725,7 @@ class RuleSet(models.Model):
 
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
-    flow = models.ForeignKey(Flow, related_name="action_sets")
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="action_sets")
 
     destination = models.CharField(max_length=36, null=True)
     destination_type = models.CharField(max_length=1, null=True)
@@ -4781,7 +4816,8 @@ class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions
     """
-    flow = models.ForeignKey(Flow, related_name="revisions")
+
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
 
@@ -4924,9 +4960,12 @@ class FlowCategoryCount(SquashableModel):
     """
     Maintains counts for categories across all possible results in a flow
     """
+
     SQUASH_OVER = ("flow_id", "node_uuid", "result_key", "result_name", "category_name")
 
-    flow = models.ForeignKey(Flow, related_name="category_counts", help_text="The flow the result belongs to")
+    flow = models.ForeignKey(
+        Flow, on_delete=models.PROTECT, related_name="category_counts", help_text="The flow the result belongs to"
+    )
     node_uuid = models.UUIDField(db_index=True)
     result_key = models.CharField(max_length=128, help_text="The sluggified key for the result")
     result_name = models.CharField(max_length=128, help_text="The result the category belongs to")
@@ -4966,9 +5005,12 @@ class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
     """
+
     SQUASH_OVER = ("flow_id", "from_uuid", "to_uuid", "period")
 
-    flow = models.ForeignKey(Flow, related_name="activity", help_text=_("The flow where the activity occurred"))
+    flow = models.ForeignKey(
+        Flow, on_delete=models.PROTECT, related_name="activity", help_text=_("The flow where the activity occurred")
+    )
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
@@ -5012,6 +5054,7 @@ class FlowPathRecentRun(models.Model):
     """
     Maintains recent runs for a flow path segment
     """
+
     PRUNE_TO = 5
     LAST_PRUNED_KEY = "last_recentrun_pruned"
 
@@ -5023,8 +5066,11 @@ class FlowPathRecentRun(models.Model):
     to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
     to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"))
 
-    run = models.ForeignKey(FlowRun, related_name="recent_runs")
+    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
     visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
+
+    def release(self):
+        self.delete()
 
     @classmethod
     def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
@@ -5106,9 +5152,10 @@ class FlowNodeCount(SquashableModel):
     """
     Maintains counts of unique contacts at each flow node.
     """
+
     SQUASH_OVER = ("node_uuid",)
 
-    flow = models.ForeignKey(Flow)
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT)
     node_uuid = models.UUIDField(db_index=True)
     count = models.IntegerField(default=0)
 
@@ -5137,9 +5184,10 @@ class FlowRunCount(SquashableModel):
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
     via triggers on the database.
     """
+
     SQUASH_OVER = ("flow_id", "exit_type")
 
-    flow = models.ForeignKey(Flow, related_name="counts")
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts")
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
 
@@ -5198,6 +5246,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
     Container for managing our export requests
     """
+
     analytics_key = "flowresult_export"
     email_subject = "Your results export is ready"
     email_template = "flows/email/flow_export_download"
@@ -5531,12 +5580,13 @@ class ActionLog(models.Model):
     """
     Log of an event that occurred whilst executing a flow in the simulator
     """
+
     LEVEL_INFO = "I"
     LEVEL_WARN = "W"
     LEVEL_ERROR = "E"
     LEVEL_CHOICES = ((LEVEL_INFO, _("Info")), (LEVEL_WARN, _("Warning")), (LEVEL_ERROR, _("Error")))
 
-    run = models.ForeignKey(FlowRun, related_name="logs")
+    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="logs")
 
     text = models.TextField(help_text=_("Log event text"))
 
@@ -5603,7 +5653,9 @@ class FlowStart(SmartModel):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    flow = models.ForeignKey(Flow, related_name="starts", help_text=_("The flow that is being started"))
+    flow = models.ForeignKey(
+        Flow, on_delete=models.PROTECT, related_name="starts", help_text=_("The flow that is being started")
+    )
 
     groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
 
@@ -5700,9 +5752,10 @@ class FlowStartCount(SquashableModel):
     """
     Maintains count of how many runs a FlowStart has created.
     """
+
     SQUASH_OVER = ("start_id",)
 
-    start = models.ForeignKey(FlowStart, related_name="counts", db_index=True)
+    start = models.ForeignKey(FlowStart, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -5734,7 +5787,7 @@ class FlowStartCount(SquashableModel):
 
 
 class FlowLabel(models.Model):
-    org = models.ForeignKey(Org)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
     uuid = models.CharField(
         max_length=36,
@@ -5745,7 +5798,9 @@ class FlowLabel(models.Model):
         help_text=_("The unique identifier for this label"),
     )
     name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this flow label"))
-    parent = models.ForeignKey("FlowLabel", verbose_name=_("Parent"), null=True, related_name="children")
+    parent = models.ForeignKey(
+        "FlowLabel", on_delete=models.PROTECT, verbose_name=_("Parent"), null=True, related_name="children"
+    )
 
     def get_flows_count(self):
         """
@@ -5846,6 +5901,7 @@ class Action(object):
     """
     Base class for actions that can be added to an action set and executed during a flow run
     """
+
     TYPE = "type"
     UUID = "uuid"
 
@@ -5898,6 +5954,7 @@ class EmailAction(Action):
     """
     Sends an email to someone
     """
+
     TYPE = "email"
     EMAILS = "emails"
     SUBJECT = "subject"
@@ -5968,6 +6025,7 @@ class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
     """
+
     TYPE = "api"
     ACTION = "action"
 
@@ -6017,6 +6075,7 @@ class AddToGroupAction(Action):
     """
     Adds the user to a group
     """
+
     TYPE = "add_group"
     GROUP = "group"
     GROUPS = "groups"
@@ -6126,6 +6185,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     """
     Removes the user from a group
     """
+
     TYPE = "del_group"
 
     def get_type(self):
@@ -6165,6 +6225,7 @@ class AddLabelAction(Action):
     """
     Add a label to the incoming message
     """
+
     TYPE = "add_label"
     LABELS = "labels"
 
@@ -6242,6 +6303,7 @@ class SayAction(Action):
     """
     Voice action for reading some text to a user
     """
+
     TYPE = "say"
     MESSAGE = "msg"
     RECORDING = "recording"
@@ -6294,6 +6356,7 @@ class PlayAction(Action):
     """
     Voice action for reading some text to a user
     """
+
     TYPE = "play"
     URL = "url"
 
@@ -6328,6 +6391,7 @@ class ReplyAction(Action):
     """
     Simple action for sending back a message
     """
+
     TYPE = "reply"
     MESSAGE = "msg"
     MSG_TYPE = None
@@ -6455,6 +6519,7 @@ class EndUssdAction(ReplyAction):
     """
     Reply action that ends a USSD session gracefully with a message
     """
+
     TYPE = "end_ussd"
     MSG_TYPE = MSG_TYPE_USSD
 
@@ -6465,6 +6530,7 @@ class UssdAction(ReplyAction):
     Created from a USSD ruleset
     It builds localised text with localised USSD menu support
     """
+
     TYPE = "ussd"
     MESSAGE = "ussd_message"
     TYPE_WAIT_USSD_MENU = "wait_menu"
@@ -6546,6 +6612,7 @@ class VariableContactAction(Action):
     Base action that resolves variables into contacts. Used for actions that take
     SendAction, TriggerAction, etc
     """
+
     CONTACTS = "contacts"
     GROUPS = "groups"
     VARIABLES = "variables"
@@ -6667,6 +6734,7 @@ class TriggerFlowAction(VariableContactAction):
     """
     Action that starts a set of contacts down another flow
     """
+
     TYPE = "trigger-flow"
 
     def __init__(self, uuid, flow, groups, contacts, variables):
@@ -6751,6 +6819,7 @@ class SetLanguageAction(Action):
     """
     Action that sets the language for a contact
     """
+
     TYPE = "lang"
     LANG = "lang"
     NAME = "name"
@@ -6793,6 +6862,7 @@ class StartFlowAction(Action):
     """
     Action that starts the contact into another flow
     """
+
     TYPE = "flow"
     FLOW = "flow"
     NAME = "name"
@@ -6860,6 +6930,7 @@ class SaveToContactAction(Action):
     """
     Action to save a variable substitution to a field on a contact
     """
+
     TYPE = "save"
     FIELD = "field"
     LABEL = "label"
@@ -7001,6 +7072,7 @@ class SetChannelAction(Action):
     Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
     the Channel being set then this is a no-op.
     """
+
     TYPE = "channel"
     CHANNEL = "channel"
     NAME = "name"
@@ -7052,6 +7124,7 @@ class SendAction(VariableContactAction):
     """
     Action which sends a message to a specified set of contacts and groups.
     """
+
     TYPE = "send"
     MESSAGE = "msg"
     MEDIA = "media"
@@ -7143,7 +7216,6 @@ class SendAction(VariableContactAction):
 
 
 class Rule(object):
-
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
@@ -7296,6 +7368,7 @@ class WebhookStatusTest(Test):
     """
     {op: 'webhook', status: 'success' }
     """
+
     TYPE = "webhook_status"
     STATUS = "status"
 
@@ -7328,6 +7401,7 @@ class AirtimeStatusTest(Test):
     """
     {op: 'airtime_status'}
     """
+
     TYPE = "airtime_status"
     EXIT = "exit_status"
 
@@ -7357,6 +7431,7 @@ class InGroupTest(Test):
     """
     { op: "in_group" }
     """
+
     TYPE = "in_group"
     NAME = "name"
     UUID = "uuid"
@@ -7386,6 +7461,7 @@ class SubflowTest(Test):
     """
     { op: "subflow" }
     """
+
     TYPE = "subflow"
     EXIT = "exit_type"
 
@@ -7417,6 +7493,7 @@ class TimeoutTest(Test):
     """
     { op: "timeout", minutes: 60 }
     """
+
     TYPE = "timeout"
     MINUTES = "minutes"
 
@@ -7442,6 +7519,7 @@ class TrueTest(Test):
     """
     { op: "true" }
     """
+
     TYPE = "true"
 
     def __init__(self):
@@ -7462,6 +7540,7 @@ class FalseTest(Test):
     """
     { op: "false" }
     """
+
     TYPE = "false"
 
     def __init__(self):
@@ -7482,6 +7561,7 @@ class AndTest(Test):
     """
     { op: "and",  "tests": [ ... ] }
     """
+
     TESTS = "tests"
     TYPE = "and"
 
@@ -7512,6 +7592,7 @@ class OrTest(Test):
     """
     { op: "or",  "tests": [ ... ] }
     """
+
     TESTS = "tests"
     TYPE = "or"
 
@@ -7561,6 +7642,7 @@ class ContainsTest(Test):
     """
     { op: "contains", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains"
 
@@ -7622,6 +7704,7 @@ class HasEmailTest(Test):
     """
     { op: "has_email" }
     """
+
     TYPE = "has_email"
 
     def __init__(self):
@@ -7649,6 +7732,7 @@ class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_any"
 
@@ -7691,6 +7775,7 @@ class ContainsOnlyPhraseTest(ContainsTest):
     """
     { op: "contains_only_phrase", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_only_phrase"
 
@@ -7720,6 +7805,7 @@ class ContainsPhraseTest(ContainsTest):
     """
     { op: "contains_phrase", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "contains_phrase"
 
@@ -7765,6 +7851,7 @@ class StartsWithTest(Test):
     """
     { op: "starts", "test": "red" }
     """
+
     TEST = "test"
     TYPE = "starts"
 
@@ -7905,6 +7992,7 @@ class DateTest(Test):
     """
     Base class for those tests that check relative dates
     """
+
     TEST = None
     TYPE = "date"
 
@@ -7971,6 +8059,7 @@ class NumericTest(Test):
     """
     Base class for those tests that do numeric tests.
     """
+
     TEST = "test"
     TYPE = ""
 
@@ -8012,6 +8101,7 @@ class BetweenTest(NumericTest):
     """
     Test whether we are between two numbers (inclusive)
     """
+
     MIN = "min"
     MAX = "max"
     TYPE = "between"
@@ -8044,6 +8134,7 @@ class NumberTest(NumericTest):
     """
     Tests that there is any number in the string.
     """
+
     TYPE = "number"
 
     def __init__(self):
@@ -8064,6 +8155,7 @@ class SimpleNumericTest(NumericTest):
     """
     Base class for those tests that do a numeric test with a single value
     """
+
     TEST = "test"
     TYPE = ""
 
@@ -8139,6 +8231,7 @@ class PhoneTest(Test):
     """
     Test for whether a response contains a phone number
     """
+
     TYPE = "phone"
 
     def __init__(self):
@@ -8176,6 +8269,7 @@ class RegexTest(Test):  # pragma: needs cover
     """
     Test for whether a response matches a regular expression
     """
+
     TEST = "test"
     TYPE = "regex"
 
@@ -8224,6 +8318,7 @@ class InterruptTest(Test):
     """
     Test if it's an interrupt status message
     """
+
     TYPE = "interrupted_status"
 
     def __init__(self):

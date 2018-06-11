@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class LineTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

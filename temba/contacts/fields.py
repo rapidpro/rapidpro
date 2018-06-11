@@ -8,7 +8,6 @@ from .models import URN, Contact, ContactGroup, ContactURN
 
 
 class OmniboxWidget(widgets.TextInput):
-
     @classmethod
     def get_objects_spec(cls, spec, user):
         org = user.get_org()

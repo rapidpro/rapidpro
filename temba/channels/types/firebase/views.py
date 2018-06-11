@@ -10,7 +10,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         title = forms.CharField(label=_("Notification Title"))
         key = forms.CharField(

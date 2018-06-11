@@ -147,6 +147,7 @@ class OrgLock(Enum):
     """
     Org-level lock types
     """
+
     contacts = 1
     channels = 2
     credits = 3
@@ -157,6 +158,7 @@ class OrgCache(Enum):
     """
     Org-level cache types
     """
+
     display = 1
     credits = 2
 
@@ -170,6 +172,7 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
         verbose_name=_("Plan"),
@@ -243,7 +246,7 @@ class Org(SmartModel):
         "locations.AdminBoundary",
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         help_text="The country this organization should map results for.",
     )
 
@@ -277,7 +280,7 @@ class Org(SmartModel):
         blank=True,
         related_name="orgs",
         help_text=_("The primary language will be used for contacts with no language preference."),
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
     )
 
     brand = models.CharField(
@@ -291,7 +294,13 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    parent = models.ForeignKey("orgs.Org", null=True, blank=True, help_text=_("The parent org that manages this org"))
+    parent = models.ForeignKey(
+        "orgs.Org",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text=_("The parent org that manages this org"),
+    )
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -2234,11 +2243,12 @@ class Language(SmartModel):
     and it is not really restricted to real-world languages at this level. Instead we restrict the
     language selection options to real-world languages.
     """
+
     name = models.CharField(max_length=128)
 
     iso_code = models.CharField(max_length=4)
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="languages")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="languages")
 
     @classmethod
     def create(cls, org, user, name, iso_code):
@@ -2279,8 +2289,10 @@ class Invitation(SmartModel):
     """
     An Invitation to an e-mail address to join an Org with specific roles.
     """
+
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="invitations",
         help_text=_("The organization to which the account is invited to view"),
@@ -2347,7 +2359,8 @@ class UserSettings(models.Model):
     """
     User specific configuration
     """
-    user = models.ForeignKey(User, related_name="settings")
+
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(
         max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
     )
@@ -2372,7 +2385,10 @@ class TopUp(SmartModel):
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
     credits that can be consumed by messages.
     """
-    org = models.ForeignKey(Org, related_name="topups", help_text="The organization that was toppped up")
+
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, related_name="topups", help_text="The organization that was toppped up"
+    )
     price = models.IntegerField(
         null=True,
         blank=True,
@@ -2530,18 +2546,25 @@ class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
+
     TYPE_ALLOCATION = "A"
 
     DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"),)
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
-    topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
+    topup = models.ForeignKey(
+        TopUp,
+        on_delete=models.PROTECT,
+        related_name="debits",
+        help_text=_("The topup these credits are applied against"),
+    )
 
     amount = models.IntegerField(help_text=_("How many credits were debited"))
 
     beneficiary = models.ForeignKey(
         TopUp,
+        on_delete=models.PROTECT,
         null=True,
         related_name="allocations",
         help_text=_("Optional topup that was allocated with these credits"),
@@ -2551,6 +2574,7 @@ class Debit(models.Model):
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         null=True,
         related_name="debits_created",
         help_text="The user which originally created this item",
@@ -2562,9 +2586,12 @@ class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
+
     SQUASH_OVER = ("topup_id",)
 
-    topup = models.ForeignKey(TopUp, help_text=_("The topup these credits are being used against"))
+    topup = models.ForeignKey(
+        TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
+    )
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
 
     @classmethod
@@ -2593,7 +2620,7 @@ class CreditAlert(SmartModel):
         (ORG_CREDIT_EXPIRING, _("Credits expiring soon")),
     )
 
-    org = models.ForeignKey(Org, help_text="The organization this alert was triggered for")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this alert was triggered for")
     alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES, help_text="The type of this alert")
 
     @classmethod

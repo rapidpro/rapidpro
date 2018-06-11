@@ -6,7 +6,6 @@ from .models import Policy
 
 
 class PolicyViewTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

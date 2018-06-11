@@ -122,7 +122,6 @@ class TembaModelField(serializers.RelatedField):
     ignore_case_for_fields = ()
 
     class LimitedSizeList(serializers.ManyRelatedField):
-
         def run_validation(self, data=serializers.empty):
             validate_size(data, DEFAULT_MAX_LIST_ITEMS)
 
