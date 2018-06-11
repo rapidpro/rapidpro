@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 ADD_INDEX = """
-CREATE INDEX CONCURRENTLY campaigns_eventfire_fired_not_null_idx on campaigns_eventfire(fired) WHERE fired IS NOT NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS campaigns_eventfire_fired_not_null_idx on campaigns_eventfire(fired) WHERE fired IS NOT NULL;
 """
 
 
