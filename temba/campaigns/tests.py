@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytz
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -16,6 +17,7 @@ from temba.tests import ESMockWithScroll, TembaTest
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
+from .tasks import trim_event_fires_task
 
 
 class CampaignTest(TembaTest):
@@ -110,6 +112,29 @@ class CampaignTest(TembaTest):
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
         self.assertEqual(flow.version_number, get_current_export_version())
+
+    def test_trim_event_fires(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        # create a reminder for our first planting event
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+
+        # manually create two event fires
+        EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
+        e2 = EventFire.objects.create(
+            event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now()
+        )
+
+        # trim our events
+        trim_event_fires_task()
+
+        # should now have only one event, e2
+        e = EventFire.objects.get()
+        self.assertEqual(e.id, e2.id)
 
     def test_events_batch_fire(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
