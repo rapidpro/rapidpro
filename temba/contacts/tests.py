@@ -1044,7 +1044,20 @@ class ContactTest(TembaTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @override_settings(SEND_CALLS=True)
     def test_release(self):
+
+        # configure our org for ivr
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
+
+        Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
+
         def send(message, contact):
             msg = Msg.objects.create(
                 org=self.org,
@@ -1057,45 +1070,34 @@ class ContactTest(TembaTest):
             )
             Flow.find_and_handle(msg)
 
-        flow = self.get_flow("favorites")
+        ivr_flow = self.get_flow("call_me_maybe")
+        msg_flow = self.get_flow("favorites")
 
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
         send("hola mundo", old_contact)
         urn = old_contact.get_urn()
+        ivr_flow.start([], [old_contact])
 
         # steal his urn into a new contact
         contact = self.create_contact("Joe", "tweettweet")
         urn.contact = contact
         urn.save(update_fields=("contact",))
+        group = self.create_group("Test Group", contacts=[contact])
 
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",))
 
-        flow.start([], [contact])
+        msg_flow.start([], [contact])
         broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", [contact])
         broadcast.send()
 
         send("red", contact)
         send("primus", contact)
 
-        with override_settings(SEND_CALLS=True):
-            # simulate an ivr call to test session release
-            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
-            self.org.save()
+        ivr_flow.start([], [contact])
 
-            # twiml api config
-            config = {
-                Channel.CONFIG_SEND_URL: "https://api.twilio.com",
-                Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
-                Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
-            }
-
-            Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
-
-            flow = self.get_flow("call_me_maybe")
-            flow.start([], [contact])
-
+        self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.sessions.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
@@ -1118,18 +1120,25 @@ class ContactTest(TembaTest):
         contact.release(self.admin)
 
         contact.refresh_from_db()
+        self.assertEqual(0, group.contacts.all().count())
         self.assertEqual(0, contact.sessions.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())
         self.assertEqual(0, contact.msgs.all().count())
+
+        # contact who used to own our urn had theirs released too
+        self.assertEqual(0, old_contact.sessions.all().count())
+        self.assertEqual(0, old_contact.msgs.all().count())
+
         self.assertIsNone(contact.fields)
         self.assertIsNone(contact.name)
         self.assertEqual(self.admin, contact.modified_by)
 
         # nope, we aren't paranoid or anything
         Org.objects.get(id=self.org.id)
-        Flow.objects.get(id=flow.id)
+        Flow.objects.get(id=msg_flow.id)
+        Flow.objects.get(id=ivr_flow.id)
 
     def test_stop_contact_clear_triggers(self):
         flow = self.get_flow("favorites")

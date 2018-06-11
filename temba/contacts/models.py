@@ -1796,6 +1796,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     urn.channel = None
                     urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
+                # no group for you!
+                self.clear_all_groups(user)
+
                 # now deactivate the contact itself
                 self.is_active = False
                 self.name = None
@@ -1822,9 +1825,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # make sure we've been deactivated
             self.deactivate(user)
 
-            # no group for you!
-            self.clear_all_groups(user)
-
             # release our messages
             for msg in self.msgs.all():
                 msg.release()
@@ -1841,6 +1841,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # on a different contact
                 for msg in urn.msgs.all():
                     msg.release()
+
+                # same thing goes for sessions
+                for session in urn.channelsession_set.all():
+                    session.release()
 
                 urn.release()
 
