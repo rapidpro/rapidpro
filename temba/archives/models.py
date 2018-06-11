@@ -54,7 +54,7 @@ class Archive(models.Model):
         help_text=_("The archive we were rolled up into, if any"),
     )
 
-    deletion_date = models.DateTimeField(null=True, help_text="When this archive's records where deleted (if any)")
+    deleted_on = models.DateTimeField(null=True, help_text="When this archive's records where deleted (if any)")
 
     def size_display(self):
         return sizeof_fmt(self.size)
