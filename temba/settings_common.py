@@ -826,7 +826,7 @@ CELERYBEAT_SCHEDULE = {
     "clear-old-msg-external-ids": {"task": "clear_old_msg_external_ids", "schedule": crontab(hour=2, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": crontab(hour=0, minute=15)},
+    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
     "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
     "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
