@@ -1427,7 +1427,7 @@ class FlowCRUDL(SmartCRUDL):
                 for session in USSDSession.objects.filter(contact=test_contact):
                     session.release()
 
-                for run in FlowRun.objects.filter(contact=test_contact):
+                for run in runs:
                     run.release()
 
                 # reset the name for our test contact too
