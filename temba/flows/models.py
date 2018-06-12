@@ -30,7 +30,6 @@ from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
-from django.utils.functional import cached_property
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
@@ -1206,6 +1205,11 @@ class Flow(TembaModel):
                         else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
+                else:
+                    child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
+                    run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+                    run.save(update_fields=("child_context",))
+
             # find a matching rule
             result_rule, result_value, result_input = ruleset.find_matching_rule(
                 run, msg_in, resume_after_timeout=resume_after_timeout
@@ -1704,25 +1708,10 @@ class Flow(TembaModel):
                 else:
                     context["parent"]["contact"] = contact_context
 
-            # TODO remove when all runs have parent_context backfilled
-            elif run.parent:  # pragma: no cover
-                run.parent.flow.org = self.org
-                if run.parent.contact_id == run.contact_id:
-                    run.parent.contact = run.contact
-
-                run.parent.org = self.org
-                context["parent"] = run.parent.build_expressions_context()
-
             # see if we spawned any children and add them too
             if run.child_context is not None:
                 context["child"] = run.child_context.copy()
                 context["child"]["contact"] = contact_context
-
-            # TODO remove when all runs have child_context backfilled
-            elif run.cached_child:  # pragma: no cover
-                run.cached_child.org = self.org
-                run.cached_child.contact = run.contact
-                context["child"] = run.cached_child.build_expressions_context()
 
         if contact:
             context["contact"] = contact_context
@@ -3181,19 +3170,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the run is being deleted")
     )
 
-    @cached_property
-    def cached_child(self):
-        child = FlowRun.objects.filter(parent=self).order_by("-created_on").select_related("flow").first()
-        if child:
-            child.org = self.org
-            child.flow.org = self.org
-            child.contact = self.contact
-        return child
-
-    def clear_cached_child(self):
-        if "cached_child" in self.__dict__:
-            del self.__dict__["cached_child"]
-
     @classmethod
     def get_active_for_contact(cls, contact):
         runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
@@ -3755,9 +3731,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if created_on:
             args["created_on"] = created_on
-
-        if parent:
-            parent.clear_cached_child()
 
         if db_insert:
             run = FlowRun.objects.create(**args)
