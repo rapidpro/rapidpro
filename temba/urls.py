@@ -69,9 +69,9 @@ def track_user(self):  # pragma: no cover
     if not settings.IS_PROD:
         return False
 
-    # always track them if they haven't logged in
+    # nothing to report if they haven't logged in
     if not self.is_authenticated() or self.is_anonymous():
-        return True
+        return False
 
     return True
 
