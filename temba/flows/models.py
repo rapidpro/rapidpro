@@ -1070,7 +1070,9 @@ class Flow(TembaModel):
 
                         end_message.connection.mark_ending()
                         msgs.append(end_message)
-                        ActionLog.create(run, _("USSD Session was marked to end"))
+
+                        if run.contact.is_test:
+                            ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # USSD ruleset has extra functionality to send out messages.
                 elif destination.is_ussd():
@@ -1093,7 +1095,9 @@ class Flow(TembaModel):
                 if Flow.should_close_connection(run, destination, result.get("destination")):
                     for msg in result["msgs"]:
                         msg.connection.mark_ending()
-                        ActionLog.create(run, _("USSD Session was marked to end"))
+
+                        if run.contact.is_test:
+                            ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
                 msgs += result.get("msgs", [])
@@ -5596,6 +5600,11 @@ class ActionLog(models.Model):
 
     @classmethod
     def create(cls, run, text, level=LEVEL_INFO, safe=False, created_on=None):
+
+        # ActionLogs should only ever be created in simulation
+        if not run.contact.is_test:
+            return None
+
         if not safe:
             text = escape(text)
 
@@ -6059,7 +6068,7 @@ class WebhookAction(Action):
 
         (value, errors) = Msg.evaluate_template(self.webhook, context, org=run.flow.org, url_encode=True)
 
-        if errors:
+        if errors and run.contact.is_test:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
         headers = {}
@@ -6145,10 +6154,10 @@ class AddToGroupAction(Action):
 
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
-                        if not group:
+                        if not group and run.contact.is_test:
                             ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                    else:  # pragma: needs cover
+                    elif run.contact.is_test:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ", ".join(errors))
 
                 if group:
@@ -6283,12 +6292,13 @@ class AddLabelAction(Action):
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                    if not label:
+                    if not label and run.contact.is_test:
                         ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
 
                 else:  # pragma: needs cover
                     label = None
-                    ActionLog.error(run, _("Label name could not be evaluated: %s") % ", ".join(errors))
+                    if run.contact.is_test:
+                        ActionLog.error(run, _("Label name could not be evaluated: %s") % ", ".join(errors))
 
             if label and msg and msg.pk:
                 if run.contact.is_test:  # pragma: needs cover
@@ -6810,6 +6820,9 @@ class TriggerFlowAction(VariableContactAction):
             return []
 
     def logger(self, run, flow, contact_count):  # pragma: needs cover
+        if not run.contact.is_test:
+            return None
+
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
         log = ActionLog.create(run, log_txt)
         return log
@@ -7208,6 +7221,9 @@ class SendAction(VariableContactAction):
             return []
 
     def logger(self, run, text, contact_count):
+        if not run.contact.is_test:
+            return None
+
         log_txt = _n(
             "Sending '%(msg)s' to %(count)d contact", "Sending '%(msg)s' to %(count)d contacts", contact_count
         ) % dict(msg=text, count=contact_count)
