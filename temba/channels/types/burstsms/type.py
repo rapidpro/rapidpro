@@ -46,7 +46,7 @@ class BurstSMSType(ChannelType):
 
     configuration_blurb = _(
         """
-        To finish connecting your channel, you need to set your callback URL below for your shortcode.
+        To finish connecting your channel, you need to set your callback URLs below for your number.
         """
     )
 
