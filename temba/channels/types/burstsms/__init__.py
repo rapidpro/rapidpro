@@ -1,2 +1,2 @@
 
-from .type import BurstSMS  # noqa
+from .type import BurstSMSType  # noqa
