@@ -59,6 +59,6 @@ class BurstSMSType(ChannelType):
         dict(
             label=_("DLR URL"),
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
-            description=_("This URL should be called by BurstSMS when the status of an outgoint message is updated"),
+            description=_("This URL should be called by BurstSMS when the status of an outgoing message is updated"),
         ),
     )
