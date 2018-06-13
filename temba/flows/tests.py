@@ -4814,15 +4814,14 @@ class ActionTest(TembaTest):
 
         self.execute_action(action, run, msg)
 
-        # should do nothing
+        # should do nothing and not log an error
         self.assertEqual(dynamic_group.contacts.count(), 0)
+        self.assertEqual(ActionLog.objects.filter(level="E").count(), 0)
 
         # tho if contact is a test contact, log as error
         self.execute_action(action, test_run, test_msg)
-
         self.assertEqual(dynamic_group.contacts.count(), 0)
-
-        self.assertEqual(ActionLog.objects.filter(level="E").count(), 2)
+        self.assertEqual(ActionLog.objects.filter(level="E").count(), 1)
 
         group1 = self.create_group("Flow Group 1", [])
         group2 = self.create_group("Flow Group 2", [])
