@@ -5602,20 +5602,21 @@ class ActionLog(models.Model):
     def create(cls, run, text, level=LEVEL_INFO, safe=False, created_on=None):
 
         # ActionLogs should only ever be created in simulation
-        if run.contact.is_test:
+        if not run.contact.is_test:  # pragma: no cover
+            return None
 
-            if not safe:
-                text = escape(text)
+        if not safe:
+            text = escape(text)
 
-            text = text.replace("\n", "<br/>")
+        text = text.replace("\n", "<br/>")
 
-            if not created_on:
-                created_on = timezone.now()
+        if not created_on:
+            created_on = timezone.now()
 
-            try:
-                return ActionLog.objects.create(run=run, text=text, level=level, created_on=created_on)
-            except Exception:  # pragma: no cover
-                return None  # it's possible our test run can be deleted out from under us
+        try:
+            return ActionLog.objects.create(run=run, text=text, level=level, created_on=created_on)
+        except Exception:  # pragma: no cover
+            return None  # it's possible our test run can be deleted out from under us
 
     @classmethod
     def info(cls, run, text, safe=False):
