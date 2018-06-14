@@ -1,3 +1,7 @@
+v3.0.425
+----------
+ * Enable burst sms type
+
 v3.0.424
 ----------
  * add burst sms channel type (Australia and New Zealand)
