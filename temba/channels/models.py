@@ -91,6 +91,7 @@ class ChannelType(metaclass=ABCMeta):
 
     claim_blurb = None
     claim_view = None
+    claim_view_kwargs = None
 
     configuration_blurb = None
     configuration_urls = None
@@ -158,7 +159,9 @@ class ChannelType(metaclass=ABCMeta):
         """
         Gets the URL/view configuration for this channel types's claim page
         """
-        return url(r"^claim$", self.claim_view.as_view(channel_type=self), name="claim")
+        claim_view_kwargs = self.claim_view_kwargs if self.claim_view_kwargs else {}
+        claim_view_kwargs["channel_type"] = self
+        return url(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
 
     def get_update_form(self):
         if self.update_form is None:

@@ -789,6 +789,21 @@ class ClaimViewMixin(OrgPermsMixin):
 
 
 class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
+    form_blurb = _("You can connect your number by entering your credentials here.")
+    username_label = _("Username")
+    username_help = _("The username provided by the provider to use their API")
+    password_label = _("Password")
+    password_help = _("The password provided by the provider to use their API")
+
+    def __init__(self, **kwargs):
+        self.form_blurb = kwargs.pop("form_blurb", self.form_blurb)
+        self.username_label = kwargs.pop("username_label", self.username_label)
+        self.username_help = kwargs.pop("username_help", self.username_help)
+        self.password_label = kwargs.pop("password_label", self.password_label)
+        self.password_help = kwargs.pop("password_help", self.password_help)
+
+        super().__init__(**kwargs)
+
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
@@ -827,6 +842,24 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
     form_class = Form
 
+    def lookup_field_label(self, context, field, default=None):
+        if field == "password":
+            return self.password_label
+
+        elif field == "username":
+            return self.username_label
+
+        return super().lookup_field_label(context, field, default=default)
+
+    def lookup_field_help(self, field, default=None):
+        if field == "password":
+            return self.password_help
+
+        elif field == "username":
+            return self.username_help
+
+        return super().lookup_field_help(field, default=default)
+
     def get_submitted_country(self, data):
         return data["country"]
 
@@ -835,6 +868,11 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         Subclasses can override this method to add in other channel config variables
         """
         return {}
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_blurb"] = self.form_blurb
+        return context
 
     def form_valid(self, form):
         org = self.request.user.get_org()
