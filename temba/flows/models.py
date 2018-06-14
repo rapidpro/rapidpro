@@ -1096,7 +1096,7 @@ class Flow(TembaModel):
                     for msg in result["msgs"]:
                         msg.connection.mark_ending()
 
-                        if run.contact.is_test:
+                        if run.contact.is_test:  # pragma: no cover
                             ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
@@ -6153,7 +6153,7 @@ class AddToGroupAction(Action):
 
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
-                        if not group and run.contact.is_test:
+                        if not group and run.contact.is_test:  # pragma: no cover
                             ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
                     elif run.contact.is_test:  # pragma: needs cover
@@ -6291,7 +6291,7 @@ class AddLabelAction(Action):
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                    if not label and run.contact.is_test:
+                    if not label and run.contact.is_test:  # pragma: no cover
                         ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
 
                 else:  # pragma: needs cover
@@ -7220,7 +7220,7 @@ class SendAction(VariableContactAction):
             return []
 
     def logger(self, run, text, contact_count):
-        if not run.contact.is_test:
+        if not run.contact.is_test:  # pragma: no cover
             return None
 
         log_txt = _n(
