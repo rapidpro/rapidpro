@@ -8,6 +8,7 @@ from openpyxl.worksheet.write_only import WriteOnlyCell
 from xlsxlite.book import XLSXBook
 
 from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -220,9 +221,8 @@ class TableExporter(object):
         gc.collect()  # force garbage collection
 
         print("Writing Excel workbook...")
-        filename = "%s.xlsx" % self.task.uuid
-        self.workbook.finalize(to_file=filename)
+        temp_file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wb+")
+        self.workbook.finalize(to_file=temp_file)
+        temp_file.flush()
 
-        out_file = open(filename, "rb+")
-
-        return out_file, "xlsx"
+        return temp_file, "xlsx"
