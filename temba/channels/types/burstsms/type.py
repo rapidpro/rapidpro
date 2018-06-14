@@ -76,7 +76,7 @@ class BurstSMSType(ChannelType):
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
             description=_(
                 "This URL should be called by BurstSMS when the status of an outgoing message is updated."
-                "You can set if on your settings page."
+                "You can set it on your settings page."
             ),
         ),
         dict(
@@ -84,7 +84,7 @@ class BurstSMSType(ChannelType):
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
             description=_(
                 "This URL should be called by BurstSMS when messages are replied to."
-                "You can set if on your settings page."
+                "You can set it on your settings page."
             ),
         ),
     )
