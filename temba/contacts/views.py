@@ -13,7 +13,6 @@ from smartmin.views import (
     SmartFormView,
     SmartListView,
     SmartReadView,
-    SmartTemplateView,
     SmartUpdateView,
     smart_url,
 )
@@ -27,6 +26,7 @@ from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Lower, Upper
+from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -485,6 +485,24 @@ class UpdateContactForm(ContactForm):
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
 
 
+class ExportForm(Form):
+    group_memberships = forms.ModelMultipleChoiceField(
+        queryset=ContactGroup.user_groups.none(), required=False, label=_("Group Memberships for")
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+        self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+            org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
+        ).order_by(Lower("name"))
+
+        self.fields["group_memberships"].help_text = _(
+            "Include group membership only for these groups. " "(Leave blank to ignore group memberships)."
+        )
+
+
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = (
@@ -508,16 +526,17 @@ class ContactCRUDL(SmartCRUDL):
         "history",
     )
 
-    class Export(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
+    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
+
+        form_class = ExportForm
+        submit_button_name = "Export"
+        success_url = "@contacts.contact_list"
+
+        def pre_process(self, request, *args, **kwargs):
             user = self.request.user
             org = user.get_org()
 
-            group_uuid = self.request.GET.get("g")
-            search = self.request.GET.get("s")
-            redirect = self.request.GET.get("redirect")
-
-            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+            group_uuid, search, redirect = self.derive_params()
 
             # is there already an export taking place?
             existing = ExportContactsTask.get_recent_unfinished(org)
@@ -529,35 +548,63 @@ class ContactCRUDL(SmartCRUDL):
                         "for that export to complete before starting another." % existing.created_by.username
                     ),
                 )
+                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
 
-            # otherwise, off we go
-            else:
-                previous_export = (
-                    ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+        def derive_params(self):
+            group_uuid = self.request.GET.get("g")
+            search = self.request.GET.get("s")
+            redirect = self.request.GET.get("redirect")
+
+            return group_uuid, search, redirect
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_invalid(self, form):  # pragma: needs cover
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
+                return HttpResponse(
+                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
                 )
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(
-                    hours=24
-                ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.contact_exported")
+            else:
+                return super().form_invalid(form)
 
-                export = ExportContactsTask.create(org, user, group, search)
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
 
-                # schedule the export job
-                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+            group_uuid, search, redirect = self.derive_params()
+            group_memberships = form.cleaned_data["group_memberships"]
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
-                    )
+            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
 
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
-                    )
+            previous_export = (
+                ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+            )
+            if previous_export and previous_export.created_on < timezone.now() - timedelta(
+                hours=24
+            ):  # pragma: needs cover
+                analytics.track(self.request.user.username, "temba.contact_exported")
+
+            export = ExportContactsTask.create(org, user, group, search, group_memberships)
+
+            # schedule the export job
+            on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+
+            if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+                messages.info(
+                    self.request,
+                    _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                    % self.request.user.username,
+                )
+
+            else:
+                dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
+                messages.info(
+                    self.request,
+                    _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                )
 
             return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
 

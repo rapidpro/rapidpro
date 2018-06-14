@@ -20,7 +20,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
-from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 
@@ -2967,11 +2966,16 @@ class ExportContactsTask(BaseExportTask):
     group = models.ForeignKey(
         ContactGroup, null=True, related_name="exports", help_text=_("The unique group to export")
     )
+
+    group_memberships = models.ManyToManyField(ContactGroup)
+
     search = models.TextField(null=True, blank=True, help_text=_("The search query"))
 
     @classmethod
-    def create(cls, org, user, group=None, search=None):
-        return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
+    def create(cls, org, user, group=None, search=None, group_memberships=()):
+        export = cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
+        export.group_memberships.add(*group_memberships)
+        return export
 
     def get_export_fields_and_schemes(self):
         fields = [
@@ -3022,12 +3026,11 @@ class ExportContactsTask(BaseExportTask):
                 )
             )
 
-        org_groups = ContactGroup.user_groups.filter(
-            org=self.org, is_active=True, status=ContactGroup.STATUS_READY
-        ).order_by(Lower("name"))
-        group_fields = [dict(label="Contact UUID", key=Contact.UUID, group_id=0, group=None)]
-        for group in org_groups:
-            group_fields.append(dict(label=group.name, key=None, group_id=group.id, group=group))
+        group_fields = []
+        if self.group_memberships.exists():
+            group_fields = [dict(label="Contact UUID", key=Contact.UUID, group_id=0, group=None)]
+            for group in self.group_memberships.all():
+                group_fields.append(dict(label=group.name, key=None, group_id=group.id, group=group))
 
         return fields, scheme_counts, group_fields
 
@@ -3038,6 +3041,8 @@ class ExportContactsTask(BaseExportTask):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+
+        include_group_memberships = self.group_memberships.exists()
 
         if self.search:
             search_object, _ = contact_es_search(self.org, self.search, group)
@@ -3108,19 +3113,20 @@ class ExportContactsTask(BaseExportTask):
 
                     values.append(field_value)
 
-                contact_groups_ids = [g.id for g in contact.all_groups.all()]
-                for col in range(len(group_fields)):
-                    field = group_fields[col]
+                if include_group_memberships:
+                    contact_groups_ids = [g.id for g in contact.all_groups.all()]
+                    for col in range(len(group_fields)):
+                        field = group_fields[col]
 
-                    if field["key"] == Contact.UUID:
-                        field_value = contact.uuid
-                    else:
-                        field_value = "true" if field["group_id"] in contact_groups_ids else "false"
+                        if field["key"] == Contact.UUID:
+                            field_value = contact.uuid
+                        else:
+                            field_value = "true" if field["group_id"] in contact_groups_ids else "false"
 
-                    if field_value:
-                        field_value = str(clean_string(field_value))
+                        if field_value:
+                            field_value = str(clean_string(field_value))
 
-                    group_values.append(field_value)
+                        group_values.append(field_value)
 
                 # write this contact's values
                 exporter.write_row(values, group_values)

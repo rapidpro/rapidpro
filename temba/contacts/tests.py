@@ -6040,7 +6040,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
         def request_export(query=""):
-            self.client.get(reverse("contacts.contact_export") + query)
+            self.client.post(reverse("contacts.contact_export") + query, dict(group_memberships=(group,)))
             task = ExportContactsTask.objects.all().order_by("-id").first()
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = load_workbook(filename=filename)

@@ -1,7 +1,6 @@
 import gc
 import os
 import time
-import uuid
 from datetime import datetime, timedelta
 
 from openpyxl.utils.cell import get_column_letter
@@ -191,10 +190,12 @@ class TableExporter(object):
 
         # add our sheet
         self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        self.extra_sheet = self.workbook.add_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
+        if len(self.extra_columns) > 0:
+            self.extra_sheet = self.workbook.add_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
 
         self.sheet.append_row(*self.columns)
-        self.extra_sheet.append_row(*self.extra_columns)
+        if len(self.extra_columns) > 0:
+            self.extra_sheet.append_row(*self.extra_columns)
 
         self.sheet_row = 2
 
@@ -207,7 +208,8 @@ class TableExporter(object):
             self._add_sheet()
 
         self.sheet.append_row(*values)
-        self.extra_sheet.append_row(*extra_values)
+        if len(self.extra_columns) > 0:
+            self.extra_sheet.append_row(*extra_values)
 
         self.sheet_row += 1
 
@@ -218,7 +220,7 @@ class TableExporter(object):
         gc.collect()  # force garbage collection
 
         print("Writing Excel workbook...")
-        filename = "%s.xlsx" % uuid.uuid4()
+        filename = "%s.xlsx" % self.task.uuid
         self.workbook.finalize(to_file=filename)
 
         out_file = open(filename, "rb+")
