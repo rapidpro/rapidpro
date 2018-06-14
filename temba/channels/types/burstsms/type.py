@@ -43,7 +43,8 @@ class BurstSMSType(ChannelType):
         "password_label": _("API Secret"),
         "password_help": _("The API secret as found on your settings page"),
         "form_blurb": _(
-            "You can connect your BurstSMS number by entering the settings below. They can be found on your account settings page."
+            "You can connect your BurstSMS number by entering the settings below."
+            "They can be found on your account settings page."
         ),
     }
 
