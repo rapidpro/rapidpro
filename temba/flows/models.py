@@ -16,9 +16,9 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
-from openpyxl import Workbook
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
+from xlsxlite.book import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -5288,53 +5288,51 @@ class ExportFlowResultsTask(BaseExportTask):
         columns = []
 
         if show_submitted_by:
-            columns.append(("Submitted By", self.WIDTH_MEDIUM))
+            columns.append("Submitted By")
 
-        columns.append(("Contact UUID", self.WIDTH_MEDIUM))
-        columns.append(("ID" if self.org.is_anon else "URN", self.WIDTH_SMALL))
+        columns.append("Contact UUID")
+        columns.append("ID" if self.org.is_anon else "URN")
 
         for extra_urn in extra_urn_columns:
-            columns.append((extra_urn["label"], self.WIDTH_SMALL))
+            columns.append(extra_urn["label"])
 
-        columns.append(("Name", self.WIDTH_MEDIUM))
-        columns.append(("Groups", self.WIDTH_MEDIUM))
+        columns.append("Name")
+        columns.append("Groups")
 
         for cf in contact_fields:
-            columns.append((cf.label, self.WIDTH_MEDIUM))
+            columns.append(cf.label)
 
         if show_time:
-            columns.append(("Started", self.WIDTH_MEDIUM))
-            columns.append(("Exited", self.WIDTH_MEDIUM))
+            columns.append("Started")
+            columns.append("Exited")
 
         for node in result_nodes:
-            columns.append(("%s (Category) - %s" % (node.label, node.flow.name), self.WIDTH_SMALL))
-            columns.append(("%s (Value) - %s" % (node.label, node.flow.name), self.WIDTH_SMALL))
-            columns.append(("%s (Text) - %s" % (node.label, node.flow.name), self.WIDTH_SMALL))
+            columns.append("%s (Category) - %s" % (node.label, node.flow.name))
+            columns.append("%s (Value) - %s" % (node.label, node.flow.name))
+            columns.append("%s (Text) - %s" % (node.label, node.flow.name))
 
         return columns
 
     def _add_runs_sheet(self, book, columns):
         name = "Runs (%d)" % (book.num_runs_sheets + 1) if book.num_runs_sheets > 0 else "Runs"
-        sheet = book.create_sheet(name, index=book.num_runs_sheets)
+        sheet = book.add_sheet(name, index=book.num_runs_sheets)
         book.num_runs_sheets += 1
 
-        self.set_sheet_column_widths(sheet, [c[1] for c in columns])
-        self.append_row(sheet, [c[0] for c in columns])
+        self.append_row(sheet, columns)
         return sheet
 
     def _add_contacts_sheet(self, book, columns):
         name = "Contacts (%d)" % (book.num_contacts_sheets + 1) if book.num_contacts_sheets > 0 else "Contacts"
-        sheet = book.create_sheet(name, index=(book.num_runs_sheets + book.num_contacts_sheets))
+        sheet = book.add_sheet(name, index=(book.num_runs_sheets + book.num_contacts_sheets))
         book.num_contacts_sheets += 1
 
-        self.set_sheet_column_widths(sheet, [c[1] for c in columns])
-        self.append_row(sheet, [c[0] for c in columns])
+        self.append_row(sheet, columns)
         return sheet
 
     def _add_msgs_sheet(self, book):
         name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
         index = book.num_runs_sheets + book.num_contacts_sheets + book.num_msgs_sheets
-        sheet = book.create_sheet(name, index)
+        sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
         if self.org.is_anon:
@@ -5342,18 +5340,6 @@ class ExportFlowResultsTask(BaseExportTask):
         else:
             headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
 
-        self.set_sheet_column_widths(
-            sheet,
-            [
-                self.WIDTH_MEDIUM,
-                self.WIDTH_SMALL,
-                self.WIDTH_MEDIUM,
-                self.WIDTH_MEDIUM,
-                self.WIDTH_SMALL,
-                self.WIDTH_LARGE,
-                self.WIDTH_MEDIUM,
-            ],
-        )
         self.append_row(sheet, headers)
         return sheet
 
@@ -5403,7 +5389,7 @@ class ExportFlowResultsTask(BaseExportTask):
         )
         contacts_columns = self._get_runs_columns(extra_urn_columns, contact_fields, result_nodes)
 
-        book = Workbook(write_only=True)
+        book = XLSXBook()
         book.num_runs_sheets = 0
         book.num_contacts_sheets = 0
         book.num_msgs_sheets = 0
@@ -5440,7 +5426,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 if run.contact != current_contact:
                     run.contact.org = self.org
 
-                    if not contacts_sheet or contacts_sheet._max_row >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                    if not contacts_sheet or contacts_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                         contacts_sheet = self._add_contacts_sheet(book, contacts_columns)
 
                     if current_contact:
@@ -5492,7 +5478,7 @@ class ExportFlowResultsTask(BaseExportTask):
                         merged_result_values[n * 3 + 2] = node_input
 
                 if include_runs:
-                    if not runs_sheet or runs_sheet._max_row >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                    if not runs_sheet or runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                         runs_sheet = self._add_runs_sheet(book, runs_columns)
 
                     # build the whole row
@@ -5525,7 +5511,7 @@ class ExportFlowResultsTask(BaseExportTask):
             self.append_row(contacts_sheet, merged_sheet_row)
 
         temp = NamedTemporaryFile(delete=True)
-        book.save(temp)
+        book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 
@@ -5548,7 +5534,7 @@ class ExportFlowResultsTask(BaseExportTask):
             else:
                 msg_urn = ""
 
-            if not msgs_sheet or msgs_sheet._max_row >= self.MAX_EXCEL_ROWS:
+            if not msgs_sheet or msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
                 msgs_sheet = self._add_msgs_sheet(book)
 
             self.append_row(

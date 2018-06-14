@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
-from openpyxl.worksheet.write_only import WriteOnlyCell
+from openpyxl.worksheet.write_only import Worksheet, WriteOnlyCell
 
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -131,11 +131,17 @@ class BaseExportTask(TembaModel):
         )
 
     def append_row(self, sheet, values):
-        row = []
-        for value in values:
-            cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
-            row.append(cell)
-        sheet.append(row)
+        # openpyxl
+        if isinstance(sheet, Worksheet):
+            row = []
+            for value in values:
+                cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
+                row.append(cell)
+            sheet.append(row)
+
+        # xlsxlite
+        else:
+            sheet.append_row(*[self.prepare_value(v) for v in values])
 
     def prepare_value(self, value):
         if value is None:
