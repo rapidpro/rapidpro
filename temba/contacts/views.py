@@ -605,8 +605,16 @@ class ContactCRUDL(SmartCRUDL):
                     self.request,
                     _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
                 )
-
-            return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
+            if "HTTP_X_PJAX" not in self.request.META:
+                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
+            else:  # pragma: no cover
+                return self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=self.get_success_url(),
+                        success_script=getattr(self, "success_script", None),
+                    )
+                )
 
     class Customize(OrgPermsMixin, SmartUpdateView):
         class CustomizeForm(forms.ModelForm):
@@ -1176,7 +1184,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), href=self.derive_export_url()))
+                links.append(dict(title=_("Export"), js_class="export-contacts", href='#'))
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1187,6 +1195,7 @@ class ContactCRUDL(SmartCRUDL):
             context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
+            context['export_url'] = self.derive_export_url()
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -1226,7 +1235,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Edit Group"), js_class="update-contactgroup", href="#"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), href=self.derive_export_url()))
+                links.append(dict(title=_("Export"), js_class="export-contacts", href='#'))
 
             if self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
@@ -1246,6 +1255,7 @@ class ContactCRUDL(SmartCRUDL):
             context["actions"] = actions
             context["current_group"] = group
             context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by("pk")
+            context['export_url'] = self.derive_export_url()
             return context
 
         @classmethod
