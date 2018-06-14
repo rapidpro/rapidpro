@@ -1,7 +1,6 @@
 import gc
 import os
 import time
-import uuid
 from datetime import datetime, timedelta
 
 from openpyxl.utils.cell import get_column_letter
@@ -218,7 +217,7 @@ class TableExporter(object):
         gc.collect()  # force garbage collection
 
         print("Writing Excel workbook...")
-        filename = "%s.xlsx" % uuid.uuid4()
+        filename = "%s.xlsx" % self.task.uuid
         self.workbook.finalize(to_file=filename)
 
         out_file = open(filename, "rb+")
