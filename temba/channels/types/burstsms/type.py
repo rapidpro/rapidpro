@@ -37,6 +37,14 @@ class BurstSMSType(ChannelType):
     attachment_support = False
 
     claim_view = AuthenticatedExternalClaimView
+    claim_view_kwargs = {
+        "username_label": _("API Key"),
+        "username_help": _("The API key as found on your settings page"),
+        "password_label": _("API Secret"),
+        "password_help": _("The API secret as found on your settings page"),
+        "form_blurb": _("You can connect your BurstSMS number by entering the settings below."),
+    }
+
     claim_blurb = _(
         """
         If you have a <a href="https://www.burstsms.com.au/">BurstSMS</a> number,
@@ -54,11 +62,26 @@ class BurstSMSType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
-            description=_("This URL should be called by BurstSMS when new messages are received."),
+            description=_(
+                "This URL should be called by BurstSMS when new messages are received."
+                "You must set this for your number under the 'Inbound Settings' options."
+                "Select 'Yes' to the 'Forward to URL' option and enter this URL."
+            ),
         ),
         dict(
-            label=_("DLR URL"),
+            label=_("DLR callback URL"),
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
-            description=_("This URL should be called by BurstSMS when the status of an outgoing message is updated"),
+            description=_(
+                "This URL should be called by BurstSMS when the status of an outgoing message is updated."
+                "You can set it on your settings page."
+            ),
+        ),
+        dict(
+            label=_("Reply callback URL"),
+            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
+            description=_(
+                "This URL should be called by BurstSMS when messages are replied to."
+                "You can set it on your settings page."
+            ),
         ),
     )
