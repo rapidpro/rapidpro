@@ -74,14 +74,16 @@ class BurstSMSType(ChannelType):
             label=_("DLR callback URL"),
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
             description=_(
-                "This URL should be called by BurstSMS when the status of an outgoing message is updated. You can set if on your settings page."
+                "This URL should be called by BurstSMS when the status of an outgoing message is updated."
+                "You can set if on your settings page."
             ),
         ),
         dict(
             label=_("Reply callback URL"),
             url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
             description=_(
-                "This URL should be called by BurstSMS when messages are replied to. You can set if on your settings page."
+                "This URL should be called by BurstSMS when messages are replied to."
+                "You can set if on your settings page."
             ),
         ),
     )
