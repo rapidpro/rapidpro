@@ -18,7 +18,7 @@ import regex
 from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
-from xlsxlite.book import XLSXBook
+from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
