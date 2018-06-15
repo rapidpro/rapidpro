@@ -2982,17 +2982,44 @@ class FlowTest(TembaTest):
 
         # try updating with an sms type expiration to make sure it's restricted for voice flows
         post_data["expires_after_minutes"] = 60 * 12
+        post_data["ivr_retry"] = 30
         post_data["name"] = "Voice Flow"
         response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        self.assertFormError(
+            response,
+            "form",
+            "expires_after_minutes",
+            "Select a valid choice. 720 is not one of the available choices.",
+        )
+
         voice_flow.refresh_from_db()
         self.assertEqual(5, voice_flow.expires_after_minutes)
 
         # now do a valid value for voice
         post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 30
         response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
 
         voice_flow.refresh_from_db()
         self.assertEqual(3, voice_flow.expires_after_minutes)
+
+        # invalid value for ivr_retry
+        post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 123
+        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        self.assertFormError(
+            response, "form", "ivr_retry", "Select a valid choice. 123 is not one of the available choices."
+        )
+
+        # now do a valid value for ivr_retry
+        post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 1440
+        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        voice_flow.refresh_from_db()
+        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
         # update flow triggers
         post_data = dict()

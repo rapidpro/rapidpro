@@ -98,6 +98,8 @@ IVR_EXPIRES_CHOICES = (
     (15, _("After 15 minutes")),
 )
 
+IVR_RETRY_CHOICES = ((30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
+
 
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
@@ -479,6 +481,12 @@ class FlowCRUDL(SmartCRUDL):
                 initial=str(60 * 24 * 7),
                 choices=EXPIRES_CHOICES,
             )
+            ivr_retry = forms.ChoiceField(
+                label=_("Retry call on busy/no answer"),
+                help_text=_("Retries call three times for the chosen interval"),
+                initial=60,
+                choices=IVR_RETRY_CHOICES,
+            )
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -497,6 +505,10 @@ class FlowCRUDL(SmartCRUDL):
                     expiration = self.fields["expires_after_minutes"]
                     expiration.choices = IVR_EXPIRES_CHOICES
                     expiration.initial = 5
+
+                    # IVR retries
+                    ivr_retry = self.fields["ivr_retry"]
+                    ivr_retry.initial = metadata.get("ivr_retry", self.fields["ivr_retry"].initial)
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -544,6 +556,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if obj.flow_type == Flow.SURVEY:
                 fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
+            elif obj.flow_type == Flow.VOICE:
+                fields.insert(1, "keyword_triggers")
+                fields.append("ignore_triggers")
+                fields.append("ivr_retry")
             else:
                 fields.insert(1, "keyword_triggers")
                 fields.append("ignore_triggers")
@@ -561,6 +577,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if Flow.CONTACT_CREATION in self.form.cleaned_data:
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
+
+            if "ivr_retry" in self.form.cleaned_data:
+                metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+
             obj.metadata = metadata
             return obj
 

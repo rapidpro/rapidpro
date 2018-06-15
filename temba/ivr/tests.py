@@ -1963,12 +1963,12 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call1.retry_count, 0)
 
         # schedule a call retry
-        call1.schedule_call_retry()
+        call1.schedule_call_retry(60)
         self.assertTrue(call1.next_attempt > timezone.now())
         self.assertEqual(call1.retry_count, 1)
 
         # schedule second call retry
-        call1.schedule_call_retry()
+        call1.schedule_call_retry(60)
         self.assertTrue(call1.next_attempt > timezone.now())
         self.assertEqual(call1.retry_count, 2)
 
@@ -1977,7 +1977,7 @@ class IVRTests(FlowFileTest):
         call1.retry_count = total_retries
         call1.save()
 
-        call1.schedule_call_retry()
+        call1.schedule_call_retry(60)
         self.assertIsNone(call1.next_attempt)
         self.assertEqual(call1.retry_count, total_retries)
 
@@ -1992,6 +1992,14 @@ class IVRTests(FlowFileTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+
+        def _get_flow():
+            class FlowStub:
+                metadata = {"ivr_retry": 60}
+
+            return FlowStub()
+
+        call1.get_flow = _get_flow
 
         # twilio
         call1.update_status("busy", 0, "T")
@@ -2021,6 +2029,14 @@ class IVRTests(FlowFileTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+
+        def _get_flow():
+            class FlowStub:
+                metadata = {"ivr_retry": 60}
+
+            return FlowStub()
+
+        call1.get_flow = _get_flow
 
         # nexmo
         call1.update_status("busy", 0, "NX")

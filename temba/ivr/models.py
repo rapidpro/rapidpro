@@ -18,7 +18,7 @@ class IVRManager(models.Manager):
 
 
 class IVRCall(ChannelSession):
-    RETRY_BACKOFF_MINUTES = 5
+    RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
 
     objects = IVRManager()
@@ -135,10 +135,10 @@ class IVRCall(ChannelSession):
 
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
 
-    def schedule_call_retry(self):
+    def schedule_call_retry(self, backoff_minutes: int):
         # retry the call if it has not been retried maximum number of times
         if self.retry_count < IVRCall.MAX_RETRY_ATTEMPTS:
-            self.next_attempt = timezone.now() + timedelta(minutes=IVRCall.RETRY_BACKOFF_MINUTES)
+            self.next_attempt = timezone.now() + timedelta(minutes=backoff_minutes)
             self.retry_count += 1
         else:
             self.next_attempt = None
@@ -176,8 +176,11 @@ class IVRCall(ChannelSession):
                 if run:
                     ActionLog.create(run[0], _("Call ended."))
 
-        if self.status in ChannelSession.RETRY_CALL:
-            self.schedule_call_retry()
+        if self.status in ChannelSession.RETRY_CALL and previous_status not in ChannelSession.RETRY_CALL:
+            flow = self.get_flow()
+            backoff_minutes = flow.metadata.get("ivr_retry", IVRCall.RETRY_BACKOFF_MINUTES)
+
+            self.schedule_call_retry(backoff_minutes)
 
         if duration is not None:
             self.duration = duration
@@ -260,3 +263,8 @@ class IVRCall(ChannelSession):
         if self.channel and self.channel.is_active:
             sorted_logs = sorted(ChannelLog.objects.filter(connection=self), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
+
+    def get_flow(self):
+        from temba.flows.models import FlowRun
+
+        return FlowRun.objects.get(connection=self).flow
