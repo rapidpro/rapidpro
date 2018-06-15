@@ -5295,6 +5295,7 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append(extra_urn["label"])
 
         columns.append("Name")
+        columns.append("Groups")
 
         for cf in contact_fields:
             columns.append(cf.label)
@@ -5331,6 +5332,15 @@ class ExportFlowResultsTask(BaseExportTask):
 
         self.append_row(sheet, headers)
         return sheet
+
+    def _get_contact_groups_display(self, contact):
+        group_names = []
+        for group in contact.all_groups.all():
+            if group.group_type == ContactGroup.TYPE_USER_DEFINED:
+                group_names.append(group.name)
+
+        group_names.sort()
+        return ", ".join(group_names)
 
     def write_export(self):
         config = self.config
@@ -5389,6 +5399,7 @@ class ExportFlowResultsTask(BaseExportTask):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
                 .select_related("contact")
+                .prefetch_related("contact__all_groups")
                 .order_by("id")
             )
 
@@ -5409,6 +5420,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     contact_values.append(urn_display)
 
                 contact_values.append(self.prepare_value(run.contact.name))
+                contact_values.append(self._get_contact_groups_display(run.contact))
 
                 for cf in contact_fields:
                     field_value = run.contact.get_field_display(cf)
