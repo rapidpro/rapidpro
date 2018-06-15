@@ -2008,6 +2008,7 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("in-progress", 0, "T")
         call1.save()
 
         call1.update_status("no-answer", 0, "T")
@@ -2016,7 +2017,18 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("in-progress", 0, "T")
         call1.save()
+
+        # we should not change call_retry if we got the same status
+        call1.update_status("busy", 0, "T")
+        call1.save()
+        self.assertTrue(call1.next_attempt > timezone.now())
+        self.assertEqual(call1.retry_count, 1)
+
+        call1.update_status("no-answer", 0, "T")
+        call1.save()
+        self.assertEqual(call1.retry_count, 1)
 
     def test_update_status_for_call_retry_nexmo(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
@@ -2045,6 +2057,7 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("answered", 0, "NX")
         call1.save()
 
         call1.update_status("rejected", 0, "NX")
@@ -2053,6 +2066,7 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("answered", 0, "NX")
         call1.save()
 
         call1.update_status("unanswered", 0, "NX")
@@ -2061,6 +2075,7 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("answered", 0, "NX")
         call1.save()
 
         call1.update_status("timeout", 0, "NX")
@@ -2069,6 +2084,7 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("answered", 0, "NX")
         call1.save()
 
         call1.update_status("cancelled", 0, "NX")
@@ -2077,7 +2093,18 @@ class IVRTests(FlowFileTest):
 
         call1.next_attempt = None
         call1.retry_count = 0
+        call1.update_status("answered", 0, "NX")
         call1.save()
+
+        # we should not change call_retry if we got the same status
+        call1.update_status("cancelled", 0, "NX")
+        call1.save()
+        self.assertTrue(call1.next_attempt > timezone.now())
+        self.assertEqual(call1.retry_count, 1)
+
+        call1.update_status("cancelled", 0, "NX")
+        call1.save()
+        self.assertEqual(call1.retry_count, 1)
 
     def test_IVR_view_request_handler(self):
         call_pk = 0
