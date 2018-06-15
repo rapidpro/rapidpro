@@ -5382,96 +5382,163 @@ class ExportFlowResultsTask(BaseExportTask):
         book.num_msgs_sheets = 0
 
         # the current sheets
-        runs_sheet = self._add_runs_sheet(book, runs_columns)
-        msgs_sheet = None
-
-        # grab the ids of the runs we're going to be exporting..
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("id")
-        if responded_only:
-            runs = runs.filter(responded=True)
-        run_ids = array(str("l"), runs.values_list("id", flat=True))
+        book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
+        book.current_msgs_sheet = None
 
         # for tracking performance
         runs_exported = 0
         start = time.time()
 
-        for id_batch in chunk_list(run_ids, 1000):
-            run_batch = (
-                FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .select_related("contact")
-                .prefetch_related("contact__all_groups")
-                .order_by("id")
+        for batch in self._get_run_batches(flows, responded_only):
+            self._write_runs(
+                book,
+                batch,
+                include_msgs,
+                extra_urn_columns,
+                contact_fields,
+                show_submitted_by,
+                runs_columns,
+                result_nodes,
             )
 
-            for run in run_batch:
-                # get this run's results by node UUID
-                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.results.values()}
-
-                # generate contact info columns
-                contact_values = [
-                    run.contact.uuid,
-                    run.contact.id if self.org.is_anon else run.contact.get_urn_display(org=self.org, formatted=False),
-                ]
-
-                for extra_urn_column in extra_urn_columns:
-                    urn_display = run.contact.get_urn_display(
-                        org=self.org, formatted=False, scheme=extra_urn_column["scheme"]
-                    )
-                    contact_values.append(urn_display)
-
-                contact_values.append(self.prepare_value(run.contact.name))
-                contact_values.append(self._get_contact_groups_display(run.contact))
-
-                for cf in contact_fields:
-                    field_value = run.contact.get_field_display(cf)
-                    contact_values.append(self.prepare_value(field_value))
-
-                # generate result columns for each ruleset
-                result_values = []
-                for n, node in enumerate(result_nodes):
-                    node_result = results_by_node.get(node.uuid, {})
-                    node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
-                    node_value = node_result.get(FlowRun.RESULT_VALUE, "")
-                    node_input = node_result.get(FlowRun.RESULT_INPUT, "")
-                    result_values += [node_category, node_value, node_input]
-
-                if not runs_sheet or runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
-                    runs_sheet = self._add_runs_sheet(book, runs_columns)
-
-                # build the whole row
-                runs_sheet_row = []
-
-                if show_submitted_by:
-                    runs_sheet_row.append(run.submitted_by.username if run.submitted_by else "")
-
-                runs_sheet_row += contact_values
-                runs_sheet_row += [run.created_on, run.exited_on]
-                runs_sheet_row += result_values
-
-                self.append_row(runs_sheet, runs_sheet_row)
-
-                # write out any message associated with this run
-                if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
-
-                runs_exported += 1
-                if runs_exported % 10000 == 0:  # pragma: needs cover
-                    print(
-                        "Result export of for org #%d - %d%% complete in %0.2fs"
-                        % (self.org.id, runs_exported * 100 // len(run_ids), time.time() - start)
-                    )
+            runs_exported += len(batch)
+            if runs_exported % 10000 == 0:
+                mins = (time.time() - start) / 60
+                print(f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins")
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _get_run_batches(self, flows, responded_only):
+        print(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
+
+        # TODO firstly get runs from archives
+        # from temba.archives.models import Archive
+        # Archive.objects.filter(org=org, archive_type=Archive.TYPE_FLOWRUN).order_by('start_date')
+
+        # secondly get runs from database
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("id")
+        if responded_only:
+            runs = runs.filter(responded=True)
+        run_ids = array(str("l"), runs.values_list("id", flat=True))
+
+        print(f"Results export #{self.id} for org #{self.org.id}: found {len(run_ids)} runs in database to export")
+
+        for id_batch in chunk_list(run_ids, 1000):
+            run_batch = (
+                FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
+                .select_related("contact", "flow")
+                .order_by("id")
+            )
+
+            # convert this batch of runs to same format as our archives
+            batch = []
+            for run in run_batch:
+                batch.append(
+                    {
+                        "id": run.id,
+                        "flow": {"uuid": run.flow.uuid},
+                        "contact": {"uuid": str(run.contact.uuid), "name": run.contact.name},
+                        "responded": run.responded,
+                        "values": run.results,
+                        "events": run.events,
+                        "created_on": run.created_on.isoformat(),
+                        "modified_on": run.modified_on.isoformat(),
+                        "exited_on": run.exited_on.isoformat() if run.exited_on else None,
+                        "exit_type": run.exit_type,
+                        "submitted_by": run.submitted_by,
+                    }
+                )
+
+            yield batch
+
+    def _write_runs(
+        self,
+        book,
+        runs,
+        include_msgs,
+        extra_urn_columns,
+        contact_fields,
+        show_submitted_by,
+        runs_columns,
+        result_nodes,
+    ):
+        """
+        Writes a batch of run JSON blobs to the export
+        """
+        # get all the contacts referenced in this batch
+        contact_uuids = [r["contact"]["uuid"] for r in runs]
+        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("all_groups")
+        contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        for run in runs:
+            contact = contacts_by_uuid.get(run["contact"]["uuid"])
+
+            # get this run's results by node UUID
+            results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run["values"].values()}
+
+            # generate contact info columns
+            contact_values = [
+                contact.uuid,
+                contact.id if self.org.is_anon else contact.get_urn_display(org=self.org, formatted=False),
+            ]
+
+            for extra_urn_column in extra_urn_columns:
+                urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
+                contact_values.append(urn_display)
+
+            contact_values.append(self.prepare_value(contact.name))
+            contact_values.append(self._get_contact_groups_display(contact))
+
+            for cf in contact_fields:
+                field_value = contact.get_field_display(cf)
+                contact_values.append(self.prepare_value(field_value))
+
+            # generate result columns for each ruleset
+            result_values = []
+            for n, node in enumerate(result_nodes):
+                node_result = results_by_node.get(node.uuid, {})
+                node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
+                node_value = node_result.get(FlowRun.RESULT_VALUE, "")
+                node_input = node_result.get(FlowRun.RESULT_INPUT, "")
+                result_values += [node_category, node_value, node_input]
+
+            if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
+
+            # build the whole row
+            runs_sheet_row = []
+
+            if show_submitted_by:
+                submitted_by = run.get("submitted_by")
+                runs_sheet_row.append(submitted_by.username if submitted_by else "")
+
+            runs_sheet_row += contact_values
+            runs_sheet_row += [
+                iso8601.parse_date(run["created_on"]),
+                iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+            ]
+            runs_sheet_row += result_values
+
+            self.append_row(book.current_runs_sheet, runs_sheet_row)
+
+            # write out any message associated with this run
+            if include_msgs:
+                self._write_run_messages(book, run, contact)
+
+    def _write_run_messages(self, book, run, contact):
         """
         Writes out any messages associated with the given run
         """
-        for event in run.get_msg_events():
-            msg_direction = "IN" if event["type"] == server.Events.msg_received.name else "OUT"
+        for event in run["events"] or []:
+            if event["type"] == server.Events.msg_received.name:
+                msg_direction = "IN"
+            elif event["type"] == server.Events.msg_created.name:
+                msg_direction = "OUT"
+            else:
+                continue
 
             msg = event["msg"]
             msg_text = msg.get("text", "")
@@ -5479,29 +5546,27 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_channel = msg.get("channel")
 
             if self.org.is_anon:
-                msg_urn = run.contact.id
+                msg_urn = contact.id
             elif "urn" in msg:
                 msg_urn = URN.format(msg["urn"], formatted=False)
             else:
                 msg_urn = ""
 
-            if not msgs_sheet or msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
-                msgs_sheet = self._add_msgs_sheet(book)
+            if not book.current_msgs_sheet or book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
+                book.current_msgs_sheet = self._add_msgs_sheet(book)
 
             self.append_row(
-                msgs_sheet,
+                book.current_msgs_sheet,
                 [
-                    run.contact.uuid,
+                    str(contact.uuid),
                     msg_urn,
-                    self.prepare_value(run.contact.name),
+                    self.prepare_value(contact.name),
                     msg_created_on,
                     msg_direction,
                     msg_text,
                     msg_channel["name"] if msg_channel else "",
                 ],
             )
-
-        return msgs_sheet
 
 
 @register_asset_store
