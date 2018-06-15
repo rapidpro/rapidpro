@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.worksheet.write_only import WriteOnlyCell, WriteOnlyWorksheet
-from xlsxlite.book import XLSXBook
+from xlsxlite.writer import XLSXBook
 
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
