@@ -3,9 +3,9 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
-from openpyxl.worksheet.write_only import WriteOnlyCell
+from openpyxl.worksheet.write_only import WriteOnlyCell, WriteOnlyWorksheet
+from xlsxlite.book import XLSXBook
 
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -85,7 +85,7 @@ class BaseExportTask(TembaModel):
             if hasattr(temp_file, "delete"):
                 if temp_file.delete is False:  # pragma: no cover
                     os.unlink(temp_file.name)
-            else:
+            else:  # pragma: no cover
                 os.unlink(temp_file.name)
 
         except Exception as e:
@@ -131,11 +131,17 @@ class BaseExportTask(TembaModel):
         )
 
     def append_row(self, sheet, values):
-        row = []
-        for value in values:
-            cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
-            row.append(cell)
-        sheet.append(row)
+        # openpyxl
+        if isinstance(sheet, WriteOnlyWorksheet):
+            row = []
+            for value in values:
+                cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
+                row.append(cell)
+            sheet.append(row)
+
+        # xlsxlite
+        else:
+            sheet.append_row(*[self.prepare_value(v) for v in values])
 
     def prepare_value(self, value):
         if value is None:
@@ -182,8 +188,7 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        self.file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wt+")
-        self.workbook = Workbook(write_only=True)
+        self.workbook = XLSXBook()
         self.sheet_number = 0
         self._add_sheet()
 
@@ -191,11 +196,11 @@ class TableExporter(object):
         self.sheet_number += 1
 
         # add our sheet
-        self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        self.extra_sheet = self.workbook.create_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
+        self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.extra_sheet = self.workbook.add_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
 
-        self.task.append_row(self.sheet, self.columns)
-        self.task.append_row(self.extra_sheet, self.extra_columns)
+        self.sheet.append_row(*self.columns)
+        self.extra_sheet.append_row(*self.extra_columns)
 
         self.sheet_row = 2
 
@@ -207,8 +212,8 @@ class TableExporter(object):
         if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
             self._add_sheet()
 
-        self.task.append_row(self.sheet, values)
-        self.task.append_row(self.extra_sheet, extra_values)
+        self.sheet.append_row(*values)
+        self.extra_sheet.append_row(*extra_values)
 
         self.sheet_row += 1
 
@@ -218,11 +223,9 @@ class TableExporter(object):
         """
         gc.collect()  # force garbage collection
 
-        self.file.close()
-        self.file = open(self.file.name, "rb+")
-
         print("Writing Excel workbook...")
-        self.workbook.save(self.file.name)
+        temp_file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wb+")
+        self.workbook.finalize(to_file=temp_file)
+        temp_file.flush()
 
-        self.file.flush()
-        return self.file, "xlsx"
+        return temp_file, "xlsx"
