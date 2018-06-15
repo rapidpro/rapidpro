@@ -81,7 +81,12 @@ class Resthook(SmartModel):
     to this particular resthook.
     """
 
-    org = models.ForeignKey(Org, related_name="resthooks", help_text=_("The organization this resthook belongs to"))
+    org = models.ForeignKey(
+        Org,
+        on_delete=models.PROTECT,
+        related_name="resthooks",
+        help_text=_("The organization this resthook belongs to"),
+    )
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
     @classmethod
@@ -135,7 +140,9 @@ class ResthookSubscriber(SmartModel):
     Represents a subscriber on a specific resthook within one of our flows.
     """
 
-    resthook = models.ForeignKey(Resthook, related_name="subscribers", help_text=_("The resthook being subscribed to"))
+    resthook = models.ForeignKey(
+        Resthook, on_delete=models.PROTECT, related_name="subscribers", help_text=_("The resthook being subscribed to")
+    )
     target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
 
     def as_json(self):  # pragma: needs cover
@@ -190,13 +197,25 @@ class WebHookEvent(SmartModel):
         (STATUS_FAILED, "Failed"),
     )
 
-    org = models.ForeignKey(Org, help_text="The organization that this event was triggered for")
-    resthook = models.ForeignKey(Resthook, null=True, help_text="The associated resthook to this event. (optional)")
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, help_text="The organization that this event was triggered for"
+    )
+    resthook = models.ForeignKey(
+        Resthook, on_delete=models.PROTECT, null=True, help_text="The associated resthook to this event. (optional)"
+    )
     status = models.CharField(
         max_length=1, choices=STATUS_CHOICES, default="P", help_text="The state this event is currently in"
     )
-    run = models.ForeignKey(FlowRun, null=True, help_text="The flow run that triggered this event")
-    channel = models.ForeignKey(Channel, null=True, blank=True, help_text="The channel that this event is relating to")
+    run = models.ForeignKey(
+        FlowRun, on_delete=models.PROTECT, null=True, help_text="The flow run that triggered this event"
+    )
+    channel = models.ForeignKey(
+        Channel,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="The channel that this event is relating to",
+    )
     event = models.CharField(max_length=16, choices=TYPE_CHOICES, help_text="The event type for this event")
     data = JSONAsTextField(default=dict, help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0, help_text="The number of times this event has been tried")
@@ -587,7 +606,12 @@ class WebHookResult(SmartModel):
     Represents the result of trying to deliver an event to a web hook
     """
 
-    event = models.ForeignKey(WebHookEvent, related_name="results", help_text="The event that this result is tied to")
+    event = models.ForeignKey(
+        WebHookEvent,
+        on_delete=models.PROTECT,
+        related_name="results",
+        help_text="The event that this result is tied to",
+    )
     url = models.TextField(null=True, blank=True, help_text="The URL the event was delivered to")
     data = models.TextField(null=True, blank=True, help_text="The data that was posted to the webhook")
     request = models.TextField(null=True, blank=True, help_text="The request that was posted to the webhook")
@@ -599,6 +623,7 @@ class WebHookResult(SmartModel):
     request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
     contact = models.ForeignKey(
         "contacts.Contact",
+        on_delete=models.PROTECT,
         null=True,
         related_name="webhook_results",
         help_text="The contact that generated this result",
@@ -658,13 +683,13 @@ class APIToken(models.Model):
 
     key = models.CharField(max_length=40, primary_key=True)
 
-    user = models.ForeignKey(User, related_name="api_tokens")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
 
-    org = models.ForeignKey(Org, related_name="api_tokens")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
 
     created = models.DateTimeField(auto_now_add=True)
 
-    role = models.ForeignKey(Group)
+    role = models.ForeignKey(Group, on_delete=models.PROTECT)
 
     @classmethod
     def get_or_create(cls, org, user, role=None, refresh=False):

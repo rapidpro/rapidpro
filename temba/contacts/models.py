@@ -365,7 +365,7 @@ class ContactField(SmartModel):
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
 
     label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
@@ -2546,10 +2546,14 @@ class ContactGroup(TembaModel):
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name="all_groups")
 
     org = models.ForeignKey(
-        Org, related_name="all_groups", verbose_name=_("Org"), help_text=_("The organization this group is part of")
+        Org,
+        on_delete=models.PROTECT,
+        related_name="all_groups",
+        verbose_name=_("Org"),
+        help_text=_("The organization this group is part of"),
     )
 
-    import_task = models.ForeignKey(ImportTask, null=True, blank=True)
+    import_task = models.ForeignKey(ImportTask, on_delete=models.PROTECT, null=True, blank=True)
 
     query = models.TextField(null=True, help_text=_("The membership query for this group"))
 
@@ -2914,7 +2918,7 @@ class ContactGroupCount(SquashableModel):
 
     SQUASH_OVER = ("group_id",)
 
-    group = models.ForeignKey(ContactGroup, related_name="counts", db_index=True)
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -2965,7 +2969,11 @@ class ExportContactsTask(BaseExportTask):
     email_template = "contacts/email/contacts_export_download"
 
     group = models.ForeignKey(
-        ContactGroup, null=True, related_name="exports", help_text=_("The unique group to export")
+        ContactGroup,
+        on_delete=models.PROTECT,
+        null=True,
+        related_name="exports",
+        help_text=_("The unique group to export"),
     )
     search = models.TextField(null=True, blank=True, help_text=_("The search query"))
 

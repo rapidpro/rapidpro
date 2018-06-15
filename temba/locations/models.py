@@ -51,6 +51,7 @@ class AdminBoundary(MPTTModel, models.Model):
     parent = TreeForeignKey(
         "self",
         null=True,
+        on_delete=models.PROTECT,
         blank=True,
         related_name="children",
         db_index=True,
@@ -170,10 +171,13 @@ class BoundaryAlias(SmartModel):
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
     boundary = models.ForeignKey(
-        AdminBoundary, help_text="The admin boundary this alias applies to", related_name="aliases"
+        AdminBoundary,
+        on_delete=models.PROTECT,
+        help_text="The admin boundary this alias applies to",
+        related_name="aliases",
     )
 
-    org = models.ForeignKey("orgs.Org", help_text="The org that owns this alias")
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, help_text="The org that owns this alias")
 
     @classmethod
     def create(cls, org, user, boundary, name):

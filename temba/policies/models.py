@@ -45,9 +45,11 @@ class Policy(SmartModel):
 
 class Consent(models.Model):
 
-    user = models.ForeignKey(User, help_text="The user consenting to this policy")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, help_text="The user consenting to this policy")
 
-    policy = models.ForeignKey(Policy, help_text="The policy the user is consenting to", related_name="policies")
+    policy = models.ForeignKey(
+        Policy, on_delete=models.PROTECT, help_text="The policy the user is consenting to", related_name="policies"
+    )
 
     revoked_on = models.DateTimeField(null=True, default=None, help_text="When this consent was revoked")
 
