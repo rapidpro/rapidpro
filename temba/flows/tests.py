@@ -2724,7 +2724,7 @@ class FlowTest(TembaTest):
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
-        flow = Flow.create(self.org, self.admin, "Flow")
+        flow = Flow.create(self.org, self.admin, Flow.FLOW)
 
         # update flow triggers
         response = self.client.post(
@@ -2733,6 +2733,7 @@ class FlowTest(TembaTest):
                 "name": "Flow With Keyword Triggers",
                 "keyword_triggers": "it,changes,everything",
                 "expires_after_minutes": 60 * 12,
+                "base_language": "base",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -2791,6 +2792,7 @@ class FlowTest(TembaTest):
         post_data["name"] = "Flow With Keyword Triggers"
         post_data["keyword_triggers"] = "it,join"
         post_data["expires_after_minutes"] = 60 * 12
+        post_data["base_language"] = "base"
         response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
 
         flow_with_keywords = Flow.objects.get(name=post_data["name"])
