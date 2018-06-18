@@ -172,12 +172,10 @@ class TableExporter(object):
     rows, as again, Excel file only support that many per sheet.
     """
 
-    def __init__(self, task, sheet_name, extra_sheet_name, columns, extra_columns):
+    def __init__(self, task, sheet_name, columns):
         self.task = task
         self.columns = columns
-        self.extra_columns = extra_columns
         self.sheet_name = sheet_name
-        self.extra_sheet_name = extra_sheet_name
 
         self.current_sheet = 0
         self.current_row = 0
@@ -191,16 +189,11 @@ class TableExporter(object):
 
         # add our sheet
         self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        if len(self.extra_columns) > 0:
-            self.extra_sheet = self.workbook.add_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
-
         self.sheet.append_row(*self.columns)
-        if len(self.extra_columns) > 0:
-            self.extra_sheet.append_row(*self.extra_columns)
 
         self.sheet_row = 2
 
-    def write_row(self, values, extra_values):
+    def write_row(self, values):
         """
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
@@ -209,8 +202,6 @@ class TableExporter(object):
             self._add_sheet()
 
         self.sheet.append_row(*values)
-        if len(self.extra_columns) > 0:
-            self.extra_sheet.append_row(*extra_values)
 
         self.sheet_row += 1
 

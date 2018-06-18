@@ -2303,17 +2303,17 @@ class ContactURN(models.Model):
 
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-        TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-        TWITTERID_SCHEME: dict(label="TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
-        EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-        EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-        TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-        FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-        VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
-        JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
-        FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
-        LINE_SCHEME: dict(label="Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
-        WHATSAPP_SCHEME: dict(label="WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
+        TWITTER_SCHEME: dict(label="URN: Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        TWITTERID_SCHEME: dict(label="URN: TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
+        EXTERNAL_SCHEME: dict(label="URN: External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+        EMAIL_SCHEME: dict(label="URN: Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
+        TELEGRAM_SCHEME: dict(label="URN: Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+        FACEBOOK_SCHEME: dict(label="URN: Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+        VIBER_SCHEME: dict(label="URN: Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
+        JIOCHAT_SCHEME: dict(label="URN: Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
+        FCM_SCHEME: dict(label="URN: FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
+        LINE_SCHEME: dict(label="URN: Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
+        WHATSAPP_SCHEME: dict(label="URN: WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
     }
 
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
@@ -3034,7 +3034,7 @@ class ExportContactsTask(BaseExportTask):
             fields.append(
                 dict(
                     field=contact_field,
-                    label=contact_field.label,
+                    label="Field: %s" % contact_field.label,
                     key=contact_field.key,
                     id=contact_field.id,
                     urn_scheme=None,
@@ -3043,9 +3043,8 @@ class ExportContactsTask(BaseExportTask):
 
         group_fields = []
         if self.group_memberships.exists():
-            group_fields = [dict(label="Contact UUID", key=Contact.UUID, group_id=0, group=None)]
             for group in self.group_memberships.all():
-                group_fields.append(dict(label=group.name, key=None, group_id=group.id, group=group))
+                group_fields.append(dict(label="Group: %s" % group.name, key=None, group_id=group.id, group=group))
 
         return fields, scheme_counts, group_fields
 
@@ -3069,9 +3068,7 @@ class ExportContactsTask(BaseExportTask):
             contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
-        exporter = TableExporter(
-            self, "Contact", "Contact Groups", [f["label"] for f in fields], [g["label"] for g in group_fields]
-        )
+        exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])
 
         current_contact = 0
         start = time.time()
@@ -3132,11 +3129,7 @@ class ExportContactsTask(BaseExportTask):
                     contact_groups_ids = [g.id for g in contact.all_groups.all()]
                     for col in range(len(group_fields)):
                         field = group_fields[col]
-
-                        if field["key"] == Contact.UUID:
-                            field_value = contact.uuid
-                        else:
-                            field_value = "true" if field["group_id"] in contact_groups_ids else "false"
+                        field_value = "true" if field["group_id"] in contact_groups_ids else "false"
 
                         if field_value:
                             field_value = str(clean_string(field_value))
@@ -3144,7 +3137,7 @@ class ExportContactsTask(BaseExportTask):
                         group_values.append(field_value)
 
                 # write this contact's values
-                exporter.write_row(values, group_values)
+                exporter.write_row(values + group_values)
                 current_contact += 1
 
                 # output some status information every 10,000 contacts
