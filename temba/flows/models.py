@@ -5414,12 +5414,27 @@ class ExportFlowResultsTask(BaseExportTask):
     def _get_run_batches(self, flows, responded_only):
         print(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
 
-        # TODO firstly get runs from archives
-        # from temba.archives.models import Archive
-        # Archive.objects.filter(org=org, archive_type=Archive.TYPE_FLOWRUN).order_by('start_date')
+        # firstly get runs from archives
+        from temba.archives.models import Archive
+
+        # TODO only fetch archives for dates after the earliest created_on of the flows being exported
+
+        archives = Archive.objects.filter(
+            org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None
+        ).order_by("start_date")
+
+        flow_uuids = {str(flow.uuid) for flow in flows}
+
+        for archive in archives:
+            for record_batch in chunk_list(archive.iter_records(), 1000):
+                matching = []
+                for record in record_batch:
+                    if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                        matching.append(record)
+                yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("id")
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -5433,7 +5448,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 .order_by("id")
             )
 
-            # convert this batch of runs to same format as our archives
+            # convert this batch of runs to same format as records in our archives
             batch = []
             for run in run_batch:
                 batch.append(
