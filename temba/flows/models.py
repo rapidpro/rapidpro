@@ -5445,7 +5445,7 @@ class ExportFlowResultsTask(BaseExportTask):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
                 .select_related("contact", "flow")
-                .order_by("id")
+                .order_by("modified_on")
             )
 
             # convert this batch of runs to same format as records in our archives

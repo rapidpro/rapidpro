@@ -1167,6 +1167,13 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             1,
+            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", contact3_run1.created_on, "", "", "", ""],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            2,
             [
                 contact1_run1.contact.uuid,
                 "+250788382382",
@@ -1183,7 +1190,7 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_runs,
-            2,
+            3,
             [
                 contact2_run1.contact.uuid,
                 "+250788383383",
@@ -1200,14 +1207,14 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_runs,
-            3,
-            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", contact3_run1.created_on, "", "", "", ""],
+            4,
+            [contact2_run2.contact.uuid, "+250788383383", "Nic", "", contact2_run2.created_on, "", "", "", ""],
             tz,
         )
 
         self.assertExcelRow(
             sheet_runs,
-            4,
+            5,
             [
                 contact1_run2.contact.uuid,
                 "+250788382382",
@@ -1222,13 +1229,6 @@ class FlowTest(TembaTest):
             tz,
         )
 
-        self.assertExcelRow(
-            sheet_runs,
-            5,
-            [contact2_run2.contact.uuid, "+250788383383", "Nic", "", contact2_run2.created_on, "", "", "", ""],
-            tz,
-        )
-
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
         self.assertEqual(len(list(sheet_msgs.columns)), 7)
@@ -1239,9 +1239,31 @@ class FlowTest(TembaTest):
         contact1_out2 = contact1_run1.get_messages().get(text="That is a funny color. Try again.")
         contact1_out3 = contact1_run1.get_messages().get(text__startswith="I love orange too")
 
+        contact3_out1 = contact3_run1.get_messages().get(text="What is your favorite color?")
+
+        for row in tuple(sheet_msgs.rows):
+            vals = []
+            for cell in row:
+                vals.append(str(cell.value))
+            print("|".join(vals))
+
         self.assertExcelRow(
             sheet_msgs,
             1,
+            [
+                self.contact3.uuid,
+                "+250788123456",
+                "Norbert",
+                contact3_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            2,
             [
                 contact1_out1.contact.uuid,
                 "+250788382382",
@@ -1255,7 +1277,7 @@ class FlowTest(TembaTest):
         )
         self.assertExcelRow(
             sheet_msgs,
-            2,
+            3,
             [
                 contact1_in1.contact.uuid,
                 "+250788382382",
@@ -1269,7 +1291,7 @@ class FlowTest(TembaTest):
         )
         self.assertExcelRow(
             sheet_msgs,
-            3,
+            4,
             [
                 contact1_out2.contact.uuid,
                 "+250788382382",
@@ -1283,7 +1305,7 @@ class FlowTest(TembaTest):
         )
         self.assertExcelRow(
             sheet_msgs,
-            4,
+            5,
             [
                 contact1_in2.contact.uuid,
                 "+250788382382",
@@ -1297,7 +1319,7 @@ class FlowTest(TembaTest):
         )
         self.assertExcelRow(
             sheet_msgs,
-            5,
+            6,
             [
                 contact1_out3.contact.uuid,
                 "+250788382382",
