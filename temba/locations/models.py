@@ -123,6 +123,10 @@ class AdminBoundary(MPTTModel, models.Model):
 
         _update_child_paths(self)
 
+    def release(self):
+        AdminBoundary.objects.filter(parent=self).update(parent=None)
+        self.delete()
+
     @classmethod
     def create(cls, osm_id, name, level, parent=None, **kwargs):
         """

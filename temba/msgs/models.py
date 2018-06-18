@@ -686,6 +686,11 @@ class Broadcast(models.Model):
 
         self.save(update_fields=["status"])
 
+    def release(self):
+        for msg in self.msgs.all():
+            msg.release()
+        self.delete()
+
     def __str__(self):
         return "%s (%s)" % (self.org.name, self.pk)
 
@@ -1896,6 +1901,8 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
+        Msg.objects.filter(response_to=self).update(response_to=None)
+
         for log in ChannelLog.objects.filter(msg=self):
             log.release()
 
@@ -2236,6 +2243,13 @@ class Label(TembaModel):
         return self.label_type == Label.TYPE_FOLDER
 
     def release(self):
+
+        # release our childer if we are a folder
+        if self.is_folder():
+            for label in self.children.all():
+                label.release()
+
+        self.counts.all().delete()
         self.delete()
 
     def __str__(self):

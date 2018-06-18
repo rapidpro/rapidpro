@@ -4056,8 +4056,8 @@ class ActionTest(TembaTest):
         self.assertIsNone(replies.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(replies.filter(contact_urn__path="+12078778899").first())
 
-        Broadcast.objects.all().delete()
-        Msg.objects.all().delete()
+        self.release(Broadcast.objects.all())
+        self.release(Msg.objects.all())
 
         msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
@@ -4093,8 +4093,9 @@ class ActionTest(TembaTest):
             reply_msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "path/to/media.jpg")]
         )
 
-        Broadcast.objects.all().delete()
-        Msg.objects.all().delete()
+        self.release(Broadcast.objects.all())
+        self.release(Msg.objects.all())
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
 
         action_json = action.as_json()
@@ -9988,7 +9989,7 @@ class OrderingTest(FlowFileTest):
             # again, only one send_msg
             self.assertEqual(mock_send_msg.call_count, 1)
 
-        Msg.objects.all().delete()
+        self.releaseMessages()
 
         # try with multiple contacts
         with patch("temba.channels.tasks.send_msg_task", wraps=send_msg_task) as mock_send_msg:
@@ -10229,7 +10230,7 @@ class TimeoutTest(FlowFileTest):
 
         # ok, now let's try with a timeout
         self.releaseRuns()
-        Msg.objects.all().delete()
+        self.releaseMessages()
 
         # start the flow
         flow.start([], [self.contact])
