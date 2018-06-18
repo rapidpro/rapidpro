@@ -140,9 +140,7 @@ class FlowTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
-    def export_flow_results(
-        self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None, extra_urns=()
-    ):
+    def export_flow_results(self, flow, responded_only=False, include_msgs=True, contact_fields=None, extra_urns=()):
         """
         Exports results for the given flow and returns the generated workbook
         """
@@ -152,7 +150,6 @@ class FlowTest(TembaTest):
             "flows": [flow.id],
             "responded_only": responded_only,
             "include_messages": include_msgs,
-            "include_runs": include_runs,
             "extra_urns": extra_urns,
         }
         if contact_fields:
@@ -787,7 +784,7 @@ class FlowTest(TembaTest):
         run1.refresh_from_db()
 
         workbook = self.export_flow_results(self.flow)
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
         self.assertExcelRow(
             sheet_runs,
             0,
@@ -821,27 +818,6 @@ class FlowTest(TembaTest):
             self.org.timezone,
         )
 
-        self.assertExcelRow(
-            sheet_contacts,
-            0,
-            [
-                "Contact UUID",
-                "ID",
-                "Name",
-                "Groups",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
-            ],
-        )
-
-        self.assertExcelRow(
-            sheet_contacts,
-            1,
-            [self.contact.uuid, str(self.contact.id), "Eric", "", "Orange", "orange", "orange"],
-            self.org.timezone,
-        )
-
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"])
         self.assertExcelRow(
             sheet_msgs,
@@ -865,7 +841,7 @@ class FlowTest(TembaTest):
 
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
@@ -890,19 +866,6 @@ class FlowTest(TembaTest):
             sheet_runs,
             2,
             [
-                contact1_run2.contact.uuid,
-                "+250788382382",
-                "Eric",
-                "bootstrap 3",
-                contact1_run2.created_on,
-                contact1_run2.exited_on,
-            ],
-            tz,
-        )
-        self.assertExcelRow(
-            sheet_runs,
-            3,
-            [
                 contact2_run1.contact.uuid,
                 "+250788383383",
                 "Nic",
@@ -914,7 +877,26 @@ class FlowTest(TembaTest):
         )
         self.assertExcelRow(
             sheet_runs,
+            3,
+            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "bootstrap 3", contact3_run1.created_on],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_runs,
             4,
+            [
+                contact1_run2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "bootstrap 3",
+                contact1_run2.created_on,
+                contact1_run2.exited_on,
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_runs,
+            5,
             [
                 contact2_run2.contact.uuid,
                 "+250788383383",
@@ -924,19 +906,6 @@ class FlowTest(TembaTest):
                 contact2_run2.exited_on,
             ],
             tz,
-        )
-
-        # check contacts sheet...
-        self.assertEqual(len(list(sheet_contacts.rows)), 4)  # header + 3 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 4)
-
-        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups"])
-        self.assertExcelRow(
-            sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "bootstrap 3"], tz
-        )
-        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "bootstrap 3"], tz)
-        self.assertExcelRow(
-            sheet_contacts, 3, [contact3_run1.contact.uuid, "+250788123456", "Norbert", "bootstrap 3"], tz
         )
 
         # check messages sheet...
@@ -994,36 +963,6 @@ class FlowTest(TembaTest):
             sheet_msgs,
             3,
             [
-                c1_run2_msg1.contact.uuid,
-                "+250788382382",
-                "Eric",
-                c1_run2_msg1.created_on,
-                "OUT",
-                "This is the first message.",
-                "Test Channel",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_msgs,
-            4,
-            [
-                c1_run2_msg2.contact.uuid,
-                "+250788382382",
-                "Eric",
-                c1_run2_msg2.created_on,
-                "OUT",
-                "This is the second message.",
-                "Test Channel",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_msgs,
-            5,
-            [
                 c2_run1_msg1.contact.uuid,
                 "+250788383383",
                 "Nic",
@@ -1037,7 +976,7 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_msgs,
-            6,
+            4,
             [
                 c2_run1_msg2.contact.uuid,
                 "+250788383383",
@@ -1052,37 +991,7 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_msgs,
-            7,
-            [
-                c2_run2_msg1.contact.uuid,
-                "+250788383383",
-                "Nic",
-                c2_run2_msg1.created_on,
-                "OUT",
-                "This is the first message.",
-                "Test Channel",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_msgs,
-            8,
-            [
-                c2_run2_msg2.contact.uuid,
-                "+250788383383",
-                "Nic",
-                c2_run2_msg2.created_on,
-                "OUT",
-                "This is the second message.",
-                "Test Channel",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_msgs,
-            9,
+            5,
             [
                 c3_run1_msg1.contact.uuid,
                 "+250788123456",
@@ -1097,7 +1006,7 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_msgs,
-            10,
+            6,
             [
                 c3_run1_msg2.contact.uuid,
                 "+250788123456",
@@ -1110,17 +1019,77 @@ class FlowTest(TembaTest):
             tz,
         )
 
-        # test without msgs or runs or unresponded
+        self.assertExcelRow(
+            sheet_msgs,
+            7,
+            [
+                c1_run2_msg1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                c1_run2_msg1.created_on,
+                "OUT",
+                "This is the first message.",
+                "Test Channel",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_msgs,
+            8,
+            [
+                c1_run2_msg2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                c1_run2_msg2.created_on,
+                "OUT",
+                "This is the second message.",
+                "Test Channel",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_msgs,
+            9,
+            [
+                c2_run2_msg1.contact.uuid,
+                "+250788383383",
+                "Nic",
+                c2_run2_msg1.created_on,
+                "OUT",
+                "This is the first message.",
+                "Test Channel",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_msgs,
+            10,
+            [
+                c2_run2_msg2.contact.uuid,
+                "+250788383383",
+                "Nic",
+                c2_run2_msg2.created_on,
+                "OUT",
+                "This is the second message.",
+                "Test Channel",
+            ],
+            tz,
+        )
+
+        # test without msgs or unresponded
         with self.assertNumQueries(35):
-            workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
+            workbook = self.export_flow_results(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
-        sheet_contacts = workbook.worksheets[0]
+        sheet_runs = workbook.worksheets[0]
 
-        self.assertEqual(len(list(sheet_contacts.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_contacts.columns)), 4)
+        self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
+        self.assertEqual(len(list(sheet_runs.columns)), 6)
 
-        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups"])
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Exited"])
 
     def test_export_results(self):
         # setup flow and start both contacts
@@ -1173,7 +1142,7 @@ class FlowTest(TembaTest):
 
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
@@ -1216,23 +1185,6 @@ class FlowTest(TembaTest):
             sheet_runs,
             2,
             [
-                contact1_run2.contact.uuid,
-                "+250788382382",
-                "Eric",
-                "Devs",
-                contact1_run2.created_on,
-                contact1_run2.exited_on,
-                "Blue",
-                "blue",
-                " blue ",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_runs,
-            3,
-            [
                 contact2_run1.contact.uuid,
                 "+250788383383",
                 "Nic",
@@ -1248,42 +1200,33 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(
             sheet_runs,
+            3,
+            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", contact3_run1.created_on, "", "", "", ""],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
             4,
+            [
+                contact1_run2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "Devs",
+                contact1_run2.created_on,
+                contact1_run2.exited_on,
+                "Blue",
+                "blue",
+                " blue ",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            5,
             [contact2_run2.contact.uuid, "+250788383383", "Nic", "", contact2_run2.created_on, "", "", "", ""],
             tz,
-        )
-
-        # check contacts sheet...
-        self.assertEqual(len(list(sheet_contacts.rows)), 4)  # header + 3 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 7)
-
-        self.assertExcelRow(
-            sheet_contacts,
-            0,
-            [
-                "Contact UUID",
-                "URN",
-                "Name",
-                "Groups",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
-            ],
-        )
-
-        self.assertExcelRow(
-            sheet_contacts,
-            1,
-            [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "Blue", "blue", " blue "],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "Other", "green", "green"], tz
-        )
-
-        self.assertExcelRow(
-            sheet_contacts, 3, [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", "", "", ""], tz
         )
 
         # check messages sheet...
@@ -1368,24 +1311,26 @@ class FlowTest(TembaTest):
             tz,
         )
 
-        # test without msgs or runs or unresponded
+        # test without msgs or unresponded
         with self.assertNumQueries(40):
-            workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
+            workbook = self.export_flow_results(self.flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
-        sheet_contacts = workbook.worksheets[0]
+        sheet_runs = workbook.worksheets[0]
 
-        self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 7)
+        self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
+        self.assertEqual(len(list(sheet_runs.columns)), 9)
 
         self.assertExcelRow(
-            sheet_contacts,
+            sheet_runs,
             0,
             [
                 "Contact UUID",
                 "URN",
                 "Name",
                 "Groups",
+                "Started",
+                "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
                 "color (Text) - Color Flow",
@@ -1393,14 +1338,37 @@ class FlowTest(TembaTest):
         )
 
         self.assertExcelRow(
-            sheet_contacts,
+            sheet_runs,
             1,
-            [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "Blue", "blue", " blue "],
+            [
+                contact1_run1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "Devs",
+                contact1_run1.created_on,
+                contact1_run1.exited_on,
+                "Orange",
+                "orange",
+                "orange",
+            ],
             tz,
         )
 
         self.assertExcelRow(
-            sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "Other", "green", "green"], tz
+            sheet_runs,
+            2,
+            [
+                contact2_run1.contact.uuid,
+                "+250788383383",
+                "Nic",
+                "",
+                contact2_run1.created_on,
+                contact2_run1.exited_on,
+                "Other",
+                "green",
+                "green",
+            ],
+            tz,
         )
 
         # test export with a contact field
@@ -1411,7 +1379,6 @@ class FlowTest(TembaTest):
             workbook = self.export_flow_results(
                 self.flow,
                 include_msgs=False,
-                include_runs=True,
                 responded_only=True,
                 contact_fields=[age],
                 extra_urns=["twitter", "line"],
@@ -1421,52 +1388,7 @@ class FlowTest(TembaTest):
         self.contact.set_field(self.admin, "age", 36)
 
         tz = self.org.timezone
-        sheet_runs, sheet_contacts = workbook.worksheets
-
-        self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 10)
-
-        self.assertExcelRow(
-            sheet_contacts,
-            0,
-            [
-                "Contact UUID",
-                "URN",
-                "Twitter",
-                "Line",
-                "Name",
-                "Groups",
-                "Age",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
-            ],
-        )
-
-        self.assertExcelRow(
-            sheet_contacts,
-            1,
-            [
-                contact1_run1.contact.uuid,
-                "+250788382382",
-                "erictweets",
-                "",
-                "Eric",
-                "Devs",
-                "36",
-                "Blue",
-                "blue",
-                " blue ",
-            ],
-            tz,
-        )
-
-        self.assertExcelRow(
-            sheet_contacts,
-            2,
-            [contact2_run1.contact.uuid, "+250788383383", "", "", "Nic", "", "", "Other", "green", "green"],
-            tz,
-        )
+        sheet_runs, = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
@@ -1517,7 +1439,6 @@ class FlowTest(TembaTest):
             expected_sheets = [
                 ("Runs", 4),
                 ("Runs (2)", 3),
-                ("Contacts", 4),
                 ("Messages", 4),
                 ("Messages (2)", 4),
                 ("Messages (3)", 4),
@@ -1536,15 +1457,11 @@ class FlowTest(TembaTest):
 
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
         self.assertEqual(len(list(sheet_runs.columns)), 9)
-
-        # check contacts sheet...
-        self.assertEqual(len(list(sheet_contacts.rows)), 4)  # header + 3 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 7)
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
@@ -1562,7 +1479,7 @@ class FlowTest(TembaTest):
 
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 2)  # header + 1 runs
@@ -1612,7 +1529,7 @@ class FlowTest(TembaTest):
         workbook = self.export_flow_results(self.flow)
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         run.refresh_from_db()
 
@@ -1651,7 +1568,7 @@ class FlowTest(TembaTest):
         workbook = self.export_flow_results(self.flow)
         tz = self.org.timezone
 
-        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        sheet_runs, sheet_msgs = workbook.worksheets
 
         # now the Administrator should show up
         self.assertExcelRow(
@@ -1677,13 +1594,11 @@ class FlowTest(TembaTest):
 
         workbook = self.export_flow_results(self.flow)
 
-        self.assertEqual(len(workbook.worksheets), 2)
+        self.assertEqual(len(workbook.worksheets), 1)
 
         # every sheet has only the head row
         self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
         self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
-        self.assertEqual(len(list(workbook.worksheets[1].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[1].columns)), 7)
 
     def test_copy(self):
         # pick a really long name so we have to concatenate

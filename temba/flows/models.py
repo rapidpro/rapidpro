@@ -5251,7 +5251,6 @@ class ExportFlowResultsTask(BaseExportTask):
     email_subject = "Your results export is ready"
     email_template = "flows/email/flow_export_download"
 
-    INCLUDE_RUNS = "include_runs"
     INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"
     RESPONDED_ONLY = "responded_only"
@@ -5262,9 +5261,8 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs, extra_urns):
+    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns):
         config = {
-            ExportFlowResultsTask.INCLUDE_RUNS: include_runs,
             ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
@@ -5321,17 +5319,9 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, columns)
         return sheet
 
-    def _add_contacts_sheet(self, book, columns):
-        name = "Contacts (%d)" % (book.num_contacts_sheets + 1) if book.num_contacts_sheets > 0 else "Contacts"
-        sheet = book.add_sheet(name, index=(book.num_runs_sheets + book.num_contacts_sheets))
-        book.num_contacts_sheets += 1
-
-        self.append_row(sheet, columns)
-        return sheet
-
     def _add_msgs_sheet(self, book):
         name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_contacts_sheets + book.num_msgs_sheets
+        index = book.num_runs_sheets + book.num_msgs_sheets
         sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
@@ -5354,7 +5344,6 @@ class ExportFlowResultsTask(BaseExportTask):
 
     def write_export(self):
         config = self.config
-        include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
@@ -5387,25 +5376,17 @@ class ExportFlowResultsTask(BaseExportTask):
         runs_columns = self._get_runs_columns(
             extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by, show_time=True
         )
-        contacts_columns = self._get_runs_columns(extra_urn_columns, contact_fields, result_nodes)
 
         book = XLSXBook()
         book.num_runs_sheets = 0
-        book.num_contacts_sheets = 0
         book.num_msgs_sheets = 0
 
-        merged_result_values = [None, None, None] * len(result_nodes)
-
-        current_contact = None
-        current_contact_values = None
-
         # the current sheets
-        runs_sheet = self._add_runs_sheet(book, runs_columns) if include_runs else None
-        contacts_sheet = self._add_contacts_sheet(book, contacts_columns)
+        runs_sheet = self._add_runs_sheet(book, runs_columns)
         msgs_sheet = None
 
         # grab the ids of the runs we're going to be exporting..
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("contact", "id")
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("id")
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -5418,52 +5399,34 @@ class ExportFlowResultsTask(BaseExportTask):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
                 .select_related("contact")
-                .order_by("contact", "id")
+                .prefetch_related("contact__all_groups")
+                .order_by("id")
             )
 
             for run in run_batch:
-                # is this a new contact?
-                if run.contact != current_contact:
-                    run.contact.org = self.org
-
-                    if not contacts_sheet or contacts_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
-                        contacts_sheet = self._add_contacts_sheet(book, contacts_columns)
-
-                    if current_contact:
-                        merged_sheet_row = []
-                        merged_sheet_row += current_contact_values
-                        merged_sheet_row += merged_result_values
-
-                        self.append_row(contacts_sheet, merged_sheet_row)
-
-                        merged_result_values = [None, None, None] * len(result_nodes)
-
-                    current_contact = run.contact
-
-                    # generate current contact info columns
-                    current_contact_values = [
-                        run.contact.uuid,
-                        run.contact.id
-                        if self.org.is_anon
-                        else run.contact.get_urn_display(org=self.org, formatted=False),
-                    ]
-
-                    for extra_urn_column in extra_urn_columns:
-                        urn_display = run.contact.get_urn_display(
-                            org=self.org, formatted=False, scheme=extra_urn_column["scheme"]
-                        )
-                        current_contact_values.append(urn_display)
-
-                    current_contact_values.append(self.prepare_value(run.contact.name))
-                    current_contact_values.append(self._get_contact_groups_display(run.contact))
-
-                    for cf in contact_fields:
-                        field_value = run.contact.get_field_display(cf)
-                        current_contact_values.append(self.prepare_value(field_value))
-
                 # get this run's results by node UUID
                 results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.results.values()}
 
+                # generate contact info columns
+                contact_values = [
+                    run.contact.uuid,
+                    run.contact.id if self.org.is_anon else run.contact.get_urn_display(org=self.org, formatted=False),
+                ]
+
+                for extra_urn_column in extra_urn_columns:
+                    urn_display = run.contact.get_urn_display(
+                        org=self.org, formatted=False, scheme=extra_urn_column["scheme"]
+                    )
+                    contact_values.append(urn_display)
+
+                contact_values.append(self.prepare_value(run.contact.name))
+                contact_values.append(self._get_contact_groups_display(run.contact))
+
+                for cf in contact_fields:
+                    field_value = run.contact.get_field_display(cf)
+                    contact_values.append(self.prepare_value(field_value))
+
+                # generate result columns for each ruleset
                 result_values = []
                 for n, node in enumerate(result_nodes):
                     node_result = results_by_node.get(node.uuid, {})
@@ -5472,26 +5435,20 @@ class ExportFlowResultsTask(BaseExportTask):
                     node_input = node_result.get(FlowRun.RESULT_INPUT, "")
                     result_values += [node_category, node_value, node_input]
 
-                    if node_result:
-                        merged_result_values[n * 3 + 0] = node_category
-                        merged_result_values[n * 3 + 1] = node_value
-                        merged_result_values[n * 3 + 2] = node_input
+                if not runs_sheet or runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                    runs_sheet = self._add_runs_sheet(book, runs_columns)
 
-                if include_runs:
-                    if not runs_sheet or runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
-                        runs_sheet = self._add_runs_sheet(book, runs_columns)
+                # build the whole row
+                runs_sheet_row = []
 
-                    # build the whole row
-                    runs_sheet_row = []
+                if show_submitted_by:
+                    runs_sheet_row.append(run.submitted_by.username if run.submitted_by else "")
 
-                    if show_submitted_by:
-                        runs_sheet_row.append(run.submitted_by.username if run.submitted_by else "")
+                runs_sheet_row += contact_values
+                runs_sheet_row += [run.created_on, run.exited_on]
+                runs_sheet_row += result_values
 
-                    runs_sheet_row += current_contact_values
-                    runs_sheet_row += [run.created_on, run.exited_on]
-                    runs_sheet_row += result_values
-
-                    self.append_row(runs_sheet, runs_sheet_row)
+                self.append_row(runs_sheet, runs_sheet_row)
 
                 # write out any message associated with this run
                 if include_msgs:
@@ -5503,12 +5460,6 @@ class ExportFlowResultsTask(BaseExportTask):
                         "Result export of for org #%d - %d%% complete in %0.2fs"
                         % (self.org.id, runs_exported * 100 // len(run_ids), time.time() - start)
                     )
-
-        if current_contact:
-            merged_sheet_row = []
-            merged_sheet_row += current_contact_values
-            merged_sheet_row += merged_result_values
-            self.append_row(contacts_sheet, merged_sheet_row)
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
