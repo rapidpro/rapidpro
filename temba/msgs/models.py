@@ -937,6 +937,7 @@ class Msg(models.Model):
     connection = models.ForeignKey(
         "channels.ChannelSession",
         on_delete=models.PROTECT,
+        related_name="msgs",
         null=True,
         help_text=_("The session this message was a part of if any"),
     )
@@ -2244,10 +2245,12 @@ class Label(TembaModel):
 
     def release(self):
 
-        # release our childer if we are a folder
+        # release our children if we are a folder
         if self.is_folder():
             for label in self.children.all():
                 label.release()
+        else:
+            Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
         self.delete()

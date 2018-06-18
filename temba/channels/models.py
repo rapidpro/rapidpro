@@ -2336,4 +2336,7 @@ class ChannelSession(SmartModel):
         if session:
             session.release()
 
+        for msg in self.msgs.all():
+            msg.release()
+
         self.delete()
