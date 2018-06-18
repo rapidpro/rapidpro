@@ -21,6 +21,7 @@ from django.utils.encoding import force_text
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import Resthook, WebHookEvent, WebHookResult
+from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
@@ -36,6 +37,7 @@ from temba.tests import (
     matchers,
     skip_if_no_flowserver,
 )
+from temba.tests.s3 import MocksS3Client
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils.dates import datetime_to_str
@@ -1503,26 +1505,6 @@ class FlowTest(TembaTest):
 
         sheet_runs, sheet_msgs = workbook.worksheets
 
-        # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 2)  # header + 1 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
-
-        self.assertExcelRow(
-            sheet_runs,
-            0,
-            [
-                "Contact UUID",
-                "URN",
-                "Name",
-                "Groups",
-                "Started",
-                "Exited",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
-            ],
-        )
-
         self.assertExcelRow(
             sheet_runs,
             1,
@@ -1537,6 +1519,91 @@ class FlowTest(TembaTest):
                 "ngertin.",
                 "ngertin.",
             ],
+            tz,
+        )
+
+    def test_export_results_from_archives(self):
+        contact1_run, contact2_run, contact3_run = self.flow.start([], [self.contact, self.contact2, self.contact3])
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
+        Flow.find_and_handle(contact1_in1)
+        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="blue")
+        Flow.find_and_handle(contact2_in1)
+
+        # and a run for a different flow
+        flow2 = self.get_flow("favorites")
+        contact2_other_flow, = flow2.start([], [self.contact2])
+
+        contact1_run.refresh_from_db()
+        contact2_run.refresh_from_db()
+        contact3_run.refresh_from_db()
+
+        # archive runs for contacts 1 and 2
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_FLOWRUN,
+            size=10,
+            hash=uuid4().hex,
+            url=f"http://s3-bucket.aws.com/my/32562662.jsonl.gz",
+            record_count=2,
+            start_date=timezone.now(),
+            period="D",
+            build_time=23425,
+        )
+        mock_s3 = MocksS3Client()
+        mock_s3.put_jsonl(
+            "s3-bucket",
+            "my/32562662.jsonl.gz",
+            [contact1_run.as_archive_json(), contact2_run.as_archive_json(), contact2_other_flow.as_archive_json()],
+        )
+
+        contact1_run.release()
+        contact2_run.release()
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = self.export_flow_results(self.flow)
+
+        tz = self.org.timezone
+        sheet_runs, sheet_msgs = workbook.worksheets
+
+        # check runs sheet...
+        self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
+
+        self.assertExcelRow(
+            sheet_runs,
+            1,
+            [
+                contact1_run.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "",
+                contact1_run.created_on,
+                "",
+                "Other",
+                "green",
+                "green",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_runs,
+            2,
+            [
+                contact2_run.contact.uuid,
+                "+250788383383",
+                "Nic",
+                "",
+                contact2_run.created_on,
+                contact2_run.exited_on,
+                "Blue",
+                "blue",
+                "blue",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_runs,
+            3,
+            [contact3_run.contact.uuid, "+250788123456", "Norbert", "", contact3_run.created_on, "", "", "", ""],
             tz,
         )
 
@@ -2056,7 +2123,7 @@ class FlowTest(TembaTest):
         self.assertTest(True, "\U0001F64C", test)
 
         sms.text = "I am \U0001F44D"
-        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        test = ContainsAnyTest(test=dict(base="\U0001F64C \U0001F44D"))
         self.assertTest(True, "\U0001F44D", test)
 
         sms.text = "text"
@@ -4121,9 +4188,9 @@ class ActionTest(TembaTest):
         execution = self.execute_action(action, run, msg)
 
         self.assertIsNotNone(action.msg)
-        self.assertEqual(action.msg, {u"base": u"test\n1: Test1\n2: Test2\n"})
+        self.assertEqual(action.msg, {"base": "test\n1: Test1\n2: Test2\n"})
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"test\n1: Test1\n2: Test2")
+        self.assertEqual(execution[0].text, "test\n1: Test1\n2: Test2")
 
         Broadcast.objects.all().delete()
 
@@ -4167,7 +4234,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertCountEqual(list(action.msg.keys()), [u"rus", u"hun", u"eng"])
+        self.assertCountEqual(list(action.msg.keys()), ["rus", "hun", "eng"])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg["eng"], action.msg["rus"])
@@ -4179,11 +4246,11 @@ class ActionTest(TembaTest):
         self.assertNotIn("labelENG", action.msg["hun"])
         self.assertIn("label2ENG", action.msg["hun"])
 
-        self.assertEqual(action.msg["hun"], u"testHUN\n1: labelHUN\n2: label2ENG\n")
+        self.assertEqual(action.msg["hun"], "testHUN\n1: labelHUN\n2: label2ENG\n")
 
         # the msg sent out is in english
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testENG\n1: labelENG\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
 
         # now set contact's language to something we don't have in our org languages
         self.contact.language = "fra"
@@ -4195,7 +4262,7 @@ class ActionTest(TembaTest):
 
         # he will still get the english (base language)
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testENG\n1: labelENG\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
 
         # now set contact's language to hungarian
         self.contact.language = "hun"
@@ -4207,7 +4274,7 @@ class ActionTest(TembaTest):
 
         # he will get the partly translated hungarian version
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testHUN\n1: labelHUN\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testHUN\n1: labelHUN\n2: label2ENG")
 
         Broadcast.objects.all().delete()
 
@@ -8704,7 +8771,7 @@ class FlowMigrationTest(FlowFileTest):
             response.json(),
             {
                 "description": "rapidpro_flow is currently editing this Flow. Your changes will not be saved until you refresh your browser.",
-                "status": u"failure",
+                "status": "failure",
             },
         )
 

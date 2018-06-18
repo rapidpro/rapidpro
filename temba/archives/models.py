@@ -65,17 +65,20 @@ class Archive(models.Model):
         url_parts = urlparse(self.url)
         return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
 
+    @classmethod
+    def s3_client(cls):
+        session = boto3.Session(
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        return session.client("s3")
+
     def filename(self):
         url_parts = urlparse(self.url)
         return url_parts.path.split("/")[-1]
 
     def get_download_link(self):
         if self.url:
-            session = boto3.Session(
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-            )
-            s3 = session.client("s3")
-
+            s3 = self.s3_client()
             s3_params = {
                 **self.s3_location(),
                 # force browser to download and not uncompress our gzipped files
@@ -92,10 +95,7 @@ class Archive(models.Model):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-        s3 = session.client("s3")
+        s3 = self.s3_client()
         s3_obj = s3.get_object(**self.s3_location())
         stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 

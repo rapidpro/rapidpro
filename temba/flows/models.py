@@ -4322,6 +4322,21 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.modified_on = timezone.now()
         self.save(update_fields=["results", "modified_on"])
 
+    def as_archive_json(self):
+        return {
+            "id": self.id,
+            "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
+            "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
+            "responded": self.responded,
+            "values": self.results,
+            "events": self.events,
+            "created_on": self.created_on.isoformat(),
+            "modified_on": self.modified_on.isoformat(),
+            "exited_on": self.exited_on.isoformat() if self.exited_on else None,
+            "exit_type": self.exit_type,
+            "submitted_by": self.submitted_by.username if self.submitted_by else None,
+        }
+
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
@@ -5449,25 +5464,7 @@ class ExportFlowResultsTask(BaseExportTask):
             )
 
             # convert this batch of runs to same format as records in our archives
-            batch = []
-            for run in run_batch:
-                batch.append(
-                    {
-                        "id": run.id,
-                        "flow": {"uuid": run.flow.uuid},
-                        "contact": {"uuid": str(run.contact.uuid), "name": run.contact.name},
-                        "responded": run.responded,
-                        "values": run.results,
-                        "events": run.events,
-                        "created_on": run.created_on.isoformat(),
-                        "modified_on": run.modified_on.isoformat(),
-                        "exited_on": run.exited_on.isoformat() if run.exited_on else None,
-                        "exit_type": run.exit_type,
-                        "submitted_by": run.submitted_by,
-                    }
-                )
-
-            yield batch
+            yield [run.as_archive_json() for run in run_batch]
 
     def _write_runs(
         self,
@@ -5484,7 +5481,7 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes a batch of run JSON blobs to the export
         """
         # get all the contacts referenced in this batch
-        contact_uuids = [r["contact"]["uuid"] for r in runs]
+        contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("all_groups")
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
@@ -5527,8 +5524,7 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row = []
 
             if show_submitted_by:
-                submitted_by = run.get("submitted_by")
-                runs_sheet_row.append(submitted_by.username if submitted_by else "")
+                runs_sheet_row.append(run.get("submitted_by") or "")
 
             runs_sheet_row += contact_values
             runs_sheet_row += [
