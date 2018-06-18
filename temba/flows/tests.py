@@ -2034,7 +2034,7 @@ class FlowTest(TembaTest):
         self.assertTest(True, "\U0001F64C", test)
 
         sms.text = "I am \U0001F44D"
-        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        test = ContainsAnyTest(test=dict(base="\U0001F64C \U0001F44D"))
         self.assertTest(True, "\U0001F44D", test)
 
         sms.text = "text"
@@ -4099,9 +4099,9 @@ class ActionTest(TembaTest):
         execution = self.execute_action(action, run, msg)
 
         self.assertIsNotNone(action.msg)
-        self.assertEqual(action.msg, {u"base": u"test\n1: Test1\n2: Test2\n"})
+        self.assertEqual(action.msg, {"base": "test\n1: Test1\n2: Test2\n"})
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"test\n1: Test1\n2: Test2")
+        self.assertEqual(execution[0].text, "test\n1: Test1\n2: Test2")
 
         Broadcast.objects.all().delete()
 
@@ -4145,7 +4145,7 @@ class ActionTest(TembaTest):
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
         self.assertEqual(len(action.msg.keys()), 3)
-        self.assertCountEqual(list(action.msg.keys()), [u"rus", u"hun", u"eng"])
+        self.assertCountEqual(list(action.msg.keys()), ["rus", "hun", "eng"])
 
         # we don't have any translation for Russian, so it should be the same as eng
         self.assertEqual(action.msg["eng"], action.msg["rus"])
@@ -4157,11 +4157,11 @@ class ActionTest(TembaTest):
         self.assertNotIn("labelENG", action.msg["hun"])
         self.assertIn("label2ENG", action.msg["hun"])
 
-        self.assertEqual(action.msg["hun"], u"testHUN\n1: labelHUN\n2: label2ENG\n")
+        self.assertEqual(action.msg["hun"], "testHUN\n1: labelHUN\n2: label2ENG\n")
 
         # the msg sent out is in english
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testENG\n1: labelENG\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
 
         # now set contact's language to something we don't have in our org languages
         self.contact.language = "fra"
@@ -4173,7 +4173,7 @@ class ActionTest(TembaTest):
 
         # he will still get the english (base language)
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testENG\n1: labelENG\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
 
         # now set contact's language to hungarian
         self.contact.language = "hun"
@@ -4185,7 +4185,7 @@ class ActionTest(TembaTest):
 
         # he will get the partly translated hungarian version
         self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, u"testHUN\n1: labelHUN\n2: label2ENG")
+        self.assertEqual(execution[0].text, "testHUN\n1: labelHUN\n2: label2ENG")
 
         Broadcast.objects.all().delete()
 
@@ -8682,7 +8682,7 @@ class FlowMigrationTest(FlowFileTest):
             response.json(),
             {
                 "description": "rapidpro_flow is currently editing this Flow. Your changes will not be saved until you refresh your browser.",
-                "status": u"failure",
+                "status": "failure",
             },
         )
 
