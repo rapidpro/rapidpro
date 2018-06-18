@@ -37,7 +37,7 @@ from temba.tests import (
     matchers,
     skip_if_no_flowserver,
 )
-from temba.tests.s3 import MocksS3Client
+from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils.dates import datetime_to_str
@@ -1240,14 +1240,7 @@ class FlowTest(TembaTest):
         contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
         contact1_out2 = contact1_run1.get_messages().get(text="That is a funny color. Try again.")
         contact1_out3 = contact1_run1.get_messages().get(text__startswith="I love orange too")
-
         contact3_out1 = contact3_run1.get_messages().get(text="What is your favorite color?")
-
-        for row in tuple(sheet_msgs.rows):
-            vals = []
-            for cell in row:
-                vals.append(str(cell.value))
-            print("|".join(vals))
 
         self.assertExcelRow(
             sheet_msgs,
@@ -1549,7 +1542,7 @@ class FlowTest(TembaTest):
             period="D",
             build_time=23425,
         )
-        mock_s3 = MocksS3Client()
+        mock_s3 = MockS3Client()
         mock_s3.put_jsonl(
             "s3-bucket",
             "my/32562662.jsonl.gz",

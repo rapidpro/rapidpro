@@ -3,7 +3,7 @@ import io
 import json
 
 
-class MocksS3Client:
+class MockS3Client:
     """
     A mock of the boto S3 client
     """

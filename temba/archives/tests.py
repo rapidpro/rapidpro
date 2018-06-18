@@ -7,7 +7,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 
 from temba.tests import TembaTest
-from temba.tests.s3 import MocksS3Client
+from temba.tests.s3 import MockS3Client
 
 from .models import Archive
 
@@ -26,7 +26,7 @@ class ArchiveTest(TembaTest):
             build_time=23425,
         )
 
-        mock_s3 = MocksS3Client()
+        mock_s3 = MockS3Client()
         mock_s3.put_jsonl("s3-bucket", "my/32562662.jsonl.gz", [{"id": 1}, {"id": 2}, {"id": 3}])
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
