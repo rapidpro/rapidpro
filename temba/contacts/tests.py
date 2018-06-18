@@ -4196,6 +4196,7 @@ class ContactTest(TembaTest):
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
+        ContactGroup.user_groups.all().update(is_active=False)
         #
         # first import brings in 3 contacts
         user = self.user

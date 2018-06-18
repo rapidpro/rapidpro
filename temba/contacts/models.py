@@ -1274,6 +1274,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if uuid is None:
             uuid = field_dict.pop("uuid", None)
 
+        for key in field_dict:
+            cleaned_key = key
+            value = field_dict.pop(key)
+            if key.startswith("group:"):
+                continue
+
+            if key.startswith("urn:"):
+                cleaned_key = key.lstrip("urn:").strip()
+
+            if key.startswith("field:"):
+                cleaned_key = key.lstrip("field:").strip()
+
+            field_dict[cleaned_key] = value
+
         country = org.get_country_code()
         urns = []
 
@@ -1426,6 +1440,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS)
                 and key not in extra_fields
                 and key not in active_scheme
+                and not key.startswith("urn:")
             )
         }
 

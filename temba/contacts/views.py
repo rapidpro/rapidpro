@@ -699,7 +699,15 @@ class ContactCRUDL(SmartCRUDL):
             """
             org = self.derive_org()
             column_controls = []
-            for header in column_headers:
+            for header_col in column_headers:
+
+                header = header_col
+                if header.startswith("group:") or header.startswith("urn:"):
+                    continue
+
+                if header.startswith("field:"):
+                    header = header.lstrip("field:").strip()
+
                 header_key = slugify_with(header)
 
                 include_field = forms.BooleanField(label=" ", required=False, initial=True)
@@ -734,7 +742,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 column_controls.append(
                     dict(
-                        header=header,
+                        header=header_col,
                         include_field=include_field_name,
                         label_field=label_field_name,
                         type_field=type_field_name,
