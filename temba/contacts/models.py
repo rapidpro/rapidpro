@@ -1289,13 +1289,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         urns = []
 
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
-        possible_urn_headers_case_insesitive = [scheme.lower() for scheme in possible_urn_headers]
+        possible_urn_headers_case_insensitive = [scheme.lower() for scheme in possible_urn_headers]
 
         # prevent urns update on anon org
         if uuid and org.is_anon and not is_admin:
-            possible_urn_headers_case_insesitive = []
+            possible_urn_headers_case_insensitive = []
 
-        for urn_header in possible_urn_headers_case_insesitive:
+        for urn_header in possible_urn_headers_case_insensitive:
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
