@@ -5450,7 +5450,9 @@ class ExportFlowResultsTask(BaseExportTask):
         earliest_month = date(earliest_day.year, earliest_day.month, 1)
 
         archives = (
-            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
+            Archive.objects.filter(
+                org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None, needs_deletion=False
+            )
             .filter(
                 Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
                 | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
