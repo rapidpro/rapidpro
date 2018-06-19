@@ -459,8 +459,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(mock.called)
 
             # what if they send weird json back?
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         # add ad manager back in
         self.org.administrators.add(self.admin)
@@ -484,8 +483,7 @@ class WebHookTest(TembaTest):
 
             self.assertTrue(mock.called)
 
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.side_effect = [MockResponse(500, "I am error")]
@@ -509,8 +507,7 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
             self.assertEqual(mock.call_count, 2)
 
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         with patch("requests.Session.send") as mock:
             # valid json, but not our format
@@ -532,8 +529,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(200, result.status_code)
             self.assertEqual(bad_json, result.body)
 
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
@@ -571,8 +567,7 @@ class WebHookTest(TembaTest):
             self.assertEqual("I'm gonna pop some tags", data["text"][0])
             self.assertIn("time", data)
 
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.return_value = MockResponse(500, "I am error")
@@ -618,8 +613,7 @@ class WebHookTest(TembaTest):
             response = self.client.get(reverse("api.log_read", args=[event.pk]))
             self.assertRedirect(response, reverse("users.user_login"))
 
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
+            self.release(WebHookEvent.objects.all())
 
         # add a webhook header to the org
         self.channel.org.webhook = {

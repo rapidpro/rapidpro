@@ -25,17 +25,25 @@ class AirtimeTransfer(SmartModel):
 
     STATUS_CHOICES = ((PENDING, "Pending"), (SUCCESS, "Success"), (FAILED, "Failed"))
 
-    org = models.ForeignKey(Org, help_text="The organization that this airtime was triggered for")
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, help_text="The organization that this airtime was triggered for"
+    )
 
     status = models.CharField(
         max_length=1, choices=STATUS_CHOICES, default="P", help_text="The state this event is currently in"
     )
 
     channel = models.ForeignKey(
-        Channel, null=True, blank=True, help_text="The channel that this airtime is relating to"
+        Channel,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="The channel that this airtime is relating to",
     )
 
-    contact = models.ForeignKey(Contact, help_text="The contact that this airtime is sent to")
+    contact = models.ForeignKey(
+        Contact, on_delete=models.PROTECT, help_text="The contact that this airtime is sent to"
+    )
 
     recipient = models.CharField(max_length=64)
 
@@ -56,7 +64,7 @@ class AirtimeTransfer(SmartModel):
         if not settings.SEND_AIRTIME:
             raise Exception("!! Skipping Airtime Transfer, SEND_AIRTIME set to False")
 
-        key = str(int(time.time()))
+        key = str(int(time.time() * 1000))
         md5 = hashlib.md5()
         md5.update(force_bytes(login + token + key))
         md5 = md5.hexdigest()

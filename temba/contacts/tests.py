@@ -679,7 +679,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
         self.create_secondary_org()
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
@@ -688,7 +688,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
@@ -4307,7 +4307,7 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context["group"], None)
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         records, _ = self.do_import(user, "sample_contacts_UPPER.XLS")
         self.assertEqual(3, len(records))
@@ -4318,7 +4318,7 @@ class ContactTest(TembaTest):
         self.assertEqual(3, group.contacts.count())
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         records, _ = self.do_import(user, "sample_contacts_with_filename_very_long_that_it_will_not_validate.xls")
         self.assertEqual(2, len(records))
@@ -4347,7 +4347,7 @@ class ContactTest(TembaTest):
         )
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",))
@@ -4383,7 +4383,8 @@ class ContactTest(TembaTest):
         self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
+
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",))
@@ -4437,7 +4438,7 @@ class ContactTest(TembaTest):
             )
 
             self.releaseContacts(delete=True)
-            ContactGroup.user_groups.all().delete()
+            self.release(ContactGroup.user_groups.all())
 
             self.assertContactImport(
                 "%s/test_imports/sample_contacts.xls" % settings.MEDIA_ROOT,
@@ -4445,7 +4446,7 @@ class ContactTest(TembaTest):
             )
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         # import sample contact spreadsheet with valid headers
         self.assertContactImport(
@@ -4496,7 +4497,7 @@ class ContactTest(TembaTest):
         )
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         self.assertContactImport(
             "%s/test_imports/sample_contacts_bad_unicode.xls" % settings.MEDIA_ROOT,
@@ -4513,7 +4514,7 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact2.get_urns().values_list("path", flat=True)), ["+250788345345"])
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         # import a spreadsheet with phone, name and twitter columns
         self.assertContactImport(
@@ -4540,7 +4541,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name="Klab").count())
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         # some columns have either twitter or phone
         self.assertContactImport(
@@ -4549,7 +4550,7 @@ class ContactTest(TembaTest):
         )
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",))
@@ -4630,7 +4631,8 @@ class ContactTest(TembaTest):
             self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
+
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",))
@@ -4711,7 +4713,7 @@ class ContactTest(TembaTest):
             self.assertEqual(list(michael.get_urns().values_list("path", flat=True)), ["+250788383396"])
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
         contact = self.create_contact(name="Bob", number="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",))
@@ -4749,7 +4751,7 @@ class ContactTest(TembaTest):
         self.assertNoFormErrors(response)
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         records, _ = self.do_import(user, "sample_contacts.xlsx")
         self.assertEqual(3, len(records))
@@ -4764,7 +4766,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, Contact.objects.filter(name="Jen Newcomer").count())
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         with patch("temba.contacts.models.Org.get_country_code") as mock_country_code:
             mock_country_code.return_value = None
@@ -4838,7 +4840,7 @@ class ContactTest(TembaTest):
             "You must delete existing ones before you can create new ones.",
         )
 
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEqual(Contact.objects.all().count(), 0)
@@ -5065,7 +5067,7 @@ class ContactTest(TembaTest):
             Contact.import_csv(task, log=None)
 
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         # existing datetime field
         ContactField.objects.create(
