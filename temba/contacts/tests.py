@@ -4074,24 +4074,24 @@ class ContactTest(TembaTest):
             Contact.validate_org_import_header(["name"], self.org)  # missing a URN
 
         with self.assertRaises(Exception):
-            Contact.validate_org_import_header(["urn:tel", "urn:twitter", "urn:external"], self.org)  # missing name
+            Contact.validate_org_import_header(["urn:tel", "urn:twitter", "urn:ext"], self.org)  # missing name
 
         Contact.validate_org_import_header(["uuid"], self.org)
         Contact.validate_org_import_header(["uuid", "age"], self.org)
         Contact.validate_org_import_header(["uuid", "name"], self.org)
-        Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:external"], self.org)
+        Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
         Contact.validate_org_import_header(["name", "urn:tel"], self.org)
         Contact.validate_org_import_header(["name", "urn:twitter"], self.org)
-        Contact.validate_org_import_header(["name", "urn:external"], self.org)
+        Contact.validate_org_import_header(["name", "urn:ext"], self.org)
 
         with AnonymousOrg(self.org):
             Contact.validate_org_import_header(["uuid"], self.org)
             Contact.validate_org_import_header(["uuid", "age"], self.org)
             Contact.validate_org_import_header(["uuid", "name"], self.org)
-            Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:external"], self.org)
+            Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
             Contact.validate_org_import_header(["name", "urn:tel"], self.org)
             Contact.validate_org_import_header(["name", "urn:twitter"], self.org)
-            Contact.validate_org_import_header(["name", "urn:external"], self.org)
+            Contact.validate_org_import_header(["name", "urn:ext"], self.org)
 
     def test_get_import_file_headers(self):
         with open("%s/test_imports/sample_contacts_with_extra_fields.xls" % settings.MEDIA_ROOT, "rb") as open_file:
@@ -4483,7 +4483,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -4576,7 +4576,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4658,7 +4658,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4810,7 +4810,7 @@ class ContactTest(TembaTest):
             "form",
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
-            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:external", '
+            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
             '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
         )
 
@@ -4822,7 +4822,7 @@ class ContactTest(TembaTest):
             "form",
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
-            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:external", '
+            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
             '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
         )
 

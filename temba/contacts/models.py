@@ -67,22 +67,22 @@ FACEBOOK_PATH_REF_PREFIX = "ref:"
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number"), TEL_SCHEME, "tel_e164"),
-    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME, FACEBOOK_SCHEME),
-    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME, TWITTER_SCHEME),
-    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME, TWITTERID_SCHEME),
-    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME, VIBER_SCHEME),
-    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME, LINE_SCHEME),
-    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME, TELEGRAM_SCHEME),
-    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME, EMAIL_SCHEME),
-    (EXTERNAL_SCHEME, _("External identifier"), "external", EXTERNAL_SCHEME),
-    (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME, JIOCHAT_SCHEME),
-    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME, FCM_SCHEME),
-    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME, WHATSAPP_SCHEME),
+    (TEL_SCHEME, _("Phone number"), "tel_e164"),
+    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
+    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
+    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
+    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
+    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
+    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
+    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
+    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
+    (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME),
+    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
+    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
 )
 
 
-IMPORT_HEADERS = tuple((f"URN:{c[2]}", c[0]) for c in URN_SCHEME_CONFIG)
+IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
 STOP_CONTACT_EVENT = "stop_contact"
 
@@ -97,7 +97,7 @@ class URN(object):
     """
 
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {f"URN:{s[2]}" for s in URN_SCHEME_CONFIG}
+    IMPORT_HEADERS = {f"URN:{s[0]}" for s in URN_SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -2293,8 +2293,8 @@ class ContactURN(models.Model):
 
     # schemes that we actually support
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-    CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
-    CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
+    CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
+    CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
     IMPORT_HEADER_TO_SCHEME = {s[0].lower(): s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {
@@ -2310,7 +2310,7 @@ class ContactURN(models.Model):
         TEL_SCHEME: dict(label="URN:Tel", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
         TWITTER_SCHEME: dict(label="URN:Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
         TWITTERID_SCHEME: dict(label="URN:TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
-        EXTERNAL_SCHEME: dict(label="URN:External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+        EXTERNAL_SCHEME: dict(label="URN:Ext", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
         EMAIL_SCHEME: dict(label="URN:Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="URN:Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
         FACEBOOK_SCHEME: dict(label="URN:Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),

@@ -1687,7 +1687,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key="groups", label="Groups"))
 
             for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[3], label=str(config[1])))
+                sorted_results.insert(0, dict(key=config[2], label=str(config[1])))
 
             sorted_results.insert(0, dict(key="name", label="Full name"))
 
