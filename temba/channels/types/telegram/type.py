@@ -63,24 +63,34 @@ class TelegramType(ChannelType):
         start = time.time()
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Attachment.parse_all(msg.attachments)
-        attachment = attachments[0] if attachments else None
+        attachment = None
+        if msg.attachments:
+            attachment_url = ''
+            if type(msg.attachments) is list:
+                attachment_url = ''.join(msg.attachments)
+            elif type(msg.attachments) is unicode :
+                attachment_url = msg.attachments
+            if attachment_url:
+                attachment = {"content_type": attachment_url.split(":")[0],
+                              "url": ':'.join(attachment_url.split(":")[1:])}
 
         if attachment:
-            category = attachment.content_type.split('/')[0]
+            #category = attachment.content_type.split('/')[0]
+            category = attachment["content_type"].split('/')[0]
+
             if category == 'image':
                 send_url = 'https://api.telegram.org/bot%s/sendPhoto' % auth_token
-                post_body['photo'] = attachment.url
+                post_body['photo'] = attachment["url"]
                 post_body['caption'] = text
                 del post_body['text']
             elif category == 'video':
                 send_url = 'https://api.telegram.org/bot%s/sendVideo' % auth_token
-                post_body['video'] = attachment.url
+                post_body['video'] = attachment["url"]
                 post_body['caption'] = text
                 del post_body['text']
             elif category == 'audio':
                 send_url = 'https://api.telegram.org/bot%s/sendAudio' % auth_token
-                post_body['audio'] = attachment.url
+                post_body['audio'] = attachment["url"]
                 post_body['caption'] = text
                 del post_body['text']
 
@@ -96,3 +106,4 @@ class TelegramType(ChannelType):
             raise SendException(str(e), event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+
