@@ -151,6 +151,7 @@ TEMPLATES = [
                 "temba.channels.views.channel_status_processor",
                 "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
+                "temba.orgs.context_processors.user_orgs_for_brand",
             ],
             "loaders": [
                 "temba.utils.haml.HamlFilesystemLoader",

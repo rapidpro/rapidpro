@@ -28,7 +28,11 @@ class Archive(models.Model):
     PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
     org = models.ForeignKey(
-        "orgs.Org", on_delete=models.PROTECT, db_constraint=False, help_text="The org this archive is for"
+        "orgs.Org",
+        related_name="archives",
+        on_delete=models.PROTECT,
+        db_constraint=False,
+        help_text="The org this archive is for",
     )
     archive_type = models.CharField(
         choices=TYPE_CHOICES, max_length=16, help_text="The type of record this is an archive for"
@@ -107,6 +111,19 @@ class Archive(models.Model):
                 break
 
             yield json.loads(line.decode("utf-8"))
+
+    def release(self):
+
+        # detach us from our rollups
+        Archive.objects.filter(rollup=self).update(rollup=None)
+
+        # delete our archive file from s3
+        if self.url:
+            s3 = self.s3_client()
+            s3.delete_object(**self.s3_location())
+
+        # and lastly delete ourselves
+        self.delete()
 
     class Meta:
         unique_together = ("org", "archive_type", "start_date", "period")

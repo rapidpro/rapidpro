@@ -1323,7 +1323,7 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
+    def release(self, release_runs=True):
         """
         Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
         We keep FlowRevisions and FlowStarts however.
@@ -1342,7 +1342,7 @@ class Flow(TembaModel):
         # release any triggers that depend on this flow
         from temba.triggers.models import Trigger
 
-        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+        for trigger in Trigger.objects.filter(flow=self):
             trigger.release()
 
         self.group_dependencies.clear()
@@ -1350,7 +1350,8 @@ class Flow(TembaModel):
         self.field_dependencies.clear()
 
         # deactivate our runs in the background
-        on_transaction_commit(lambda: deactivate_flow_runs_task.delay(self.id))
+        if release_runs:
+            on_transaction_commit(lambda: deactivate_flow_runs_task.delay(self.id))
 
     def get_category_counts(self, deleted_nodes=True):
 
@@ -4977,6 +4978,9 @@ class FlowRevision(SmartModel):
             version=self.spec_version,
             revision=self.revision,
         )
+
+    def release(self):
+        self.delete()
 
 
 class FlowCategoryCount(SquashableModel):

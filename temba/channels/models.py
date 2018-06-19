@@ -1144,6 +1144,15 @@ class Channel(TembaModel):
 
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 
+        # any transfer associated with us go away
+        self.airtime_transfers.all().delete()
+
+        # and any triggers associated with our channel get archived
+        for trigger in Trigger.objects.filter(org=self.org, channel=self).all():
+            trigger.channel = None
+            trigger.save(update_fields=("channel",))
+            trigger.archive(self.modified_by)
+
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
         Sends a GCM command to trigger a sync on the client

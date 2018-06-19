@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import (
@@ -34,12 +35,13 @@ from temba.contacts.models import (
     ContactGroup,
     ContactURN,
 )
-from temba.flows.models import ActionSet, AddToGroupAction, Flow
+from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
 from temba.tests import MockResponse, TembaTest
+from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, languages
@@ -83,6 +85,161 @@ class OrgContextProcessorTest(TembaTest):
         viewers_wrapper = GroupPermWrapper(viewers)
         self.assertFalse(viewers_wrapper["msgs"]["msg_api"])
         self.assertTrue(viewers_wrapper["msgs"]["msg_inbox"])
+
+
+class OrgDeleteTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        # create a second org
+        self.child_org = Org.objects.create(
+            name="Child Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        # and give it its own channel
+        self.child_channel = Channel.create(
+            self.child_org,
+            self.user,
+            "RW",
+            "A",
+            name="Test Channel",
+            address="+250785551212",
+            device="Nexus 5X",
+            secret="54321",
+            gcm_id="123",
+        )
+
+        # our user is a member of two orgs
+        self.parent_org = self.org
+        self.child_org.administrators.add(self.user)
+        self.child_org.initialize(topup_size=0)
+        self.child_org.parent = self.parent_org
+        self.child_org.save()
+
+        # now allocate some credits to our child org
+        self.org.allocate_credits(self.admin, self.child_org, 300)
+
+        # bring in some flows
+        favorites = self.get_flow("favorites")
+        parent_contact = self.create_contact("Parent Contact", "+2345123")
+        FlowRun.create(favorites, parent_contact)
+
+        # and our child org too
+        self.org = self.child_org
+        color = self.get_flow("color")
+        child_contact = self.create_contact("Child Contact", "+3456123")
+        FlowRun.create(color, child_contact)
+
+        # triggers for our flows
+        parent_trigger = Trigger.create(
+            self.parent_org,
+            flow=favorites,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            user=self.user,
+            channel=self.channel,
+            keyword="favorites",
+        )
+        parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+
+        child_trigger = Trigger.create(
+            self.child_org,
+            flow=color,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            user=self.user,
+            channel=self.child_channel,
+            keyword="color",
+        )
+        child_trigger.groups.add(self.child_org.all_groups.all().first())
+
+        # use a credit on each
+        self.create_msg(org=self.parent_org, channel=self.channel, contact=parent_contact, text="Hola hija!")
+        self.create_msg(org=self.child_org, channel=self.child_channel, contact=child_contact, text="Hola mama!")
+
+        # create some archives
+        self.mock_s3 = MockS3Client()
+
+        def create_archive(org, period, rollup=None):
+            file = f"archive{Archive.objects.all().count()}.jsonl.gz"
+            archive = Archive.objects.create(
+                org=org,
+                url=f"http://test-bucket.aws.com/{file}",
+                start_date=timezone.now(),
+                build_time=100,
+                archive_type=Archive.TYPE_MSG,
+                period=period,
+                rollup=rollup,
+            )
+            self.mock_s3.put_jsonl("test-bucket", file, [])
+            return archive
+
+        # parent archives
+        daily = create_archive(self.parent_org, Archive.PERIOD_DAILY)
+        create_archive(self.parent_org, Archive.PERIOD_MONTHLY, daily)
+
+        # child archives
+        daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
+        create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
+
+    def deactivate_org(self, org, child_org=None):
+
+        # save off the ids of our current users
+        org_user_ids = list(org.get_org_users().values_list("id", flat=True))
+
+        # deactivate our primary org
+        org.deactivate()
+
+        # all our users not in the other org should be deactivated
+        self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
+        self.assertEqual(1, User.objects.filter(id__in=org_user_ids, is_active=True).count())
+
+        # our channel should have been made inactive
+        self.assertFalse(Channel.objects.filter(org=org, is_active=True).exists())
+        self.assertTrue(Channel.objects.filter(org=org, is_active=False).exists())
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_active)
+
+        # our child org lost it's parent, but maintains an active lifestyle
+        if child_org:
+            child_org.refresh_from_db()
+            self.assertIsNone(child_org.parent)
+
+    def release_org(self, org, child_org=None):
+        # we should be starting with some mock s3 objects
+        self.assertEqual(4, len(self.mock_s3.objects))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            org.release()
+
+        # oh noes, we deleted our archive files!
+        self.assertEqual(2, len(self.mock_s3.objects))
+
+    def test_deactivate_parent(self):
+        self.deactivate_org(self.parent_org, self.child_org)
+
+    def test_deactivate_child(self):
+        self.deactivate_org(self.child_org)
+
+    def test_release_parent(self):
+        self.release_org(self.parent_org, self.child_org)
+
+    def test_release_child(self):
+
+        # 300 credits were given to our child org and each used one
+        self.assertEqual(699, self.parent_org.get_credits_remaining())
+        self.assertEqual(299, self.child_org.get_credits_remaining())
+
+        # release our child org
+        self.release_org(self.child_org)
+
+        # our unused credits are returned to the parent
+        self.parent_org.clear_credit_cache()
+        self.assertEqual(998, self.parent_org.get_credits_remaining())
 
 
 class OrgTest(TembaTest):

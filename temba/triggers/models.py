@@ -497,10 +497,9 @@ class Trigger(SmartModel):
 
     def release(self):
         """
-        Releases this Trigger, use this instead of delete
+        Releases this Trigger
         """
-        self.is_active = False
-        self.save()
+        self.delete()
 
     def fire(self):
         if self.is_archived or not self.is_active:  # pragma: needs cover

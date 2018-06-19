@@ -2887,6 +2887,7 @@ class ContactGroup(TembaModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+        self.counts.all().delete()
 
         # delete any event fires related to our group
         from temba.campaigns.models import EventFire
