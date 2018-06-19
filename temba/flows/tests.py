@@ -1432,8 +1432,8 @@ class FlowTest(TembaTest):
             [
                 "Contact UUID",
                 "URN",
-                "Twitter",
-                "Line",
+                "URN:Twitter",
+                "URN:Line",
                 "Name",
                 "Groups",
                 "Age",
@@ -1478,8 +1478,8 @@ class FlowTest(TembaTest):
             [
                 "Contact UUID",
                 "URN",
-                "Twitter",
-                "Line",
+                "URN:Twitter",
+                "URN:Line",
                 "Name",
                 "Groups",
                 "Age",

@@ -1281,10 +1281,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 continue
 
             if key.startswith("urn:"):
-                cleaned_key = key.lstrip("urn:").strip()
+                cleaned_key = key.replace("urn:", "", 1).strip()
 
             if key.startswith("field:"):
-                cleaned_key = key.lstrip("field:").strip()
+                cleaned_key = key.replace("field:", "", 1).strip()
 
             field_dict[cleaned_key] = value
 
@@ -1475,6 +1475,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         possible_fields = []
         for header in headers:
             header = header.strip().lower()
+            if header.startswith("group:") or header.startswith("urn:"):
+                continue
+
             if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 possible_fields.append(header)
 
@@ -2303,17 +2306,17 @@ class ContactURN(models.Model):
 
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-        TWITTER_SCHEME: dict(label="URN: Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-        TWITTERID_SCHEME: dict(label="URN: TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
-        EXTERNAL_SCHEME: dict(label="URN: External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-        EMAIL_SCHEME: dict(label="URN: Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-        TELEGRAM_SCHEME: dict(label="URN: Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-        FACEBOOK_SCHEME: dict(label="URN: Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-        VIBER_SCHEME: dict(label="URN: Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
-        JIOCHAT_SCHEME: dict(label="URN: Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
-        FCM_SCHEME: dict(label="URN: FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
-        LINE_SCHEME: dict(label="URN: Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
-        WHATSAPP_SCHEME: dict(label="URN: WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
+        TWITTER_SCHEME: dict(label="URN:Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        TWITTERID_SCHEME: dict(label="URN:TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
+        EXTERNAL_SCHEME: dict(label="URN:External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+        EMAIL_SCHEME: dict(label="URN:Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
+        TELEGRAM_SCHEME: dict(label="URN:Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+        FACEBOOK_SCHEME: dict(label="URN:Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+        VIBER_SCHEME: dict(label="URN:Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
+        JIOCHAT_SCHEME: dict(label="URN:Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
+        FCM_SCHEME: dict(label="URN:FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
+        LINE_SCHEME: dict(label="URN:Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
+        WHATSAPP_SCHEME: dict(label="URN:WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
     }
 
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
