@@ -4361,11 +4361,6 @@ class RunResultContext(dict):
             }
         )
 
-    def get(self, key, default=None):
-        val = super().get(key, default)
-        self.lookup_callback(key, val)
-        return val
-
     def __getitem__(self, key):
         val = super().__getitem__(key)
         self.lookup_callback(key, val)
