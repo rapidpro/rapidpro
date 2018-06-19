@@ -4098,14 +4098,14 @@ class ContactTest(TembaTest):
             csv_file = ContentFile(open_file.read())
 
             headers = [
-                "country",
-                "district",
+                "field: country",
+                "field:district",
                 "field: zip code",
-                "professional status",
-                "joined",
-                "vehicle",
-                "shoes",
-                "email",
+                "field: professional status",
+                "field: joined",
+                "field: vehicle",
+                "field:shoes",
+                "field: email",
             ]
             self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
@@ -4115,7 +4115,15 @@ class ContactTest(TembaTest):
             "%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls" % settings.MEDIA_ROOT, "rb"
         ) as open_file:
             csv_file = ContentFile(open_file.read())
-            headers = ["country", "district", "zip code", "professional status", "joined", "vehicle", "shoes"]
+            headers = [
+                "field: country",
+                "field: district",
+                "field: zip code",
+                "field: professional status",
+                "field: joined",
+                "field: vehicle",
+                "field:  shoes",
+            ]
             self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
     def test_create_instance(self):
@@ -4207,7 +4215,8 @@ class ContactTest(TembaTest):
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
-        ContactGroup.user_groups.all().update(is_active=False)
+        self.releaseContacts(delete=True)
+        ContactGroup.user_groups.all().delete()
         #
         # first import brings in 3 contacts
         user = self.user

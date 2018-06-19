@@ -1476,7 +1476,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         possible_fields = []
         for header in headers:
             header = header.strip().lower()
-            if header.startswith("group:") or header.startswith("urn:"):
+            if not header.startswith("field:"):
                 continue
 
             if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:

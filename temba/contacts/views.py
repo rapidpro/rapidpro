@@ -706,7 +706,7 @@ class ContactCRUDL(SmartCRUDL):
                     continue
 
                 if header.startswith("field:"):
-                    header = header.lstrip("field:").strip()
+                    header = header.replace("field:", "", 1).strip()
 
                 header_key = slugify_with(header)
 
