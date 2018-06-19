@@ -2307,7 +2307,7 @@ class ContactURN(models.Model):
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {
-        TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+        TEL_SCHEME: dict(label="URN:Tel", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
         TWITTER_SCHEME: dict(label="URN:Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
         TWITTERID_SCHEME: dict(label="URN:TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
         EXTERNAL_SCHEME: dict(label="URN:External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
