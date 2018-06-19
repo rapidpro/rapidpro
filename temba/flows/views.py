@@ -1003,11 +1003,6 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
             )
-            include_runs = forms.BooleanField(
-                required=False,
-                label=_("Include Runs"),
-                help_text=_("Include all runs for each contact. Leave unchecked for " "only their most recent runs"),
-            )
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1069,7 +1064,6 @@ class FlowCRUDL(SmartCRUDL):
                     user,
                     form.cleaned_data["flows"],
                     contact_fields=form.cleaned_data["contact_fields"],
-                    include_runs=form.cleaned_data["include_runs"],
                     include_msgs=form.cleaned_data["include_messages"],
                     responded_only=form.cleaned_data["responded_only"],
                     extra_urns=form.cleaned_data["extra_urns"],
