@@ -3047,7 +3047,7 @@ class ExportContactsTask(BaseExportTask):
             fields.append(
                 dict(
                     field=contact_field,
-                    label="Field: %s" % contact_field.label,
+                    label="Field:%s" % contact_field.label,
                     key=contact_field.key,
                     id=contact_field.id,
                     urn_scheme=None,
@@ -3057,7 +3057,7 @@ class ExportContactsTask(BaseExportTask):
         group_fields = []
         if self.group_memberships.exists():
             for group in self.group_memberships.all():
-                group_fields.append(dict(label="Group: %s" % group.name, key=None, group_id=group.id, group=group))
+                group_fields.append(dict(label="Group:%s" % group.name, key=None, group_id=group.id, group=group))
 
         return fields, scheme_counts, group_fields
 
