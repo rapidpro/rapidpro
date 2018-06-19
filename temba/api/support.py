@@ -1,7 +1,7 @@
 import logging
 
 from rest_framework import exceptions, status
-from rest_framework.authentication import TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import BasicAuthentication, TokenAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
