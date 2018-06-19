@@ -264,17 +264,16 @@ class APITest(TembaTest):
                 endpoint + ".json",
                 content_type="application/json",
                 HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION="Token %s" % token,
+                HTTP_AUTHORIZATION="Token {}".format(token),
             )
 
         def api_request_basic_auth(endpoint, username, token):
-            encoded = "Basic {}".format(base64.encodebytes("{}:{}".format(username, token).encode()).decode()
-                                        .replace('\n',''))
+            credentials_base64 = base64.encodebytes("{}:{}".format(username, token).encode()).decode()
             return self.client.get(
                 endpoint + ".json",
                 content_type="application/json",
                 HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION=encoded,
+                HTTP_AUTHORIZATION="Basic {}".format(credentials_base64),
             )
 
         contacts_url = reverse("api.v2.contacts")
@@ -330,10 +329,10 @@ class APITest(TembaTest):
         self.admin.save()
 
         response = api_request(contacts_url, token2.key)
-        self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
 
         response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
-        self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
     def test_root(self):

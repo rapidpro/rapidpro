@@ -39,7 +39,7 @@ class APITokenAuthentication(TokenAuthentication):
 
             return token.user, token
 
-        raise exceptions.AuthenticationFailed("User inactive or deleted")
+        raise exceptions.AuthenticationFailed("Invalid token")
 
 
 class APIBasicAuthentication(BasicAuthentication):
@@ -66,7 +66,7 @@ class APIBasicAuthentication(BasicAuthentication):
 
             return token.user, token
 
-        raise exceptions.AuthenticationFailed("User inactive or deleted")
+        raise exceptions.AuthenticationFailed("Invalid token")
 
 
 class OrgRateThrottle(ScopedRateThrottle):
