@@ -6382,7 +6382,7 @@ class ContactFieldTest(TembaTest):
             self.assertExcelSheet(
                 request_export()[0],
                 [
-                    ["ID", "Contact UUID", "Name", "Language", "Field: Third", "Field: Second", "Field: First"],
+                    ["ID", "Contact UUID", "Name", "Language", "Field:Third", "Field:Second", "Field:First"],
                     [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", "", "", ""],
                     [str(contact.id), contact.uuid, "Ben Haggerty", "", "20-12-2015 08:30", "", "One"],
                     [str(contact3.id), contact3.uuid, "Luol Deng", "", "", "", ""],
