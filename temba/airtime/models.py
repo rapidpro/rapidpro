@@ -64,7 +64,7 @@ class AirtimeTransfer(SmartModel):
         if not settings.SEND_AIRTIME:
             raise Exception("!! Skipping Airtime Transfer, SEND_AIRTIME set to False")
 
-        key = str(int(time.time()))
+        key = str(int(time.time() * 1000))
         md5 = hashlib.md5()
         md5.update(force_bytes(login + token + key))
         md5 = md5.hexdigest()
