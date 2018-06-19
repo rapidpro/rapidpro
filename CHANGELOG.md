@@ -1,3 +1,9 @@
+v3.0.427
+----------
+ * Release webhook events on run release
+ * Fetch run results from archives when exporting results
+ * Don't create action logs for non-test contacts
+
 v3.0.426
 ----------
  * Migrations for FK protects, including all SmartModels
