@@ -207,7 +207,11 @@ class WebHookEvent(SmartModel):
         max_length=1, choices=STATUS_CHOICES, default="P", help_text="The state this event is currently in"
     )
     run = models.ForeignKey(
-        FlowRun, on_delete=models.PROTECT, null=True, help_text="The flow run that triggered this event"
+        FlowRun,
+        on_delete=models.PROTECT,
+        related_name="webhook_events",
+        null=True,
+        help_text="The flow run that triggered this event",
     )
     channel = models.ForeignKey(
         Channel,

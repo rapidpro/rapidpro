@@ -5039,6 +5039,22 @@ class FlowRunTest(TembaTest):
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
+    def test_run_release(self):
+        run = FlowRun.create(self.flow, self.contact)
+
+        # give our run some webhook data
+        event = WebHookEvent.objects.create(
+            org=self.org, run=run, channel=self.channel, created_by=self.admin, modified_by=self.admin
+        )
+
+        WebHookResult.objects.create(
+            event=event, status_code=200, url="", created_by=self.admin, modified_by=self.admin
+        )
+
+        # our run go bye bye
+        run.release()
+        self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
+
 
 class FlowLabelTest(FlowFileTest):
     def test_label_model(self):
