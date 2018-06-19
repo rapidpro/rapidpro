@@ -290,7 +290,7 @@ class APITest(TembaTest):
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
-        #can't fetch endpoint with invalid username
+        # can't fetch endpoint with invalid username
         response = api_request_basic_auth(contacts_url, "some@name.com", token1.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
