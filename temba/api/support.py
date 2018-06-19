@@ -55,10 +55,10 @@ class APIBasicAuthentication(BasicAuthentication):
         try:
             token = APIToken.objects.get(is_active=True, key=password)
         except APIToken.DoesNotExist:
-            raise exceptions.AuthenticationFailed("Invalid token")
+            raise exceptions.AuthenticationFailed("Invalid token or email")
 
         if token.user.username != userid:
-            raise exceptions.AuthenticationFailed("Invalid username")
+            raise exceptions.AuthenticationFailed("Invalid token or email")
 
         if token.user.is_active:
             # set the org on this user
@@ -66,7 +66,7 @@ class APIBasicAuthentication(BasicAuthentication):
 
             return token.user, token
 
-        raise exceptions.AuthenticationFailed("Invalid token")
+        raise exceptions.AuthenticationFailed("Invalid token or email")
 
 
 class OrgRateThrottle(ScopedRateThrottle):
