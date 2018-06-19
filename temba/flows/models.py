@@ -6,7 +6,7 @@ import time
 import traceback
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.request import urlopen
@@ -1070,7 +1070,9 @@ class Flow(TembaModel):
 
                         end_message.connection.mark_ending()
                         msgs.append(end_message)
-                        ActionLog.create(run, _("USSD Session was marked to end"))
+
+                        if run.contact.is_test:
+                            ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # USSD ruleset has extra functionality to send out messages.
                 elif destination.is_ussd():
@@ -1093,7 +1095,9 @@ class Flow(TembaModel):
                 if Flow.should_close_connection(run, destination, result.get("destination")):
                     for msg in result["msgs"]:
                         msg.connection.mark_ending()
-                        ActionLog.create(run, _("USSD Session was marked to end"))
+
+                        if run.contact.is_test:  # pragma: no cover
+                            ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
                 msgs += result.get("msgs", [])
@@ -4131,6 +4135,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
+            # release our webhook events
+            for event in self.webhook_events.all():
+                event.release()
+
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
@@ -4321,6 +4329,21 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.results = results
         self.modified_on = timezone.now()
         self.save(update_fields=["results", "modified_on"])
+
+    def as_archive_json(self):
+        return {
+            "id": self.id,
+            "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
+            "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
+            "responded": self.responded,
+            "values": self.results,
+            "events": self.events,
+            "created_on": self.created_on.isoformat(),
+            "modified_on": self.modified_on.isoformat(),
+            "exited_on": self.exited_on.isoformat() if self.exited_on else None,
+            "exit_type": self.exit_type,
+            "submitted_by": self.submitted_by.username if self.submitted_by else None,
+        }
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
@@ -5382,96 +5405,173 @@ class ExportFlowResultsTask(BaseExportTask):
         book.num_msgs_sheets = 0
 
         # the current sheets
-        runs_sheet = self._add_runs_sheet(book, runs_columns)
-        msgs_sheet = None
-
-        # grab the ids of the runs we're going to be exporting..
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("id")
-        if responded_only:
-            runs = runs.filter(responded=True)
-        run_ids = array(str("l"), runs.values_list("id", flat=True))
+        book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
+        book.current_msgs_sheet = None
 
         # for tracking performance
         runs_exported = 0
         start = time.time()
 
-        for id_batch in chunk_list(run_ids, 1000):
-            run_batch = (
-                FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
-                .select_related("contact")
-                .prefetch_related("contact__all_groups")
-                .order_by("id")
+        for batch in self._get_run_batches(flows, responded_only):
+            self._write_runs(
+                book,
+                batch,
+                include_msgs,
+                extra_urn_columns,
+                contact_fields,
+                show_submitted_by,
+                runs_columns,
+                result_nodes,
             )
 
-            for run in run_batch:
-                # get this run's results by node UUID
-                results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run.results.values()}
-
-                # generate contact info columns
-                contact_values = [
-                    run.contact.uuid,
-                    run.contact.id if self.org.is_anon else run.contact.get_urn_display(org=self.org, formatted=False),
-                ]
-
-                for extra_urn_column in extra_urn_columns:
-                    urn_display = run.contact.get_urn_display(
-                        org=self.org, formatted=False, scheme=extra_urn_column["scheme"]
-                    )
-                    contact_values.append(urn_display)
-
-                contact_values.append(self.prepare_value(run.contact.name))
-                contact_values.append(self._get_contact_groups_display(run.contact))
-
-                for cf in contact_fields:
-                    field_value = run.contact.get_field_display(cf)
-                    contact_values.append(self.prepare_value(field_value))
-
-                # generate result columns for each ruleset
-                result_values = []
-                for n, node in enumerate(result_nodes):
-                    node_result = results_by_node.get(node.uuid, {})
-                    node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
-                    node_value = node_result.get(FlowRun.RESULT_VALUE, "")
-                    node_input = node_result.get(FlowRun.RESULT_INPUT, "")
-                    result_values += [node_category, node_value, node_input]
-
-                if not runs_sheet or runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
-                    runs_sheet = self._add_runs_sheet(book, runs_columns)
-
-                # build the whole row
-                runs_sheet_row = []
-
-                if show_submitted_by:
-                    runs_sheet_row.append(run.submitted_by.username if run.submitted_by else "")
-
-                runs_sheet_row += contact_values
-                runs_sheet_row += [run.created_on, run.exited_on]
-                runs_sheet_row += result_values
-
-                self.append_row(runs_sheet, runs_sheet_row)
-
-                # write out any message associated with this run
-                if include_msgs:
-                    msgs_sheet = self._write_run_messages(book, msgs_sheet, run)
-
-                runs_exported += 1
-                if runs_exported % 10000 == 0:  # pragma: needs cover
-                    print(
-                        "Result export of for org #%d - %d%% complete in %0.2fs"
-                        % (self.org.id, runs_exported * 100 // len(run_ids), time.time() - start)
-                    )
+            runs_exported += len(batch)
+            if runs_exported % 10000 == 0:  # pragma: no cover
+                mins = (time.time() - start) / 60
+                print(f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins")
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 
-    def _write_run_messages(self, book, msgs_sheet, run):
+    def _get_run_batches(self, flows, responded_only):
+        print(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
+
+        # firstly get runs from archives
+        from temba.archives.models import Archive
+
+        # get the earliest created date of the flows being exported
+        earliest_created_on = None
+        for flow in flows:
+            if earliest_created_on is None or flow.created_on < earliest_created_on:
+                earliest_created_on = flow.created_on
+
+        earliest_day = earliest_created_on.date()
+        earliest_month = date(earliest_day.year, earliest_day.month, 1)
+
+        archives = (
+            Archive.objects.filter(
+                org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None, needs_deletion=False
+            )
+            .filter(
+                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
+                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
+            )
+            .order_by("start_date")
+        )
+
+        flow_uuids = {str(flow.uuid) for flow in flows}
+
+        for archive in archives:
+            for record_batch in chunk_list(archive.iter_records(), 1000):
+                matching = []
+                for record in record_batch:
+                    if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                        matching.append(record)
+                yield matching
+
+        # secondly get runs from database
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        if responded_only:
+            runs = runs.filter(responded=True)
+        run_ids = array(str("l"), runs.values_list("id", flat=True))
+
+        print(f"Results export #{self.id} for org #{self.org.id}: found {len(run_ids)} runs in database to export")
+
+        for id_batch in chunk_list(run_ids, 1000):
+            run_batch = (
+                FlowRun.objects.filter(id__in=id_batch, contact__is_test=False)
+                .select_related("contact", "flow")
+                .order_by("modified_on")
+            )
+
+            # convert this batch of runs to same format as records in our archives
+            yield [run.as_archive_json() for run in run_batch]
+
+    def _write_runs(
+        self,
+        book,
+        runs,
+        include_msgs,
+        extra_urn_columns,
+        contact_fields,
+        show_submitted_by,
+        runs_columns,
+        result_nodes,
+    ):
+        """
+        Writes a batch of run JSON blobs to the export
+        """
+        # get all the contacts referenced in this batch
+        contact_uuids = {r["contact"]["uuid"] for r in runs}
+        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("all_groups")
+        contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        for run in runs:
+            contact = contacts_by_uuid.get(run["contact"]["uuid"])
+
+            # get this run's results by node UUID
+            results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run["values"].values()}
+
+            # generate contact info columns
+            contact_values = [
+                contact.uuid,
+                contact.id if self.org.is_anon else contact.get_urn_display(org=self.org, formatted=False),
+            ]
+
+            for extra_urn_column in extra_urn_columns:
+                urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
+                contact_values.append(urn_display)
+
+            contact_values.append(self.prepare_value(contact.name))
+            contact_values.append(self._get_contact_groups_display(contact))
+
+            for cf in contact_fields:
+                field_value = contact.get_field_display(cf)
+                contact_values.append(self.prepare_value(field_value))
+
+            # generate result columns for each ruleset
+            result_values = []
+            for n, node in enumerate(result_nodes):
+                node_result = results_by_node.get(node.uuid, {})
+                node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
+                node_value = node_result.get(FlowRun.RESULT_VALUE, "")
+                node_input = node_result.get(FlowRun.RESULT_INPUT, "")
+                result_values += [node_category, node_value, node_input]
+
+            if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
+
+            # build the whole row
+            runs_sheet_row = []
+
+            if show_submitted_by:
+                runs_sheet_row.append(run.get("submitted_by") or "")
+
+            runs_sheet_row += contact_values
+            runs_sheet_row += [
+                iso8601.parse_date(run["created_on"]),
+                iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+            ]
+            runs_sheet_row += result_values
+
+            self.append_row(book.current_runs_sheet, runs_sheet_row)
+
+            # write out any message associated with this run
+            if include_msgs:
+                self._write_run_messages(book, run, contact)
+
+    def _write_run_messages(self, book, run, contact):
         """
         Writes out any messages associated with the given run
         """
-        for event in run.get_msg_events():
-            msg_direction = "IN" if event["type"] == server.Events.msg_received.name else "OUT"
+        for event in run["events"] or []:
+            if event["type"] == server.Events.msg_received.name:
+                msg_direction = "IN"
+            elif event["type"] == server.Events.msg_created.name:
+                msg_direction = "OUT"
+            else:  # pragma: no cover
+                continue
 
             msg = event["msg"]
             msg_text = msg.get("text", "")
@@ -5479,29 +5579,27 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_channel = msg.get("channel")
 
             if self.org.is_anon:
-                msg_urn = run.contact.id
+                msg_urn = contact.id
             elif "urn" in msg:
                 msg_urn = URN.format(msg["urn"], formatted=False)
             else:
                 msg_urn = ""
 
-            if not msgs_sheet or msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
-                msgs_sheet = self._add_msgs_sheet(book)
+            if not book.current_msgs_sheet or book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
+                book.current_msgs_sheet = self._add_msgs_sheet(book)
 
             self.append_row(
-                msgs_sheet,
+                book.current_msgs_sheet,
                 [
-                    run.contact.uuid,
+                    str(contact.uuid),
                     msg_urn,
-                    self.prepare_value(run.contact.name),
+                    self.prepare_value(contact.name),
                     msg_created_on,
                     msg_direction,
                     msg_text,
                     msg_channel["name"] if msg_channel else "",
                 ],
             )
-
-        return msgs_sheet
 
 
 @register_asset_store
@@ -5533,6 +5631,11 @@ class ActionLog(models.Model):
 
     @classmethod
     def create(cls, run, text, level=LEVEL_INFO, safe=False, created_on=None):
+
+        # ActionLogs should only ever be created in simulation
+        if not run.contact.is_test:  # pragma: no cover
+            return None
+
         if not safe:
             text = escape(text)
 
@@ -5996,7 +6099,7 @@ class WebhookAction(Action):
 
         (value, errors) = Msg.evaluate_template(self.webhook, context, org=run.flow.org, url_encode=True)
 
-        if errors:
+        if errors and run.contact.is_test:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
         headers = {}
@@ -6082,10 +6185,10 @@ class AddToGroupAction(Action):
 
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
-                        if not group:
+                        if not group and run.contact.is_test:  # pragma: no cover
                             ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                    else:  # pragma: needs cover
+                    elif run.contact.is_test:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ", ".join(errors))
 
                 if group:
@@ -6220,12 +6323,13 @@ class AddLabelAction(Action):
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                    if not label:
+                    if not label and run.contact.is_test:  # pragma: no cover
                         ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
 
                 else:  # pragma: needs cover
                     label = None
-                    ActionLog.error(run, _("Label name could not be evaluated: %s") % ", ".join(errors))
+                    if run.contact.is_test:
+                        ActionLog.error(run, _("Label name could not be evaluated: %s") % ", ".join(errors))
 
             if label and msg and msg.pk:
                 if run.contact.is_test:  # pragma: needs cover
@@ -6747,6 +6851,9 @@ class TriggerFlowAction(VariableContactAction):
             return []
 
     def logger(self, run, flow, contact_count):  # pragma: needs cover
+        if not run.contact.is_test:
+            return None
+
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
         log = ActionLog.create(run, log_txt)
         return log
@@ -7145,6 +7252,9 @@ class SendAction(VariableContactAction):
             return []
 
     def logger(self, run, text, contact_count):
+        if not run.contact.is_test:  # pragma: no cover
+            return None
+
         log_txt = _n(
             "Sending '%(msg)s' to %(count)d contact", "Sending '%(msg)s' to %(count)d contacts", contact_count
         ) % dict(msg=text, count=contact_count)
