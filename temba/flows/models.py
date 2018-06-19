@@ -5417,7 +5417,7 @@ class ExportFlowResultsTask(BaseExportTask):
             )
 
             runs_exported += len(batch)
-            if runs_exported % 10000 == 0:
+            if runs_exported % 10000 == 0:  # pragma: no cover
                 mins = (time.time() - start) / 60
                 print(f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins")
 
@@ -5548,7 +5548,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 msg_direction = "IN"
             elif event["type"] == server.Events.msg_created.name:
                 msg_direction = "OUT"
-            else:
+            else:  # pragma: no cover
                 continue
 
             msg = event["msg"]
