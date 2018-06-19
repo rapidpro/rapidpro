@@ -285,14 +285,14 @@ class APITest(TembaTest):
 
         # can't fetch endpoint with invalid token
         response = api_request_basic_auth(contacts_url, self.admin.username, "1234567890")
-        self.assertResponseError(response, None, "Invalid token", status_code=403)
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
         #can't fetch endpoint with invalid username
         response = api_request_basic_auth(contacts_url, "some@name.com", token1.key)
-        self.assertResponseError(response, None, "Invalid username", status_code=403)
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
         # can fetch campaigns endpoint with valid admin token
         response = api_request(campaigns_url, token1.key)
@@ -332,7 +332,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
         response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
-        self.assertResponseError(response, None, "Invalid token", status_code=403)
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
     def test_root(self):
