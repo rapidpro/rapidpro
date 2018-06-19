@@ -4074,24 +4074,24 @@ class ContactTest(TembaTest):
             Contact.validate_org_import_header(["name"], self.org)  # missing a URN
 
         with self.assertRaises(Exception):
-            Contact.validate_org_import_header(["phone", "twitter", "external"], self.org)  # missing name
+            Contact.validate_org_import_header(["urn:tel", "urn:twitter", "urn:external"], self.org)  # missing name
 
         Contact.validate_org_import_header(["uuid"], self.org)
         Contact.validate_org_import_header(["uuid", "age"], self.org)
         Contact.validate_org_import_header(["uuid", "name"], self.org)
-        Contact.validate_org_import_header(["name", "phone", "twitter", "external"], self.org)
-        Contact.validate_org_import_header(["name", "phone"], self.org)
-        Contact.validate_org_import_header(["name", "twitter"], self.org)
-        Contact.validate_org_import_header(["name", "external"], self.org)
+        Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:external"], self.org)
+        Contact.validate_org_import_header(["name", "urn:tel"], self.org)
+        Contact.validate_org_import_header(["name", "urn:twitter"], self.org)
+        Contact.validate_org_import_header(["name", "urn:external"], self.org)
 
         with AnonymousOrg(self.org):
             Contact.validate_org_import_header(["uuid"], self.org)
             Contact.validate_org_import_header(["uuid", "age"], self.org)
             Contact.validate_org_import_header(["uuid", "name"], self.org)
-            Contact.validate_org_import_header(["name", "phone", "twitter", "external"], self.org)
-            Contact.validate_org_import_header(["name", "phone"], self.org)
-            Contact.validate_org_import_header(["name", "twitter"], self.org)
-            Contact.validate_org_import_header(["name", "external"], self.org)
+            Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:external"], self.org)
+            Contact.validate_org_import_header(["name", "urn:tel"], self.org)
+            Contact.validate_org_import_header(["name", "urn:twitter"], self.org)
+            Contact.validate_org_import_header(["name", "urn:external"], self.org)
 
     def test_get_import_file_headers(self):
         with open("%s/test_imports/sample_contacts_with_extra_fields.xls" % settings.MEDIA_ROOT, "rb") as open_file:
@@ -4132,7 +4132,9 @@ class ContactTest(TembaTest):
             dict(org=self.org, created_by=self.admin, phone="+121535e0884"),
         )
 
-        contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
+        contact = Contact.create_instance(
+            {"org": self.org, "created_by": self.admin, "name": "Bob", "urn:tel": "+250788111111"}
+        )
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
         self.assertEqual([str(u) for u in contact.urns.all()], ["tel:+250788111111"])
@@ -4140,7 +4142,7 @@ class ContactTest(TembaTest):
 
     def test_create_instance_with_language(self):
         contact = Contact.create_instance(
-            dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111", language="fra")
+            {"org": self.org, "created_by": self.admin, "name": "Bob", "urn:tel": "+250788111111", "language": "fra"}
         )
         self.assertEqual(contact.language, "fra")
 
@@ -4148,7 +4150,7 @@ class ContactTest(TembaTest):
         self.assertRaises(
             SmartImportRowError,
             Contact.create_instance,
-            dict(org=self.org, created_by=self.admin, name="Mob", phone="+250788111112", language="123"),
+            {"org": self.org, "created_by": self.admin, "name": "Mob", "urn:tel": "+250788111112", "language": "123"},
         )
 
     def do_import(self, user, filename):
@@ -4469,9 +4471,9 @@ class ContactTest(TembaTest):
                 error_messages=[
                     dict(
                         line=3,
-                        error="Missing any valid URNs; at least one among phone, "
-                        "facebook, twitter, twitterid, viber, line, telegram, mailto, "
-                        "external, jiochat, fcm, whatsapp should be provided or a Contact UUID",
+                        error="Missing any valid URNs; at least one among URN:tel, "
+                        "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
+                        "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -4562,9 +4564,9 @@ class ContactTest(TembaTest):
                     error_messages=[
                         dict(
                             line=3,
-                            error="Missing any valid URNs; at least one among phone, "
-                            "facebook, twitter, twitterid, viber, line, telegram, mailto, "
-                            "external, jiochat, fcm, whatsapp should be provided or a Contact UUID",
+                            error="Missing any valid URNs; at least one among URN:tel, "
+                            "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
+                            "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4643,9 +4645,9 @@ class ContactTest(TembaTest):
                     error_messages=[
                         dict(
                             line=3,
-                            error="Missing any valid URNs; at least one among phone, "
-                            "facebook, twitter, twitterid, viber, line, telegram, mailto, "
-                            "external, jiochat, fcm, whatsapp should be provided or a Contact UUID",
+                            error="Missing any valid URNs; at least one among URN:tel, "
+                            "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
+                            "URN:external, URN:jiochat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4796,9 +4798,9 @@ class ContactTest(TembaTest):
             response,
             "form",
             "csv_file",
-            'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-            '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
-            '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.',
+            'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
+            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:external", '
+            '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
         )
 
         csv_file = open("%s/test_imports/sample_contacts_missing_name_phone_headers.xls" % settings.MEDIA_ROOT, "rb")
@@ -4808,9 +4810,9 @@ class ContactTest(TembaTest):
             response,
             "form",
             "csv_file",
-            'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-            '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Mailto", "External", '
-            '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.',
+            'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
+            '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:external", '
+            '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
         )
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -5169,16 +5171,34 @@ class ContactTest(TembaTest):
         c2 = self.create_contact(name=None, number="0788382382")
         self.assertEqual(c1.pk, c2.pk)
 
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="LaToya Jackson")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "LaToya Jackson",
+        }
         c1 = Contact.create_instance(field_dict)
 
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="LaToya Jackson")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "LaToya Jackson",
+        }
         field_dict["name"] = "LaToya Jackson"
         c2 = Contact.create_instance(field_dict)
         self.assertEqual(c1.pk, c2.pk)
 
         c1.block(self.user)
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="LaToya Jackson")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "LaToya Jackson",
+        }
         field_dict["name"] = "LaToya Jackson"
         c2 = Contact.create_instance(field_dict)
         self.assertEqual(c1.pk, c2.pk)
@@ -5189,7 +5209,13 @@ class ContactTest(TembaTest):
             timezone=timezone.utc,
             extra_fields=[dict(key="nick_name", header="nick name", label="Nickname", type="T")],
         )
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="LaToya Jackson")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "LaToya Jackson",
+        }
         field_dict["yourmom"] = "face"
         field_dict["nick name"] = "bob"
         field_dict = Contact.prepare_fields(field_dict, import_params, user=user)
@@ -5214,28 +5240,48 @@ class ContactTest(TembaTest):
         with AnonymousOrg(self.org):
             # should existing urns on anon org
             with self.assertRaises(SmartImportRowError):
-                field_dict = dict(
-                    phone="0788123123", created_by=user, modified_by=user, org=self.org, name="LaToya Jackson"
-                )
+                field_dict = {
+                    "urn:tel": "0788123123",
+                    "created_by": user,
+                    "modified_by": user,
+                    "org": self.org,
+                    "name": "LaToya Jackson",
+                }
                 Contact.create_instance(field_dict)
 
-            field_dict = dict(
-                phone="0788123123", created_by=user, modified_by=user, org=self.org, name="Janet Jackson"
-            )
+            field_dict = {
+                "urn:tel": "0788123123",
+                "created_by": user,
+                "modified_by": user,
+                "org": self.org,
+                "name": "Janet Jackson",
+            }
             field_dict["contact uuid"] = c1.uuid
 
             c3 = Contact.create_instance(field_dict)
             self.assertEqual(c3.pk, c1.pk)
             self.assertEqual(c3.name, "Janet Jackson")
 
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="Josh Childress")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "Josh Childress",
+        }
         field_dict["contact uuid"] = c1.uuid
 
         c4 = Contact.create_instance(field_dict)
         self.assertEqual(c4.pk, c1.pk)
         self.assertEqual(c4.name, "Josh Childress")
 
-        field_dict = dict(phone="0788123123", created_by=user, modified_by=user, org=self.org, name="Goran Dragic")
+        field_dict = {
+            "urn:tel": "0788123123",
+            "created_by": user,
+            "modified_by": user,
+            "org": self.org,
+            "name": "Goran Dragic",
+        }
         field_dict["uuid"] = c1.uuid
 
         c5 = Contact.create_instance(field_dict)

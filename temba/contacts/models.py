@@ -67,7 +67,7 @@ FACEBOOK_PATH_REF_PREFIX = "ref:"
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number"), "phone", "tel_e164"),
+    (TEL_SCHEME, _("Phone number"), TEL_SCHEME, "tel_e164"),
     (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME, FACEBOOK_SCHEME),
     (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME, TWITTER_SCHEME),
     (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME, TWITTERID_SCHEME),
@@ -82,7 +82,7 @@ URN_SCHEME_CONFIG = (
 )
 
 
-IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
+IMPORT_HEADERS = tuple((f"URN:{c[2]}", c[0]) for c in URN_SCHEME_CONFIG)
 
 STOP_CONTACT_EVENT = "stop_contact"
 
@@ -97,7 +97,7 @@ class URN(object):
     """
 
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {s[2] for s in URN_SCHEME_CONFIG}
+    IMPORT_HEADERS = {f"URN:{s[2]}" for s in URN_SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -1280,9 +1280,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if key.startswith("group:"):
                 continue
 
-            if key.startswith("urn:"):
-                cleaned_key = key.replace("urn:", "", 1).strip()
-
             if key.startswith("field:"):
                 cleaned_key = key.replace("field:", "", 1).strip()
 
@@ -1292,12 +1289,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         urns = []
 
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
+        possible_urn_headers_case_insesitive = [scheme.lower() for scheme in possible_urn_headers]
 
         # prevent urns update on anon org
         if uuid and org.is_anon and not is_admin:
-            possible_urn_headers = []
+            possible_urn_headers_case_insesitive = []
 
-        for urn_header in possible_urn_headers:
+        for urn_header in possible_urn_headers_case_insesitive:
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
@@ -1384,6 +1382,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for key in field_dict.keys():
             # ignore any reserved fields or URN schemes
             if key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
+                continue
+
+            if key.startswith("urn:"):
                 continue
 
             value = field_dict[key]
@@ -1486,9 +1487,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     @classmethod
     def validate_org_import_header(cls, headers, org):
         possible_headers = [h[0] for h in IMPORT_HEADERS]
-        found_headers = [h for h in headers if h in possible_headers]
+        possible_headers_case_insensitive = [h.lower() for h in possible_headers]
+        found_headers = [h.lower() for h in headers if h in possible_headers_case_insensitive]
 
-        capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
+        capitalized_possible_headers = '", "'.join([h for h in possible_headers])
 
         if "uuid" in headers or "contact uuid" in headers:
             return
@@ -2293,7 +2295,7 @@ class ContactURN(models.Model):
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
     CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
     CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
-    IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
+    IMPORT_HEADER_TO_SCHEME = {s[0].lower(): s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {
         TWITTER_SCHEME,
