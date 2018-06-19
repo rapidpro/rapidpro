@@ -261,7 +261,7 @@ class APITest(TembaTest):
 
         def api_request(endpoint, token):
             return self.client.get(
-                endpoint + ".json",
+                f"{endpoint}.json",
                 content_type="application/json",
                 HTTP_X_FORWARDED_HTTPS="https",
                 HTTP_AUTHORIZATION=f"Token {token}",
@@ -270,7 +270,7 @@ class APITest(TembaTest):
         def api_request_basic_auth(endpoint, username, token):
             credentials_base64 = base64.encodebytes(f"{username}:{token}".encode()).decode()
             return self.client.get(
-                endpoint + ".json",
+                f"{endpoint}.json",
                 content_type="application/json",
                 HTTP_X_FORWARDED_HTTPS="https",
                 HTTP_AUTHORIZATION=f"Basic {credentials_base64}",

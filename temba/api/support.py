@@ -1,6 +1,5 @@
 import logging
 
-from django.contrib.auth.models import User
 from rest_framework import exceptions, status
 from rest_framework.authentication import TokenAuthentication, BasicAuthentication
 from rest_framework.exceptions import APIException
