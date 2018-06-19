@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -260,10 +261,19 @@ class APITest(TembaTest):
 
         def api_request(endpoint, token):
             return self.client.get(
-                endpoint + ".json",
+                f"{endpoint}.json",
                 content_type="application/json",
                 HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION="Token %s" % token,
+                HTTP_AUTHORIZATION=f"Token {token}",
+            )
+
+        def api_request_basic_auth(endpoint, username, token):
+            credentials_base64 = base64.encodebytes(f"{username}:{token}".encode()).decode()
+            return self.client.get(
+                f"{endpoint}.json",
+                content_type="application/json",
+                HTTP_X_FORWARDED_HTTPS="https",
+                HTTP_AUTHORIZATION=f"Basic {credentials_base64}",
             )
 
         contacts_url = reverse("api.v2.contacts")
@@ -273,19 +283,36 @@ class APITest(TembaTest):
         response = api_request(contacts_url, "1234567890")
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
+        # can't fetch endpoint with invalid token
+        response = api_request_basic_auth(contacts_url, self.admin.username, "1234567890")
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
+        # can't fetch endpoint with invalid username
+        response = api_request_basic_auth(contacts_url, "some@name.com", token1.key)
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+
         # can fetch campaigns endpoint with valid admin token
         response = api_request(campaigns_url, token1.key)
+        self.assertEqual(response.status_code, 200)
+
+        response = api_request_basic_auth(campaigns_url, self.admin.username, token1.key)
         self.assertEqual(response.status_code, 200)
 
         # but not with surveyor token
         response = api_request(campaigns_url, token2.key)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
+        response = api_request_basic_auth(campaigns_url, self.admin.username, token2.key)
+        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+
         # but it can be used to access the contacts endpoint
         response = api_request(contacts_url, token2.key)
+        self.assertEqual(response.status_code, 200)
+
+        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
         self.assertEqual(response.status_code, 200)
 
         # if user loses access to the token's role, don't allow the request
@@ -293,14 +320,19 @@ class APITest(TembaTest):
         self.org.surveyors.add(self.admin)
 
         self.assertEqual(api_request(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(api_request_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
         self.assertEqual(api_request(contacts_url, token2.key).status_code, 200)  # other token unaffected
+        self.assertEqual(api_request_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
 
         # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
         response = api_request(contacts_url, token2.key)
-        self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
+
+        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
     def test_root(self):

@@ -1,7 +1,7 @@
 import logging
 
 from rest_framework import exceptions, status
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import BasicAuthentication, TokenAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
@@ -38,7 +38,34 @@ class APITokenAuthentication(TokenAuthentication):
 
             return token.user, token
 
-        raise exceptions.AuthenticationFailed("User inactive or deleted")
+        raise exceptions.AuthenticationFailed("Invalid token")
+
+
+class APIBasicAuthentication(BasicAuthentication):
+    """
+    Basic authentication.
+
+    Clients should authenticate using HTTP Basic Authentication.
+
+    Credentials: username:api_token
+    """
+
+    def authenticate_credentials(self, userid, password):
+        try:
+            token = APIToken.objects.get(is_active=True, key=password)
+        except APIToken.DoesNotExist:
+            raise exceptions.AuthenticationFailed("Invalid token or email")
+
+        if token.user.username != userid:
+            raise exceptions.AuthenticationFailed("Invalid token or email")
+
+        if token.user.is_active:
+            # set the org on this user
+            token.user.set_org(token.org)
+
+            return token.user, token
+
+        raise exceptions.AuthenticationFailed("Invalid token or email")
 
 
 class OrgRateThrottle(ScopedRateThrottle):

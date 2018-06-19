@@ -885,6 +885,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "temba.api.support.APITokenAuthentication",
+        "temba.api.support.APIBasicAuthentication",
     ),
     "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
