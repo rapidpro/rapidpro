@@ -2175,7 +2175,7 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
@@ -2292,9 +2292,8 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spam.uuid)
         self.assert404(response)
 
-        Label.all_objects.all().delete()
-
-        for i in range(Label.MAX_ORG_LABELS):
+        starting = Label.all_objects.all().count()
+        for i in range(Label.MAX_ORG_LABELS - starting + 1):
             Label.get_or_create(self.org, self.user, "label%d" % i)
 
         response = self.postJSON(url, None, {"name": "Interesting"})

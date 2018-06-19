@@ -18,9 +18,9 @@ class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
     name = models.CharField(max_length=MAX_NAME_LEN, help_text="The name of this campaign")
-    group = models.ForeignKey(ContactGroup, help_text="The group this campaign operates on")
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, help_text="The group this campaign operates on")
     is_archived = models.BooleanField(default=False, help_text="Whether this campaign is archived or not")
-    org = models.ForeignKey(Org, help_text="The organization this campaign exists for")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this campaign exists for")
 
     @classmethod
     def create(cls, org, user, name, group):
