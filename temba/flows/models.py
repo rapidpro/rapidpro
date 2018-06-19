@@ -1685,7 +1685,7 @@ class Flow(TembaModel):
             run.contact = contact
 
             run_context = run.fields
-            flow_context = run.build_expressions_context(contact_context)
+            flow_context = run.build_expressions_context(contact_context, message_context.get("text"))
         else:
             run_context = {}
             flow_context = {}
@@ -3744,28 +3744,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         run.contact = contact
         return run
 
-    def build_expressions_context(self, contact_context=None):
+    def build_expressions_context(self, contact_context=None, raw_input=None):
         """
         Builds the @flow expression context for this run
         """
-
-        def result_wrapper(res):
-            """
-            Wraps a result, lets us do a nice representation of both @flow.foo and @flow.foo.text
-            """
-            return {
-                "__default__": res[FlowRun.RESULT_VALUE],
-                "text": res.get(FlowRun.RESULT_INPUT),
-                "time": res[FlowRun.RESULT_CREATED_ON],
-                "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
-                "value": res[FlowRun.RESULT_VALUE],
-            }
-
         context = {}
         default_lines = []
 
+        def check_text(key, val):  # pragma: no cover
+            if raw_input and key == "text" and val != raw_input:
+                logger.error(
+                    ".text was accessed in a run and didn't match @step.value",
+                    extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
+                )
+
         for key, result in self.results.items():
-            context[key] = result_wrapper(result)
+            context[key] = RunResultContext(result, check_text)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
         context["__default__"] = "\n".join(default_lines)
@@ -4347,6 +4341,35 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
+
+
+class RunResultContext(dict):
+    """
+    Wrapper for a run result in the context, e.g. @flow.foo
+    """
+
+    def __init__(self, result, lookup_callback):
+        super().__init__()
+        self.lookup_callback = lookup_callback
+        self.update(
+            {
+                "__default__": result[FlowRun.RESULT_VALUE],
+                "text": result.get(FlowRun.RESULT_INPUT),
+                "time": result[FlowRun.RESULT_CREATED_ON],
+                "category": result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, result[FlowRun.RESULT_CATEGORY]),
+                "value": result[FlowRun.RESULT_VALUE],
+            }
+        )
+
+    def get(self, key, default=None):
+        val = super().get(key, default)
+        self.lookup_callback(key, val)
+        return val
+
+    def __getitem__(self, key):
+        val = super().__getitem__(key)
+        self.lookup_callback(key, val)
+        return val
 
 
 class RuleSet(models.Model):
