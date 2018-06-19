@@ -6,7 +6,7 @@ import time
 import traceback
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.request import urlopen
@@ -5432,11 +5432,23 @@ class ExportFlowResultsTask(BaseExportTask):
         # firstly get runs from archives
         from temba.archives.models import Archive
 
-        # TODO only fetch archives for dates after the earliest created_on of the flows being exported
+        # get the earliest created date of the flows being exported
+        earliest_created_on = None
+        for flow in flows:
+            if earliest_created_on is None or flow.created_on < earliest_created_on:
+                earliest_created_on = flow.created_on
 
-        archives = Archive.objects.filter(
-            org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None
-        ).order_by("start_date")
+        earliest_day = earliest_created_on.date()
+        earliest_month = date(earliest_day.year, earliest_day.month, 1)
+
+        archives = (
+            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
+            .filter(
+                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
+                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
+            )
+            .order_by("start_date")
+        )
 
         flow_uuids = {str(flow.uuid) for flow in flows}
 

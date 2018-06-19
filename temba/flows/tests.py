@@ -1536,21 +1536,35 @@ class FlowTest(TembaTest):
             archive_type=Archive.TYPE_FLOWRUN,
             size=10,
             hash=uuid4().hex,
-            url=f"http://s3-bucket.aws.com/my/32562662.jsonl.gz",
-            record_count=2,
-            start_date=timezone.now(),
+            url="http://test-bucket.aws.com/archive1.jsonl.gz",
+            record_count=3,
+            start_date=timezone.now().date(),
             period="D",
             build_time=23425,
         )
         mock_s3 = MockS3Client()
         mock_s3.put_jsonl(
-            "s3-bucket",
-            "my/32562662.jsonl.gz",
+            "test-bucket",
+            "archive1.jsonl.gz",
             [contact1_run.as_archive_json(), contact2_run.as_archive_json(), contact2_other_flow.as_archive_json()],
         )
 
         contact1_run.release()
         contact2_run.release()
+
+        # create an archive earlier than our flow created date so we check that it isn't included
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_FLOWRUN,
+            size=10,
+            hash=uuid4().hex,
+            url="http://test-bucket.aws.com/archive2.jsonl.gz",
+            record_count=1,
+            start_date=timezone.now().date() - timedelta(days=2),
+            period="D",
+            build_time=5678,
+        )
+        mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
             workbook = self.export_flow_results(self.flow)
