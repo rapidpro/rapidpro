@@ -22,6 +22,6 @@ def clear_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0164_flowrun_delete_reason")]
+    dependencies = [("flows", "0165_auto_20180615_2040")]
 
     operations = [migrations.RunPython(apply_as_migration, clear_migration)]
