@@ -4135,6 +4135,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
+            # release our webhook events
+            for event in self.webhook_events.all():
+                event.release()
+
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
