@@ -835,6 +835,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=300)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
+    "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
 }
 
@@ -1013,6 +1014,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.twitter_activity.TwitterActivityType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
+    "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
 ]

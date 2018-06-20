@@ -63,6 +63,7 @@ TWITTERID_SCHEME = "twitterid"
 VIBER_SCHEME = "viber"
 FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
+WECHAT_SCHEME = "wechat"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
@@ -78,6 +79,7 @@ URN_SCHEME_CONFIG = (
     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME, EMAIL_SCHEME),
     (EXTERNAL_SCHEME, _("External identifier"), "external", EXTERNAL_SCHEME),
     (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME, JIOCHAT_SCHEME),
+    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME, WECHAT_SCHEME),
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME, FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME, WHATSAPP_SCHEME),
 )
@@ -344,6 +346,10 @@ class URN(object):
     @classmethod
     def from_jiochat(cls, path):
         return cls.from_parts(JIOCHAT_SCHEME, path)
+
+    @classmethod
+    def from_wechat(cls, path):
+        return cls.from_parts(WECHAT_SCHEME, path)
 
 
 class ContactField(SmartModel):
@@ -2297,6 +2303,7 @@ class ContactURN(models.Model):
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
         VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
         JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
+        WECHAT_SCHEME: dict(label="WeChat", key=None, id=0, field=None, urn_scheme=WECHAT_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
         LINE_SCHEME: dict(label="Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
         WHATSAPP_SCHEME: dict(label="WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
