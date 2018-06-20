@@ -796,6 +796,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -812,6 +813,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 run1.created_on,
+                run1.modified_on,
                 run1.exited_on,
                 "Orange",
                 "orange",
@@ -847,9 +849,9 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Exited"])
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Modified", "Exited"])
 
         self.assertExcelRow(
             sheet_runs,
@@ -860,6 +862,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "bootstrap 3",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
             ],
             tz,
@@ -873,6 +876,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "bootstrap 3",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
             ],
             tz,
@@ -880,7 +884,15 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             3,
-            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "bootstrap 3", contact3_run1.created_on],
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "bootstrap 3",
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                contact3_run1.exited_on,
+            ],
             tz,
         )
         self.assertExcelRow(
@@ -892,6 +904,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "bootstrap 3",
                 contact1_run2.created_on,
+                contact1_run2.modified_on,
                 contact1_run2.exited_on,
             ],
             tz,
@@ -905,6 +918,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "bootstrap 3",
                 contact2_run2.created_on,
+                contact2_run2.modified_on,
                 contact2_run2.exited_on,
             ],
             tz,
@@ -1089,9 +1103,9 @@ class FlowTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Exited"])
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Modified", "Exited"])
 
     def test_export_results(self):
         # setup flow and start both contacts
@@ -1148,7 +1162,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1159,6 +1173,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1169,7 +1184,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             1,
-            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", contact3_run1.created_on, "", "", "", ""],
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "",
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1182,6 +1208,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1199,6 +1226,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
                 "Other",
                 "green",
@@ -1210,7 +1238,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             4,
-            [contact2_run2.contact.uuid, "+250788383383", "Nic", "", contact2_run2.created_on, "", "", "", ""],
+            [
+                contact2_run2.contact.uuid,
+                "+250788383383",
+                "Nic",
+                "",
+                contact2_run2.created_on,
+                contact2_run2.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1223,6 +1262,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run2.created_on,
+                contact1_run2.modified_on,
                 contact1_run2.exited_on,
                 "Blue",
                 "blue",
@@ -1336,7 +1376,7 @@ class FlowTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1347,6 +1387,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1363,6 +1404,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1380,6 +1422,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
                 "Other",
                 "green",
@@ -1409,7 +1452,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 12)
+        self.assertEqual(len(list(sheet_runs.columns)), 13)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1423,6 +1466,7 @@ class FlowTest(TembaTest):
                 "Groups",
                 "Age",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1442,6 +1486,7 @@ class FlowTest(TembaTest):
                 "Devs",
                 "36",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1478,7 +1523,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
@@ -1507,6 +1552,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 "",
                 "Other",
                 "ngertin.",
@@ -1588,6 +1634,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 contact1_run.created_on,
+                contact1_run.modified_on,
                 "",
                 "Other",
                 "green",
@@ -1604,6 +1651,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run.created_on,
+                contact2_run.modified_on,
                 contact2_run.exited_on,
                 "Blue",
                 "blue",
@@ -1614,7 +1662,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             3,
-            [contact3_run.contact.uuid, "+250788123456", "Norbert", "", contact3_run.created_on, "", "", "", ""],
+            [
+                contact3_run.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "",
+                contact3_run.created_on,
+                contact3_run.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1637,7 +1696,19 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             1,
-            ["", run.contact.uuid, "+250788382382", "Eric", "", run.created_on, run.exited_on, "Blue", "blue", "blue"],
+            [
+                "",
+                run.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "",
+                run.created_on,
+                run.modified_on,
+                run.exited_on,
+                "Blue",
+                "blue",
+                "blue",
+            ],
             tz,
         )
 
@@ -1681,6 +1752,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 run.created_on,
+                run.modified_on,
                 run.exited_on,
                 "Blue",
                 "blue",
@@ -1698,7 +1770,7 @@ class FlowTest(TembaTest):
 
         # every sheet has only the head row
         self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
+        self.assertEqual(len(list(workbook.worksheets[0].columns)), 10)
 
     def test_copy(self):
         # pick a really long name so we have to concatenate

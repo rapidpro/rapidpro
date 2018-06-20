@@ -5303,9 +5303,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context["flows"] = self.flows.all()
         return context
 
-    def _get_runs_columns(
-        self, extra_urn_columns, contact_fields, result_nodes, show_submitted_by=False, show_time=False
-    ):
+    def _get_runs_columns(self, extra_urn_columns, contact_fields, result_nodes, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -5323,9 +5321,9 @@ class ExportFlowResultsTask(BaseExportTask):
         for cf in contact_fields:
             columns.append(cf.label)
 
-        if show_time:
-            columns.append("Started")
-            columns.append("Exited")
+        columns.append("Started")
+        columns.append("Modified")
+        columns.append("Exited")
 
         for node in result_nodes:
             columns.append("%s (Category) - %s" % (node.label, node.flow.name))
@@ -5397,7 +5395,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by, show_time=True
+            extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -5556,6 +5554,7 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row += contact_values
             runs_sheet_row += [
                 iso8601.parse_date(run["created_on"]),
+                iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
             ]
             runs_sheet_row += result_values
