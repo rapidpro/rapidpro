@@ -7337,7 +7337,7 @@ class FlowsTest(FlowFileTest):
 
         # should have an interrupted run
         self.assertEqual(
-            2, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
+            1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
         )
 
     def test_decimal_substitution(self):
@@ -7639,15 +7639,8 @@ class FlowsTest(FlowFileTest):
         flow.refresh_from_db()
         self.assertFalse(flow.is_active)
 
-        # should still have runs though
-        self.assertEqual(flow.runs.count(), 2)
-
-        # but they should all be inactive
-        self.assertEqual(flow.runs.filter(is_active=True).count(), 0)
-
-        # one is completed, the other interrupted
-        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 1)
-        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 1)
+        # runs should be deleted
+        self.assertEqual(flow.runs.count(), 0)
 
         # our campaign event should no longer be active
         event1.refresh_from_db()
