@@ -23,14 +23,12 @@ def check_calls_task():
         IVRCall.objects.filter(next_attempt__lte=now, retry_count__lte=IVRCall.MAX_RETRY_ATTEMPTS)
         .filter(status__in=IVRCall.RETRY_CALL)
         .filter(direction=IVRCall.OUTGOING, is_active=True)
-        .iterator()
     )
 
     for call in calls_to_retry:
-        # TODO: which queue should be used for scheduling call retries?
 
         call.status = IVRCall.QUEUED
         call.next_attempt = None
         call.save()
 
-        start_call_task.apply_async(kwargs={"call_pk": call.id})
+        start_call_task.apply_async(kwargs={"call_pk": call.id}, queue="handler")

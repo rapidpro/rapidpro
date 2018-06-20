@@ -1197,35 +1197,6 @@ class IVRTests(FlowFileTest):
         # we shouldn't have any outbound pending messages, they are all considered delivered
         self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
 
-        # test other our call status mappings
-        def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
-            call_to_update.ended_on = None
-            call_to_update.update_status(twilio_status, 0, channel_type)
-            call_to_update.save()
-            call_to_update.refresh_from_db()
-            self.assertEqual(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
-
-            if temba_status in IVRCall.DONE:
-                self.assertIsNotNone(call_to_update.ended_on)
-            else:
-                self.assertIsNone(call_to_update.ended_on)
-
-        test_status_update(call, "queued", IVRCall.WIRED, "T")
-        test_status_update(call, "ringing", IVRCall.RINGING, "T")
-        test_status_update(call, "canceled", IVRCall.CANCELED, "T")
-        test_status_update(call, "busy", IVRCall.BUSY, "T")
-        test_status_update(call, "failed", IVRCall.FAILED, "T")
-        test_status_update(call, "no-answer", IVRCall.NO_ANSWER, "T")
-
-        test_status_update(call, "ringing", IVRCall.RINGING, "NX")
-        test_status_update(call, "answered", IVRCall.IN_PROGRESS, "NX")
-        test_status_update(call, "completed", IVRCall.COMPLETED, "NX")
-        test_status_update(call, "failed", IVRCall.FAILED, "NX")
-        test_status_update(call, "unanswered", IVRCall.NO_ANSWER, "NX")
-        test_status_update(call, "timeout", IVRCall.NO_ANSWER, "NX")
-        test_status_update(call, "busy", IVRCall.BUSY, "NX")
-        test_status_update(call, "rejected", IVRCall.BUSY, "NX")
-
         self.releaseIVRCalls(delete=True)
 
         # try sending callme trigger
@@ -1277,6 +1248,72 @@ class IVRTests(FlowFileTest):
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
         self.assertEqual(timedelta(seconds=23), call.get_duration())
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    def test_ivr_status_update(self):
+        def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
+            call_to_update.ended_on = None
+            call_to_update.update_status(twilio_status, 0, channel_type)
+            call_to_update.save()
+            call_to_update.refresh_from_db()
+            self.assertEqual(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
+
+            if temba_status in IVRCall.DONE:
+                self.assertIsNotNone(call_to_update.ended_on)
+            else:
+                self.assertIsNone(call_to_update.ended_on)
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # twiml api config
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
+        Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
+
+        # import an ivr flow
+        self.import_file("call_me_maybe")
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name="Call me maybe").first()
+
+        # now pretend we are a normal caller
+        eric = self.create_contact("Eric Newcomer", number="+13603621737")
+        Contact.set_simulation(False)
+        flow.start([], [eric], restart_participants=True)
+
+        # we should have an outbound ivr call now
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+
+        test_status_update(call, "queued", IVRCall.WIRED, "T")
+        test_status_update(call, "ringing", IVRCall.RINGING, "T")
+        test_status_update(call, "canceled", IVRCall.CANCELED, "T")
+        test_status_update(call, "busy", IVRCall.BUSY, "T")
+        test_status_update(call, "failed", IVRCall.FAILED, "T")
+        test_status_update(call, "no-answer", IVRCall.NO_ANSWER, "T")
+        test_status_update(call, "in-progress", IVRCall.IN_PROGRESS, "T")
+        test_status_update(call, "completed", IVRCall.COMPLETED, "T")
+
+        test_status_update(call, "ringing", IVRCall.RINGING, "NX")
+        test_status_update(call, "answered", IVRCall.IN_PROGRESS, "NX")
+        test_status_update(call, "completed", IVRCall.COMPLETED, "NX")
+        test_status_update(call, "failed", IVRCall.FAILED, "NX")
+        test_status_update(call, "unanswered", IVRCall.NO_ANSWER, "NX")
+        test_status_update(call, "timeout", IVRCall.NO_ANSWER, "NX")
+        test_status_update(call, "busy", IVRCall.BUSY, "NX")
+        test_status_update(call, "rejected", IVRCall.BUSY, "NX")
+        test_status_update(call, "answered", IVRCall.IN_PROGRESS, "NX")
+        test_status_update(call, "completed", IVRCall.COMPLETED, "NX")
+
+        # set run as inactive and try to update status for ivr_retries
+        self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), dict(CallStatus="completed"))
+
+        self.assertRaises(ValueError, test_status_update, call, "busy", IVRCall.BUSY, "T")
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)

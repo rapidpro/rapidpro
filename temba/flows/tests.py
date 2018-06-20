@@ -2735,7 +2735,7 @@ class FlowTest(TembaTest):
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
-        flow = Flow.create(self.org, self.admin, Flow.FLOW)
+        flow = Flow.create(self.org, self.admin, "Flow")
 
         # update flow triggers
         response = self.client.post(

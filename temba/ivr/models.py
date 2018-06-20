@@ -267,4 +267,13 @@ class IVRCall(ChannelSession):
     def get_flow(self):
         from temba.flows.models import FlowRun
 
-        return FlowRun.objects.get(connection=self).flow
+        run = (
+            FlowRun.objects.filter(connection=self, is_active=True)
+            .select_related("flow")
+            .order_by("-created_on")
+            .first()
+        )
+        if run:
+            return run.flow
+        else:  # pragma: no cover
+            raise ValueError(f"Cannot find flow for IVRCall id={self.id}")
