@@ -1685,7 +1685,7 @@ class Flow(TembaModel):
             run.contact = contact
 
             run_context = run.fields
-            flow_context = run.build_expressions_context(contact_context)
+            flow_context = run.build_expressions_context(contact_context, message_context.get("text"))
         else:
             run_context = {}
             flow_context = {}
@@ -3744,28 +3744,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         run.contact = contact
         return run
 
-    def build_expressions_context(self, contact_context=None):
+    def build_expressions_context(self, contact_context=None, raw_input=None):
         """
         Builds the @flow expression context for this run
         """
-
-        def result_wrapper(res):
-            """
-            Wraps a result, lets us do a nice representation of both @flow.foo and @flow.foo.text
-            """
-            return {
-                "__default__": res[FlowRun.RESULT_VALUE],
-                "text": res.get(FlowRun.RESULT_INPUT),
-                "time": res[FlowRun.RESULT_CREATED_ON],
-                "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
-                "value": res[FlowRun.RESULT_VALUE],
-            }
-
         context = {}
         default_lines = []
 
+        def check_text(key, val):  # pragma: no cover
+            if raw_input and key == "text" and val != raw_input:
+                logger.error(
+                    ".text was accessed in a run and didn't match @step.value",
+                    extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
+                )
+
         for key, result in self.results.items():
-            context[key] = result_wrapper(result)
+            context[key] = RunResultContext(result, check_text)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
         context["__default__"] = "\n".join(default_lines)
@@ -4347,6 +4341,30 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
+
+
+class RunResultContext(dict):
+    """
+    Wrapper for a run result in the context, e.g. @flow.foo
+    """
+
+    def __init__(self, result, lookup_callback):
+        super().__init__()
+        self.lookup_callback = lookup_callback
+        self.update(
+            {
+                "__default__": result[FlowRun.RESULT_VALUE],
+                "text": result.get(FlowRun.RESULT_INPUT),
+                "time": result[FlowRun.RESULT_CREATED_ON],
+                "category": result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, result[FlowRun.RESULT_CATEGORY]),
+                "value": result[FlowRun.RESULT_VALUE],
+            }
+        )
+
+    def __getitem__(self, key):
+        val = super().__getitem__(key)
+        self.lookup_callback(key, val)
+        return val
 
 
 class RuleSet(models.Model):
@@ -5303,9 +5321,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context["flows"] = self.flows.all()
         return context
 
-    def _get_runs_columns(
-        self, extra_urn_columns, contact_fields, result_nodes, show_submitted_by=False, show_time=False
-    ):
+    def _get_runs_columns(self, extra_urn_columns, contact_fields, result_nodes, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -5323,9 +5339,9 @@ class ExportFlowResultsTask(BaseExportTask):
         for cf in contact_fields:
             columns.append(cf.label)
 
-        if show_time:
-            columns.append("Started")
-            columns.append("Exited")
+        columns.append("Started")
+        columns.append("Modified")
+        columns.append("Exited")
 
         for node in result_nodes:
             columns.append("%s (Category) - %s" % (node.label, node.flow.name))
@@ -5397,7 +5413,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by, show_time=True
+            extra_urn_columns, contact_fields, result_nodes, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -5450,9 +5466,7 @@ class ExportFlowResultsTask(BaseExportTask):
         earliest_month = date(earliest_day.year, earliest_day.month, 1)
 
         archives = (
-            Archive.objects.filter(
-                org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None, needs_deletion=False
-            )
+            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
             .filter(
                 Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
                 | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
@@ -5461,17 +5475,24 @@ class ExportFlowResultsTask(BaseExportTask):
         )
 
         flow_uuids = {str(flow.uuid) for flow in flows}
+        last_modified_on = None
 
         for archive in archives:
             for record_batch in chunk_list(archive.iter_records(), 1000):
                 matching = []
                 for record in record_batch:
+                    modified_on = iso8601.parse_date(record["modified_on"])
+                    if last_modified_on is None or last_modified_on < modified_on:
+                        last_modified_on = modified_on
+
                     if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
                         matching.append(record)
                 yield matching
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        if last_modified_on:
+            runs = runs.filter(modified_on__gt=last_modified_on)
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -5551,6 +5572,7 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row += contact_values
             runs_sheet_row += [
                 iso8601.parse_date(run["created_on"]),
+                iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
             ]
             runs_sheet_row += result_values
