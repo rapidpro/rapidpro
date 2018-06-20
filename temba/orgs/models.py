@@ -2118,7 +2118,7 @@ class Org(SmartModel):
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
-    def deactivate(self):
+    def deactivate(self, release_users=True):
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
@@ -2134,10 +2134,11 @@ class Org(SmartModel):
             channel.release()
 
         # release any user that belongs only to us
-        for user in self.get_org_users():
-            other_orgs = user.get_user_orgs(self.brand).exclude(id=self.id)
-            if not other_orgs:
-                user.release()
+        if release_users:
+            for user in self.get_org_users():
+                other_orgs = user.get_user_orgs(self.brand).exclude(id=self.id)
+                if not other_orgs:
+                    user.release()
 
         # clear out all of our users
         self.administrators.clear()
@@ -2243,6 +2244,16 @@ def release(user):
     user.is_active = False
     user.save()
 
+    # release any orgs we own
+    for org in user.get_owned_orgs():
+        org.deactivate(release_users=False)
+
+    # remove us from all remaining orgs
+    Org.administrators.through.objects.filter(user=user).delete()
+    Org.editors.through.objects.filter(user=user).delete()
+    Org.viewers.through.objects.filter(user=user).delete()
+    Org.surveyors.through.objects.filter(user=user).delete()
+
 
 def get_user_orgs(user, brand=None):
 
@@ -2255,6 +2266,17 @@ def get_user_orgs(user, brand=None):
         user_orgs = user_orgs.filter(brand=brand)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+
+def get_owned_orgs(user, brand=None):
+    """
+    Gets all the orgs where this is the only user
+    """
+    owned_orgs = []
+    for org in user.get_user_orgs():
+        if not org.get_org_users().exclude(id=user.id).exists():
+            owned_orgs.append(org)
+    return owned_orgs
 
 
 def get_org(obj):
@@ -2325,6 +2347,7 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
 
 USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))

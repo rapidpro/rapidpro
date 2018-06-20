@@ -336,6 +336,7 @@ PERMISSIONS = {
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
+    "orgs.user": ("deactivate"),
     "orgs.org": (
         "accounts",
         "smtp_server",
@@ -485,6 +486,8 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
+        "orgs.user_list",
+        "orgs.user_deactivate",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",

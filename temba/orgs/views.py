@@ -48,7 +48,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, languages
+from temba.utils import analytics, get_anonymous_user, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -339,7 +339,53 @@ class OrgGrantForm(forms.ModelForm):
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("edit",)
+    actions = ("list", "edit", "deactivate")
+
+    class List(SmartListView):
+        fields = ("username", "orgs", "date_joined")
+        link_fields = ("username",)
+        ordering = ("-date_joined",)
+        search_fields = ("username",)
+
+        def get_username(self, user):
+            return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
+
+        def get_orgs(self, user):
+            orgs = user.get_user_orgs()[0:6]
+
+            more = ""
+            if len(orgs) > 5:
+                more = ", ..."
+                orgs = orgs[0:5]
+            org_links = ", ".join(
+                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{org.name}</a>" for org in orgs]
+            )
+            return mark_safe(f"{org_links}{more}")
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+
+    class Deactivate(SmartUpdateView):
+        class DeactivateForm(forms.ModelForm):
+            deactivate = forms.BooleanField()
+
+            class Meta:
+                model = User
+                fields = ("deactivate",)
+
+        form_class = DeactivateForm
+
+        def get(self, request, *args, **kwargs):
+            return HttpResponseRedirect(reverse("users.user_update", args=[self.get_object().id]))
+
+        def form_valid(self, form):
+            user = self.get_object()
+            username = user.username
+            user.release()
+
+            messages.success(self.request, _(f"Deactivated user {username}"))
+
+            return HttpResponseRedirect(reverse("orgs.user_list", args=()))
 
     class Edit(SmartUpdateView):
         class EditForm(forms.ModelForm):
@@ -1108,7 +1154,8 @@ class OrgCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
-                return reverse("users.user_update", args=[obj.created_by.pk])
+                owner = obj.latest_admin() or obj.created_by
+                return reverse("users.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
         def get_created_by(self, obj):  # pragma: needs cover
