@@ -2658,7 +2658,7 @@ class TopUp(SmartModel):
         return self.credits - self.get_used()
 
     def __str__(self):  # pragma: needs cover
-        return f"[{self.id}] {self.credits} credits"
+        return f"{self.credits} Credits"
 
 
 class Debit(models.Model):

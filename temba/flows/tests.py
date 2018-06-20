@@ -7639,8 +7639,7 @@ class FlowsTest(FlowFileTest):
         self.assertFalse(event1.is_active)
 
         # nor should our trigger
-        trigger.refresh_from_db()
-        self.assertFalse(trigger.is_active)
+        self.assertFalse(Trigger.objects.filter(id=trigger.id).exists())
 
     def test_flow_delete_with_dependencies(self):
         self.login(self.admin)

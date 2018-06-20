@@ -406,15 +406,15 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "999")
+        self.assertContains(response, "<span class='attn'>999</span>")
 
         # view our topups
         response = self.client.get(reverse("orgs.topup_list"))
 
-        # should say we have a 1,000 credits too
-        self.assertContains(response, "999")
-
         # and that we have 999 credits left on our topup
+        self.assertContains(response, "999\n")
+
+        # should say we have a 1,000 credits too
         self.assertContains(response, "1 of 1,000 Credits Used")
 
         # our receipt should show that the topup was free
