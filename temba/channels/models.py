@@ -1603,7 +1603,10 @@ class ChannelEvent(models.Model):
         Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this event is connected to")
     )
     channel = models.ForeignKey(
-        Channel, verbose_name=_("Channel"), help_text=_("The channel on which this event took place")
+        Channel,
+        on_delete=models.PROTECT,
+        verbose_name=_("Channel"),
+        help_text=_("The channel on which this event took place"),
     )
     event_type = models.CharField(
         max_length=16, choices=TYPE_CHOICES, verbose_name=_("Event Type"), help_text=_("The type of event")
@@ -2346,5 +2349,8 @@ class ChannelSession(SmartModel):
         session = self.get_session()
         if session:
             session.release()
+
+        for msg in self.msgs.all():
+            msg.release()
 
         self.delete()

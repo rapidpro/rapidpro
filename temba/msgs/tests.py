@@ -14,7 +14,15 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import (
+    STOP_CONTACT_EVENT,
+    TEL_SCHEME,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+)
 from temba.flows.models import RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs import models
@@ -1641,7 +1649,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(Broadcast.objects.all()[0].contacts.all()[0], test_contact)
 
         # delete this broadcast to keep future test right
-        Broadcast.objects.all()[0].delete()
+        Broadcast.objects.all()[0].release()
 
         # test when we have many channels
         Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="1234")
@@ -2305,7 +2313,7 @@ class LabelTest(TembaTest):
         label2.toggle_label([msg1], add=True)
         label3.toggle_label([msg3], add=True)
 
-        folder1.delete()
+        folder1.release()
 
         self.assertFalse(Label.all_objects.filter(pk=folder1.pk).exists())
 
@@ -2315,7 +2323,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
 
-        label3.delete()
+        label3.release()
 
         self.assertFalse(Label.all_objects.filter(pk=label3.pk).exists())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
@@ -2364,7 +2372,8 @@ class LabelCRUDLTest(TembaTest):
         response = self.client.post(reverse("msgs.label_update", args=[label_one.pk]), dict(name="+label_1"))
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
-        Label.all_objects.all().delete()
+        self.release(Label.folder_objects.all())
+        self.release(Label.label_objects.all())
 
         for i in range(Label.MAX_ORG_LABELS):
             Label.get_or_create(self.org, self.user, "label%d" % i)
@@ -2879,8 +2888,14 @@ class CeleryTaskTest(TembaTest):
 
         TopUpCredits.objects.all().delete()
         TopUp.objects.all().delete()
+
+        SystemLabelCount.objects.all().delete()
+        ContactGroupCount.objects.all().delete()
+        ContactGroup.all_groups.all().delete()
         Org.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+
+        for boundary in AdminBoundary.objects.all():
+            boundary.release()
 
         User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 

@@ -1,3 +1,5 @@
+import gzip
+import json
 from gettext import gettext as _
 from urllib.parse import urlparse
 
@@ -25,7 +27,9 @@ class Archive(models.Model):
 
     PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
-    org = models.ForeignKey("orgs.Org", db_constraint=False, help_text="The org this archive is for")
+    org = models.ForeignKey(
+        "orgs.Org", on_delete=models.PROTECT, db_constraint=False, help_text="The org this archive is for"
+    )
     archive_type = models.CharField(
         choices=TYPE_CHOICES, max_length=16, help_text="The type of record this is an archive for"
     )
@@ -49,8 +53,8 @@ class Archive(models.Model):
 
     rollup = models.ForeignKey(
         "archives.Archive",
+        on_delete=models.PROTECT,
         null=True,
-        on_delete=models.SET_NULL,
         help_text=_("The archive we were rolled up into, if any"),
     )
 
@@ -63,17 +67,20 @@ class Archive(models.Model):
         url_parts = urlparse(self.url)
         return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
 
+    @classmethod
+    def s3_client(cls):
+        session = boto3.Session(
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        return session.client("s3")
+
     def filename(self):
         url_parts = urlparse(self.url)
         return url_parts.path.split("/")[-1]
 
     def get_download_link(self):
         if self.url:
-            session = boto3.Session(
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-            )
-            s3 = session.client("s3")
-
+            s3 = self.s3_client()
             s3_params = {
                 **self.s3_location(),
                 # force browser to download and not uncompress our gzipped files
@@ -85,6 +92,21 @@ class Archive(models.Model):
             return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
+
+    def iter_records(self):
+        """
+        Creates an iterator for the records in this archive, streaming and decompressing on the fly
+        """
+        s3 = self.s3_client()
+        s3_obj = s3.get_object(**self.s3_location())
+        stream = gzip.GzipFile(fileobj=s3_obj["Body"])
+
+        while True:
+            line = stream.readline()
+            if not line:
+                break
+
+            yield json.loads(line.decode("utf-8"))
 
     class Meta:
         unique_together = ("org", "archive_type", "start_date", "period")

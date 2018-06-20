@@ -1,3 +1,16 @@
+v3.0.427
+----------
+ * Release webhook events on run release
+ * Fetch run results from archives when exporting results
+ * Don't create action logs for non-test contacts
+
+v3.0.426
+----------
+ * Migrations for FK protects, including all SmartModels
+ * Update to latest xlsxlite to fix exporting date fields
+ * Remove  merged runs sheet from results exports
+ * Modified the key used in the transferto API call
+
 v3.0.425
 ----------
  * Enable burst sms type

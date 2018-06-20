@@ -1468,7 +1468,8 @@ class FlowCRUDL(SmartCRUDL):
                 msg_ids = list(Msg.objects.filter(contact=test_contact).only("id").values_list("id", flat=True))
 
                 for batch in chunk_list(msg_ids, 25):
-                    Msg.objects.filter(id__in=list(batch)).delete()
+                    for msg in Msg.objects.filter(id__in=list(batch)):
+                        msg.release()
 
                 for ivr_call in IVRCall.objects.filter(contact=test_contact):
                     ivr_call.release()
