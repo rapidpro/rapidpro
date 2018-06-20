@@ -702,9 +702,6 @@ class ContactCRUDL(SmartCRUDL):
             for header_col in column_headers:
 
                 header = header_col
-                if header.startswith("group:") or header.startswith("urn:"):
-                    continue
-
                 if header.startswith("field:"):
                     header = header.replace("field:", "", 1).strip()
 

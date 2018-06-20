@@ -5218,7 +5218,7 @@ class ContactTest(TembaTest):
         import_params = dict(
             org_id=self.org.id,
             timezone=timezone.utc,
-            extra_fields=[dict(key="nick_name", header="nick name", label="Nickname", type="T")],
+            extra_fields=[dict(key="nick_name", header="field: nick name", label="Nickname", type="T")],
         )
         field_dict = {
             "urn:tel": "0788123123",
@@ -5228,10 +5228,11 @@ class ContactTest(TembaTest):
             "name": "LaToya Jackson",
         }
         field_dict["yourmom"] = "face"
-        field_dict["nick name"] = "bob"
+        field_dict["field: nick name"] = "bob"
         field_dict = Contact.prepare_fields(field_dict, import_params, user=user)
         self.assertNotIn("yourmom", field_dict)
         self.assertNotIn("nick name", field_dict)
+        self.assertNotIn("field: nick name", field_dict)
         self.assertEqual(field_dict["nick_name"], "bob")
         self.assertEqual(field_dict["org"], self.org)
 

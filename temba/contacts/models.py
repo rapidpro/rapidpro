@@ -1274,17 +1274,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if uuid is None:
             uuid = field_dict.pop("uuid", None)
 
-        for key in field_dict:
-            cleaned_key = key
-            value = field_dict.pop(key)
-            if key.startswith("group:"):
-                continue
-
-            if key.startswith("field:"):
-                cleaned_key = key.replace("field:", "", 1).strip()
-
-            field_dict[cleaned_key] = value
-
         country = org.get_country_code()
         urns = []
 
@@ -1431,7 +1420,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             else:
                 raise ValueError("Extra field %s is a reserved field name" % key)
 
-        active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        active_scheme_headers = [h[0].lower() for h in IMPORT_HEADERS]
 
         # remove any field that's not a reserved field or an explicitly included extra field
         return {
@@ -1440,8 +1429,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if not (
                 (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS)
                 and key not in extra_fields
-                and key not in active_scheme
-                and not key.startswith("urn:")
+                and key not in active_scheme_headers
             )
         }
 
@@ -1490,7 +1478,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         possible_headers_case_insensitive = [h.lower() for h in possible_headers]
         found_headers = [h.lower() for h in headers if h in possible_headers_case_insensitive]
 
-        capitalized_possible_headers = '", "'.join([h for h in possible_headers])
+        joined_possible_headers = '", "'.join([h for h in possible_headers])
 
         if "uuid" in headers or "contact uuid" in headers:
             return
@@ -1499,7 +1487,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             raise Exception(
                 ugettext(
                     'The file you provided is missing a required header. At least one of "%s" '
-                    'or "Contact UUID" should be included.' % capitalized_possible_headers
+                    'or "Contact UUID" should be included.' % joined_possible_headers
                 )
             )
 
