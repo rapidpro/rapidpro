@@ -1516,7 +1516,7 @@ class FlowTest(TembaTest):
         )
 
     def test_export_results_from_archives(self):
-        contact1_run, contact2_run, contact3_run = self.flow.start([], [self.contact, self.contact2, self.contact3])
+        contact1_run, contact2_run = self.flow.start([], [self.contact, self.contact2])
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
         Flow.find_and_handle(contact1_in1)
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="blue")
@@ -1526,11 +1526,15 @@ class FlowTest(TembaTest):
         flow2 = self.get_flow("favorites")
         contact2_other_flow, = flow2.start([], [self.contact2])
 
+        contact3_run, = self.flow.start([], [self.contact3])
+
+        # we now have 4 runs in this order of modified_on
         contact1_run.refresh_from_db()
         contact2_run.refresh_from_db()
+        contact2_other_flow.refresh_from_db()
         contact3_run.refresh_from_db()
 
-        # archive runs for contacts 1 and 2
+        # archive the first 3 runs
         Archive.objects.create(
             org=self.org,
             archive_type=Archive.TYPE_FLOWRUN,
