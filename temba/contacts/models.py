@@ -2294,21 +2294,6 @@ class ContactURN(models.Model):
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
-    EXPORT_FIELDS = {
-        TEL_SCHEME: dict(label="URN:Tel", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-        TWITTER_SCHEME: dict(label="URN:Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-        TWITTERID_SCHEME: dict(label="URN:TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
-        EXTERNAL_SCHEME: dict(label="URN:Ext", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-        EMAIL_SCHEME: dict(label="URN:Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-        TELEGRAM_SCHEME: dict(label="URN:Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-        FACEBOOK_SCHEME: dict(label="URN:Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-        VIBER_SCHEME: dict(label="URN:Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
-        JIOCHAT_SCHEME: dict(label="URN:Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
-        FCM_SCHEME: dict(label="URN:FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
-        LINE_SCHEME: dict(label="URN:Line", key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
-        WHATSAPP_SCHEME: dict(label="URN:WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
-    }
-
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
 
     PRIORITY_LOWEST = 1
@@ -3024,7 +3009,9 @@ class ExportContactsTask(BaseExportTask):
                 count = scheme_counts[scheme]
                 if count is not None:
                     for i in range(count):
-                        field_dict = ContactURN.EXPORT_FIELDS[scheme].copy()
+                        field_dict = dict(
+                            label=f"URN:{scheme.capitalize()}", key=None, id=0, field=None, urn_scheme=scheme
+                        )
                         field_dict["position"] = i
                         fields.append(field_dict)
 
