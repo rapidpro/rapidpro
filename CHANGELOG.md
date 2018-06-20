@@ -1,3 +1,9 @@
+v3.0.428
+----------
+ * Add FlowRun.modified_on to results exports
+ * Change how we select archives for use in run exports to avoid race conditions
+ * Report to sentry when @flow.foo.text doesn't match @step.text
+
 v3.0.427
 ----------
  * Release webhook events on run release
