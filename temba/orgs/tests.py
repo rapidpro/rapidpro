@@ -87,6 +87,30 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(viewers_wrapper["msgs"]["msg_inbox"])
 
 
+class UserTest(TembaTest):
+    def test_release(self):
+
+        # admin doesn't "own" any orgs
+        self.assertEqual(0, len(self.admin.get_owned_orgs()))
+
+        # release all but our admin
+        self.surveyor.release()
+        self.editor.release()
+        self.user.release()
+
+        # still a user left, our org remains active
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_active)
+
+        # now that we are the last user, we own it now
+        self.assertEqual(1, len(self.admin.get_owned_orgs()))
+        self.admin.release()
+
+        # and we take our org with us
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
+
 class OrgDeleteTest(TembaTest):
     def setUp(self):
         super().setUp()
