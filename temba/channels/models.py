@@ -670,19 +670,6 @@ class Channel(TembaModel):
         )
 
     @classmethod
-    def refresh_all_jiochat_access_token(cls, channel_id=None):
-        from temba.utils.jiochat import JiochatClient
-
-        jiochat_channels = Channel.objects.filter(channel_type="JC", is_active=True)
-        if channel_id:
-            jiochat_channels = jiochat_channels.filter(id=channel_id)
-
-        for channel in jiochat_channels:
-            client = JiochatClient.from_channel(channel)
-            if client is not None:
-                client.refresh_access_token(channel.id)
-
-    @classmethod
     def get_or_create_android(cls, registration_data, status):
         """
         Creates a new Android channel from the gcm and status commands sent during device registration
