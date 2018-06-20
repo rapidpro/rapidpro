@@ -3748,18 +3748,31 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Builds the @flow expression context for this run
         """
+
+        def result_wrapper(res):
+            """
+            Wraps a result, lets us do a nice representation of both @flow.foo and @flow.foo.text
+            """
+            return {
+                "__default__": res[FlowRun.RESULT_VALUE],
+                "text": CheckedContextItem(res.get(FlowRun.RESULT_INPUT), check_text),
+                "time": res[FlowRun.RESULT_CREATED_ON],
+                "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
+                "value": res[FlowRun.RESULT_VALUE],
+            }
+
         context = {}
         default_lines = []
 
-        def check_text(key, val):  # pragma: no cover
-            if raw_input and key == "text" and val != raw_input:
+        def check_text(val):  # pragma: no cover
+            if raw_input and val != raw_input:
                 logger.error(
                     ".text was accessed in a run and didn't match @step.value",
                     extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
                 )
 
         for key, result in self.results.items():
-            context[key] = RunResultContext(result, check_text)
+            context[key] = result_wrapper(result)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
         context["__default__"] = "\n".join(default_lines)
@@ -4343,27 +4356,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-class RunResultContext(dict):
+class CheckedContextItem(dict):
     """
-    Wrapper for a run result in the context, e.g. @flow.foo
+    Wrapper for an item in the context that we want to monitor access to
     """
 
-    def __init__(self, result, lookup_callback):
+    def __init__(self, val, lookup_callback):
         super().__init__()
         self.lookup_callback = lookup_callback
-        self.update(
-            {
-                "__default__": result[FlowRun.RESULT_VALUE],
-                "text": result.get(FlowRun.RESULT_INPUT),
-                "time": result[FlowRun.RESULT_CREATED_ON],
-                "category": result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, result[FlowRun.RESULT_CATEGORY]),
-                "value": result[FlowRun.RESULT_VALUE],
-            }
-        )
+        self.update({"__default__": val})
 
     def __getitem__(self, key):
         val = super().__getitem__(key)
-        self.lookup_callback(key, val)
+        self.lookup_callback(val)
         return val
 
 
