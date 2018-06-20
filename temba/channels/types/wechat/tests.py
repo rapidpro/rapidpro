@@ -96,12 +96,21 @@ class WeChatTypeTest(TembaTest):
 
         self.assertEqual(mock_get.call_count, 1)
         mock_get.reset_mock()
-        mock_get.return_value = MockResponse(200, '{ "errcode": 0, "access_token":"ABC1234" }')
+        mock_get.return_value = MockResponse(200, '{ "errcode": 10, "access_token":"ABC1234" }')
 
         refresh_wechat_access_tokens()
 
         self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 2)
-        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 1)
+        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 2)
+        self.assertEqual(mock_get.call_count, 1)
+
+        mock_get.reset_mock()
+        mock_get.return_value = MockResponse(200, '{ "errcode": 0, "access_token":"ABC1234" }')
+
+        refresh_wechat_access_tokens()
+
+        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 3)
+        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 2)
         self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=False).count(), 1)
         self.assertEqual(mock_get.call_count, 1)
 
@@ -114,7 +123,7 @@ class WeChatTypeTest(TembaTest):
         response = self.client.get(
             reverse("channels.channellog_list") + "?channel=%d&others=1" % channel.id, follow=True
         )
-        self.assertEqual(len(response.context["object_list"]), 2)
+        self.assertEqual(len(response.context["object_list"]), 3)
 
         mock_get.reset_mock()
         mock_get.return_value = MockResponse(200, '{ "access_token":"ABC1235" }')
