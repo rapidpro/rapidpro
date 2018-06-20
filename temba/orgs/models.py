@@ -2183,10 +2183,10 @@ class Org(SmartModel):
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-            flow.release(release_runs=False)
 
-            for run in flow.runs.all():
-                run.release()
+            # we want to manually release runs so we dont fire a task to do it
+            flow.release(release_runs=False)
+            flow.release_runs()
 
             for rev in flow.revisions.all():
                 rev.release()
@@ -2740,8 +2740,8 @@ class TopUpCredits(SquashableModel):
     def release(self):
         self.delete()
 
-    def __str__(self):
-        return f"[{self.id}] {self.topup} (Used: {self.used})"
+    def __str__(self):  # pragma: no cover
+        return f"{self.topup} (Used: {self.used})"
 
     @classmethod
     def get_squash_query(cls, distinct_set):
