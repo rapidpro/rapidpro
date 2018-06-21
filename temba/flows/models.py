@@ -391,6 +391,7 @@ class Flow(TembaModel):
     X = "x"
     Y = "y"
 
+    # Flow types
     FLOW = "F"
     MESSAGE = "M"
     VOICE = "V"

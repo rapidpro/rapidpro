@@ -18,6 +18,8 @@ class IVRManager(models.Manager):
 
 
 class IVRCall(ChannelSession):
+    RETRY_BACKOFF_MINUTES = 60
+    MAX_RETRY_ATTEMPTS = 3
 
     objects = IVRManager()
 
@@ -34,6 +36,7 @@ class IVRCall(ChannelSession):
             org=channel.org,
             created_by=user,
             modified_by=user,
+            status=IVRCall.PENDING,
         )
 
     @classmethod
@@ -47,6 +50,7 @@ class IVRCall(ChannelSession):
             created_by=user,
             modified_by=user,
             external_id=external_id,
+            status=IVRCall.PENDING,
         )
 
     @classmethod
@@ -106,8 +110,7 @@ class IVRCall(ChannelSession):
                 import traceback
 
                 traceback.print_exc()
-                self.status = self.FAILED
-                self.save()
+
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended. %s" % str(e))
@@ -116,6 +119,7 @@ class IVRCall(ChannelSession):
                 import traceback
 
                 traceback.print_exc()
+
                 self.status = self.FAILED
                 self.save()
 
@@ -126,68 +130,116 @@ class IVRCall(ChannelSession):
     def start_call(self):
         from temba.ivr.tasks import start_call_task
 
+        self.status = IVRCall.QUEUED
+        self.save()
+
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
 
-    def update_status(self, status, duration, channel_type):
+    def schedule_call_retry(self, backoff_minutes: int):
+        # retry the call if it has not been retried maximum number of times
+        if self.retry_count < IVRCall.MAX_RETRY_ATTEMPTS:
+            self.next_attempt = timezone.now() + timedelta(minutes=backoff_minutes)
+            self.retry_count += 1
+        else:
+            self.next_attempt = None
+
+    def update_status(self, status: str, duration: float, channel_type: str):
         """
         Updates our status from a provide call status string
 
         """
-        from temba.flows.models import FlowRun, ActionLog
+        if not status:
+            raise ValueError(f"IVR Call status must be defined, got: '{status}'")
 
         previous_status = self.status
+
+        from temba.flows.models import FlowRun, ActionLog
+
         ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
-
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            if status == "queued":
-                self.status = self.QUEUED
-            elif status == "ringing":
-                self.status = self.RINGING
-            elif status == "no-answer":
-                self.status = self.NO_ANSWER
-            elif status == "in-progress":
-                if self.status != self.IN_PROGRESS:
-                    self.started_on = timezone.now()
-                self.status = self.IN_PROGRESS
-            elif status == "completed":
-                if self.contact.is_test:
-                    run = FlowRun.objects.filter(connection=self)
-                    if run:
-                        ActionLog.create(run[0], _("Call ended."))
-                self.status = self.COMPLETED
-            elif status == "busy":
-                self.status = self.BUSY
-            elif status == "failed":
-                self.status = self.FAILED
-            elif status == "canceled":
-                self.status = self.CANCELED
-
+            self.status = self.derive_ivr_status_twiml(status, previous_status)
         elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
-            if status in ("ringing", "started"):
-                self.status = self.RINGING
-            elif status == "answered":
-                self.status = self.IN_PROGRESS
-            elif status == "completed":
-                self.status = self.COMPLETED
-            elif status == "failed":
-                self.status = self.FAILED
-            elif status in ("rejected", "busy"):
-                self.status = self.BUSY
-            elif status in ("unanswered", "timeout"):
-                self.status = self.NO_ANSWER
+            self.status = self.derive_ivr_status_nexmo(status, previous_status)
+        else:  # pragma: no cover
+            raise ValueError(f"Unhandled IVR protocol: {ivr_protocol}")
+
+        # if we are in progress, mark our start time
+        if self.status == self.IN_PROGRESS and previous_status != self.IN_PROGRESS:
+            self.started_on = timezone.now()
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
 
+            if self.contact.is_test:
+                run = FlowRun.objects.filter(connection=self)
+                if run:
+                    ActionLog.create(run[0], _("Call ended."))
+
+        if self.status in ChannelSession.RETRY_CALL and previous_status not in ChannelSession.RETRY_CALL:
+            flow = self.get_flow()
+            backoff_minutes = flow.metadata.get("ivr_retry", IVRCall.RETRY_BACKOFF_MINUTES)
+
+            self.schedule_call_retry(backoff_minutes)
+
         if duration is not None:
             self.duration = duration
 
         # if we are moving into IN_PROGRESS, make sure our runs have proper expirations
-        if previous_status in [self.QUEUED, self.PENDING] and self.status in [self.IN_PROGRESS, self.RINGING]:
+        if previous_status in (self.PENDING, self.QUEUED, self.WIRED) and self.status in (
+            self.IN_PROGRESS,
+            self.RINGING,
+        ):
             runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
             for run in runs:
                 run.update_expiration()
+
+    @staticmethod
+    def derive_ivr_status_twiml(status: str, previous_status: str) -> str:
+        if status == "queued":
+            new_status = IVRCall.WIRED
+        elif status == "ringing":
+            new_status = IVRCall.RINGING
+        elif status == "no-answer":
+            new_status = IVRCall.NO_ANSWER
+        elif status == "in-progress":
+            new_status = IVRCall.IN_PROGRESS
+        elif status == "completed":
+            new_status = IVRCall.COMPLETED
+        elif status == "busy":
+            new_status = IVRCall.BUSY
+        elif status == "failed":
+            new_status = IVRCall.FAILED
+        elif status == "canceled":
+            new_status = IVRCall.CANCELED
+        else:
+            raise ValueError(f"Unhandled IVR call status: {status}")
+
+        return new_status
+
+    @staticmethod
+    def derive_ivr_status_nexmo(status: str, previous_status: str) -> str:
+        if status in ("ringing", "started"):
+            new_status = IVRCall.RINGING
+        elif status == "answered":
+            new_status = IVRCall.IN_PROGRESS
+        elif status == "completed":
+            # nexmo sends `completed` as a final state for all call exits, we only want to mark call as completed if
+            # it was previously `in progress`
+            if previous_status == IVRCall.IN_PROGRESS:
+                new_status = IVRCall.COMPLETED
+            else:
+                new_status = previous_status
+        elif status == "failed":
+            new_status = IVRCall.FAILED
+        elif status in ("rejected", "busy"):
+            new_status = IVRCall.BUSY
+        elif status in ("unanswered", "timeout", "cancelled"):
+            new_status = IVRCall.NO_ANSWER
+        else:
+            raise ValueError(f"Unhandled IVR call status: {status}")
+
+        return new_status
 
     def get_duration(self):
         """
@@ -195,7 +247,7 @@ class IVRCall(ChannelSession):
         it from the approximate time it was started
         """
         duration = self.duration
-        if not duration and self.status == "I" and self.started_on:
+        if not duration and self.status == self.IN_PROGRESS and self.started_on:
             duration = (timezone.now() - self.started_on).seconds
 
         if not duration:
@@ -211,3 +263,17 @@ class IVRCall(ChannelSession):
         if self.channel and self.channel.is_active:
             sorted_logs = sorted(ChannelLog.objects.filter(connection=self), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
+
+    def get_flow(self):
+        from temba.flows.models import FlowRun
+
+        run = (
+            FlowRun.objects.filter(connection=self, is_active=True)
+            .select_related("flow")
+            .order_by("-created_on")
+            .first()
+        )
+        if run:
+            return run.flow
+        else:  # pragma: no cover
+            raise ValueError(f"Cannot find flow for IVRCall id={self.id}")

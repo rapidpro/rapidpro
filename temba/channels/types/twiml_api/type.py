@@ -10,6 +10,18 @@ from ...models import ChannelType
 class TwimlAPIType(ChannelType):
     """
     An Twiml API channel
+
+    Callback status information (https://www.twilio.com/docs/voice/twiml#callstatus-values):
+
+        queued: The call is ready and waiting in line before going out.
+        ringing: The call is currently ringing.
+        in-progress: The call was answered and is currently in progress.
+        completed: The call was answered and has ended normally.
+        busy: The caller received a busy signal.
+        failed: The call could not be completed as dialed, most likely because the phone number was non-existent.
+        no-answer: The call ended without being answered.
+        canceled: The call was canceled via the REST API while queued or ringing.
+
     """
 
     code = "TW"
