@@ -730,7 +730,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
         self.assertEqual("orange", str(context["flow"]["color"]["value"]))
         self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
         self.assertIsNotNone(context["flow"]["color"]["time"])
 
         self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
@@ -750,7 +750,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Orange", context["flow"]["color"]["category"])
 
         # this is drawn from the message which didn't change
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
 
     def test_add_messages(self):
         run, = self.flow.start([], [self.contact])
@@ -6077,6 +6077,16 @@ class FlowsTest(FlowFileTest):
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
+
+    def test_checking_result_text(self):
+        flow = self.get_flow("check_result_text")
+        run, = flow.start([], [self.contact])
+
+        with patch("logging.Logger.error") as mock_logger_error:
+            Msg.create_incoming(self.channel, "tel:+12065552020", "ping")
+            Msg.create_incoming(self.channel, "tel:+12065552020", "pong")
+
+            mock_logger_error.assert_called_once()
 
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
