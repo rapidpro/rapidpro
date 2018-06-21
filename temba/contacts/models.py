@@ -3030,9 +3030,8 @@ class ExportContactsTask(BaseExportTask):
             )
 
         group_fields = []
-        if self.group_memberships.exists():
-            for group in self.group_memberships.all():
-                group_fields.append(dict(label="Group:%s" % group.name, key=None, group_id=group.id, group=group))
+        for group in self.group_memberships.all():
+            group_fields.append(dict(label="Group:%s" % group.name, key=None, group_id=group.id, group=group))
 
         return fields, scheme_counts, group_fields
 
@@ -3044,7 +3043,7 @@ class ExportContactsTask(BaseExportTask):
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
-        include_group_memberships = self.group_memberships.exists()
+        include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
             search_object, _ = contact_es_search(self.org, self.search, group)
