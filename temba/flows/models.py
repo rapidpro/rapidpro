@@ -4325,12 +4325,26 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.save(update_fields=["results", "modified_on"])
 
     def as_archive_json(self):
+        def convert_step(step):
+            return {"node": step[FlowRun.PATH_NODE_UUID], "time": step[FlowRun.PATH_ARRIVED_ON]}
+
+        def convert_result(result):
+            return {
+                "name": result.get(FlowRun.RESULT_NAME),
+                "node": result.get(FlowRun.RESULT_NODE_UUID),
+                "time": result[FlowRun.RESULT_CREATED_ON],
+                "input": result.get(FlowRun.RESULT_INPUT),
+                "value": result[FlowRun.RESULT_VALUE],
+                "category": result.get(FlowRun.RESULT_CATEGORY),
+            }
+
         return {
             "id": self.id,
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
-            "values": self.results,
+            "path": [convert_step(s) for s in self.path],
+            "values": {k: convert_result(r) for k, r in self.results.items()} if self.results else {},
             "events": self.events,
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
@@ -5532,7 +5546,7 @@ class ExportFlowResultsTask(BaseExportTask):
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
             # get this run's results by node UUID
-            results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run["values"].values()}
+            results_by_node = {result["node"]: result for result in run["values"].values()}
 
             # generate contact info columns
             contact_values = [
@@ -5555,9 +5569,9 @@ class ExportFlowResultsTask(BaseExportTask):
             result_values = []
             for n, node in enumerate(result_nodes):
                 node_result = results_by_node.get(node.uuid, {})
-                node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
-                node_value = node_result.get(FlowRun.RESULT_VALUE, "")
-                node_input = node_result.get(FlowRun.RESULT_INPUT, "")
+                node_category = node_result.get("category", "")
+                node_value = node_result.get("value", "")
+                node_input = node_result.get("input", "")
                 result_values += [node_category, node_value, node_input]
 
             if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
