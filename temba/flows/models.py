@@ -5429,7 +5429,7 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urn_columns = []
         if not self.org.is_anon:
             for extra_urn in extra_urns:
-                label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get("label", "")
+                label = f"URN:{extra_urn.capitalize()}"
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
