@@ -750,7 +750,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Orange", context["flow"]["color"]["category"])
 
         # this is drawn from the message which didn't change
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
 
     def test_add_messages(self):
         run, = self.flow.start([], [self.contact])
