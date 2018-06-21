@@ -2139,7 +2139,7 @@ class Org(SmartModel):
                 # check if this user is a member of any org on any brand
                 other_orgs = user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
-                    user.release()
+                    user.release(self.brand)
 
         # clear out all of our users
         self.administrators.clear()
