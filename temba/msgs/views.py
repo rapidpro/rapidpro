@@ -179,7 +179,6 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = any(counts.values())
         context["send_form"] = SendMessageForm(self.request.user)
-        context["org_is_purged"] = org.is_purgeable
         context["actions"] = self.actions
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
