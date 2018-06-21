@@ -1861,7 +1861,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     def test_temba_utils_nexmo_methods(self, mock_create_application, mock_jwt_encode):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key"))
-        mock_jwt_encode.return_value = "TOKEN"
+        mock_jwt_encode.return_value = b"TOKEN"
 
         self.org.connect_nexmo("123", "456", self.admin)
         self.org.save()
@@ -1877,7 +1877,9 @@ class IVRTests(FlowFileTest):
 
         # start our flow
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
-        flow.start([], [eric])
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
+            flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         call.external_id = "ext-id"
         call.save()
