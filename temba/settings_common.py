@@ -312,6 +312,7 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
+    "auth.user": ("deactivate",),
     "campaigns.campaign": ("api", "archived"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
@@ -336,7 +337,6 @@ PERMISSIONS = {
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
-    "orgs.user": ("deactivate"),
     "orgs.org": (
         "accounts",
         "smtp_server",
@@ -470,6 +470,7 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": ("orgs.org_grant",),
     "Customer Support": (
+        "auth.user_deactivate",
         "auth.user_list",
         "auth.user_update",
         "contacts.contact_break_anon",
@@ -486,8 +487,6 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
-        "orgs.user_list",
-        "orgs.user_deactivate",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",

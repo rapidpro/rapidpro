@@ -88,15 +88,77 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class UserTest(TembaTest):
+    def test_ui_permessions(self):
+        # non-logged in users can't go here
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertRedirect(response, "/users/login/")
+        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        self.assertRedirect(response, "/users/login/")
+
+        # either can admins
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertRedirect(response, "/users/login/")
+        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        self.assertRedirect(response, "/users/login/")
+
+        self.editor.refresh_from_db()
+        self.assertTrue(self.editor.is_active)
+
+    def test_ui_management(self):
+
+        # only customer support gets in on this sweet action
+        self.login(self.customer_support)
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.is_active)
+
+    def test_release_cross_brand(self):
+        # create a second org
+        branded_org = Org.objects.create(
+            name="Other Brand Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand="some-other-brand.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        branded_org.administrators.add(self.admin)
+
+        # now release our user on our primary brand
+        self.admin.release(settings.DEFAULT_BRAND)
+
+        # our admin should still be good
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+        self.assertEqual("Administrator@nyaruka.com", self.admin.email)
+
+        # but she should be removed from org
+        self.assertFalse(self.admin.get_user_orgs(settings.DEFAULT_BRAND).exists())
+
+        # now lets release her from the branded org
+        self.admin.release("some-other-brand.com")
+
+        # now she gets deactivated and ambiguated and belongs to no orgs
+        self.assertFalse(self.admin.is_active)
+        self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
+        self.assertFalse(self.admin.get_user_orgs().exists())
+
     def test_release(self):
 
         # admin doesn't "own" any orgs
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
         # release all but our admin
-        self.surveyor.release()
-        self.editor.release()
-        self.user.release()
+        self.surveyor.release(self.org.brand)
+        self.editor.release(self.org.brand)
+        self.user.release(self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -104,7 +166,7 @@ class UserTest(TembaTest):
 
         # now that we are the last user, we own it now
         self.assertEqual(1, len(self.admin.get_owned_orgs()))
-        self.admin.release()
+        self.admin.release(self.org.brand)
 
         # and we take our org with us
         self.org.refresh_from_db()
@@ -215,7 +277,7 @@ class OrgDeleteTest(TembaTest):
         org_user_ids = list(org.get_org_users().values_list("id", flat=True))
 
         # deactivate our primary org
-        org.deactivate()
+        org.mark_for_release()
 
         # all our users not in the other org should be deactivated
         self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())

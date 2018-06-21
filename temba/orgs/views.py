@@ -381,10 +381,11 @@ class UserCRUDL(SmartCRUDL):
         def form_valid(self, form):
             user = self.get_object()
             username = user.username
-            user.release()
 
-            messages.success(self.request, _(f"Deactivated user {username}"))
+            brand = self.request.branding.get("brand")
+            user.release(brand)
 
+            messages.success(self.request, _(f"Deleted user {username}"))
             return HttpResponseRedirect(reverse("orgs.user_list", args=()))
 
     class Edit(SmartUpdateView):
@@ -1248,7 +1249,7 @@ class OrgCRUDL(SmartCRUDL):
                 elif request.POST.get("status", None) == RESTORED:
                     self.get_object().set_restored()
                 elif request.POST.get("status", None) == "deactivate":
-                    self.get_object().deactivate()
+                    self.get_object().mark_for_release()
                 elif request.POST.get("status", None) == "reactivate":
                     org = self.get_object()
                     org.is_active = True

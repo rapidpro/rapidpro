@@ -5,32 +5,42 @@
 - block pre-form
   .pull-right
     %a.btn.btn-alert.deactivate
-      -trans "Deactivate"
+      -with user.get_owned_orgs as orgs
+        -if orgs
+          -trans "Delete "
+          -for org in orgs
+            %span.org
+              {{org.name}}{{forloop|oxford}}
+        -else
+          -trans "Delete User"
 
 - block post-form
-  .deletion.hide
-    .title
-      -trans "Deactivate User"
 
-    .body
-
-      -blocktrans with user.username as name
-        Are you sure you want to deactivate the user {{name}}?
-
-      - with user.get_owned_orgs as orgs
+  - with user.get_owned_orgs as orgs
+    .deletion.hide
+      .title
         -if orgs
-          .delete-warning
+          -trans "Delete Organization"
+        -else
+          -trans "Delete User"
 
-            .attn
-              -trans "Whoa, whoa, whoa!"
-            .orgs
-              -trans "By deactivating this user,"
-              -for org in orgs
-                %span.org
-                  {{org.name}}{{forloop|oxford}}
-              -blocktrans
-                will also be deleted. All organization data will be deleted and there is no
-                going back. This includes all flows, contacts, messages, etc.
+      .body
+        - with user.get_owned_orgs as orgs
+          -if orgs
+            .delete-warning
+              .attn
+                -trans "Whoa, whoa, whoa!"
+              .orgs
+                -trans "By deactivating this user,"
+                -for org in orgs
+                  %span.org
+                    {{org.name}}{{forloop|oxford}}
+                -blocktrans
+                  will also be deleted. All organization data will be deleted and there is no
+                  going back. This includes all flows, contacts, messages, etc.
+          - else
+            -blocktrans with user.username as name
+              Are you sure you want to deactivate the user {{name}}?
 
     %a#delete-form.posterize{href:'{% url "orgs.user_deactivate" user.id %}?deactivate=true'}
 
