@@ -3764,7 +3764,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         context = {}
         default_lines = []
 
-        def check_text(val):  # pragma: no cover
+        def check_text(val):
             if raw_input and val != raw_input:
                 logger.error(
                     ".text was accessed in a run and didn't match @step.value",

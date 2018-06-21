@@ -6049,6 +6049,16 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
 
+    def test_checking_result_text(self):
+        flow = self.get_flow("check_result_text")
+        run, = flow.start([], [self.contact])
+
+        with patch("logging.Logger.error") as mock_logger_error:
+            Msg.create_incoming(self.channel, "tel:+12065552020", "ping")
+            Msg.create_incoming(self.channel, "tel:+12065552020", "pong")
+
+            mock_logger_error.assert_called_once()
+
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
         run, = favorites.start([], [self.contact])
