@@ -730,7 +730,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
         self.assertEqual("orange", str(context["flow"]["color"]["value"]))
         self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
         self.assertIsNotNone(context["flow"]["color"]["time"])
 
         self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
