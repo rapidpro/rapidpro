@@ -19,7 +19,7 @@ class CallHandler(View):
         return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
+        raise ValueError("IVR callback handler does not support GET request method")
 
     def post(self, request, *args, **kwargs):
         call = IVRCall.objects.filter(pk=kwargs["pk"]).first()
@@ -66,8 +66,10 @@ class CallHandler(View):
                 if input_redirect:
                     status = "answered"
 
-            call.update_status(status, duration, channel_type)  # update any calls we have spawned with the same
-            call.save()
+            # nexmo does not set status for some callbacks
+            if status is not None:
+                call.update_status(status, duration, channel_type)  # update any calls we have spawned with the same
+                call.save()
 
             resume = request.GET.get("resume", 0)
             user_response = request.POST.copy()

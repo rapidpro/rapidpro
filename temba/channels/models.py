@@ -1263,7 +1263,7 @@ class Channel(TembaModel):
         """
         We want all messages that are:
             1. Pending, ie, never queued
-            2. Queued over two hours ago (something went awry and we need to re-queue)
+            2. Queued over twelve hours ago (something went awry and we need to re-queue)
             3. Errored and are ready for a retry
         """
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
@@ -1838,7 +1838,7 @@ class ChannelLog(models.Model):
         return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
-        if not self.request:
+        if not self.request:  # pragma: no cover
             return "%s %s" % (self.method, self.url)
 
         try:
@@ -2193,21 +2193,27 @@ def get_alert_user():
 
 
 class ChannelSession(SmartModel):
-    PENDING = "P"
-    QUEUED = "Q"
-    RINGING = "R"
-    IN_PROGRESS = "I"
-    COMPLETED = "D"
-    BUSY = "B"
-    FAILED = "F"
-    NO_ANSWER = "N"
-    CANCELED = "C"
+    PENDING = "P"  # initial state for all sessions
+    QUEUED = "Q"  # the session is queued internally
+    WIRED = "W"  # the API provider has confirmed that it successfully received the API request
+
+    # valid for IVR sessions
+    RINGING = "R"  # the call in ringing
+    IN_PROGRESS = "I"  # the call has been answered
+    BUSY = "B"  # the call is busy or rejected by the user
+    FAILED = "F"  # the platform failed to initiate the call (bad phone number)
+    NO_ANSWER = "N"  # the call has timed-out or ringed-out
+    CANCELED = "C"  # the call was terminated by platform
+    COMPLETED = "D"  # the call was completed successfully
+
+    # valid for USSD sessions
     TRIGGERED = "T"
     INTERRUPTED = "X"
     INITIATED = "A"
     ENDING = "E"
 
-    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
+    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
+    RETRY_CALL = (BUSY, NO_ANSWER)
 
     INCOMING = "I"
     OUTGOING = "O"
@@ -2222,6 +2228,7 @@ class ChannelSession(SmartModel):
     STATUS_CHOICES = (
         (PENDING, "Pending"),
         (QUEUED, "Queued"),
+        (WIRED, "Wired"),
         (RINGING, "Ringing"),
         (IN_PROGRESS, "In Progress"),
         (COMPLETED, "Complete"),
@@ -2257,6 +2264,13 @@ class ChannelSession(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
     session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
+
+    retry_count = models.IntegerField(
+        default=0, verbose_name=_("Retry Count"), help_text=_("The number of times this call has been retried")
+    )
+    next_attempt = models.DateTimeField(
+        verbose_name=_("Next Attempt"), help_text=_("When we should next attempt to make this call"), null=True
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
