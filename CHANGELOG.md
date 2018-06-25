@@ -1,3 +1,7 @@
+v3.0.430
+----------
+ * Fix message flow updating
+
 v3.0.429
 ----------
  * Remove org.is_purgeable
