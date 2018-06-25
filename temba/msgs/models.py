@@ -420,19 +420,7 @@ class Broadcast(models.Model):
         return self.msgs.exclude(status=RESENT)
 
     def get_message_count(self):
-        return self.get_messages().count()
-
-    def get_message_sending_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[PENDING, QUEUED]).count()
-
-    def get_message_sent_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[SENT, DELIVERED, WIRED]).count()
-
-    def get_message_delivered_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status=DELIVERED).count()
-
-    def get_message_failed_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
+        return BroadcastMsgCount.get_count(self)
 
     def get_preferred_languages(self, contact=None, org=None):
         """
@@ -639,8 +627,8 @@ class Broadcast(models.Model):
                     )
                 )
 
-        # mark ourselves as sent
-        if not partial_recipients:
+        # mark ourselves as sent if appropriate
+        if not partial_recipients or self.get_message_count() >= self.recipient_count:
             self.status = SENT
             self.save(update_fields=("status",))
 

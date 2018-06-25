@@ -546,7 +546,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(45):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (1)")
@@ -560,7 +560,7 @@ class MsgTest(TembaTest):
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(39):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (4)")
@@ -816,10 +816,7 @@ class MsgTest(TembaTest):
         )
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status="F")
-        broadcast.update()
         msg2 = broadcast.get_messages()[0]
-
-        self.assertEqual(FAILED, broadcast.status)
 
         # message without a broadcast
         msg3 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 3")
@@ -1572,52 +1569,13 @@ class BroadcastTest(TembaTest):
             msgs_models.BATCH_SIZE = orig_batch_size
 
     def test_broadcast_model(self):
-        def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
-            msg.status = new_msg_status
-            msg.save(update_fields=("status",))
-            msg.broadcast.update()
-            self.assertEqual(msg.broadcast.status, broadcast_status)
-
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEqual("I", broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
 
         broadcast.send(trigger_send=False)
-        self.assertEqual("Q", broadcast.status)
+        self.assertEqual("S", broadcast.status)
         self.assertEqual(broadcast.get_message_count(), 4)
-
-        # after calling send, all messages are queued
-        self.assertEqual(broadcast.status, "Q")
-
-        # test errored broadcast logic now that all sms status are queued
-        msgs = broadcast.get_messages().order_by("-id")
-        assertBroadcastStatus(msgs[0], "E", "Q")
-        assertBroadcastStatus(msgs[1], "E", "Q")
-        assertBroadcastStatus(msgs[2], "E", "E")  # now more than half are errored
-        assertBroadcastStatus(msgs[3], "E", "E")
-
-        # test failed broadcast logic now that all sms status are errored
-        assertBroadcastStatus(msgs[0], "F", "E")
-        assertBroadcastStatus(msgs[1], "F", "E")
-        assertBroadcastStatus(msgs[2], "F", "F")  # now more than half are failed
-        assertBroadcastStatus(msgs[3], "F", "F")
-
-        # first make sure there are no failed messages
-        for msg in broadcast.get_messages().order_by("-id"):
-            msg.status = "S"
-            msg.save(update_fields=("status",))
-
-        assertBroadcastStatus(broadcast.get_messages().order_by("-id")[0], "Q", "Q")
-        # test queued broadcast logic
-
-        # test sent broadcast logic
-        broadcast.get_messages().update(status="D")
-        assertBroadcastStatus(broadcast.get_messages().order_by("-id")[0], "S", "S")
-
-        # test delivered broadcast logic
-        assertBroadcastStatus(broadcast.get_messages().order_by("-id")[0], "D", "D")
-
-        self.assertEqual("Temba (%d)" % broadcast.id, str(broadcast))
 
     def test_send(self):
         # remove all channels first
@@ -2460,10 +2418,10 @@ class ScheduleTest(TembaTest):
         # let's trigger a sending of the messages
         self.org.trigger_send()
 
-        # we still should have 11 messages that have sent
+        # we still should have 11 messages that have been created
         self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
 
-        # let's trigger a sending of the messages again
+        # let's send the messages by hand
         self.org.trigger_send(Msg.objects.filter(channel=self.channel, status=PENDING))
 
         self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
