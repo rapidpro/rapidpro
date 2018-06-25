@@ -32,7 +32,7 @@ from temba.utils import analytics, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import INITIALIZING, PENDING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -684,11 +684,20 @@ class MsgCRUDL(SmartCRUDL):
 
     class Outbox(MsgActionMixin, InboxView):
         title = _("Outbox Messages")
-        template_name = "msgs/message_box.haml"
+        template_name = "msgs/msg_outbox.haml"
         system_label = SystemLabel.TYPE_OUTBOX
         actions = ()
         allow_export = True
         show_channel_logs = True
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # stuff in any pending broadcasts
+            context["pending_broadcasts"] = Broadcast.objects.filter(
+                org=self.request.user.get_org(), status__in=[INITIALIZING, PENDING, QUEUED]
+            )
+            return context
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)

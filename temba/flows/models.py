@@ -56,7 +56,6 @@ from temba.msgs.models import (
     INITIALIZING,
     OUTGOING,
     PENDING,
-    QUEUED,
     USSD as MSG_TYPE_USSD,
     Broadcast,
     Label,
@@ -2043,10 +2042,6 @@ class Flow(TembaModel):
                         quick_replies=send_action.quick_replies,
                     )
                     broadcast.update_contacts(all_contact_ids)
-
-                    # manually set our broadcast status to QUEUED, our sub processes will send things off for us
-                    broadcast.status = QUEUED
-                    broadcast.save(update_fields=["status"])
 
                     # add it to the list of broadcasts in this flow start
                     broadcasts.append(broadcast)

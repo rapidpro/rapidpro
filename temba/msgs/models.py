@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Count, Prefetch, Sum
+from django.db.models import Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
@@ -340,8 +340,6 @@ class Broadcast(models.Model):
 
         # get our through model
         RelatedModel = self.contacts.through
-
-        # clear called automatically by django
         for chunk in chunk_list(contact_ids, 1000):
             bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
             RelatedModel.objects.bulk_create(bulk_contacts)
@@ -641,50 +639,12 @@ class Broadcast(models.Model):
                     )
                 )
 
-        # for large batches, status is handled externally
-        # we do this as with the high concurrency of sending we can run into postgresl deadlocks
-        # (this could be our fault, or could be: http://www.postgresql.org/message-id/20140731233051.GN17765@andrew-ThinkPad-X230)
+        # mark ourselves as sent
         if not partial_recipients:
-            self.status = QUEUED if len(recipients) > 0 else SENT
+            self.status = SENT
             self.save(update_fields=("status",))
 
         return all_created_msg_ids
-
-    def update(self):
-        """
-        Check the status of our messages and update ours accordingly
-        """
-        # build a map from status to the count for that status
-        statuses = self.get_messages().values("status").order_by("status").annotate(count=Count("status"))
-        total = 0
-        status_map = dict()
-        for status in statuses:
-            status_map[status["status"]] = status["count"]
-            total += status["count"]
-
-        # if errored msgs are greater than the half of all msgs
-        if status_map.get(ERRORED, 0) > total // 2:
-            self.status = ERRORED
-
-        # if there are more than half failed, show failed
-        elif status_map.get(FAILED, 0) > total // 2:
-            self.status = FAILED
-
-        # if there are any in Q, we are Q
-        elif status_map.get(QUEUED, 0) or status_map.get(PENDING, 0):
-            self.status = QUEUED
-
-        # at this point we are either sent or delivered
-
-        # if there are any messages that are only in a sent state
-        elif status_map.get(SENT, 0) or status_map.get(WIRED, 0):
-            self.status = SENT
-
-        # otherwise, all messages delivered
-        elif status_map.get(DELIVERED, 0) == total:
-            self.status = DELIVERED
-
-        self.save(update_fields=["status"])
 
     def release(self):
         for msg in self.msgs.all():
@@ -1121,14 +1081,8 @@ class Msg(models.Model):
             created_on__lte=one_week_ago, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]
         )
 
-        failed_broadcasts = list(failed_messages.order_by("broadcast").values("broadcast").distinct())
-
         # fail our messages
         failed_messages.update(status="F", modified_on=timezone.now())
-
-        # and update all related broadcast statuses
-        for broadcast in Broadcast.objects.filter(id__in=[b["broadcast"] for b in failed_broadcasts]):
-            broadcast.update()
 
     @classmethod
     def mark_handled(cls, msg):
@@ -1361,10 +1315,6 @@ class Msg(models.Model):
 
         self.save()  # first save message status before updating the broadcast status
 
-        # update our broadcast if we have one
-        if self.broadcast:
-            self.broadcast.update()
-
         return handled
 
     def queue_handling(self, new_message=False, new_contact=False):
@@ -1441,10 +1391,6 @@ class Msg(models.Model):
         self.status = RESENT
         self.topup = None
         self.save()
-
-        # update our broadcast
-        if cloned.broadcast:
-            cloned.broadcast.update()
 
         # send our message
         self.org.trigger_send([cloned])
@@ -1956,6 +1902,39 @@ class Msg(models.Model):
             msg.resend()
             changed.append(msg.pk)
         return changed
+
+
+class BroadcastMsgCount(SquashableModel):
+    """
+    Maintains count of how many msgs are tied to a broadcast
+    """
+
+    SQUASH_OVER = ("broadcast_id",)
+
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, related_name="counts", db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "broadcast_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("broadcast_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {
+            "table": cls._meta.db_table
+        }
+
+        return sql, (distinct_set.start_id,) * 2
+
+    @classmethod
+    def get_count(cls, broadcast):
+        count = BroadcastMsgCount.objects.filter(broadcast=broadcast).aggregate(count_sum=Sum("count"))["count_sum"]
+        return count if count else 0
+
+    def __str__(self):  # pragma: needs cover
+        return "BroadcastMsgCount[%d:%d]" % (self.broadcast_id, self.count)
 
 
 STOP_WORDS = (
