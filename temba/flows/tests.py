@@ -9050,6 +9050,31 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    def test_migrate_to_11_4(self):
+        flow = self.get_flow("migrate_to_11_4")
+        flow_json = flow.as_json()
+
+        # gather up replies to check expressions were migrated
+        replies = []
+        for action_set in flow_json["action_sets"]:
+            for action in action_set["actions"]:
+                if "msg" in action:
+                    if isinstance(action["msg"], str):
+                        replies.append(action["msg"])
+                    else:
+                        for text in sorted(action["msg"].values()):
+                            replies.append(text)
+
+        self.assertEqual(
+            replies,
+            [
+                "Hi there. Say something.",
+                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
+                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
+                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
+            ],
+        )
+
     def test_migrate_to_11_2(self):
         fre_definition = {
             "base_language": "fre",
