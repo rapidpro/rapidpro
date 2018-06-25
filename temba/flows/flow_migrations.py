@@ -22,9 +22,8 @@ from temba.utils.languages import iso6392_to_iso6393
 
 def migrate_to_version_11_4(json_flow, flow=None):
     """
-    Introduces the concept of format_location and format_date. This migration
-    wraps all references to rulesets or contact fields which are locations or dates and
-    wraps them appropriately
+    Replaces @flow.foo.text with @step.text for non-waiting rulesets, to bring old world functionality inline with the
+    new engine, where @run.results.foo.input is always the router operand.
     """
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
