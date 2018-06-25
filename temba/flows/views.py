@@ -483,8 +483,8 @@ class FlowCRUDL(SmartCRUDL):
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                # if we don't have a base language let them pick one (this is immutable)
 
+                # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
                     choices = [("base", "No Preference")]
                     choices += [
@@ -562,6 +562,13 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+            )
+
+            expires_after_minutes = forms.ChoiceField(
+                label=_("Expire inactive contacts"),
+                help_text=_("When inactive contacts should be removed from the flow"),
+                initial=str(60 * 24 * 7),
+                choices=EXPIRES_CHOICES,
             )
 
             def __init__(self, user, *args, **kwargs):
