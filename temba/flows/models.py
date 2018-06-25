@@ -3757,7 +3757,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             """
             return {
                 "__default__": res[FlowRun.RESULT_VALUE],
-                "text": CheckedContextItem(res.get(FlowRun.RESULT_INPUT), check_text),
+                "text": res.get(FlowRun.RESULT_INPUT),
                 "time": res[FlowRun.RESULT_CREATED_ON],
                 "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
                 "value": res[FlowRun.RESULT_VALUE],
@@ -3765,13 +3765,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         context = {}
         default_lines = []
-
-        def check_text(val):
-            if raw_input and val != raw_input:
-                logger.error(
-                    ".text was accessed in a run and didn't match @step.value",
-                    extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
-                )
 
         for key, result in self.results.items():
             context[key] = result_wrapper(result)
@@ -4370,22 +4363,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
-
-
-class CheckedContextItem(dict):
-    """
-    Wrapper for an item in the context that we want to monitor access to
-    """
-
-    def __init__(self, val, lookup_callback):
-        super().__init__()
-        self.lookup_callback = lookup_callback
-        self.update({"__default__": val})
-
-    def __getitem__(self, key):
-        val = super().__getitem__(key)
-        self.lookup_callback(val)
-        return val
 
 
 class RuleSet(models.Model):
