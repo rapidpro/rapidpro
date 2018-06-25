@@ -109,8 +109,24 @@ class UserTest(TembaTest):
 
         # only customer support gets in on this sweet action
         self.login(self.customer_support)
+
+        # one of our users should belong to a bunch of orgs
+        for i in range(5):
+            org = Org.objects.create(
+                name=f"Org {i}",
+                timezone=pytz.timezone("Africa/Kigali"),
+                country=self.country,
+                brand=settings.DEFAULT_BRAND,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+            org.administrators.add(self.admin)
+
         response = self.client.get(reverse("orgs.user_list"))
         self.assertEqual(200, response.status_code)
+
+        # our user with lots of orgs should get ellipsized
+        self.assertContains(response, ", ...")
 
         response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
         self.assertEqual(302, response.status_code)
