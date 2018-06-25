@@ -730,7 +730,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
         self.assertEqual("orange", str(context["flow"]["color"]["value"]))
         self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
+        self.assertEqual("orange", context["flow"]["color"]["text"])
         self.assertIsNotNone(context["flow"]["color"]["time"])
 
         self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
@@ -750,7 +750,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Orange", context["flow"]["color"]["category"])
 
         # this is drawn from the message which didn't change
-        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
+        self.assertEqual("orange", context["flow"]["color"]["text"])
 
     def test_add_messages(self):
         run, = self.flow.start([], [self.contact])
@@ -5424,7 +5424,7 @@ class WebhookTest(TembaTest):
                     "name": "Order Status",
                     "value": "Get ",
                     "created_on": matchers.ISODate(),
-                    "input": "Get " if in_flowserver else "",
+                    "input": "Get ",
                 },
                 "response_1": {
                     "category": "Success",
@@ -5458,7 +5458,7 @@ class WebhookTest(TembaTest):
                     "name": "Order Status",
                     "value": "Post ",
                     "created_on": matchers.ISODate(),
-                    "input": "Post " if in_flowserver else "",
+                    "input": "Post ",
                 },
                 "response_1": {
                     "category": "Success",

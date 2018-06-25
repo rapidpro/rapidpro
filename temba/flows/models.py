@@ -4696,7 +4696,7 @@ class RuleSet(models.Model):
                     (result, value) = rule.matches(run, msg, context, text)
                     if result:
                         # treat category as the base category
-                        return rule, value, str(msg)
+                        return rule, value, text
             finally:
                 if msg:
                     msg.text = orig_text
