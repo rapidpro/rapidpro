@@ -374,6 +374,7 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("deactivate",)
 
         form_class = DeactivateForm
+        permission = "auth.user_update"
 
         def get(self, request, *args, **kwargs):
             return HttpResponseRedirect(reverse("users.user_update", args=[self.get_object().id]))

@@ -312,7 +312,6 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "auth.user": ("deactivate",),
     "campaigns.campaign": ("api", "archived"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
@@ -470,7 +469,6 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": ("orgs.org_grant",),
     "Customer Support": (
-        "auth.user_deactivate",
         "auth.user_list",
         "auth.user_update",
         "contacts.contact_break_anon",
