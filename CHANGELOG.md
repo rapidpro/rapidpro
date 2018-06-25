@@ -1,3 +1,13 @@
+v3.0.429
+----------
+ * Remove org.is_purgeable
+ * Fix format of archived run json to match latest rp-archiver
+ * Fix checking of result.text values in the context
+ * Import/Export column headers with type prefixes
+ * Add groups membership to contacts exports
+ * Retry calls that are in IVRCall.RETRY_CALL
+ * Retry IVR outgoing calls if contact did not answer
+
 v3.0.428
 ----------
  * Add FlowRun.modified_on to results exports
