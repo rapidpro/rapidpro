@@ -730,7 +730,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
         self.assertEqual("orange", str(context["flow"]["color"]["value"]))
         self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
         self.assertIsNotNone(context["flow"]["color"]["time"])
 
         self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
@@ -750,7 +750,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Orange", context["flow"]["color"]["category"])
 
         # this is drawn from the message which didn't change
-        self.assertEqual("orange", context["flow"]["color"]["text"])
+        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
 
     def test_add_messages(self):
         run, = self.flow.start([], [self.contact])
@@ -796,6 +796,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -812,6 +813,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 run1.created_on,
+                run1.modified_on,
                 run1.exited_on,
                 "Orange",
                 "orange",
@@ -847,9 +849,9 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Exited"])
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Modified", "Exited"])
 
         self.assertExcelRow(
             sheet_runs,
@@ -860,6 +862,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "bootstrap 3",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
             ],
             tz,
@@ -873,6 +876,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "bootstrap 3",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
             ],
             tz,
@@ -880,7 +884,15 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             3,
-            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "bootstrap 3", contact3_run1.created_on],
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "bootstrap 3",
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                contact3_run1.exited_on,
+            ],
             tz,
         )
         self.assertExcelRow(
@@ -892,6 +904,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "bootstrap 3",
                 contact1_run2.created_on,
+                contact1_run2.modified_on,
                 contact1_run2.exited_on,
             ],
             tz,
@@ -905,6 +918,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "bootstrap 3",
                 contact2_run2.created_on,
+                contact2_run2.modified_on,
                 contact2_run2.exited_on,
             ],
             tz,
@@ -1089,9 +1103,9 @@ class FlowTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Exited"])
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Started", "Modified", "Exited"])
 
     def test_export_results(self):
         # setup flow and start both contacts
@@ -1148,7 +1162,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1159,6 +1173,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1169,7 +1184,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             1,
-            [contact3_run1.contact.uuid, "+250788123456", "Norbert", "", contact3_run1.created_on, "", "", "", ""],
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "",
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1182,6 +1208,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1199,6 +1226,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
                 "Other",
                 "green",
@@ -1210,7 +1238,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             4,
-            [contact2_run2.contact.uuid, "+250788383383", "Nic", "", contact2_run2.created_on, "", "", "", ""],
+            [
+                contact2_run2.contact.uuid,
+                "+250788383383",
+                "Nic",
+                "",
+                contact2_run2.created_on,
+                contact2_run2.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1223,6 +1262,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run2.created_on,
+                contact1_run2.modified_on,
                 contact1_run2.exited_on,
                 "Blue",
                 "blue",
@@ -1336,7 +1376,7 @@ class FlowTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1347,6 +1387,7 @@ class FlowTest(TembaTest):
                 "Name",
                 "Groups",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1363,6 +1404,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "Devs",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1380,6 +1422,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run1.created_on,
+                contact2_run1.modified_on,
                 contact2_run1.exited_on,
                 "Other",
                 "green",
@@ -1409,7 +1452,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 12)
+        self.assertEqual(len(list(sheet_runs.columns)), 13)
 
         self.assertExcelRow(
             sheet_runs,
@@ -1417,12 +1460,13 @@ class FlowTest(TembaTest):
             [
                 "Contact UUID",
                 "URN",
-                "Twitter",
-                "Line",
+                "URN:Twitter",
+                "URN:Line",
                 "Name",
                 "Groups",
                 "Age",
                 "Started",
+                "Modified",
                 "Exited",
                 "color (Category) - Color Flow",
                 "color (Value) - Color Flow",
@@ -1442,6 +1486,7 @@ class FlowTest(TembaTest):
                 "Devs",
                 "36",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 contact1_run1.exited_on,
                 "Orange",
                 "orange",
@@ -1478,7 +1523,7 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(len(list(sheet_runs.columns)), 10)
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
@@ -1507,6 +1552,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 contact1_run1.created_on,
+                contact1_run1.modified_on,
                 "",
                 "Other",
                 "ngertin.",
@@ -1516,7 +1562,7 @@ class FlowTest(TembaTest):
         )
 
     def test_export_results_from_archives(self):
-        contact1_run, contact2_run, contact3_run = self.flow.start([], [self.contact, self.contact2, self.contact3])
+        contact1_run, contact2_run = self.flow.start([], [self.contact, self.contact2])
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
         Flow.find_and_handle(contact1_in1)
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="blue")
@@ -1526,11 +1572,15 @@ class FlowTest(TembaTest):
         flow2 = self.get_flow("favorites")
         contact2_other_flow, = flow2.start([], [self.contact2])
 
+        contact3_run, = self.flow.start([], [self.contact3])
+
+        # we now have 4 runs in this order of modified_on
         contact1_run.refresh_from_db()
         contact2_run.refresh_from_db()
+        contact2_other_flow.refresh_from_db()
         contact3_run.refresh_from_db()
 
-        # archive runs for contacts 1 and 2
+        # archive the first 3 runs
         Archive.objects.create(
             org=self.org,
             archive_type=Archive.TYPE_FLOWRUN,
@@ -1584,6 +1634,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 contact1_run.created_on,
+                contact1_run.modified_on,
                 "",
                 "Other",
                 "green",
@@ -1600,6 +1651,7 @@ class FlowTest(TembaTest):
                 "Nic",
                 "",
                 contact2_run.created_on,
+                contact2_run.modified_on,
                 contact2_run.exited_on,
                 "Blue",
                 "blue",
@@ -1610,7 +1662,18 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             3,
-            [contact3_run.contact.uuid, "+250788123456", "Norbert", "", contact3_run.created_on, "", "", "", ""],
+            [
+                contact3_run.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                "",
+                contact3_run.created_on,
+                contact3_run.modified_on,
+                "",
+                "",
+                "",
+                "",
+            ],
             tz,
         )
 
@@ -1633,7 +1696,19 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_runs,
             1,
-            ["", run.contact.uuid, "+250788382382", "Eric", "", run.created_on, run.exited_on, "Blue", "blue", "blue"],
+            [
+                "",
+                run.contact.uuid,
+                "+250788382382",
+                "Eric",
+                "",
+                run.created_on,
+                run.modified_on,
+                run.exited_on,
+                "Blue",
+                "blue",
+                "blue",
+            ],
             tz,
         )
 
@@ -1677,6 +1752,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 "",
                 run.created_on,
+                run.modified_on,
                 run.exited_on,
                 "Blue",
                 "blue",
@@ -1694,7 +1770,7 @@ class FlowTest(TembaTest):
 
         # every sheet has only the head row
         self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
+        self.assertEqual(len(list(workbook.worksheets[0].columns)), 10)
 
     def test_copy(self):
         # pick a really long name so we have to concatenate
@@ -2744,6 +2820,7 @@ class FlowTest(TembaTest):
                 "name": "Flow With Keyword Triggers",
                 "keyword_triggers": "it,changes,everything",
                 "expires_after_minutes": 60 * 12,
+                "base_language": "base",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -2797,11 +2874,22 @@ class FlowTest(TembaTest):
 
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
 
+        # test if form has expected fields
+        post_data = dict()
+        response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(
+            field_names,
+            ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "base_language", "loc"],
+        )
+
         # update flow triggers
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
         post_data["keyword_triggers"] = "it,join"
         post_data["expires_after_minutes"] = 60 * 12
+        post_data["base_language"] = "base"
         response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
 
         flow_with_keywords = Flow.objects.get(name=post_data["name"])
@@ -2902,7 +2990,7 @@ class FlowTest(TembaTest):
             self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
-        response = self.client.post(reverse("flows.flow_create"), dict(name="Flow", flow_type="F"), follow=True)
+        response = self.client.post(reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.FLOW), follow=True)
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(
@@ -2913,7 +3001,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
-        self.client.post(reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type="S"), follow=True)
+        self.client.post(reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type=Flow.SURVEY), follow=True)
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, "S")
         self.assertEqual(flow2.expires_after_minutes, 10080)
@@ -2923,7 +3011,9 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # create a new voice flow
-        response = self.client.post(reverse("flows.flow_create"), dict(name="Voice Flow", flow_type="V"), follow=True)
+        response = self.client.post(
+            reverse("flows.flow_create"), dict(name="Voice Flow", flow_type=Flow.VOICE), follow=True
+        )
         voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(voice_flow.flow_type, "V")
@@ -2977,9 +3067,14 @@ class FlowTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
-        # update expiration for voice flow
+        # update expiration for voice flow, and test if form has expected fields
         post_data = dict()
         response = self.client.get(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(
+            field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry", "loc"]
+        )
 
         choices = response.context["form"].fields["expires_after_minutes"].choices
         self.assertEqual(7, len(choices))
@@ -2993,24 +3088,58 @@ class FlowTest(TembaTest):
 
         # try updating with an sms type expiration to make sure it's restricted for voice flows
         post_data["expires_after_minutes"] = 60 * 12
+        post_data["ivr_retry"] = 30
         post_data["name"] = "Voice Flow"
         response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        self.assertFormError(
+            response,
+            "form",
+            "expires_after_minutes",
+            "Select a valid choice. 720 is not one of the available choices.",
+        )
+
         voice_flow.refresh_from_db()
         self.assertEqual(5, voice_flow.expires_after_minutes)
 
         # now do a valid value for voice
         post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 30
         response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
 
         voice_flow.refresh_from_db()
         self.assertEqual(3, voice_flow.expires_after_minutes)
 
-        # update flow triggers
+        # invalid value for ivr_retry
+        post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 123
+        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        self.assertFormError(
+            response, "form", "ivr_retry", "Select a valid choice. 123 is not one of the available choices."
+        )
+
+        # now do a valid value for ivr_retry
+        post_data["expires_after_minutes"] = 3
+        post_data["ivr_retry"] = 1440
+        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        voice_flow.refresh_from_db()
+        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
+
+        # update flow triggers, and test if form has expected fields
+        post_data = dict()
+        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"])
+
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
         post_data["keyword_triggers"] = "it,changes,everything"
         post_data["expires_after_minutes"] = 60 * 12
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+
         flow3 = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_list"))
@@ -3050,9 +3179,12 @@ class FlowTest(TembaTest):
         flow3.flow_type = Flow.SURVEY
         flow3.save()
 
-        # we should get the contact creation option
+        # we should get the contact creation option, and test if form has expected fields
         response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
         self.assertContains(response, "contact_creation")
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(field_names, ["name", "contact_creation", "expires_after_minutes", "loc"])
 
         # set contact creation to be per login
         del post_data["keyword_triggers"]
@@ -5972,6 +6104,16 @@ class FlowsTest(FlowFileTest):
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
+
+    def test_checking_result_text(self):
+        flow = self.get_flow("check_result_text")
+        run, = flow.start([], [self.contact])
+
+        with patch("logging.Logger.error") as mock_logger_error:
+            Msg.create_incoming(self.channel, "tel:+12065552020", "ping")
+            Msg.create_incoming(self.channel, "tel:+12065552020", "pong")
+
+            mock_logger_error.assert_called_once()
 
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
