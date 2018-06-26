@@ -293,7 +293,7 @@ class OrgDeleteTest(TembaTest):
         org_user_ids = list(org.get_org_users().values_list("id", flat=True))
 
         # deactivate our primary org
-        org.mark_for_release()
+        org.release()
 
         # all our users not in the other org should be deactivated
         self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
@@ -316,7 +316,7 @@ class OrgDeleteTest(TembaTest):
         self.assertEqual(4, len(self.mock_s3.objects))
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
-            org.release()
+            org.release(immediately=True)
 
         # oh noes, we deleted our archive files!
         self.assertEqual(2, len(self.mock_s3.objects))

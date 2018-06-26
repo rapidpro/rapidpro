@@ -1790,47 +1790,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
-    def _prep_release(self, user):
-        if self.is_active:
-            with transaction.atomic():
-
-                # prep our urns for deletion so our old path creates a new urn
-                for urn in self.urns.all():
-                    path = str(uuid.uuid4())
-                    urn.identity = f"{DELETED_SCHEME}:{path}"
-                    urn.path = path
-                    urn.scheme = DELETED_SCHEME
-                    urn.channel = None
-                    urn.save(update_fields=("identity", "path", "scheme", "channel"))
-
-                # no group for you!
-                self.clear_all_groups(user)
-
-                # now deactivate the contact itself
-                self.is_active = False
-                self.name = None
-                self.fields = None
-                self.modified_by = user
-                self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
-
-    def release_async(self, user):
+    def release(self, user, *, immediately=True):
         """
         Marks this contact for deletion
         """
+        with transaction.atomic():
+            # prep our urns for deletion so our old path creates a new urn
+            for urn in self.urns.all():
+                path = str(uuid.uuid4())
+                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.path = path
+                urn.scheme = DELETED_SCHEME
+                urn.channel = None
+                urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-        # mark us as inactive
-        self._prep_release(user)
+            # no group for you!
+            self.clear_all_groups(user)
+
+            # now deactivate the contact itself
+            self.is_active = False
+            self.name = None
+            self.fields = None
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
 
         # kick off a task to remove all the things related to us
-        from temba.contacts.tasks import release_contact
+        if immediately:
+            from temba.contacts.tasks import full_release_contact
 
-        release_contact.delay(self.id, user.id)
+            full_release_contact.delay(self.id, user.id)
 
-    def release(self, user):
+    def _full_release(self, user):
         with transaction.atomic():
-
-            # make sure we've been deactivated
-            self._prep_release(user)
 
             # release our messages
             for msg in self.msgs.all():

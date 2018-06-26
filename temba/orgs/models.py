@@ -2114,7 +2114,7 @@ class Org(SmartModel):
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
-    def mark_for_release(self, release_users=True):
+    def release(self, *, release_users=True, immediately=False):
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
@@ -2143,14 +2143,13 @@ class Org(SmartModel):
         self.viewers.clear()
         self.surveyors.clear()
 
-    def release(self):
+        if immediately:
+            self._full_release()
+
+    def _full_release(self):
         """
         Do the dirty work of deleting this org
         """
-        # orgs must be marked for release
-        if self.is_active:
-            self.mark_for_release()
-
         msg_ids = self.msgs.all().values_list("id", flat=True)
 
         # might be a lot of messages, batch this
@@ -2244,9 +2243,9 @@ def release(user, brand):
         user.is_active = False
         user.save()
 
-    # mark any orgs we own on this brand for release
+    # release any orgs we own on this brand
     for org in user.get_owned_orgs(brand):
-        org.mark_for_release(release_users=False)
+        org.release(release_users=False)
 
     # remove us as a user on any org for our brand
     for org in user.get_user_orgs(brand):

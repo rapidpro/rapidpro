@@ -1247,7 +1247,7 @@ class OrgCRUDL(SmartCRUDL):
                 elif request.POST.get("status", None) == RESTORED:
                     self.get_object().set_restored()
                 elif request.POST.get("status", None) == "deactivate":
-                    self.get_object().mark_for_release()
+                    self.get_object().release()
                 elif request.POST.get("status", None) == "reactivate":
                     org = self.get_object()
                     org.is_active = True

@@ -1105,8 +1105,8 @@ class ContactTest(TembaTest):
         self.assertEqual(6, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
-        # first try and prep for release and check that our urns are anonymized
-        contact._prep_release(self.admin)
+        # first try a regular release and make sure our urns are anonymized
+        contact.release(self.admin, immediately=False)
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
