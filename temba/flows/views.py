@@ -1803,7 +1803,7 @@ class FlowCRUDL(SmartCRUDL):
                 server.serialize_group,
             ),
             "label": Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
-            "language": Resource(Language.objects.filter(is_active=True), server.serialize_language),
+            "language": Resource(Language.objects.filter(is_active=True), server.serialize.serialize_language),
             "location_hierarchy": BoundaryResource(server.serialize_location_hierarchy),
         }
 
