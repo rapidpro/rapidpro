@@ -6078,6 +6078,33 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
 
+    @also_in_flowserver
+    def test_terminal_nodes(self, in_flowserver):
+        flow = self.get_flow("terminal_nodes")
+        action_set1, action_set2 = flow.action_sets.order_by("y")
+        rule_set1, rule_set2 = flow.rule_sets.order_by("y")
+        ben_rule = rule_set2.rules[0]
+
+        run, = flow.start([], [self.contact])
+
+        # answer with A to first ruleset which is Action (A) or Ruleset (R)
+        Msg.create_incoming(self.channel, "tel:+12065552020", "A")
+        run.refresh_from_db()
+
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(run.exit_type, "C")
+        self.assertEqual(run.path[2]["exit_uuid"], str(action_set2.exit_uuid))
+
+        run, = flow.start([], [self.contact], restart_participants=True)
+
+        # this time choose to end on a non-waiting ruleset
+        Msg.create_incoming(self.channel, "tel:+12065552020", "R")
+        run.refresh_from_db()
+
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(run.exit_type, "C")
+        self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
+
     def test_checking_result_text(self):
         flow = self.get_flow("check_result_text")
         run, = flow.start([], [self.contact])

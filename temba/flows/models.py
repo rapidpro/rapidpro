@@ -1149,7 +1149,7 @@ class Flow(TembaModel):
         if destination:
             run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
         else:
-            run.set_completed()
+            run.set_completed(exit_uuid=actionset.exit_uuid)
 
         return dict(handled=True, destination=destination, msgs=msgs)
 
@@ -1247,7 +1247,7 @@ class Flow(TembaModel):
                 run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
             else:
-                run.set_completed()
+                run.set_completed(exit_uuid=result_rule.uuid)
                 return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
@@ -4153,7 +4153,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.delete()
 
-    def set_completed(self, completed_on=None):
+    def set_completed(self, completed_on=None, exit_uuid=None):
         """
         Mark a run as complete
         """
@@ -4167,13 +4167,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
+            if exit_uuid:
+                self.path[-1]["exit_uuid"] = str(exit_uuid)
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
             self.is_active = False
             self.parent_context = None
             self.child_context = None
             self.save(
-                update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+                update_fields=(
+                    "path",
+                    "exit_type",
+                    "exited_on",
+                    "modified_on",
+                    "is_active",
+                    "parent_context",
+                    "child_context",
+                )
             )
 
         if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
