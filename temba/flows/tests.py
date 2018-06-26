@@ -2874,6 +2874,16 @@ class FlowTest(TembaTest):
 
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
 
+        # test if form has expected fields
+        post_data = dict()
+        response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(
+            field_names,
+            ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "base_language", "loc"],
+        )
+
         # update flow triggers
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
@@ -2980,7 +2990,7 @@ class FlowTest(TembaTest):
             self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
-        response = self.client.post(reverse("flows.flow_create"), dict(name="Flow", flow_type="F"), follow=True)
+        response = self.client.post(reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.FLOW), follow=True)
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(
@@ -2991,7 +3001,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
-        self.client.post(reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type="S"), follow=True)
+        self.client.post(reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type=Flow.SURVEY), follow=True)
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, "S")
         self.assertEqual(flow2.expires_after_minutes, 10080)
@@ -3001,7 +3011,9 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # create a new voice flow
-        response = self.client.post(reverse("flows.flow_create"), dict(name="Voice Flow", flow_type="V"), follow=True)
+        response = self.client.post(
+            reverse("flows.flow_create"), dict(name="Voice Flow", flow_type=Flow.VOICE), follow=True
+        )
         voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(voice_flow.flow_type, "V")
@@ -3055,9 +3067,14 @@ class FlowTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
-        # update expiration for voice flow
+        # update expiration for voice flow, and test if form has expected fields
         post_data = dict()
         response = self.client.get(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(
+            field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry", "loc"]
+        )
 
         choices = response.context["form"].fields["expires_after_minutes"].choices
         self.assertEqual(7, len(choices))
@@ -3110,12 +3127,19 @@ class FlowTest(TembaTest):
         voice_flow.refresh_from_db()
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
-        # update flow triggers
+        # update flow triggers, and test if form has expected fields
+        post_data = dict()
+        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"])
+
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
         post_data["keyword_triggers"] = "it,changes,everything"
         post_data["expires_after_minutes"] = 60 * 12
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+
         flow3 = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_list"))
@@ -3155,9 +3179,12 @@ class FlowTest(TembaTest):
         flow3.flow_type = Flow.SURVEY
         flow3.save()
 
-        # we should get the contact creation option
+        # we should get the contact creation option, and test if form has expected fields
         response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
         self.assertContains(response, "contact_creation")
+
+        field_names = [field for field in response.context_data["form"].fields]
+        self.assertEqual(field_names, ["name", "contact_creation", "expires_after_minutes", "loc"])
 
         # set contact creation to be per login
         del post_data["keyword_triggers"]
