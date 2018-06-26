@@ -27,7 +27,7 @@ $$ LANGUAGE plpgsql;
 
 class Migration(migrations.Migration):
 
-    dependencies = [("orgs", "0042_auto_20180615_2040")]
+    dependencies = [("orgs", "0043_remove_org_is_purgeable")]
 
     operations = [
         migrations.RunSQL(DEBIT_TRIGGER),
