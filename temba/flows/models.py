@@ -4691,6 +4691,15 @@ class RuleSet(models.Model):
                 # airtime test evaluate against the status of the airtime
                 operand = airtime.status
 
+            elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                # lookup the subflow run
+                subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+                if subflow_run:
+                    if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                        operand = "completed"
+                    elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                        operand = "expired"
+
             try:
                 rules = self.get_rules()
                 for rule in rules:
@@ -7536,8 +7545,6 @@ class SubflowTest(Test):
     TYPE_COMPLETED = "completed"
     TYPE_EXPIRED = "expired"
 
-    EXIT_MAP = {TYPE_COMPLETED: FlowRun.EXIT_TYPE_COMPLETED, TYPE_EXPIRED: FlowRun.EXIT_TYPE_EXPIRED}
-
     def __init__(self, exit_type):
         self.exit_type = exit_type
 
@@ -7549,10 +7556,7 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-        # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
-
-        if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
+        if self.exit_type == text:
             return 1, self.exit_type
         return 0, None
 
