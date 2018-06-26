@@ -30,9 +30,9 @@ def migrate_to_version_11_4(json_flow, flow=None):
     non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
 
     # make a regex that matches a context reference to the .text on any result from these
-    replace_pattern = r"@flow\.(" + "|".join(non_waiting) + ")\.text"
+    replace_pattern = r"flow\.(" + "|".join(non_waiting) + ")\.text"
     replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
-    replace_with = "@step.value"
+    replace_with = "step.value"
 
     # for every action in this flow, replace such references with @step.text
     for actionset in json_flow.get("action_sets", []):

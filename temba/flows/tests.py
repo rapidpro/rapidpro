@@ -9057,12 +9057,8 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(
             replies,
-            [
-                "Hi there. Say something.",
-                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
-                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
-                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
-            ],
+            ['@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3\n@(CONCATENATE(step.value, "blerg"))']
+            * 3,
         )
 
     def test_migrate_to_11_2(self):

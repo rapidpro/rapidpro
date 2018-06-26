@@ -3,27 +3,8 @@
   "site": "https://app.rapidpro.io",
   "flows": [
     {
-      "entry": "ed7dc72f-23cc-41ee-bd6d-a588a06d335b",
+      "entry": "019d0fab-eb51-4431-9f51-ddf207d0a744",
       "action_sets": [
-        {
-          "uuid": "ed7dc72f-23cc-41ee-bd6d-a588a06d335b",
-          "x": 241,
-          "y": 0,
-          "destination": "019d0fab-eb51-4431-9f51-ddf207d0a744",
-          "actions": [
-            {
-              "type": "reply",
-              "uuid": "93e5fca5-2c56-428d-84bd-e35b2db3dd4c",
-              "msg": {
-                "eng": "Hi there. Say something."
-              },
-              "media": {},
-              "quick_replies": [],
-              "send_all": false
-            }
-          ],
-          "exit_uuid": "a748d042-950a-471d-b512-72772828ca56"
-        },
         {
           "uuid": "92fb739f-4a99-4e29-8078-1f8fb06d127e",
           "x": 241,
@@ -34,7 +15,7 @@
               "type": "reply",
               "uuid": "0382e5aa-bfda-42c8-84d3-7893aba002f8",
               "msg": {
-                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3"
+                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
               },
               "media": {},
               "quick_replies": [],
@@ -44,7 +25,7 @@
               "type": "send",
               "uuid": "b5860896-db39-4ebb-b842-d38edf46fb61",
               "msg": {
-                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3"
+                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
               },
               "contacts": [
                 {
@@ -71,7 +52,7 @@
                 "test@test.com"
               ],
               "subject": "Testing",
-              "msg": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3"
+              "msg": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
             }
           ],
           "exit_uuid": "ea5640be-105b-4277-b04e-7ad55d2c898e"
