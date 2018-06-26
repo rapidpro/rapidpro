@@ -9059,9 +9059,9 @@ class FlowMigrationTest(FlowFileTest):
             replies,
             [
                 "Hi there. Say something.",
-                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
-                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
-                "@flow.response_1.text\n@step.text\n@step.text\n@flow.response_3",
+                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
+                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
+                "@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3",
             ],
         )
 

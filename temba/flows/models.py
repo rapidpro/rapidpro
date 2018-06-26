@@ -4664,11 +4664,12 @@ class RuleSet(models.Model):
                 )
 
             # if we have a custom operand, figure that out
-            text = None
             if self.operand:
-                (text, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
+                (operand, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
             elif msg:
-                text = msg.text
+                operand = str(msg)
+            else:
+                operand = None
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
@@ -4688,15 +4689,15 @@ class RuleSet(models.Model):
                 context = run.flow.build_expressions_context(run.contact, msg)
 
                 # airtime test evaluate against the status of the airtime
-                text = airtime.status
+                operand = airtime.status
 
             try:
                 rules = self.get_rules()
                 for rule in rules:
-                    (result, value) = rule.matches(run, msg, context, text)
+                    (result, value) = rule.matches(run, msg, context, operand)
                     if result:
                         # treat category as the base category
-                        return rule, value, text
+                        return rule, value, operand
             finally:
                 if msg:
                     msg.text = orig_text
