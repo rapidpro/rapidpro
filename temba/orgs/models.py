@@ -2118,7 +2118,7 @@ class Org(SmartModel):
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
-    def deactivate(self):
+    def mark_for_release(self, release_users=True):
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
@@ -2134,10 +2134,12 @@ class Org(SmartModel):
             channel.release()
 
         # release any user that belongs only to us
-        for user in self.get_org_users():
-            other_orgs = user.get_user_orgs(self.brand).exclude(id=self.id)
-            if not other_orgs:
-                user.release()
+        if release_users:
+            for user in self.get_org_users():
+                # check if this user is a member of any org on any brand
+                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                if not other_orgs:
+                    user.release(self.brand)
 
         # clear out all of our users
         self.administrators.clear()
@@ -2149,9 +2151,9 @@ class Org(SmartModel):
         """
         Do the dirty work of deleting this org
         """
-        # orgs must be deactivated before they can be released
+        # orgs must be marked for release
         if self.is_active:
-            self.deactivate()
+            self.mark_for_release()
 
         msg_ids = self.msgs.all().values_list("id", flat=True)
 
@@ -2233,15 +2235,29 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user):
-    user_uuid = str(uuid4())
-    user.first_name = ""
-    user.last_name = ""
-    user.email = f"{user_uuid}@rapidpro.io"
-    user.username = f"{user_uuid}@rapidpro.io"
-    user.password = ""
-    user.is_active = False
-    user.save()
+def release(user, brand):
+
+    # if our user exists across brands don't muck with the user
+    if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
+        user_uuid = str(uuid4())
+        user.first_name = ""
+        user.last_name = ""
+        user.email = f"{user_uuid}@rapidpro.io"
+        user.username = f"{user_uuid}@rapidpro.io"
+        user.password = ""
+        user.is_active = False
+        user.save()
+
+    # mark any orgs we own on this brand for release
+    for org in user.get_owned_orgs(brand):
+        org.mark_for_release(release_users=False)
+
+    # remove us as a user on any org for our brand
+    for org in user.get_user_orgs(brand):
+        org.administrators.remove(user)
+        org.editors.remove(user)
+        org.viewers.remove(user)
+        org.surveyors.remove(user)
 
 
 def get_user_orgs(user, brand=None):
@@ -2255,6 +2271,17 @@ def get_user_orgs(user, brand=None):
         user_orgs = user_orgs.filter(brand=brand)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+
+def get_owned_orgs(user, brand=None):
+    """
+    Gets all the orgs where this is the only user for the currend brand
+    """
+    owned_orgs = []
+    for org in user.get_user_orgs(brand=brand):
+        if not org.get_org_users().exclude(id=user.id).exists():
+            owned_orgs.append(org)
+    return owned_orgs
 
 
 def get_org(obj):
@@ -2325,6 +2352,7 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
 
 USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))

@@ -1783,7 +1783,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
-    def deactivate(self, user):
+    def _prep_release(self, user):
         if self.is_active:
             with transaction.atomic():
 
@@ -1812,7 +1812,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
 
         # mark us as inactive
-        self.deactivate(user)
+        self._prep_release(user)
 
         # kick off a task to remove all the things related to us
         from temba.contacts.tasks import release_contact
@@ -1823,7 +1823,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         with transaction.atomic():
 
             # make sure we've been deactivated
-            self.deactivate(user)
+            self._prep_release(user)
 
             # release our messages
             for msg in self.msgs.all():
