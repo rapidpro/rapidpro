@@ -696,7 +696,7 @@ class CampaignTest(TembaTest):
 
         # now import the group again
         filename = "farmers.csv"
-        extra_fields = [dict(key="planting_date", header="planting_date", label="Planting Date", type="D")]
+        extra_fields = [dict(key="planting_date", header="field: planting_date", label="Planting Date", type="D")]
         import_params = dict(
             org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=extra_fields, original_filename=filename
         )

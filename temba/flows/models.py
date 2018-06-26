@@ -391,6 +391,7 @@ class Flow(TembaModel):
     X = "x"
     Y = "y"
 
+    # Flow types
     FLOW = "F"
     MESSAGE = "M"
     VOICE = "V"
@@ -3749,18 +3750,31 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Builds the @flow expression context for this run
         """
+
+        def result_wrapper(res):
+            """
+            Wraps a result, lets us do a nice representation of both @flow.foo and @flow.foo.text
+            """
+            return {
+                "__default__": res[FlowRun.RESULT_VALUE],
+                "text": CheckedContextItem(res.get(FlowRun.RESULT_INPUT), check_text),
+                "time": res[FlowRun.RESULT_CREATED_ON],
+                "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
+                "value": res[FlowRun.RESULT_VALUE],
+            }
+
         context = {}
         default_lines = []
 
-        def check_text(key, val):  # pragma: no cover
-            if raw_input and key == "text" and val != raw_input:
+        def check_text(val):
+            if raw_input and val != raw_input:
                 logger.error(
                     ".text was accessed in a run and didn't match @step.value",
                     extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
                 )
 
         for key, result in self.results.items():
-            context[key] = RunResultContext(result, check_text)
+            context[key] = result_wrapper(result)
             default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
 
         context["__default__"] = "\n".join(default_lines)
@@ -4326,12 +4340,26 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.save(update_fields=["results", "modified_on"])
 
     def as_archive_json(self):
+        def convert_step(step):
+            return {"node": step[FlowRun.PATH_NODE_UUID], "time": step[FlowRun.PATH_ARRIVED_ON]}
+
+        def convert_result(result):
+            return {
+                "name": result.get(FlowRun.RESULT_NAME),
+                "node": result.get(FlowRun.RESULT_NODE_UUID),
+                "time": result[FlowRun.RESULT_CREATED_ON],
+                "input": result.get(FlowRun.RESULT_INPUT),
+                "value": result[FlowRun.RESULT_VALUE],
+                "category": result.get(FlowRun.RESULT_CATEGORY),
+            }
+
         return {
             "id": self.id,
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
-            "values": self.results,
+            "path": [convert_step(s) for s in self.path],
+            "values": {k: convert_result(r) for k, r in self.results.items()} if self.results else {},
             "events": self.events,
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
@@ -4344,27 +4372,19 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-class RunResultContext(dict):
+class CheckedContextItem(dict):
     """
-    Wrapper for a run result in the context, e.g. @flow.foo
+    Wrapper for an item in the context that we want to monitor access to
     """
 
-    def __init__(self, result, lookup_callback):
+    def __init__(self, val, lookup_callback):
         super().__init__()
         self.lookup_callback = lookup_callback
-        self.update(
-            {
-                "__default__": result[FlowRun.RESULT_VALUE],
-                "text": result.get(FlowRun.RESULT_INPUT),
-                "time": result[FlowRun.RESULT_CREATED_ON],
-                "category": result.get(FlowRun.RESULT_CATEGORY_LOCALIZED, result[FlowRun.RESULT_CATEGORY]),
-                "value": result[FlowRun.RESULT_VALUE],
-            }
-        )
+        self.update({"__default__": val})
 
     def __getitem__(self, key):
         val = super().__getitem__(key)
-        self.lookup_callback(key, val)
+        self.lookup_callback(val)
         return val
 
 
@@ -5413,7 +5433,7 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urn_columns = []
         if not self.org.is_anon:
             for extra_urn in extra_urns:
-                label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get("label", "")
+                label = f"URN:{extra_urn.capitalize()}"
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
@@ -5536,7 +5556,7 @@ class ExportFlowResultsTask(BaseExportTask):
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
             # get this run's results by node UUID
-            results_by_node = {result[FlowRun.RESULT_NODE_UUID]: result for result in run["values"].values()}
+            results_by_node = {result["node"]: result for result in run["values"].values()}
 
             # generate contact info columns
             contact_values = [
@@ -5559,9 +5579,9 @@ class ExportFlowResultsTask(BaseExportTask):
             result_values = []
             for n, node in enumerate(result_nodes):
                 node_result = results_by_node.get(node.uuid, {})
-                node_category = node_result.get(FlowRun.RESULT_CATEGORY, "")
-                node_value = node_result.get(FlowRun.RESULT_VALUE, "")
-                node_input = node_result.get(FlowRun.RESULT_INPUT, "")
+                node_category = node_result.get("category", "")
+                node_value = node_result.get("value", "")
+                node_input = node_result.get("input", "")
                 result_values += [node_category, node_value, node_input]
 
             if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover

@@ -486,3 +486,16 @@
       modal.show();
     });
     {% endif %}
+
+    {% if org_perms.contacts.contact_export %}
+    $(".export-contacts").live('click', function() {
+      var modal = new Modax('{% trans "Export Contacts" %}', '{{export_url}}');
+      modal.setListeners({
+        onSuccess: function() {
+          location.reload();
+        }
+      })
+      modal.setPrimaryButton('{% trans "Start Export" %}');
+      modal.show();
+    });
+    {% endif %}

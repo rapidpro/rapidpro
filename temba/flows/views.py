@@ -98,6 +98,8 @@ IVR_EXPIRES_CHOICES = (
     (15, _("After 15 minutes")),
 )
 
+IVR_RETRY_CHOICES = ((30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
+
 
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
@@ -471,7 +473,96 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class FlowUpdateForm(BaseFlowForm):
+        class BaseUpdateFlowFormMixin:
+            expires_after_minutes = forms.ChoiceField(
+                label=_("Expire inactive contacts"),
+                help_text=_("When inactive contacts should be removed from the flow"),
+                initial=str(60 * 24 * 7),
+                choices=EXPIRES_CHOICES,
+            )
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                # if we don't have a base language let them pick one (this is immutable)
+                if not self.instance.base_language:
+                    choices = [("base", "No Preference")]
+                    choices += [
+                        (lang.iso_code, lang.name)
+                        for lang in self.instance.org.languages.all().order_by("orgs", "name")
+                    ]
+                    self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
+
+        class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+            contact_creation = forms.ChoiceField(
+                label=_("Create a contact "),
+                help_text=_("Whether surveyor logins should be used as the contact for each run"),
+                choices=((Flow.CONTACT_PER_RUN, _("For each run")), (Flow.CONTACT_PER_LOGIN, _("For each login"))),
+            )
+
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.user = user
+
+                metadata = self.instance.metadata
+
+                contact_creation = self.fields["contact_creation"]
+                contact_creation.initial = metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN)
+
+            class Meta:
+                model = Flow
+                fields = ("name", "contact_creation", "expires_after_minutes")
+
+        class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+            ivr_retry = forms.ChoiceField(
+                label=_("Retry call on busy/no answer"),
+                help_text=_("Retries call three times for the chosen interval"),
+                initial=60,
+                choices=IVR_RETRY_CHOICES,
+            )
+            expires_after_minutes = forms.ChoiceField(
+                label=_("Expire inactive contacts"),
+                help_text=_("When inactive contacts should be removed from the flow"),
+                initial=5,
+                choices=IVR_EXPIRES_CHOICES,
+            )
+            keyword_triggers = forms.CharField(
+                required=False,
+                label=_("Global keyword triggers"),
+                help_text=_("When a user sends any of these keywords they will begin this flow"),
+            )
+
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.user = user
+
+                metadata = self.instance.metadata
+
+                # IVR retries
+                ivr_retry = self.fields["ivr_retry"]
+                ivr_retry.initial = metadata.get("ivr_retry", self.fields["ivr_retry"].initial)
+
+                flow_triggers = Trigger.objects.filter(
+                    org=self.instance.org,
+                    flow=self.instance,
+                    is_archived=False,
+                    groups=None,
+                    trigger_type=Trigger.TYPE_KEYWORD,
+                ).order_by("created_on")
+
+                keyword_triggers = self.fields["keyword_triggers"]
+                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
+
+            class Meta:
+                model = Flow
+                fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
+
+        class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+            keyword_triggers = forms.CharField(
+                required=False,
+                label=_("Global keyword triggers"),
+                help_text=_("When a user sends any of these keywords they will begin this flow"),
+            )
 
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
@@ -484,7 +575,6 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
 
-                metadata = self.instance.metadata
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org,
                     flow=self.instance,
@@ -493,62 +583,30 @@ class FlowCRUDL(SmartCRUDL):
                     trigger_type=Trigger.TYPE_KEYWORD,
                 ).order_by("created_on")
 
-                if self.instance.flow_type == Flow.VOICE:
-                    expiration = self.fields["expires_after_minutes"]
-                    expiration.choices = IVR_EXPIRES_CHOICES
-                    expiration.initial = 5
-
-                # if we don't have a base language let them pick one (this is immutable)
-                if not self.instance.base_language:
-                    choices = [("", "No Preference")]
-                    choices += [
-                        (lang.iso_code, lang.name)
-                        for lang in self.instance.org.languages.all().order_by("orgs", "name")
-                    ]
-                    self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
-
-                if self.instance.flow_type == Flow.SURVEY:
-                    contact_creation = forms.ChoiceField(
-                        label=_("Create a contact "),
-                        initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
-                        help_text=_("Whether surveyor logins should be used as the contact for each run"),
-                        choices=(
-                            (Flow.CONTACT_PER_RUN, _("For each run")),
-                            (Flow.CONTACT_PER_LOGIN, _("For each login")),
-                        ),
-                    )
-
-                    self.fields[Flow.CONTACT_CREATION] = contact_creation
-                else:
-                    self.fields["keyword_triggers"] = forms.CharField(
-                        required=False,
-                        label=_("Global keyword triggers"),
-                        help_text=_("When a user sends any of these keywords they will begin this flow"),
-                        initial=",".join([t.keyword for t in flow_triggers]),
-                    )
+                keyword_triggers = self.fields["keyword_triggers"]
+                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
 
             class Meta:
                 model = Flow
-                fields = ("name", "labels", "base_language", "expires_after_minutes", "ignore_triggers")
+                fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers")
 
         success_message = ""
-        fields = ("name", "expires_after_minutes")
-        form_class = FlowUpdateForm
 
-        def derive_fields(self):
-            fields = [field for field in self.fields]
+        def get_form_class(self):
+            flow_type = self.object.flow_type
 
-            obj = self.get_object()
-            if not obj.base_language and self.org.primary_language:  # pragma: needs cover
-                fields += ["base_language"]
-
-            if obj.flow_type == Flow.SURVEY:
-                fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
-            else:
-                fields.insert(1, "keyword_triggers")
-                fields.append("ignore_triggers")
-
-            return fields
+            if flow_type == Flow.VOICE:
+                return self.IVRFlowUpdateForm
+            elif flow_type == Flow.SURVEY:
+                return self.SurveyFlowUpdateForm
+            elif flow_type == Flow.MESSAGE:  # pragma: needs cover
+                return self.FlowUpdateForm
+            elif flow_type == Flow.FLOW:
+                return self.FlowUpdateForm
+            elif flow_type == Flow.USSD:  # pragma: needs cover
+                return self.FlowUpdateForm
+            else:  # pragma: no cover
+                raise ValueError(f"Unhandled Flow type: '{flow_type}'")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -561,6 +619,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if Flow.CONTACT_CREATION in self.form.cleaned_data:
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
+
+            if "ivr_retry" in self.form.cleaned_data:
+                metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+
             obj.metadata = metadata
             return obj
 
