@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
+from temba.utils import chunk_list
+
 
 def backfill_broadcast_counts(Broadcast, Msg, BroadcastMsgCount):
     broadcast_ids = list(Broadcast.objects.all().values_list("id", flat=True))
@@ -22,6 +24,13 @@ def backfill_broadcast_counts(Broadcast, Msg, BroadcastMsgCount):
 
         if num_updated % 1000 == 0:
             print(f" > Updated {num_updated} of {len(broadcast_ids)} broadcasts")
+
+    # update the status of all broadcasts that are not in a final state to sent
+    num_updated = 0
+    for chunk in chunk_list(broadcast_ids, 1000):
+        Broadcast.objects.filter(id__in=chunk, status__in=["P", "Q", "I"]).update(status="S")
+        num_updated += len(chunk)
+        print(f" > Updated status on {num_updated} of {len(broadcast_ids)} broadcasts")
 
 
 def apply_as_migration(apps, schema_editor):
